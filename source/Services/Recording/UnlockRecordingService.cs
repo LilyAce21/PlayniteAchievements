@@ -898,7 +898,11 @@ namespace PlayniteAchievements.Services.Recording
                 return ClipEligibility.DifferentGame;
             }
 
-            variants = resolved;
+            // The recorder films the whole display, so an on-screen notification is already part of
+            // the footage; one clean clip replaces the toast and framed variants (see
+            // RecordingCaptureTarget).
+            variants = RecordingCaptureTarget.ClipVariants(
+                resolved, RecordingCaptureTarget.CapturesPrimaryDisplay);
             return ClipEligibility.Eligible;
         }
 
@@ -940,6 +944,14 @@ namespace PlayniteAchievements.Services.Recording
         internal System.Drawing.Bitmap TryCaptureAnchorFrame(AchievementUnlockedEventArgs e, int capHeight)
         {
             if (_disposed || e == null || e.IsPreview || e.IsTestFire || e.IsFriendUnlock || e.IsProgressUpdate)
+            {
+                return null;
+            }
+
+            // Buffered frames show the whole display, and screenshots must stay game-window-only:
+            // decline, so the caller takes its normal live capture of the game window.
+            if (!RecordingCaptureTarget.ScreenshotMayUseRecordingBuffer(
+                    RecordingCaptureTarget.CapturesPrimaryDisplay))
             {
                 return null;
             }

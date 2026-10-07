@@ -87,6 +87,34 @@ namespace PlayniteAchievements.Services.Capture
             }
         }
 
+        /// <summary>
+        /// The SDR white level (see the window overload) of the monitor hosting
+        /// <paramref name="bounds"/>. Returns 1.0 when unavailable.
+        /// </summary>
+        public static float GetSdrWhiteScRgb(RECT bounds)
+        {
+            try
+            {
+                var monitor = MonitorFromRect(ref bounds, MONITOR_DEFAULTTONEAREST);
+                if (monitor == IntPtr.Zero)
+                {
+                    return 1.0f;
+                }
+
+                var info = new MONITORINFOEX { cbSize = Marshal.SizeOf(typeof(MONITORINFOEX)) };
+                if (!GetMonitorInfoW(monitor, ref info) || string.IsNullOrEmpty(info.szDevice))
+                {
+                    return 1.0f;
+                }
+
+                return QuerySdrWhiteForDevice(info.szDevice);
+            }
+            catch
+            {
+                return 1.0f;
+            }
+        }
+
         private static bool IsHdrActiveForMonitor(IntPtr monitor)
         {
             if (monitor == IntPtr.Zero)

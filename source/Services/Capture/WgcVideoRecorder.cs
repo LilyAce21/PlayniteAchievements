@@ -65,6 +65,10 @@ namespace PlayniteAchievements.Services.Capture
         // Last window handle whose capture-item creation failed, so a window that is not capturable
         // yet is logged once instead of once per second for as long as it stays that way.
         private IntPtr _lastItemFailureHwnd;
+        // True while the live capture item is the primary display rather than a game window.
+        private bool _displayCaptureActive;
+        private IntPtr _lastOffPrimaryHwnd;
+        private const uint MonitorDefaultToPrimary = 1;
 
         // Owned, BGRA, encoder-sized: the most recent clean game frame, already cropped, tone-mapped
         // and scaled by the single composer pass, so it is handed to the encoder as-is and a repeat
@@ -231,7 +235,9 @@ namespace PlayniteAchievements.Services.Capture
                     Priority = ThreadPriority.BelowNormal,
                 };
                 _pumpThread.Start();
-                _logger?.Info("[Recording] WGC-MF capture started (following the game window).");
+                _logger?.Info(RecordingCaptureTarget.CapturesPrimaryDisplay
+                    ? "[Recording] WGC-MF capture started (recording the primary display while the game runs)."
+                    : "[Recording] WGC-MF capture started (following the game window).");
                 return true;
             }
             catch (Exception ex)
@@ -247,7 +253,7 @@ namespace PlayniteAchievements.Services.Capture
         /// re-detects HDR for the new window's monitor, and starts a fresh capture. Ends the current
         /// segment so the resolution change starts a new one (segments in a clip must match size).
         /// </summary>
-        private void SetupCapture(IntPtr hwnd)
+        private void SetupCapture(IntPtr hwnd, bool rebuild = false)
         {
             // A minimized window is parked off-screen at a stub size with an empty client area, and
             // capturing it yields neither the game's picture nor a size the encoder will accept.
@@ -259,10 +265,42 @@ namespace PlayniteAchievements.Services.Capture
                 return;
             }
 
-            GraphicsCaptureItem item;
+            var captureDisplay = RecordingCaptureTarget.CapturesPrimaryDisplay;
+            if (captureDisplay && !rebuild && _displayCaptureActive && _framePool != null)
+            {
+                // Already recording the display: a new or recreated game window changes nothing
+                // about what is captured, so just follow it instead of tearing down a working
+                // capture (which would cost a segment boundary for no reason).
+                _activeHwnd = hwnd;
+                return;
+            }
+
+            GraphicsCaptureItem item = null;
+            var displayCaptured = false;
+            if (captureDisplay)
+            {
+                try
+                {
+                    item = CreateItemForMonitor(GetPrimaryMonitor());
+                    displayCaptured = item != null;
+                }
+                catch (Exception ex)
+                {
+                    // Recording must not stop because the display could not be captured: fall back
+                    // to the game window, which is what this recorder always captured before.
+                    _logger?.Warn(
+                        ex,
+                        "[Recording] WGC-MF could not capture the primary display; falling back to the game window.");
+                    item = null;
+                }
+            }
+
             try
             {
-                item = CreateItemForWindow(hwnd);
+                if (item == null)
+                {
+                    item = CreateItemForWindow(hwnd);
+                }
             }
             catch (Exception ex)
             {
@@ -297,14 +335,32 @@ namespace PlayniteAchievements.Services.Capture
             _latest?.Dispose();
             _latest = null;
 
-            _hdr = HdrDisplayDetector.IsHdrActive(hwnd);
-            _refWhite = _hdr ? HdrDisplayDetector.GetSdrWhiteScRgb(hwnd) : 1.0f;
+            // The primary monitor always contains the virtual-screen origin, so a 1x1 rect there
+            // identifies it for the HDR queries (they otherwise take a window or a rect).
+            var primaryProbe = new RECT { Left = 0, Top = 0, Right = 1, Bottom = 1 };
+            _hdr = displayCaptured
+                ? HdrDisplayDetector.IsHdrActive(primaryProbe)
+                : HdrDisplayDetector.IsHdrActive(hwnd);
+            _refWhite = _hdr
+                ? (displayCaptured
+                    ? HdrDisplayDetector.GetSdrWhiteScRgb(primaryProbe)
+                    : HdrDisplayDetector.GetSdrWhiteScRgb(hwnd))
+                : 1.0f;
             if (_composer == null)
             {
                 _composer = new FrameComposer(_device);
             }
 
-            ComputeClientCrop(hwnd, item.Size.Width, item.Size.Height, out _cropX, out _cropY, out _cropW, out _cropH);
+            if (displayCaptured)
+            {
+                // The whole display is the picture: no client-area crop (an empty crop means the
+                // whole captured texture).
+                _cropX = _cropY = _cropW = _cropH = 0;
+            }
+            else
+            {
+                ComputeClientCrop(hwnd, item.Size.Width, item.Size.Height, out _cropX, out _cropY, out _cropW, out _cropH);
+            }
 
             // The encoder size follows the crop, and is settled here rather than derived from the
             // held frame: that frame is now already encoder-sized, so reading its dimensions back
@@ -319,6 +375,7 @@ namespace PlayniteAchievements.Services.Capture
                 ? DirectXPixelFormat.R16G16B16A16Float
                 : DirectXPixelFormat.B8G8R8A8UIntNormalized;
             _item = item;
+            _displayCaptureActive = displayCaptured;
             _poolSize = item.Size;
             _geometryStale = false;
             _framePool = Direct3D11CaptureFramePool.CreateFreeThreaded(_winrtDevice, pixelFormat, 2, item.Size);
@@ -331,8 +388,13 @@ namespace PlayniteAchievements.Services.Capture
             // The captured size, the crop derived from it and the monitor's scale together explain any
             // later "the clip is cropped/zoomed" report, which is otherwise indistinguishable from the
             // game simply rendering that way.
+            if (displayCaptured)
+            {
+                NoteGameOffPrimaryDisplay(hwnd);
+            }
+
             _logger?.Info(
-                $"[Recording] WGC-MF capturing game window 0x{hwnd.ToInt64():X} (hdr={_hdr}, " +
+                $"[Recording] WGC-MF capturing {(displayCaptured ? "the primary display (game window" : "game window")} 0x{hwnd.ToInt64():X}{(displayCaptured ? " decides when to record)" : string.Empty)} (hdr={_hdr}, " +
                 $"{item.Size.Width}x{item.Size.Height}@{_fps}, crop={_cropW}x{_cropH}+{_cropX}+{_cropY}, " +
                 $"wgcRateLimited={updateRateLimited}, cursorSuppressed={cursorSuppressed}, " +
                 $"gpuPriority={(_gpuPriorityLowered ? "-1" : "normal")}, " +
@@ -373,6 +435,7 @@ namespace PlayniteAchievements.Services.Capture
             _session = null;
             _framePool = null;
             _item = null;
+            _displayCaptureActive = false;
         }
 
         /// <summary>
@@ -447,7 +510,7 @@ namespace PlayniteAchievements.Services.Capture
                             _geometryStale = false;
                             _latest?.Dispose();
                             _latest = null;
-                            SetupCapture(_activeHwnd);
+                            SetupCapture(_activeHwnd, rebuild: true);
                         }
                     }
 
@@ -1206,6 +1269,58 @@ namespace PlayniteAchievements.Services.Capture
             }
 
             return path;
+        }
+
+        /// <summary>The primary monitor: it is the one containing the virtual-screen origin.</summary>
+        private static IntPtr GetPrimaryMonitor()
+        {
+            var origin = new RECT { Left = 0, Top = 0, Right = 1, Bottom = 1 };
+            return MonitorFromRect(ref origin, MonitorDefaultToPrimary);
+        }
+
+        private static GraphicsCaptureItem CreateItemForMonitor(IntPtr hMonitor)
+        {
+            var factory = System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeMarshal
+                .GetActivationFactory(typeof(GraphicsCaptureItem));
+            var interop = (IGraphicsCaptureItemInterop)factory;
+            var iid = IID_IGraphicsCaptureItem;
+            var itemPtr = interop.CreateForMonitor(hMonitor, ref iid);
+            try
+            {
+                return (GraphicsCaptureItem)Marshal.GetObjectForIUnknown(itemPtr);
+            }
+            finally
+            {
+                Marshal.Release(itemPtr);
+            }
+        }
+
+        /// <summary>
+        /// Display recordings film the primary display only. If the game is running on another
+        /// display the clip will not show it, so say so once per window instead of leaving a
+        /// "the clip shows my desktop" report to be guessed at. Never throws.
+        /// </summary>
+        private void NoteGameOffPrimaryDisplay(IntPtr hwnd)
+        {
+            try
+            {
+                if (hwnd == _lastOffPrimaryHwnd)
+                {
+                    return;
+                }
+
+                var gameMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+                if (gameMonitor != IntPtr.Zero && gameMonitor != GetPrimaryMonitor())
+                {
+                    _lastOffPrimaryHwnd = hwnd;
+                    _logger?.Warn(
+                        $"[Recording] Game window 0x{hwnd.ToInt64():X} is not on the primary display; " +
+                        "recordings film the primary display, so the clips will not show the game.");
+                }
+            }
+            catch
+            {
+            }
         }
 
         private static GraphicsCaptureItem CreateItemForWindow(IntPtr hwnd)
