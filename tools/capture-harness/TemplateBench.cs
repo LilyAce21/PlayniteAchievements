@@ -47,8 +47,19 @@ public static class TemplateBench
     private static int _cycles = 3;
     private static double _holdSeconds = 4;
     private static int _load;
+    private static bool _software;
+    private static int _gpuPriority = -1;
+
+    [DllImport("gdi32.dll")]
+    private static extern int D3DKMTSetProcessSchedulingPriorityClass(IntPtr process, int priority);
     private static bool _freezeMotion;
     private static string _snapshot;
+    private static string _decodePath;
+    // Glow pulse and rays off and no countdown: only the background animates in the hold.
+    private static bool _backgroundOnly;
+    // The plugin's own content scale (fit and DPI compensation) on the card surface: 2 renders the
+    // card at the device size of a 200% display.
+    private static double _cardScale = 1;
     private static Assembly _plugin;
     private static object _logger;
 
@@ -91,6 +102,11 @@ public static class TemplateBench
                 case "--load": _load = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--plugin": _pluginDir = args[++i]; break;
                 case "--snapshot": _snapshot = args[++i]; break;
+                case "--decode": _decodePath = args[++i]; break;
+                case "--background-only": _backgroundOnly = true; break;
+                case "--software": _software = true; break;
+                case "--gpu-priority": _gpuPriority = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--card-scale": _cardScale = double.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 // Leave the quiet scope's stand-downs out, so the background and glow keep animating
                 // through the slides.
                 case "--animate-motion": _freezeMotion = false; break;
@@ -102,6 +118,13 @@ public static class TemplateBench
         var code = 0;
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var loads = new List<Process>();
+        if (_gpuPriority >= 0)
+        {
+            // 0 idle .. 2 normal .. 4 high, 5 realtime (privileged).
+            Console.WriteLine("gpu priority {0}: status 0x{1:X}", _gpuPriority,
+                D3DKMTSetProcessSchedulingPriorityClass(Process.GetCurrentProcess().Handle, _gpuPriority));
+        }
+
         app.Startup += async (s, e) =>
         {
             try
@@ -160,6 +183,12 @@ public static class TemplateBench
         _logger = ConsoleLogger.Create(sdk.GetType("Playnite.SDK.ILogger"));
         InstallLocalization(sdk, app);
 
+        if (_decodePath != null)
+        {
+            DecodeTiming(_decodePath);
+            return;
+        }
+
         var persisted = LoadPersisted();
         InstallPluginInstance(persisted);
         if (_comparePath != null)
@@ -168,6 +197,11 @@ public static class TemplateBench
             persisted.GetType().GetProperty("AnimateRarityGlows").SetValue(persisted, false);
             await CompareAsync(persisted);
             return;
+        }
+
+        if (_backgroundOnly)
+        {
+            persisted.GetType().GetProperty("AnimateRarityGlows").SetValue(persisted, false);
         }
 
         var card = await BuildCardAsync(persisted, _templatePath, left: true);
@@ -270,6 +304,11 @@ public static class TemplateBench
         items.Add(vm);
         var factory = _plugin.GetType("PlayniteAchievements.Services.UI.ToastSurfaceFactory");
         var surface = (ItemsControl)factory.GetMethod("BuildToastSurface", Flags).Invoke(null, new object[] { items, template });
+        if (Math.Abs(_cardScale - 1) > 1e-6)
+        {
+            surface.LayoutTransform = new ScaleTransform(_cardScale, _cardScale);
+        }
+
         var hostArgs = new object[] { surface, null };
         var host = (Grid)factory.GetMethod("BuildSlideHost", Flags).Invoke(null, hostArgs);
         var slide = (TranslateTransform)hostArgs[1];
@@ -316,6 +355,12 @@ public static class TemplateBench
         window.Closed += (s, e) => backdrop.Close();
 
         window.Show();
+        if (_software)
+        {
+            // The card's window drawn on the CPU, out of the GPU queue a game keeps full.
+            ((HwndSource)PresentationSource.FromVisual(window)).CompositionTarget.RenderMode = RenderMode.SoftwareOnly;
+        }
+
         factory.GetMethod("ApplyMeasuredCardGaps", Flags)?.Invoke(null, new object[] { surface });
         svcType.GetMethod("ReserveSlideTravel", Flags).Invoke(svc, new object[] { window, surface });
         window.UpdateLayout();
@@ -366,11 +411,23 @@ public static class TemplateBench
                 var t1 = recorder.Now;
                 stop.Invoke(card.Service, null);
 
-                countdown.Invoke(card.Service, new object[] { card.Window, (int)(_holdSeconds * 1000) });
+                // As the wave does at the settle: hits, and DWM composition, limited to the card.
+                var surfaceType = _plugin.GetType("PlayniteAchievements.Services.UI.ToastWindowSurface");
+                var region = surfaceType.GetMethod("SetHitRegion");
+                region.Invoke(null, new object[] { card.Window, card.Surface, 16d });
+
+                if (!_backgroundOnly)
+                {
+                    countdown.Invoke(card.Service, new object[] { card.Window, (int)(_holdSeconds * 1000) });
+                }
                 await Task.Delay(TimeSpan.FromSeconds(_holdSeconds));
                 var t2 = recorder.Now;
-                stopCountdown.Invoke(card.Service, new object[] { card.Window });
+                if (!_backgroundOnly)
+                {
+                    stopCountdown.Invoke(card.Service, new object[] { card.Window });
+                }
 
+                region.Invoke(null, new object[] { card.Window, null, 0d });
                 engage.Invoke(null, new object[] { card.Host, card.Window });
                 await Frames(1);
                 var t3 = recorder.Now;
@@ -423,11 +480,21 @@ public static class TemplateBench
         var pause = asyncImage.GetMethod("PauseGifAnimationsUnder", Flags);
         pause.Invoke(null, new object[] { a.Host });
         pause.Invoke(null, new object[] { b.Host });
+
+        // The ray burst runs on its own clock, so two cards never show it at the same phase; it is
+        // the same element in both templates and is hidden for the comparison.
+        HideRays(a.Host);
+        HideRays(b.Host);
         await Frames(10);
         await Task.Delay(500);
 
         var pa = Capture(a.Rect);
         var pb = Capture(b.Rect);
+        if (_snapshot != null)
+        {
+            SaveCapture(a.Rect, _snapshot + ".a.png");
+            SaveCapture(b.Rect, _snapshot + ".b.png");
+        }
         if (pa.Length != pb.Length)
         {
             Console.WriteLine("window sizes differ: A {0}x{1}, B {2}x{3}",
@@ -467,6 +534,68 @@ public static class TemplateBench
         b.Window.Close();
     }
 
+    /// <summary>
+    /// Times every frame of a GIF or WebM through the plugin's own canvas (the work GifPlayer does
+    /// on the thread pool per frame), three passes, against each frame's own display duration.
+    /// </summary>
+    private static void DecodeTiming(string path)
+    {
+        var payload = File.ReadAllBytes(path);
+        var webm = _plugin.GetType("PlayniteAchievements.Services.Images.Webm.WebmContainer");
+        var isWebm = (bool)webm.GetMethod("HasSignature", Flags).Invoke(null, new object[] { payload });
+        var parse = Stopwatch.StartNew();
+        object canvas;
+        if (isWebm)
+        {
+            var image = webm.GetMethod("Parse", Flags).Invoke(null, new object[] { payload });
+            canvas = Activator.CreateInstance(_plugin.GetType("PlayniteAchievements.Views.Helpers.Gif.WebmCanvas"), Flags, null, new[] { image }, null);
+        }
+        else
+        {
+            var image = _plugin.GetType("PlayniteAchievements.Views.Helpers.Gif.GifImage").GetMethod("Parse", Flags).Invoke(null, new object[] { payload });
+            canvas = Activator.CreateInstance(_plugin.GetType("PlayniteAchievements.Views.Helpers.Gif.GifCanvas"), Flags, null, new[] { image }, null);
+        }
+
+        var parseMs = parse.Elapsed.TotalMilliseconds;
+        var type = canvas.GetType();
+        var render = type.GetMethod("Render", Flags);
+        var delay = type.GetMethod("GetDelayMs", Flags);
+        var count = (int)type.GetProperty("FrameCount", Flags).GetValue(canvas);
+        var width = (int)type.GetProperty("Width", Flags).GetValue(canvas);
+        var height = (int)type.GetProperty("Height", Flags).GetValue(canvas);
+        var first = Stopwatch.StartNew();
+        render.Invoke(canvas, new object[] { 0 });
+        var firstMs = first.Elapsed.TotalMilliseconds;
+
+        var times = new List<double>();
+        var misses = 0;
+        var totalDelay = 0d;
+        for (var pass = 0; pass < 3; pass++)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                var sw = Stopwatch.StartNew();
+                render.Invoke(canvas, new object[] { i });
+                var ms = sw.Elapsed.TotalMilliseconds;
+                times.Add(ms);
+                var due = (int)delay.Invoke(canvas, new object[] { i });
+                totalDelay += due;
+                if (ms > due)
+                {
+                    misses++;
+                }
+            }
+        }
+
+        times.Sort();
+        Func<double, double> pct = q => times[Math.Min(times.Count - 1, (int)(q * times.Count))];
+        Console.WriteLine("{0}: {1}x{2}, {3} frames, {4:0.0} fps nominal, parse {5:0.0} ms, first frame {6:0.0} ms",
+            isWebm ? "WebM" : "GIF", width, height, count, 1000.0 * count * 3 / totalDelay, parseMs, firstMs);
+        Console.WriteLine("per-frame decode: mean {0:0.00} ms, p50 {1:0.00}, p95 {2:0.00}, p99 {3:0.00}, max {4:0.00}; {5} of {6} exceeded their frame's duration",
+            times.Average(), pct(0.5), pct(0.95), pct(0.99), times[times.Count - 1], misses, times.Count);
+        ((IDisposable)canvas).Dispose();
+    }
+
     private static void SaveCapture(Rect32 r, string path)
     {
         using (var bitmap = new System.Drawing.Bitmap(r.Right - r.Left, r.Bottom - r.Top))
@@ -477,6 +606,20 @@ public static class TemplateBench
             }
 
             bitmap.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+        }
+    }
+
+    private static void HideRays(DependencyObject root)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child.GetType().Name == "RarityRayBurst" && child is UIElement element)
+            {
+                element.Visibility = Visibility.Hidden;
+            }
+
+            HideRays(child);
         }
     }
 
