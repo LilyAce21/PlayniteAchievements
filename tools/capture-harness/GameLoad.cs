@@ -4,7 +4,11 @@
 // by --work, so the GPU can be held at full use the way a GPU-bound game holds it. CPU threads can
 // spin alongside it.
 //
-//   GameLoad.exe [--work 400] [--fps-cap 0] [--cpu 0] [--screen 0] [--seconds 0]
+//   GameLoad.exe [--work 400] [--fps-cap 0] [--cpu 0] [--screen 0] [--seconds 0] [--report]
+//
+// --report prints "f <frames presented> <QueryPerformanceCounter> <longest frame, QPC ticks>" every
+// 50 ms instead, for a harness on the same machine to read the game's frame rate and frame-time
+// spikes over any span of its own clock.
 //
 // The picture depends only on position, not time, so it never changes under the card and a frame
 // counter over the card counts only the card's own changes. It prints the achieved frame rate every
@@ -49,6 +53,7 @@ float4 ps(float4 pos : SV_Position) : SV_Target
         var cpu = 0;
         var screen = 0;
         var seconds = 0d;
+        var report = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -58,6 +63,7 @@ float4 ps(float4 pos : SV_Position) : SV_Target
                 case "--cpu": cpu = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--screen": screen = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--seconds": seconds = double.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--report": report = true; break;
             }
         }
 
@@ -130,6 +136,10 @@ float4 ps(float4 pos : SV_Position) : SV_Target
         var total = Stopwatch.StartNew();
         var window = Stopwatch.StartNew();
         var frames = 0;
+        var presented = 0L;
+        var lastReport = Stopwatch.GetTimestamp();
+        var lastPresent = lastReport;
+        var maxFrame = 0L;
         var period = cap > 0 ? Stopwatch.Frequency / cap : 0;
         var next = Stopwatch.GetTimestamp();
         while (Volatile.Read(ref running) && (seconds <= 0 || total.Elapsed.TotalSeconds < seconds))
@@ -139,6 +149,20 @@ float4 ps(float4 pos : SV_Position) : SV_Target
             context.Draw(3, 0);
             chain.Present(0, cap > 0 ? DXGI.PresentFlags.None : DXGI.PresentFlags.AllowTearing);
             frames++;
+            presented++;
+
+            // Present blocks once the queue is full, so in a GPU-bound loop the time between
+            // returns follows the GPU's frame times.
+            var returned = Stopwatch.GetTimestamp();
+            maxFrame = Math.Max(maxFrame, returned - lastPresent);
+            lastPresent = returned;
+            if (report && returned - lastReport >= Stopwatch.Frequency / 20)
+            {
+                lastReport = returned;
+                Console.WriteLine("f {0} {1} {2}", presented, lastReport, maxFrame);
+                Console.Out.Flush();
+                maxFrame = 0;
+            }
             if (period > 0)
             {
                 next += period;
@@ -148,7 +172,7 @@ float4 ps(float4 pos : SV_Position) : SV_Target
                 }
             }
 
-            if (window.ElapsedMilliseconds >= 2000)
+            if (!report && window.ElapsedMilliseconds >= 2000)
             {
                 Console.WriteLine("game fps {0:0.0}", frames * 1000.0 / window.ElapsedMilliseconds);
                 frames = 0;

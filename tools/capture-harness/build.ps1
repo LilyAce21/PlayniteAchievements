@@ -2,11 +2,15 @@
 #
 # These are diagnostics, not part of the plugin build: they reference the plugin's own assemblies from
 # source\bin\Debug, so build the plugin first. Executables go to bin\ here, which is git-ignored.
+param(
+    [ValidateSet('Debug', 'Release')][string]$Configuration = 'Debug',
+    [string[]]$Only
+)
 $ErrorActionPreference = 'Stop'
 
 $here = Split-Path $PSCommandPath
 $repo = Resolve-Path (Join-Path $here '..\..')
-$pluginBin = Join-Path $repo 'source\bin\Debug'
+$pluginBin = Join-Path $repo "source\bin\$Configuration"
 $out = Join-Path $here 'bin'
 
 # Find Roslyn wherever Visual Studio or the Build Tools put it, rather than assuming an edition.
@@ -128,6 +132,7 @@ $extraSources = @{
 $manifestTools = @('ChimeSeparationProbe', 'ChimeBurstProbe', 'HapticProbe', 'CaptureStarvationProbe', 'ChannelMapProbe')
 $failed = @()
 foreach ($tool in $tools) {
+    if ($Only -and $tool -notin $Only) { continue }
     $source = Join-Path $here ($tool + '.cs')
     if (-not (Test-Path $source)) { Write-Output "  skip    $tool (no source)"; continue }
     $sources = @($source) + @($extraSources[$tool])  | Where-Object { $_ }

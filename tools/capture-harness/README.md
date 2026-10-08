@@ -27,6 +27,34 @@ the standalone artifact-analysis tools remain x64.
 Needs Visual Studio 2022 or the Build Tools (the script finds Roslyn itself, whatever the edition) and the
 .NET Framework 4.6.2 targeting pack.
 
+### Notification performance trials
+
+Build the plugin in Release, then compile just the GPU workload and card benchmark:
+
+```powershell
+tools\capture-harness\build.ps1 -Configuration Release -Only TemplateBench,GameLoad
+tools\capture-harness\Run-NotificationTrials.ps1 -ReferencePlugin C:\path\to\reference\Release -IncludeLiveMotion
+```
+
+The runner alternates reference/candidate order and writes logs to `artifacts\notification-perf`.
+It uses the local Playnite notification settings, five cycles per run, a saturated borderless D3D11
+workload, and no desktop capture by default. `-Scale 1` tests normal size; the default `-Scale 4`
+stresses large cards. `-Priority 2` tests normal GPU scheduling; `-Priority 5` matches the plugin's
+notification boost. `-IncludeLiveMotion` also tests continuous animation without the motion cache
+or quiet scope. Run trials sequentially on the interactive desktop with other GPU benchmarks stopped.
+
+Use `-Capture` in a separate run to sample desktop updates. The recorder runs in its own process at
+normal GPU priority. Capture consumes GPU time, so those game FPS numbers must not be mixed with
+capture-free results. `missed` counts desktop updates the recorder could not acquire; `changed/s`
+is a lower bound when updates are missed. `wpf/s` counts distinct WPF rendering callbacks, not
+displayed frames. Neither counter verifies hardware VRR/scanout. Disabled capture prints `n/a`.
+
+For visual changes, `TemplateBench --template original.xaml --compare candidate.xaml --kind rare`
+compares actual desktop pixels. Check common, rare, completion, and progress cards as well as
+fractional scales; passing one text layout is insufficient. An identical-template control should
+report zero differences. Realtime scheduling can increase toast cadence at the game's expense;
+compare game FPS and notification cadence separately before calling a change an optimization.
+
 ### Sharing these
 
 Only `CaptureHarness` needs the plugin: it drives the recorder, exporter and re-encoder by reflection, so
