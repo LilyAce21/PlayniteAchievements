@@ -358,17 +358,6 @@ namespace PlayniteAchievements
                 }
             };
 
-            // Lands on the Workshop's game-data items that match this game.
-            yield return new GameMenuItem
-            {
-                Description = ResourceProvider.GetString("LOCPlayAch_Workshop_Title"),
-                MenuSection = PluginGameMenuSection,
-                Action = (a) =>
-                {
-                    OpenWorkshopWindow(game.Id);
-                }
-            };
-
             // Only shown when the game actually has saved captures (Playnite menu items can't be
             // greyed out, so absence is the "inactive" state here).
             if (_captureLibraryService?.GameHasCaptures(game.Name) == true)
