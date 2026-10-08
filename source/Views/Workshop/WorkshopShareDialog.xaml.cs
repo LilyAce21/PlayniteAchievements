@@ -52,13 +52,13 @@ namespace PlayniteAchievements.Views.Workshop
         private readonly ExistingOption _newItemOption = new ExistingOption
         {
             ItemId = null,
-            Label = ResourceProvider.GetString("LOCPlayAch_Workshop_Share_NewItem")
+            Label = ResourceProvider.GetString("LOCPlayAch_Workshop_Share_NewSubmission")
         };
 
         // This user's published items of the candidate's kind, by id, from the index.
         private readonly Dictionary<string, WorkshopItem> _ownedItems = new Dictionary<string, WorkshopItem>(StringComparer.OrdinalIgnoreCase);
 
-        // The candidate's starting cover, used again when "New item" is picked.
+        // The candidate's starting cover, used again when "New submission" is picked.
         private string _defaultCover;
 
         // The published cover of the item being updated, as a cached local file; uploaded again
@@ -372,7 +372,7 @@ namespace PlayniteAchievements.Views.Workshop
             }
         }
 
-        /// <summary>Replaces the update list, "New item" first, without prefilling.</summary>
+        /// <summary>Replaces the update list, "New submission" first, without prefilling.</summary>
         private void SetOptions(IEnumerable<ExistingOption> options, object selected)
         {
             _suppressSelection = true;
