@@ -22,7 +22,9 @@ namespace PlayniteAchievements.Views.Workshop
 {
     /// <summary>
     /// Collects the submission form for one shareable thing and runs the share: package, upload,
-    /// submit. Closes itself on success after showing where to follow the review.
+    /// submit. Picking an earlier submission fills the form with its published details. Opened
+    /// for a published item instead (edit mode), it changes only that item's details and sends
+    /// no package. Closes itself on success after showing where to follow the review.
     /// </summary>
     public partial class WorkshopShareDialog : UserControl
     {
@@ -42,6 +44,37 @@ namespace PlayniteAchievements.Views.Workshop
         private bool _busy;
         private bool _rendering;
         private bool _closed;
+
+        // Edit mode: the published item whose details are changed; null when sharing.
+        private readonly WorkshopItem _editItem;
+
+        // The first update option, which shares as a new item.
+        private readonly ExistingOption _newItemOption = new ExistingOption
+        {
+            ItemId = null,
+            Label = ResourceProvider.GetString("LOCPlayAch_Workshop_Share_NewItem")
+        };
+
+        // This user's published items of the candidate's kind, by id, from the index.
+        private readonly Dictionary<string, WorkshopItem> _ownedItems = new Dictionary<string, WorkshopItem>(StringComparer.OrdinalIgnoreCase);
+
+        // The candidate's starting cover, used again when "New item" is picked.
+        private string _defaultCover;
+
+        // The published cover of the item being updated, as a cached local file; uploaded again
+        // only when the sharer picks a different one, since the Workshop keeps it otherwise.
+        private string _publishedCover;
+
+        // True once the published README was read, so an emptied box means the generated one.
+        private bool _readmeLoaded;
+
+        // Prefilling from a published item; Submit waits for it.
+        private bool _prefilling;
+        private int _prefillVersion;
+
+        // Selection changes made by code (list rebuilds) do not prefill.
+        private bool _suppressSelection;
+        private bool _selectionTouched;
 
         // The standardized preview image rendered from the package; null until rendered or when
         // rendering failed, in which case the submission goes without one.
@@ -73,9 +106,8 @@ namespace PlayniteAchievements.Views.Workshop
             _identity = identity ?? throw new ArgumentNullException(nameof(identity));
 
             CandidateLabel.Text = candidate.Label;
-            NameBox.Text = candidate.DefaultName ?? string.Empty;
-            AuthorBox.Text = identity.DisplayName ?? string.Empty;
-            CoverBox.Text = DefaultCoverPath(plugin, candidate, logger) ?? string.Empty;
+            _defaultCover = DefaultCoverPath(plugin, candidate, logger);
+            ApplyDefaults();
 
             // The standardized preview image is rendered once the dialog is up (OnLoaded) and
             // always submitted with the package; it is not chosen by hand.
@@ -91,7 +123,7 @@ namespace PlayniteAchievements.Views.Workshop
 
             // Shared before (from the Library): updating that item is the default.
             var published = candidate.PublishedItemId;
-            ExistingOption preselected = null;
+            var preselected = _newItemOption;
             if (!string.IsNullOrWhiteSpace(published))
             {
                 preselected = options.FirstOrDefault(option => string.Equals(option.ItemId, published, StringComparison.OrdinalIgnoreCase));
@@ -102,9 +134,33 @@ namespace PlayniteAchievements.Views.Workshop
                 }
             }
 
-            ExistingBox.ItemsSource = options;
-            ExistingBox.SelectedItem = preselected;
+            SetOptions(options, preselected);
             _ = LoadOwnedItemsAsync(options);
+        }
+
+        /// <summary>
+        /// Edit mode: changes the details of <paramref name="item"/>, which this install
+        /// published, filled in from the Workshop. No package is built or sent; the Workshop
+        /// keeps the item's package, version and preview.
+        /// </summary>
+        internal WorkshopShareDialog(
+            PlayniteAchievementsPlugin plugin,
+            ILogger logger,
+            WorkshopItem item,
+            WorkshopShareService share,
+            WorkshopIdentityStore identity)
+            : this()
+        {
+            _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
+            _logger = logger;
+            _editItem = item ?? throw new ArgumentNullException(nameof(item));
+            _share = share ?? throw new ArgumentNullException(nameof(share));
+            _identity = identity ?? throw new ArgumentNullException(nameof(identity));
+
+            CandidateLabel.Text = ViewModels.Workshop.WorkshopItemViewModel.KindLabelFor(item.Kind) + " · " + item.Name;
+            ExistingLabel.Visibility = Visibility.Collapsed;
+            ExistingBox.Visibility = Visibility.Collapsed;
+            _ = PrefillAsync(item);
         }
 
         public event EventHandler RequestClose;
@@ -228,10 +284,138 @@ namespace PlayniteAchievements.Views.Workshop
             };
         }
 
-        // Submit waits for the rendered image; never while submitting.
+        // Submit waits for the rendered image and the prefill; never while submitting.
         private void UpdateSubmitEnabled()
         {
-            SubmitButton.IsEnabled = !_busy && !_rendering;
+            SubmitButton.IsEnabled = !_busy && !_rendering && !_prefilling;
+        }
+
+        /// <summary>Fills the form with the candidate's defaults, as for a new item.</summary>
+        private void ApplyDefaults()
+        {
+            _prefillVersion++;
+            _prefilling = false;
+            _publishedCover = null;
+            _readmeLoaded = false;
+            NameBox.Text = _candidate?.DefaultName ?? string.Empty;
+            AuthorBox.Text = _identity?.DisplayName ?? string.Empty;
+            DescriptionBox.Text = string.Empty;
+            TagsBox.Text = string.Empty;
+            ReadmeBox.Text = string.Empty;
+            CoverBox.Text = _defaultCover ?? string.Empty;
+            UpdateSubmitEnabled();
+        }
+
+        /// <summary>
+        /// Fills the form with <paramref name="item"/>'s published details. The README and cover
+        /// are fetched; a failed README fetch leaves the box empty, which keeps the published one.
+        /// </summary>
+        private async Task PrefillAsync(WorkshopItem item)
+        {
+            var version = ++_prefillVersion;
+            _publishedCover = null;
+            _readmeLoaded = false;
+            NameBox.Text = item.Name ?? string.Empty;
+            AuthorBox.Text = !string.IsNullOrWhiteSpace(item.Author) ? item.Author : _identity?.DisplayName ?? string.Empty;
+            DescriptionBox.Text = item.Description ?? string.Empty;
+            TagsBox.Text = string.Join(", ", item.Tags ?? new List<string>());
+            ReadmeBox.Text = string.Empty;
+            CoverBox.Text = string.Empty;
+
+            var client = _plugin.WorkshopClient;
+            if (client == null)
+            {
+                return;
+            }
+
+            _prefilling = true;
+            UpdateSubmitEnabled();
+            try
+            {
+                var readmeTask = client.FetchReadmeSourceAsync(item, _cancel.Token);
+                var coverTask = string.IsNullOrWhiteSpace(item.Urls?.Cover)
+                    ? Task.FromResult<string>(null)
+                    : client.FetchCoverAsync(item, _cancel.Token);
+                var readme = await readmeTask;
+                var cover = await coverTask;
+                if (_closed || version != _prefillVersion)
+                {
+                    return;
+                }
+
+                if (readme != null)
+                {
+                    ReadmeBox.Text = readme;
+                    _readmeLoaded = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(cover) && File.Exists(cover))
+                {
+                    _publishedCover = cover;
+                    CoverBox.Text = cover;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, $"Could not fill in the details of Workshop item {item.Id}.");
+            }
+            finally
+            {
+                if (version == _prefillVersion)
+                {
+                    _prefilling = false;
+                    UpdateSubmitEnabled();
+                }
+            }
+        }
+
+        /// <summary>Replaces the update list, "New item" first, without prefilling.</summary>
+        private void SetOptions(IEnumerable<ExistingOption> options, object selected)
+        {
+            _suppressSelection = true;
+            try
+            {
+                ExistingBox.ItemsSource = new[] { _newItemOption }
+                    .Concat(options
+                        .Where(option => option != _newItemOption)
+                        .OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase))
+                    .ToList();
+                ExistingBox.SelectedItem = selected;
+            }
+            finally
+            {
+                _suppressSelection = false;
+            }
+        }
+
+        /// <summary>
+        /// Picking an earlier submission fills the form with its published details, and "New
+        /// item" restores the defaults. A typed id leaves the fields as they are.
+        /// </summary>
+        private void ExistingBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressSelection || _editItem != null || !(ExistingBox.SelectedItem is ExistingOption option))
+            {
+                return;
+            }
+
+            _selectionTouched = true;
+            ApplySelection(option);
+        }
+
+        private void ApplySelection(ExistingOption option)
+        {
+            if (option == _newItemOption)
+            {
+                ApplyDefaults();
+            }
+            else if (option.ItemId != null && _ownedItems.TryGetValue(option.ItemId, out var item))
+            {
+                _ = PrefillAsync(item);
+            }
         }
 
         private void BrowseCover_Click(object sender, RoutedEventArgs e)
@@ -344,6 +528,22 @@ namespace PlayniteAchievements.Views.Workshop
 
             CoverImage.Source = image;
             CoverImageFrame.Visibility = image != null ? Visibility.Visible : Visibility.Collapsed;
+
+            // The Workshop cannot remove a published cover, only replace it.
+            if (ClearCoverButton != null)
+            {
+                ClearCoverButton.IsEnabled = !IsPublishedCover(path);
+            }
+        }
+
+        private bool IsPublishedCover(string path) =>
+            !string.IsNullOrWhiteSpace(_publishedCover) && string.Equals(path, _publishedCover, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>The cover to upload: a chosen file, but not the published one the Workshop keeps anyway.</summary>
+        private string CoverToUpload()
+        {
+            var path = CoverBox.Text;
+            return string.IsNullOrWhiteSpace(path) || IsPublishedCover(path) ? null : path;
         }
 
         private void CoverImageFrame_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -363,35 +563,13 @@ namespace PlayniteAchievements.Views.Workshop
                 return;
             }
 
-            var name = NameBox.Text.Trim();
-            var author = AuthorBox.Text.Trim();
-            var description = DescriptionBox.Text.Trim();
-            if (name.Length == 0 || author.Length == 0 || description.Length == 0)
+            var submission = BuildSubmission();
+            if (submission == null)
             {
-                StatusText.Text = string.Format(
-                    ResourceProvider.GetString("LOCPlayAch_Status_Failed"),
-                    ResourceProvider.GetString("LOCNameLabel") + ", " +
-                    ResourceProvider.GetString("LOCPlayAch_Workshop_Share_AuthorName") + ", " +
-                    ResourceProvider.GetString("LOCGameDescriptionTitle"));
                 return;
             }
 
-            var submission = new WorkshopSubmission
-            {
-                Kind = _candidate.Kind,
-                Name = name,
-                Author = author,
-                Description = description,
-                Tags = TagsBox.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(tag => tag.Trim().ToLowerInvariant())
-                    .Where(tag => tag.Length > 0)
-                    .Distinct()
-                    .Take(10)
-                    .ToList(),
-                Readme = ReadmeBox.Text.Trim(),
-                ExistingId = ResolveExistingId()
-            };
-
+            var name = submission.Name;
             _busy = true;
             SubmitButton.IsEnabled = false;
             Progress.Visibility = Visibility.Visible;
@@ -418,14 +596,23 @@ namespace PlayniteAchievements.Views.Workshop
                     }
                 });
 
-                var receipt = await _share.ShareAsync(
-                    _candidate,
-                    submission,
-                    _previewPath,
-                    progress,
-                    _cancel.Token,
-                    _packagePath,
-                    string.IsNullOrWhiteSpace(CoverBox.Text) ? null : CoverBox.Text);
+                WorkshopSubmissionReceipt receipt;
+                if (_editItem != null)
+                {
+                    StatusText.Text = ResourceProvider.GetString("LOCPlayAch_Workshop_Share_Submit");
+                    receipt = await _share.UpdateMetadataAsync(_editItem, submission, CoverToUpload(), _cancel.Token);
+                }
+                else
+                {
+                    receipt = await _share.ShareAsync(
+                        _candidate,
+                        submission,
+                        _previewPath,
+                        progress,
+                        _cancel.Token,
+                        _packagePath,
+                        CoverToUpload());
+                }
 
                 Progress.Visibility = Visibility.Collapsed;
                 var message = string.Format(ResourceProvider.GetString("LOCPlayAch_Workshop_Share_Submitted"), receipt.IssueUrl);
@@ -442,7 +629,9 @@ namespace PlayniteAchievements.Views.Workshop
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, $"Sharing {_candidate.Kind} to the Workshop failed.");
+                _logger?.Error(ex, _editItem != null
+                    ? $"Updating the details of Workshop item {_editItem.Id} failed."
+                    : $"Sharing {_candidate.Kind} to the Workshop failed.");
                 Progress.Visibility = Visibility.Collapsed;
                 StatusText.Text = string.Format(ResourceProvider.GetString("LOCPlayAch_Status_Failed"), ex.Message);
             }
@@ -482,6 +671,7 @@ namespace PlayniteAchievements.Views.Workshop
                 _identity.LinkSubmissions(owned);
                 foreach (var item in owned)
                 {
+                    _ownedItems[item.Id] = item;
                     if (options.Any(option => string.Equals(option.ItemId, item.Id, StringComparison.OrdinalIgnoreCase)))
                     {
                         continue;
@@ -490,9 +680,20 @@ namespace PlayniteAchievements.Views.Workshop
                     options.Add(new ExistingOption { ItemId = item.Id, Label = $"{item.Name} ({item.Id})" });
                 }
 
+                if (_closed)
+                {
+                    return;
+                }
+
                 var selected = ExistingBox.SelectedItem;
-                ExistingBox.ItemsSource = options.OrderBy(option => option.Label, StringComparer.CurrentCultureIgnoreCase).ToList();
-                ExistingBox.SelectedItem = selected;
+                SetOptions(options, selected);
+
+                // An item preselected because it was shared before fills in once its details
+                // are known, unless the sharer has picked something else meanwhile.
+                if (!_selectionTouched && selected is ExistingOption preselected && preselected != _newItemOption)
+                {
+                    ApplySelection(preselected);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -501,6 +702,50 @@ namespace PlayniteAchievements.Views.Workshop
             {
                 _logger?.Debug(ex, "Could not list this user's published Workshop items.");
             }
+        }
+
+        /// <summary>
+        /// The submission from the form, or null after reporting a missing required field. An
+        /// update whose README was read and then emptied sends the README intake would write for
+        /// a new item, since an empty one keeps the published README and its outdated heading.
+        /// </summary>
+        private WorkshopSubmission BuildSubmission()
+        {
+            var name = NameBox.Text.Trim();
+            var author = AuthorBox.Text.Trim();
+            var description = DescriptionBox.Text.Trim();
+            if (name.Length == 0 || author.Length == 0 || description.Length == 0)
+            {
+                StatusText.Text = string.Format(
+                    ResourceProvider.GetString("LOCPlayAch_Status_Failed"),
+                    ResourceProvider.GetString("LOCNameLabel") + ", " +
+                    ResourceProvider.GetString("LOCPlayAch_Workshop_Share_AuthorName") + ", " +
+                    ResourceProvider.GetString("LOCGameDescriptionTitle"));
+                return null;
+            }
+
+            var existingId = _editItem?.Id ?? ResolveExistingId();
+            var readme = ReadmeBox.Text.Trim();
+            if (readme.Length == 0 && _readmeLoaded && !string.IsNullOrWhiteSpace(existingId))
+            {
+                readme = $"# {name}\n\n{description}";
+            }
+
+            return new WorkshopSubmission
+            {
+                Kind = _editItem?.Kind ?? _candidate.Kind,
+                Name = name,
+                Author = author,
+                Description = description,
+                Tags = TagsBox.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(tag => tag.Trim().ToLowerInvariant())
+                    .Where(tag => tag.Length > 0)
+                    .Distinct()
+                    .Take(10)
+                    .ToList(),
+                Readme = readme,
+                ExistingId = existingId
+            };
         }
 
         private string ResolveExistingId()
