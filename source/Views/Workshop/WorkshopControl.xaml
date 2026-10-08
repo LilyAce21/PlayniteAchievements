@@ -234,7 +234,7 @@
                                     AutomationProperties.Name="{DynamicResource LOCPlayAch_Workshop_Report}"
                                     Command="{Binding DataContext.ReportCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"/>
-                            <Button Content="&#xEF10;"
+                            <Button Content="&#xEBF9;"
                                     Style="{StaticResource WorkshopIconButtonStyle}"
                                     ToolTip="{DynamicResource LOCPlayAch_Common_Edit}"
                                     AutomationProperties.Name="{DynamicResource LOCPlayAch_Common_Edit}"
