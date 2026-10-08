@@ -33,6 +33,14 @@
                                FontWeight="SemiBold"
                                TextWrapping="Wrap"/>
 
+                    <!-- First, since picking an earlier submission fills in the fields below. -->
+                    <TextBlock x:Name="ExistingLabel" Text="{DynamicResource LOCPlayAch_Workshop_Share_UpdateExisting}" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox x:Name="ExistingBox"
+                              IsEditable="True"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="ItemId"
+                              SelectionChanged="ExistingBox_SelectionChanged"/>
+
                     <TextBlock Text="{DynamicResource LOCNameLabel}" Style="{StaticResource FieldLabel}"/>
                     <TextBox x:Name="NameBox" MaxLength="80"/>
 
@@ -61,7 +69,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="CoverBox" IsReadOnly="True" TextChanged="CoverBox_TextChanged"/>
                         <Button Grid.Column="1" Content="{DynamicResource LOCPlayAch_Button_Browse}" Margin="6,0,0,0" Click="BrowseCover_Click"/>
-                        <Button Grid.Column="2" Content="{DynamicResource LOCClearLabel}" Margin="6,0,0,0" Click="ClearCover_Click"/>
+                        <Button x:Name="ClearCoverButton" Grid.Column="2" Content="{DynamicResource LOCClearLabel}" Margin="6,0,0,0" Click="ClearCover_Click"/>
                     </Grid>
                     <!-- The chosen cover itself, so the sharer sees what listings will show. -->
                     <Border x:Name="CoverImageFrame"
@@ -74,9 +82,6 @@
                             Visibility="Collapsed">
                         <Image x:Name="CoverImage" MaxHeight="160" MaxWidth="480" Stretch="Uniform"/>
                     </Border>
-
-                    <TextBlock Text="{DynamicResource LOCPlayAch_Workshop_Share_UpdateExisting}" Style="{StaticResource FieldLabel}"/>
-                    <ComboBox x:Name="ExistingBox" IsEditable="True" DisplayMemberPath="Label" SelectedValuePath="ItemId"/>
 
                     <TextBlock x:Name="StatusText"
                                Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"

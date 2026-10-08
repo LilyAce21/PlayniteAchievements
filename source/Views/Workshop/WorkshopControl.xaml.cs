@@ -49,7 +49,8 @@ namespace PlayniteAchievements.Views.Workshop
                 PickGame = PickGame,
                 Confirm = Confirm,
                 ChooseMergeOrReplace = ChooseMergeOrReplace,
-                ShowPreview = (row, model) => WorkshopPreviewDialog.Show(plugin, row, model, Window.GetWindow(this))
+                ShowPreview = (row, model) => WorkshopPreviewDialog.Show(plugin, row, model, Window.GetWindow(this)),
+                OpenEdit = item => plugin.OpenWorkshopEdit(item, Window.GetWindow(this))
             };
             DataContext = viewModel;
             viewModel.ItemsView.CollectionChanged += ItemsView_CollectionChanged;

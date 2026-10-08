@@ -234,6 +234,13 @@
                                     AutomationProperties.Name="{DynamicResource LOCPlayAch_Workshop_Report}"
                                     Command="{Binding DataContext.ReportCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}"/>
+                            <Button Content="&#xEF10;"
+                                    Style="{StaticResource WorkshopIconButtonStyle}"
+                                    ToolTip="{DynamicResource LOCPlayAch_Common_Edit}"
+                                    AutomationProperties.Name="{DynamicResource LOCPlayAch_Common_Edit}"
+                                    Visibility="{Binding IsMine, Converter={StaticResource BoolToVis}}"
+                                    Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}"/>
                             <Button Content="&#xEEAD;"
                                     Style="{StaticResource WorkshopIconButtonStyle}"
                                     ToolTip="{DynamicResource LOCPlayAch_Workshop_RemoveFromWorkshop}"

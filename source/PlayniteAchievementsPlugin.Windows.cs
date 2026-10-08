@@ -154,8 +154,29 @@ namespace PlayniteAchievements
             candidate.BundlePartFiles = bundlePartFiles;
 
             var dialog = new Views.Workshop.WorkshopShareDialog(this, _logger, candidate, WorkshopShareService, WorkshopIdentityStore);
+            ShowWorkshopShareDialog(dialog, ResourceProvider.GetString("LOCPlayAch_Workshop_Share"), owner);
+            return true;
+        }
+
+        /// <summary>
+        /// Opens the form for changing the details of a Workshop item this install published,
+        /// filled in from the Workshop.
+        /// </summary>
+        internal void OpenWorkshopEdit(Services.Workshop.WorkshopItem item, System.Windows.Window owner)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.Id))
+            {
+                return;
+            }
+
+            var dialog = new Views.Workshop.WorkshopShareDialog(this, _logger, item, WorkshopShareService, WorkshopIdentityStore);
+            ShowWorkshopShareDialog(dialog, ResourceProvider.GetString("LOCPlayAch_Common_Edit"), owner);
+        }
+
+        private void ShowWorkshopShareDialog(Views.Workshop.WorkshopShareDialog dialog, string title, System.Windows.Window owner)
+        {
             var window = Views.Helpers.PlayniteUiProvider.CreateExtensionWindow(
-                ResourceProvider.GetString("LOCPlayAch_Workshop_Share"),
+                title,
                 dialog,
                 new Views.Helpers.WindowOptions
                 {
@@ -181,8 +202,8 @@ namespace PlayniteAchievements
             dialog.RequestClose += (s, args) => window.Close();
             window.ShowDialog();
             dialog.Cleanup();
-            return true;
         }
+
         /// <summary>Opens the settings on the Workshop tab, on <paramref name="pageKey"/> when given.</summary>
         internal void OpenWorkshopSettings(string pageKey = null)
         {

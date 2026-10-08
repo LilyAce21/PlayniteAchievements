@@ -130,6 +130,58 @@ namespace PlayniteAchievements.Services.Workshop
             }
         }
 
+        /// <summary>
+        /// The item's README markdown as its author would edit it: the Workshop's image block
+        /// removed, and empty when what remains is only the README intake writes from the name
+        /// and description, so an edit does not carry an outdated heading. Null when the fetch fails.
+        /// </summary>
+        public Task<string> FetchReadmeSourceAsync(WorkshopItem item, CancellationToken cancel) => Task.Run(() => FetchReadmeSourceCoreAsync(item), cancel);
+
+        private async Task<string> FetchReadmeSourceCoreAsync(WorkshopItem item)
+        {
+            var url = item?.Urls?.Readme;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                var cached = ReadmeCachePathFor(url);
+                string text;
+                if (cached != null && File.Exists(cached))
+                {
+                    text = File.ReadAllText(cached);
+                }
+                else
+                {
+                    text = await _http.GetStringAsync(url).ConfigureAwait(false);
+                    if (cached != null)
+                    {
+                        WriteCacheFile(cached, new System.Text.UTF8Encoding(false).GetBytes(text));
+                    }
+                }
+
+                return ReadmeSourceForEdit(text, item.Name, item.Description);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, $"Failed fetching Workshop README for {item.Id}.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The README markdown without the image block, or empty when it is only the
+        /// <c># name</c> heading and the description that intake writes when none is given.
+        /// </summary>
+        public static string ReadmeSourceForEdit(string readme, string name, string description)
+        {
+            var text = (StripImageBlock(readme) ?? string.Empty).Trim();
+            var generated = $"# {name}\n\n{description}".Trim();
+            return string.Equals(text.Replace("\r\n", "\n"), generated, StringComparison.Ordinal) ? string.Empty : text;
+        }
+
         private static readonly Regex MarkdownHeading = new Regex(@"^[ \t]{0,3}#{1,6}[ \t]+(.*?)[ \t#]*$", RegexOptions.CultureInvariant);
         private static readonly Regex MarkdownImage = new Regex(@"!\[[^\]]*\]\([^)]*\)", RegexOptions.CultureInvariant);
         private static readonly Regex MarkdownLink = new Regex(@"\[([^\]]+)\]\([^)]*\)", RegexOptions.CultureInvariant);

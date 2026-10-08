@@ -347,28 +347,13 @@ namespace PlayniteAchievements.Services.Workshop
 
                 progress?.Report(new WorkshopShareProgress { Phase = WorkshopSharePhase.Submitting });
                 submission.Kind = candidate.Kind;
-                var receipt = await _client.SubmitAsync(
+                return await SubmitAndRecordAsync(
                     submission,
-                    _identity.GetSubmitterHash(),
                     packageKey,
                     previewKey,
-                    PluginManifest.Version,
-                    cancel,
-                    coverKey).ConfigureAwait(false);
-
-                _identity.DisplayName = submission.Author;
-                _identity.RecordSubmission(new WorkshopSubmissionRecord
-                {
-                    IssueNumber = receipt.IssueNumber,
-                    IssueUrl = receipt.IssueUrl,
-                    Name = submission.Remove ? submission.ExistingId : submission.Name,
-                    Kind = candidate.Kind,
-                    ItemId = submission.ExistingId,
-                    SubmittedUtc = DateTime.UtcNow,
-                    LastState = "validating",
-                    LibraryItemId = submission.Remove ? null : candidate.LibraryItemId
-                });
-                return receipt;
+                    coverKey,
+                    submission.Remove ? null : candidate.LibraryItemId,
+                    cancel).ConfigureAwait(false);
             }
             finally
             {
@@ -384,6 +369,72 @@ namespace PlayniteAchievements.Services.Workshop
                     _logger?.Debug(ex, "Failed cleaning the Workshop share scratch folder.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Changes the details of an item this install published without sending a package:
+        /// the Workshop keeps its package, version and preview. <paramref name="coverPath"/>,
+        /// when it names an existing file, replaces the cover; otherwise the cover stays.
+        /// </summary>
+        public async Task<WorkshopSubmissionReceipt> UpdateMetadataAsync(
+            WorkshopItem item,
+            WorkshopSubmission submission,
+            string coverPath,
+            CancellationToken cancel)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.Id))
+            {
+                throw new ArgumentException("No Workshop item.", nameof(item));
+            }
+
+            if (!_client.IsConfigured)
+            {
+                throw new InvalidOperationException("No Workshop submission service is configured.");
+            }
+
+            string coverKey = null;
+            if (!string.IsNullOrWhiteSpace(coverPath) && File.Exists(coverPath))
+            {
+                coverKey = await _client.UploadAsync(coverPath, ContentTypeFor(coverPath), null, cancel).ConfigureAwait(false);
+            }
+
+            submission.Kind = item.Kind;
+            submission.ExistingId = item.Id;
+            submission.Remove = false;
+            return await SubmitAndRecordAsync(submission, null, null, coverKey, null, cancel).ConfigureAwait(false);
+        }
+
+        /// <summary>Submits and records the submission locally so its progress can be followed.</summary>
+        private async Task<WorkshopSubmissionReceipt> SubmitAndRecordAsync(
+            WorkshopSubmission submission,
+            string packageKey,
+            string previewKey,
+            string coverKey,
+            string libraryItemId,
+            CancellationToken cancel)
+        {
+            var receipt = await _client.SubmitAsync(
+                submission,
+                _identity.GetSubmitterHash(),
+                packageKey,
+                previewKey,
+                PluginManifest.Version,
+                cancel,
+                coverKey).ConfigureAwait(false);
+
+            _identity.DisplayName = submission.Author;
+            _identity.RecordSubmission(new WorkshopSubmissionRecord
+            {
+                IssueNumber = receipt.IssueNumber,
+                IssueUrl = receipt.IssueUrl,
+                Name = submission.Remove ? submission.ExistingId : submission.Name,
+                Kind = submission.Kind,
+                ItemId = submission.ExistingId,
+                SubmittedUtc = DateTime.UtcNow,
+                LastState = "validating",
+                LibraryItemId = libraryItemId
+            });
+            return receipt;
         }
 
         private AchievementToastTemplateResolver CreateTemplateResolver()

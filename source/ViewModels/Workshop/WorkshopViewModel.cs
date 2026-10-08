@@ -145,6 +145,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
             OpenFolderCommand = new RelayCommand(parameter => OpenUrl((parameter as WorkshopItemViewModel ?? SelectedItem)?.FolderUrl));
             ReportCommand = new RelayCommand(parameter => Report(parameter as WorkshopItemViewModel ?? SelectedItem));
             RemoveCommand = new AsyncCommand(async parameter => await RemoveAsync(parameter as WorkshopItemViewModel ?? SelectedItem), _ => !IsBusy);
+            EditCommand = new RelayCommand(parameter => Edit(parameter as WorkshopItemViewModel ?? SelectedItem), _ => !IsBusy);
         }
 
         public ObservableCollection<WorkshopItemViewModel> Items { get; } = new ObservableCollection<WorkshopItemViewModel>();
@@ -164,6 +165,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
         public RelayCommand OpenFolderCommand { get; }
         public RelayCommand ReportCommand { get; }
         public AsyncCommand RemoveCommand { get; }
+        public RelayCommand EditCommand { get; }
 
         public WorkshopIdentityStore IdentityStore => _identity;
 
@@ -267,6 +269,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
                     InstallCommand.RaiseCanExecuteChanged();
                     PreviewCommand.RaiseCanExecuteChanged();
                     RemoveCommand?.RaiseCanExecuteChanged();
+                    EditCommand?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -1087,6 +1090,19 @@ namespace PlayniteAchievements.ViewModels.Workshop
         }
 
         // ---- misc --------------------------------------------------------------------------
+
+        /// <summary>Opens the form for changing the details of an item this install published; set by the view.</summary>
+        public Action<WorkshopItem> OpenEdit { get; set; }
+
+        private void Edit(WorkshopItemViewModel row)
+        {
+            if (row == null || IsBusy || !row.IsMine)
+            {
+                return;
+            }
+
+            OpenEdit?.Invoke(row.Item);
+        }
 
         /// <summary>Asks the Workshop to take down an item this install published, after a confirmation.</summary>
         private async Task RemoveAsync(WorkshopItemViewModel row)
