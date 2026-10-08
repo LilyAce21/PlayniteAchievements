@@ -103,6 +103,9 @@ namespace PlayniteAchievements.ViewModels.Library
             OpenTargetCommand = new RelayCommand(parameter => OpenTarget(parameter as LibraryUseRow));
             OpenPublishedCommand = new RelayCommand(_ => OpenUrl(SelectedRow?.PublishedUrl), _ => SelectedRow?.HasPublishedUrl == true);
             RemovePublishedCommand = new AsyncCommand(_ => RemovePublishedAsync(SelectedRow), _ => !IsBusy && SelectedRow?.IsMine == true);
+            EditPublishedCommand = new RelayCommand(
+                _ => OpenEdit?.Invoke(SelectedRow?.PublishedItem),
+                _ => !IsBusy && SelectedRow?.IsMine == true && SelectedRow.PublishedItem != null);
 
             _library.Changed += Source_Changed;
             _gameLinks.Changed += Source_Changed;
@@ -146,6 +149,9 @@ namespace PlayniteAchievements.ViewModels.Library
         /// <summary>Asks the Workshop to take down the selected item, for an item this install published.</summary>
         public AsyncCommand RemovePublishedCommand { get; }
 
+        /// <summary>Opens the form for changing the details of the selected item, for an item this install published.</summary>
+        public RelayCommand EditPublishedCommand { get; }
+
         // ---- host callbacks ---------------------------------------------------------------------
 
         /// <summary>Asks a yes/no question through Playnite's dialogs; null answers yes.</summary>
@@ -159,6 +165,9 @@ namespace PlayniteAchievements.ViewModels.Library
 
         /// <summary>Opens the share dialog for a library item's package file.</summary>
         public Action<WorkshopShareCandidate> OpenShare { get; set; }
+
+        /// <summary>Opens the form for changing the details of a published Workshop item.</summary>
+        public Action<WorkshopItem> OpenEdit { get; set; }
 
         /// <summary>Shows a place in the settings, where a use of an item is configured.</summary>
         public Action<SettingsNavigationRequest> OpenSettings { get; set; }
@@ -482,6 +491,7 @@ namespace PlayniteAchievements.ViewModels.Library
             ShareCommand?.RaiseCanExecuteChanged();
             OpenPublishedCommand?.RaiseCanExecuteChanged();
             RemovePublishedCommand?.RaiseCanExecuteChanged();
+            EditPublishedCommand?.RaiseCanExecuteChanged();
             RenameCommand?.RaiseCanExecuteChanged();
             DeleteCommand?.RaiseCanExecuteChanged();
             ResetCommand?.RaiseCanExecuteChanged();
