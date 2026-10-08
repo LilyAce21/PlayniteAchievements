@@ -228,6 +228,22 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
+        public void ReadmeSourceForEdit_GeneratedReadmeBehindImageBlock_IsEmpty()
+        {
+            var readme = "<!-- workshop:images -->\r\n![Cover](cover.png)\r\n<!-- /workshop:images -->\r\n\r\n# Neon\r\n\r\nGlow.\r\n";
+
+            Assert.AreEqual(string.Empty, WorkshopClient.ReadmeSourceForEdit(readme, "Neon", "Glow."));
+        }
+
+        [TestMethod]
+        public void ReadmeSourceForEdit_AuthoredReadme_KeepsMarkdownWithoutImageBlock()
+        {
+            var readme = "<!-- workshop:images -->\n![Cover](cover.png)\n<!-- /workshop:images -->\n\n# Neon\n\nGlow.\n\n## Notes\n\n- **Dark** themes only.\n";
+
+            Assert.AreEqual("# Neon\n\nGlow.\n\n## Notes\n\n- **Dark** themes only.", WorkshopClient.ReadmeSourceForEdit(readme, "Neon", "Glow."));
+        }
+
+        [TestMethod]
         public void StripImageBlock_RemovesALeadingBlockAndItsBlankLines_LF()
         {
             var readme = "<!-- workshop:images -->\n![Cover](cover.png)\n![Preview](preview.png)\n<!-- /workshop:images -->\n\n# Neon\n\nGlow.\n";
