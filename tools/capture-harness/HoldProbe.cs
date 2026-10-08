@@ -90,6 +90,36 @@ internal static class HoldProbe
         CachedHost,
 
         /// <summary>
+        /// The text lines inside a plain wrapper that is cached; the wrapper has no effect of its
+        /// own, as the whole-card cache that matched the live card did not.
+        /// </summary>
+        WrapText,
+
+        /// <summary>
+        /// The glow layer inside a plain cached wrapper, its effect at full opacity, the pulse
+        /// fading the wrapper; the backing copy is a still.
+        /// </summary>
+        WrapGlow,
+
+        /// <summary>WrapText and WrapGlow together.</summary>
+        WrapBoth,
+
+        /// <summary>
+        /// The whole content layer (visible background plus text) cached, as the whole-card cache
+        /// that matched the live card held the text over its background.
+        /// </summary>
+        WrapContent,
+
+        /// <summary>WrapContent and WrapGlow together.</summary>
+        WrapGlowContent,
+
+        /// <summary>
+        /// The text shadow pair applied once around the whole text block instead of once per line:
+        /// two effect passes instead of two per line.
+        /// </summary>
+        MergedShadows,
+
+        /// <summary>
         /// Motion mode, slide only: the DWM window itself is moved by SetWindowPos in whole device
         /// pixels each frame, with no travel room and no transform, so WPF redraws nothing.
         /// </summary>
@@ -98,12 +128,18 @@ internal static class HoldProbe
 
     private static readonly Variant[] Candidates =
     {
-        Variant.FrozenBacking, Variant.CachedGlow, Variant.CachedText, Variant.CachedGlowText, Variant.SplitGlow, Variant.SplitAll, Variant.SplitAllLive, Variant.CachedHost,
+        Variant.FrozenBacking, Variant.CachedGlow, Variant.CachedText, Variant.CachedGlowText, Variant.SplitGlow, Variant.SplitAll, Variant.SplitAllLive, Variant.CachedHost, Variant.WrapText, Variant.WrapGlow, Variant.WrapBoth, Variant.WrapContent, Variant.WrapGlowContent, Variant.MergedShadows,
     };
 
     private static bool CachesGlow(Variant v) => v == Variant.CachedGlow || v == Variant.CachedGlowText;
 
     private static bool CachesText(Variant v) => v == Variant.CachedText || v == Variant.CachedGlowText;
+
+    private static bool WrapsText(Variant v) => v == Variant.WrapText || v == Variant.WrapBoth;
+
+    private static bool WrapsGlow(Variant v) => v == Variant.WrapGlow || v == Variant.WrapBoth || v == Variant.WrapGlowContent;
+
+    private static bool WrapsContent(Variant v) => v == Variant.WrapContent || v == Variant.WrapGlowContent;
 
     private static bool SplitsGlow(Variant v) => v == Variant.SplitGlow || v == Variant.SplitAll || v == Variant.SplitAllLive;
 
@@ -122,6 +158,26 @@ internal static class HoldProbe
     private static int _load;
     private static bool _notch = true;
     private static bool _soft;
+    // --shape none: no background image; the card is the template's plain surface.
+    private static bool _noBackground;
+    private static bool _cacheClearType;
+    private static bool _cacheNoSnap;
+    private static double _textCacheScale = 1;
+    private static bool _mergeShadows;
+    // Set directly on every text line, live and cached alike.
+    private static TextHintingMode? _textHint;
+    private static TextRenderingMode? _textRender;
+
+    private static Border Surface()
+    {
+        return new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Color.FromRgb(0x2A, 0x2A, 0x30)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x50, 0x50, 0x58)),
+            BorderThickness = new Thickness(1),
+        };
+    }
     // The card's LayoutTransform, as the plugin's fit and DPI compensation apply one; a fractional
     // value is where a cached layer would resample.
     private static double _scale = 1;
@@ -207,7 +263,7 @@ internal static class HoldProbe
                 case "--seconds": _seconds = Math.Max(1, next()); break;
                 case "--load": _load = Math.Max(1, (int)next()); break;
                 case "--fps": _fps = Math.Max(1, next()); break;
-                case "--shape": var shape = args[++i]; _notch = shape == "notch"; _soft = shape == "soft"; break;
+                case "--shape": var shape = args[++i]; _notch = shape == "notch"; _soft = shape == "soft"; _noBackground = shape == "none"; break;
                 case "--scale": _scale = next(); break;
                 case "--dump": _dumpDir = args[++i]; break;
                 case "--compare-only": _compareOnly = true; break;
@@ -220,6 +276,12 @@ internal static class HoldProbe
                 case "--snap-live": _snapLive = true; break;
                 case "--host-cache-scale": _hostCacheScale = next(); break;
                 case "--host-cache-snap": _hostCacheSnap = true; break;
+                case "--cache-cleartype": _cacheClearType = true; break;
+                case "--cache-nosnap": _cacheNoSnap = true; break;
+                case "--text-cache-scale": _textCacheScale = next(); break;
+                case "--merge-shadows": _mergeShadows = true; break;
+                case "--text-hint": _textHint = (TextHintingMode)Enum.Parse(typeof(TextHintingMode), args[++i], true); break;
+                case "--text-render": _textRender = (TextRenderingMode)Enum.Parse(typeof(TextRenderingMode), args[++i], true); break;
                 case "--at":
                     var at = args[++i].Split(',');
                     _atX = int.Parse(at[0], CultureInfo.InvariantCulture);
@@ -803,7 +865,7 @@ internal static class HoldProbe
             Live = live,
             Frames = frames,
             Pulse = variant != Variant.PulseOff && variant != Variant.NoGlow,
-            PulseOnEffect = !CachesGlow(variant),
+            PulseOnEffect = !CachesGlow(variant) && !WrapsGlow(variant),
         };
 
         var root = new Grid { Width = _cardWidth, Height = _cardHeight, Margin = new Thickness(_glow) };
@@ -861,12 +923,16 @@ internal static class HoldProbe
                 ? (ImageSource)frames[0]
                 : live;
             var glowLayer = new Grid { Effect = glow };
-            glowLayer.Children.Add(new Border { CornerRadius = new CornerRadius(8) });
-            glowLayer.Children.Add(new Border
+            // With no background image the caster is the visible card surface, as in the template.
+            glowLayer.Children.Add(_noBackground ? Surface() : new Border { CornerRadius = new CornerRadius(8) });
+            if (!_noBackground)
             {
-                CornerRadius = new CornerRadius(8),
-                Background = new ImageBrush(backingSource) { Stretch = Stretch.UniformToFill },
-            });
+                glowLayer.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(8),
+                    Background = new ImageBrush(backingSource) { Stretch = Stretch.UniformToFill },
+                });
+            }
 
             if (CachesGlow(variant))
             {
@@ -886,6 +952,13 @@ internal static class HoldProbe
                 glowOuter.Children.Add(glowRoot);
                 card.Behind = MakeWindow(glowOuter);
             }
+            else if (WrapsGlow(variant))
+            {
+                var glowWrap = new Grid { CacheMode = new BitmapCache { SnapsToDevicePixels = true } };
+                glowWrap.Children.Add(glowLayer);
+                card.PulseElement = glowWrap;
+                root.Children.Add(glowWrap);
+            }
             else
             {
                 root.Children.Add(glowLayer);
@@ -896,15 +969,27 @@ internal static class HoldProbe
         // template's nested shadow pair per line.
         var content = new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true };
         var contentGrid = new Grid();
-        contentGrid.Children.Add(new Border
+        if (_noBackground)
         {
-            CornerRadius = new CornerRadius(8),
-            Background = new ImageBrush(live) { Stretch = Stretch.UniformToFill },
-        });
+            // A wrapped glow fades its own surface with the pulse, so the visible surface is
+            // repeated, unfaded, in the content layer above it.
+            if (WrapsGlow(variant))
+            {
+                contentGrid.Children.Add(Surface());
+            }
+        }
+        else
+        {
+            contentGrid.Children.Add(new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Background = new ImageBrush(live) { Stretch = Stretch.UniformToFill },
+            });
+        }
         var lines = new StackPanel { Margin = new Thickness(_cardHeight * 0.6, _cardHeight * 0.12, 20, 0) };
         foreach (var text in new[] { "Achievement unlocked", "A rather long achievement name here", "Description line for the card", "Game name - 4.2% of players" })
         {
-            var shadows = variant != Variant.NoTextShadow;
+            var shadows = variant != Variant.NoTextShadow && variant != Variant.MergedShadows && !_mergeShadows;
             var inner = new TextBlock
             {
                 Text = text,
@@ -930,8 +1015,27 @@ internal static class HoldProbe
                 }
             }
 
+            if (_textHint.HasValue)
+            {
+                TextOptions.SetTextHintingMode(inner, _textHint.Value);
+            }
+
+            if (_textRender.HasValue)
+            {
+                TextOptions.SetTextRenderingMode(inner, _textRender.Value);
+            }
+
             outer.Children.Add(inner);
             lines.Children.Add(outer);
+        }
+
+        FrameworkElement textBlock = lines;
+        if (variant == Variant.MergedShadows || (_mergeShadows && variant != Variant.NoTextShadow))
+        {
+            lines.Effect = new DropShadowEffect { BlurRadius = 2, ShadowDepth = 1, Opacity = 0.9 };
+            var mergedOuter = new Grid { Effect = new DropShadowEffect { BlurRadius = 5, ShadowDepth = 1, Opacity = 1 } };
+            mergedOuter.Children.Add(lines);
+            textBlock = mergedOuter;
         }
 
         if (variant == Variant.SplitAll || variant == Variant.SplitAllLive)
@@ -947,12 +1051,23 @@ internal static class HoldProbe
             textOuter.Children.Add(textRoot);
             card.Front = MakeWindow(textOuter);
         }
+        else if (WrapsText(variant))
+        {
+            var textWrap = new Grid { CacheMode = new BitmapCache { RenderAtScale = _textCacheScale, SnapsToDevicePixels = !_cacheNoSnap, EnableClearType = _cacheClearType } };
+            textWrap.Children.Add(textBlock);
+            contentGrid.Children.Add(textWrap);
+        }
         else
         {
-            contentGrid.Children.Add(lines);
+            contentGrid.Children.Add(textBlock);
         }
 
         content.Child = contentGrid;
+        if (WrapsContent(variant))
+        {
+            content.CacheMode = new BitmapCache { SnapsToDevicePixels = true };
+        }
+
         root.Children.Add(content);
 
         return MakeWindow(outerRoot);
