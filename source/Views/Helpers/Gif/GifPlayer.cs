@@ -311,14 +311,7 @@ namespace PlayniteAchievements.Views.Helpers.Gif
             {
                 var stride = _bitmap.BackBufferStride;
                 var backBuffer = _bitmap.BackBuffer;
-                for (var row = dirty.Y; row < dirty.Y + dirty.Height; row++)
-                {
-                    Marshal.Copy(
-                        pixels,
-                        row * width + dirty.X,
-                        backBuffer + row * stride + dirty.X * 4,
-                        dirty.Width);
-                }
+                CopyPixels(pixels, width, dirty, backBuffer, stride);
 
                 _bitmap.AddDirtyRect(dirty);
             }
@@ -326,6 +319,20 @@ namespace PlayniteAchievements.Views.Helpers.Gif
             {
                 _bitmap.Unlock();
             }
+        }
+
+        internal static void CopyPixels(int[] pixels, int width, Int32Rect dirty, IntPtr backBuffer, int stride)
+        {
+            // WebM and full-width GIF updates are contiguous in both buffers. One copy avoids
+            // hundreds of managed/native calls per frame, without changing pixels or timing.
+            if (dirty.X == 0 && dirty.Width == width && stride == width * 4)
+            {
+                Marshal.Copy(pixels, dirty.Y * width, backBuffer + dirty.Y * stride, dirty.Height * width);
+                return;
+            }
+
+            for (var row = dirty.Y; row < dirty.Y + dirty.Height; row++)
+                Marshal.Copy(pixels, row * width + dirty.X, backBuffer + row * stride + dirty.X * 4, dirty.Width);
         }
 
         private void Fail(Exception exception)
