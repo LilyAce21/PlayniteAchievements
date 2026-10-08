@@ -46,6 +46,7 @@ namespace PlayniteAchievements.Views.Workshop
                     defaultName: share.DefaultName,
                     libraryItemId: share.LibraryItemId,
                     publishedItemId: share.PublishedItemId),
+                OpenEdit = item => plugin.OpenWorkshopEdit(item, Window.GetWindow(this)),
                 OpenSettings = OpenSettings
             };
         }
