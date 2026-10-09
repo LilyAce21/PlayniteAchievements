@@ -102,7 +102,11 @@ jobs:
           [xml]$x = Get-Content $trx.FullName
           $c = $x.TestRun.ResultSummary.Counters
           Write-Host "::notice title=recording tests::total=$($c.total) passed=$($c.passed) failed=$($c.failed)"
-          $bad = @($x.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -ne 'Passed' } | ForEach-Object { "$($_.testName): $($_.outcome)" })
+          $bad = @($x.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -ne 'Passed' } | ForEach-Object {
+            $m = ''
+            if ($_.Output -and $_.Output.ErrorInfo -and $_.Output.ErrorInfo.Message) { $m = [string]$_.Output.ErrorInfo.Message; if ($m.Length -gt 220) { $m = $m.Substring(0,220) } }
+            "$($_.testName): $($_.outcome) - $m"
+          })
           if ($bad.Count -gt 0) {
             $msg = ($bad -join "`n") -replace '%','%25' -replace "`r",'' -replace "`n",'%0A'
             Write-Host "::error title=recording tests failed::$msg"

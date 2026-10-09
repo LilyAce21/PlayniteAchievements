@@ -83,7 +83,16 @@ namespace PlayniteAchievements.Services.Tests.Recording
             using (var server = new UnlockNotifyPipeServer(name, line => received.Add(line)))
             {
                 server.Start();
-                Send(name, new string('x', UnlockNotifyMessage.MaxMessageBytes * 3));
+                try
+                {
+                    // The server stops reading once the cap is passed, so a sender this large is
+                    // cut off mid-write, as a real client would be.
+                    Send(name, new string('x', UnlockNotifyMessage.MaxMessageBytes * 3));
+                }
+                catch (IOException)
+                {
+                }
+
                 Send(name, "still alive\n");
 
                 Assert.IsTrue(received.TryTake(out var line, 5000));
@@ -113,6 +122,30 @@ namespace PlayniteAchievements.Services.Tests.Recording
 
                 Assert.IsTrue(received.TryTake(out var line, 5000));
                 Assert.AreEqual("second", line);
+            }
+        }
+
+        [TestMethod]
+        public void ManyAnnouncementsBackToBack_AreAllDelivered()
+        {
+            var name = UniqueName();
+            var received = new BlockingCollection<string>();
+            using (var server = new UnlockNotifyPipeServer(name, line => received.Add(line)))
+            {
+                server.Start();
+                for (var i = 0; i < 12; i++)
+                {
+                    Send(name, "burst " + i + "\n");
+                }
+
+                var seen = new System.Collections.Generic.HashSet<string>();
+                for (var i = 0; i < 12; i++)
+                {
+                    Assert.IsTrue(received.TryTake(out var line, 5000), "only " + seen.Count + " of 12 arrived");
+                    seen.Add(line);
+                }
+
+                Assert.AreEqual(12, seen.Count);
             }
         }
 

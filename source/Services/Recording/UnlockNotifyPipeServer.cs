@@ -48,38 +48,26 @@ namespace PlayniteAchievements.Services.Recording
 
         private async Task RunAsync(CancellationToken token)
         {
+            NamedPipeServerStream listening = null;
             while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    using (var server = CreateServer())
+                    if (listening == null)
                     {
-                        await server.WaitForConnectionAsync(token).ConfigureAwait(false);
-                        var text = await ReadMessageAsync(server, token).ConfigureAwait(false);
-                        if (!string.IsNullOrEmpty(text))
-                        {
-                            foreach (var line in text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
-                            {
-                                var trimmed = line.Trim();
-                                if (trimmed.Length > 0)
-                                {
-                                    Deliver(trimmed);
-                                }
-                            }
-                        }
-
-                        try
-                        {
-                            if (server.IsConnected)
-                            {
-                                server.Disconnect();
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            // the client already left
-                        }
+                        listening = CreateServer();
                     }
+
+                    await listening.WaitForConnectionAsync(token).ConfigureAwait(false);
+
+                    // Open the next listening instance before looking at this connection, so the
+                    // pipe name never disappears: a second announcement a few milliseconds later
+                    // finds either the new instance or a busy pipe it can wait on, never "missing".
+                    var connected = listening;
+                    listening = null;
+                    listening = CreateServer();
+
+                    var ignored = Task.Run(() => HandleConnectionAsync(connected, token));
                 }
                 catch (OperationCanceledException)
                 {
@@ -94,12 +82,70 @@ namespace PlayniteAchievements.Services.Recording
                     _log("Unlock notify pipe error: " + ex.Message);
                     try
                     {
+                        listening?.Dispose();
+                    }
+                    catch (Exception)
+                    {
+                    }
+
+                    listening = null;
+                    try
+                    {
                         await Task.Delay(RestartDelay, token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
                         break;
                     }
+                }
+            }
+
+            try
+            {
+                listening?.Dispose();
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private async Task HandleConnectionAsync(NamedPipeServerStream server, CancellationToken token)
+        {
+            using (server)
+            {
+                try
+                {
+                    var text = await ReadMessageAsync(server, token).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        foreach (var line in text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            var trimmed = line.Trim();
+                            if (trimmed.Length > 0)
+                            {
+                                Deliver(trimmed);
+                            }
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    _log("Unlock notify connection error: " + ex.Message);
+                }
+
+                try
+                {
+                    if (server.IsConnected)
+                    {
+                        server.Disconnect();
+                    }
+                }
+                catch (Exception)
+                {
+                    // the client already left
                 }
             }
         }
@@ -116,7 +162,7 @@ namespace PlayniteAchievements.Services.Recording
             return new NamedPipeServerStream(
                 _pipeName,
                 PipeDirection.InOut,
-                1,
+                16,
                 PipeTransmissionMode.Byte,
                 PipeOptions.Asynchronous,
                 4096,
