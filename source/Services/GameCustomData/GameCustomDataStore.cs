@@ -805,11 +805,11 @@ namespace PlayniteAchievements.Services.GameCustomData
                         throw new InvalidOperationException($"Missing bundled icon file: {pair.Value ?? pair.Key}");
                     }
 
+                    // Stored icons keep their source bytes; anything not portable goes in as PNG.
                     var imageEntry = archive.CreateEntry(pair.Key, CompressionLevel.Optimal);
-                    using (var source = File.OpenRead(pair.Value))
                     using (var destination = imageEntry.Open())
                     {
-                        source.CopyTo(destination);
+                        PackageImageFormat.CopyPortable(pair.Value, destination);
                     }
                 }
             }
