@@ -6,9 +6,9 @@
 //                     [--compare <other AchievementToast.xaml>] [--kind rare] [--config <config.json>]
 //
 // Bench mode runs complete notifications - slide in, hold with the countdown, glow and background all
-// running, slide out - and reads every frame DWM presents for the card's screen rectangle through
-// desktop duplication. Per phase it reports how many presented frames changed the card and the longest
-// gap between changes: frames that reached the screen, not frames WPF prepared.
+// running, slide out - and samples the card's screen rectangle through desktop duplication. Reports
+// acquired desktop updates and missed updates separately. This is not a hardware scanout/VRR probe.
+// Use --no-capture for game-impact measurements: desktop duplication adds its own GPU workload.
 //
 // Compare mode shows the template (A) and the --compare template (B) at once, so both cards share one
 // background player and show the same frame, pauses every animation, and compares the two on screen.
@@ -48,11 +48,23 @@ public static class TemplateBench
     private static double _holdSeconds = 4;
     private static int _load;
     private static bool _software;
+    private static int _gameWork;
+    private static bool _noPulse, _noRays, _noCountdown, _stillBackground, _stillPulse;
+    private static string _overlayPath;
+    private static Card _overlay;
+    private static readonly List<GameSample> _gameFrames = new List<GameSample>();
+    private static bool _noCapture, _inProcessCapture;
+    private static int _frameRate;
+
+    // Every CompositionTarget.Rendering: the frames WPF prepared, presented or not.
+    private static readonly List<long> _renders = new List<long>();
+    private static double _gameBaseline;
     private static int _gpuPriority = -1;
 
     [DllImport("gdi32.dll")]
     private static extern int D3DKMTSetProcessSchedulingPriorityClass(IntPtr process, int priority);
     private static bool _freezeMotion;
+    private static bool _liveMotion;
     private static string _snapshot;
     private static string _decodePath;
     // Glow pulse and rays off and no countdown: only the background animates in the hold.
@@ -83,6 +95,12 @@ public static class TemplateBench
             return 0;
         }
 
+        var record = Array.IndexOf(args, "--record");
+        if (record >= 0)
+        {
+            return RecordChild(args[record + 1]);
+        }
+
         var here = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         _repo = Path.GetFullPath(Path.Combine(here, "..", "..", ".."));
         _pluginDir = Path.Combine(_repo, "source", "bin", "Debug");
@@ -105,11 +123,28 @@ public static class TemplateBench
                 case "--decode": _decodePath = args[++i]; break;
                 case "--background-only": _backgroundOnly = true; break;
                 case "--software": _software = true; break;
+                // A GameLoad at this shader work under the card; its frame rate is reported per phase.
+                case "--game": _gameWork = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                case "--no-pulse": _noPulse = true; break;
+                case "--no-rays": _noRays = true; break;
+                case "--no-countdown": _noCountdown = true; break;
+                case "--still-background": _stillBackground = true; break;
+                // Pauses the card and icon glow pulses only; --no-pulse also stops the rays.
+                case "--still-pulse": _stillPulse = true; break;
+                // A second card from this template in its own window over the first, shown only while
+                // the card rests: the content layer split from the card for the hold.
+                case "--overlay": _overlayPath = args[++i]; break;
+                // Capture runs in a child process at normal GPU priority unless one of these is given.
+                case "--no-capture": _noCapture = true; break;
+                case "--in-process-capture": _inProcessCapture = true; break;
                 case "--gpu-priority": _gpuPriority = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 case "--card-scale": _cardScale = double.Parse(args[++i], CultureInfo.InvariantCulture); break;
+                // The plugin's animation frame rate (AnimationFrameRate.Current) instead of the display's.
+                case "--frame-rate": _frameRate = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
                 // Leave the quiet scope's stand-downs out, so the background and glow keep animating
                 // through the slides.
                 case "--animate-motion": _freezeMotion = false; break;
+                case "--live-motion": _liveMotion = true; break;
             }
         }
 
@@ -138,6 +173,37 @@ public static class TemplateBench
                     }
 
                     await Task.Delay(2000);
+                }
+
+                if (_gameWork > 0)
+                {
+                    var game = Process.Start(new ProcessStartInfo(Path.Combine(here, "GameLoad.exe"), "--report --work " + _gameWork)
+                    {
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                    });
+                    loads.Add(game);
+                    game.OutputDataReceived += (o, d) =>
+                    {
+                        var parts = d.Data?.Split(' ');
+                        if (parts != null && parts.Length == 4 && parts[0] == "f")
+                        {
+                            lock (_gameFrames)
+                            {
+                                _gameFrames.Add(new GameSample
+                                {
+                                    Presented = long.Parse(parts[1], CultureInfo.InvariantCulture),
+                                    Time = long.Parse(parts[2], CultureInfo.InvariantCulture),
+                                    MaxFrameTicks = long.Parse(parts[3], CultureInfo.InvariantCulture),
+                                });
+                            }
+                        }
+                    };
+                    game.BeginOutputReadLine();
+                    await Task.Delay(3000);
+                    var now = Stopwatch.GetTimestamp();
+                    _gameBaseline = GameFps(now - (2 * Stopwatch.Frequency), now);
+                    Console.WriteLine("game alone {0:0.0} fps", _gameBaseline);
                 }
 
                 await RunAsync(app);
@@ -189,6 +255,11 @@ public static class TemplateBench
             return;
         }
 
+        if (_frameRate > 0)
+        {
+            _plugin.GetType("PlayniteAchievements.Views.Helpers.AnimationFrameRate").GetField("_cached", Flags).SetValue(null, _frameRate);
+        }
+
         var persisted = LoadPersisted();
         InstallPluginInstance(persisted);
         if (_comparePath != null)
@@ -199,12 +270,18 @@ public static class TemplateBench
             return;
         }
 
-        if (_backgroundOnly)
+        if (_backgroundOnly || _noPulse)
         {
             persisted.GetType().GetProperty("AnimateRarityGlows").SetValue(persisted, false);
         }
 
         var card = await BuildCardAsync(persisted, _templatePath, left: true);
+        if (_overlayPath != null)
+        {
+            _overlay = await BuildCardAsync(persisted, _overlayPath, left: true, backdropUnder: false);
+            Cloak(_overlay, true);
+        }
+
         Console.WriteLine("card window {0}x{1} px, background animating, glow pulse {2}",
             card.Rect.Right - card.Rect.Left, card.Rect.Bottom - card.Rect.Top,
             persisted.GetType().GetProperty("AnimateRarityGlows").GetValue(persisted));
@@ -215,7 +292,14 @@ public static class TemplateBench
         }
 
         await BenchAsync(card);
+        _overlay?.Window.Close();
         card.Window.Close();
+    }
+
+    private static void Cloak(Card card, bool cloaked)
+    {
+        _plugin.GetType("PlayniteAchievements.Services.UI.ToastWindowSurface").GetMethod("SetCloaked")
+            .Invoke(null, new object[] { card.Window, cloaked });
     }
 
     private sealed class Card
@@ -285,7 +369,7 @@ public static class TemplateBench
         return (DataTemplate)call[2];
     }
 
-    private static async Task<Card> BuildCardAsync(object persisted, string templatePath, bool left)
+    private static async Task<Card> BuildCardAsync(object persisted, string templatePath, bool left, bool backdropUnder = true)
     {
         var template = LoadTemplate(templatePath);
         var argsFactory = _plugin.GetType("PlayniteAchievements.Services.UI.ToastPreviewFactory");
@@ -351,7 +435,9 @@ public static class TemplateBench
             Width = 1600,
             Height = 700,
         };
-        backdrop.Show();
+        // GameLoad already supplies a still backdrop. Adding another top-level window would
+        // change the presentation workload being attributed to the notification.
+        if (_gameWork == 0 && backdropUnder) backdrop.Show();
         window.Closed += (s, e) => backdrop.Close();
 
         window.Show();
@@ -364,6 +450,8 @@ public static class TemplateBench
         factory.GetMethod("ApplyMeasuredCardGaps", Flags)?.Invoke(null, new object[] { surface });
         svcType.GetMethod("ReserveSlideTravel", Flags).Invoke(svc, new object[] { window, surface });
         window.UpdateLayout();
+        backdrop.Width = window.ActualWidth + 40;
+        backdrop.Height = window.ActualHeight + 40;
 
         // Let the background player load and start.
         await Task.Delay(2500);
@@ -391,75 +479,149 @@ public static class TemplateBench
             ["exit"] = new List<PhaseStats>(),
         };
 
-        using (var recorder = new RegionRecorder(card.Rect))
+        if (_noRays)
+        {
+            HideRays(card.Host);
+            if (_overlay != null) HideRays(_overlay.Host);
+        }
+
+        StillBackground(card.Host);
+
+        IRecorder recorder = _noCapture ? new NullRecorder()
+            : _inProcessCapture ? new RegionRecorder(card.Rect)
+            : (IRecorder)new RemoteRecorder(card.Rect);
+        var lastRenderingTime = TimeSpan.MinValue;
+        EventHandler countRenders = (s, e) =>
+        {
+            var time = ((RenderingEventArgs)e).RenderingTime;
+            if (time == lastRenderingTime) return;
+            lastRenderingTime = time;
+            lock (_renders)
+            {
+                _renders.Add(Stopwatch.GetTimestamp());
+            }
+        };
+        CompositionTarget.Rendering += countRenders;
+        using (recorder)
         {
             recorder.Start();
+            if (_gameWork > 0)
+            {
+                // The baseline with everything but the card in place: the backdrop, the recorder,
+                // and the card's window shown but cloaked.
+                var surfaceType = _plugin.GetType("PlayniteAchievements.Services.UI.ToastWindowSurface");
+                surfaceType.GetMethod("SetCloaked").Invoke(null, new object[] { card.Window, true });
+                await Task.Delay(1000);
+                var b0 = Stopwatch.GetTimestamp();
+                await Task.Delay(3000);
+                var b1 = Stopwatch.GetTimestamp();
+                surfaceType.GetMethod("SetCloaked").Invoke(null, new object[] { card.Window, false });
+                Console.WriteLine("game with card hidden {0:0.0} fps, worst frame {1:0.0} ms", GameFps(b0, b1), GameMaxMs(b0, b1));
+                await Task.Delay(500);
+            }
+
             for (var c = 0; c < _cycles; c++)
             {
                 // Entrance, as the wave runs it: cache realized a frame ahead, then the slide.
                 card.Slide.Y = card.TravelDip;
                 engage.Invoke(null, new object[] { card.Host, card.Window });
                 await Frames(3);
-                var t0 = recorder.Now;
+                var t0 = Stopwatch.GetTimestamp();
                 run.Invoke(card.Service, new object[] { null, card.TravelDip, 0d, easeIn, inMs, true, "in", false });
-                if (!_freezeMotion)
+                if (_liveMotion)
+                {
+                    svcType.GetMethod("DisposeSlideQuiet", Flags).Invoke(card.Service, null);
+                }
+                else if (!_freezeMotion)
                 {
                     ResumeAnimations(card.Host);
                 }
 
                 await Task.Delay((int)inMs + 20);
-                var t1 = recorder.Now;
+                var t1 = Stopwatch.GetTimestamp();
                 stop.Invoke(card.Service, null);
+                StillBackground(card.Host);
 
                 // As the wave does at the settle: hits, and DWM composition, limited to the card.
                 var surfaceType = _plugin.GetType("PlayniteAchievements.Services.UI.ToastWindowSurface");
                 var region = surfaceType.GetMethod("SetHitRegion");
                 region.Invoke(null, new object[] { card.Window, card.Surface, 16d });
-
-                if (!_backgroundOnly)
+                if (_overlay != null)
                 {
-                    countdown.Invoke(card.Service, new object[] { card.Window, (int)(_holdSeconds * 1000) });
+                    Cloak(_overlay, false);
+                }
+
+                if (!_backgroundOnly && !_noCountdown)
+                {
+                    // Split, the countdown is in the front window.
+                    var bar = _overlay ?? card;
+                    countdown.Invoke(bar.Service, new object[] { bar.Window, (int)(_holdSeconds * 1000) });
                 }
                 await Task.Delay(TimeSpan.FromSeconds(_holdSeconds));
-                var t2 = recorder.Now;
-                if (!_backgroundOnly)
+                var t2 = Stopwatch.GetTimestamp();
+                if (!_backgroundOnly && !_noCountdown)
                 {
-                    stopCountdown.Invoke(card.Service, new object[] { card.Window });
+                    var bar = _overlay ?? card;
+                    stopCountdown.Invoke(bar.Service, new object[] { bar.Window });
                 }
 
                 region.Invoke(null, new object[] { card.Window, null, 0d });
+                if (_overlay != null)
+                {
+                    Cloak(_overlay, true);
+                }
                 engage.Invoke(null, new object[] { card.Host, card.Window });
                 await Frames(1);
-                var t3 = recorder.Now;
+                var t3 = Stopwatch.GetTimestamp();
                 run.Invoke(card.Service, new object[] { null, 0d, card.TravelDip, easeOut, outMs, true, "out", false });
-                if (!_freezeMotion)
+                if (_liveMotion)
+                {
+                    svcType.GetMethod("DisposeSlideQuiet", Flags).Invoke(card.Service, null);
+                }
+                else if (!_freezeMotion)
                 {
                     ResumeAnimations(card.Host);
                 }
 
                 await Task.Delay((int)outMs + 20);
-                var t4 = recorder.Now;
+                var t4 = Stopwatch.GetTimestamp();
                 stop.Invoke(card.Service, null);
+                StillBackground(card.Host);
                 await Task.Delay(300);
 
-                phases["entrance"].Add(recorder.Stats(t0, t1));
-                phases["hold"].Add(recorder.Stats(t1, t2));
-                phases["exit"].Add(recorder.Stats(t3, t4));
+                phases["entrance"].Add(WithGame(recorder.Stats(t0, t1), t0, t1));
+                phases["hold"].Add(WithGame(recorder.Stats(t1, t2), t1, t2));
+                phases["exit"].Add(WithGame(recorder.Stats(t3, t4), t3, t4));
             }
         }
 
+        CompositionTarget.Rendering -= countRenders;
+
         var hz = 1000.0 / DisplayPeriodMs();
         Console.WriteLine("display {0:0.0} Hz; per phase, medians of {1} cycles:", hz, _cycles);
-        Console.WriteLine("{0,-9} {1,10} {2,11} {3,12} {4,10}", "phase", "changed/s", "% of display", "longest gap", "presents/s");
+        Console.WriteLine("{0,-9} {1,10} {2,11} {3,12} {4,10} {5,7} {6,9} {7,10} {8,8}",
+            "phase", "changed/s", "% of display", "longest gap", "presents/s", "missed", "game fps", "game worst", "wpf/s");
         foreach (var phase in phases)
         {
             var mid = phase.Value.OrderBy(p => p.ChangedPerSecond).ElementAt(phase.Value.Count / 2);
-            Console.WriteLine("{0,-9} {1,10:0.0} {2,10:0}% {3,10:0.0}ms {4,10:0.0}",
-                phase.Key, mid.ChangedPerSecond, 100 * mid.ChangedPerSecond / hz, mid.LongestGapMs, mid.PresentsPerSecond);
+            Console.WriteLine("{0,-9} {1,10} {2,11} {3,12} {4,10} {5,7} {6,9:0.0} {7,8:0.0}ms {8,8:0.0}",
+                phase.Key,
+                _noCapture ? "n/a" : mid.ChangedPerSecond.ToString("0.0", CultureInfo.InvariantCulture),
+                _noCapture ? "n/a" : (100 * mid.ChangedPerSecond / hz).ToString("0", CultureInfo.InvariantCulture) + "%",
+                _noCapture ? "n/a" : mid.LongestGapMs.ToString("0.0", CultureInfo.InvariantCulture) + "ms",
+                _noCapture ? "n/a" : mid.PresentsPerSecond.ToString("0.0", CultureInfo.InvariantCulture),
+                _noCapture ? "n/a" : phase.Value.Sum(p => p.Missed).ToString(CultureInfo.InvariantCulture),
+                phase.Value.Select(p => p.GameFps).OrderBy(f => f).ElementAt(phase.Value.Count / 2),
+                phase.Value.Max(p => p.GameMaxMs),
+                phase.Value.Select(p => p.RendersPerSecond).OrderBy(f => f).ElementAt(phase.Value.Count / 2));
         }
 
-        Console.WriteLine("  changed/s: presented frames in which the card's pixels changed. The hold's ceiling is");
-        Console.WriteLine("  set by what animates in it, not the display: a still card changes nothing.");
+        Console.WriteLine("  missed: desktop updates the recorder did not acquire, over all cycles. game worst:");
+        Console.WriteLine("  the game's longest frame in any cycle.");
+
+        Console.WriteLine("  changed/s: acquired desktop updates in which sampled card pixels changed. Missed updates");
+        Console.WriteLine("  make this a lower bound. wpf/s counts callbacks, not displayed frames or VRR scanouts.");
+        if (_noCapture) Console.WriteLine("  Capture disabled: n/a is unmeasured, not zero notification FPS.");
     }
 
     /// <summary>
@@ -476,6 +638,9 @@ public static class TemplateBench
     {
         var a = await BuildCardAsync(persisted, _templatePath, left: true);
         var b = await BuildCardAsync(persisted, _comparePath, left: false);
+
+        // --overlay with --compare: B is the split card, its front window stacked over it.
+        var front = _overlayPath != null ? await BuildCardAsync(persisted, _overlayPath, left: false, backdropUnder: false) : null;
         var asyncImage = _plugin.GetType("PlayniteAchievements.Views.Helpers.AsyncImage");
         var pause = asyncImage.GetMethod("PauseGifAnimationsUnder", Flags);
         pause.Invoke(null, new object[] { a.Host });
@@ -609,6 +774,25 @@ public static class TemplateBench
         }
     }
 
+    /// <summary>
+    /// For --still-background: pauses the background again, since ending a slide's quiet scope
+    /// resumes it.
+    /// </summary>
+    private static void StillBackground(Grid host)
+    {
+        if (_stillBackground)
+        {
+            _plugin.GetType("PlayniteAchievements.Views.Helpers.AsyncImage").GetMethod("PauseGifAnimationsUnder", Flags).Invoke(null, new object[] { host });
+        }
+
+        if (_stillPulse)
+        {
+            var pause = _plugin.GetType("PlayniteAchievements.Views.Helpers.RarityGlowPulse").GetMethod("PauseUnder", Flags);
+            pause.Invoke(null, new object[] { host });
+            if (_overlay != null) pause.Invoke(null, new object[] { _overlay.Host });
+        }
+    }
+
     private static void HideRays(DependencyObject root)
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
@@ -698,16 +882,213 @@ public static class TemplateBench
         public double ChangedPerSecond;
         public double PresentsPerSecond;
         public double LongestGapMs;
+        public double GameFps;
+        public double GameMaxMs;
+        public int Missed;
+        public double RendersPerSecond;
+    }
+
+    /// <summary>One GameLoad report: when, frames presented so far, and its longest frame since the last.</summary>
+    private struct GameSample
+    {
+        public long Time;
+        public long Presented;
+        public long MaxFrameTicks;
+    }
+
+    private static PhaseStats WithGame(PhaseStats stats, long from, long to)
+    {
+        stats.GameFps = GameFps(from, to);
+        stats.GameMaxMs = GameMaxMs(from, to);
+        lock (_renders)
+        {
+            stats.RendersPerSecond = _renders.Count(t => t >= from && t <= to) * (double)Stopwatch.Frequency / (to - from);
+        }
+        return stats;
+    }
+
+    /// <summary>The game's presents per second over [from, to], from its reports; 0 without a game.</summary>
+    private static double GameFps(long from, long to)
+    {
+        lock (_gameFrames)
+        {
+            var span = _gameFrames.Where(f => f.Time >= from && f.Time <= to).ToList();
+            if (span.Count < 2)
+            {
+                return 0;
+            }
+
+            var first = span[0];
+            var last = span[span.Count - 1];
+            return (last.Presented - first.Presented) * (double)Stopwatch.Frequency / (last.Time - first.Time);
+        }
+    }
+
+    /// <summary>The game's longest frame, present to present, over [from, to].</summary>
+    private static double GameMaxMs(long from, long to)
+    {
+        lock (_gameFrames)
+        {
+            var span = _gameFrames.Where(f => f.Time > from && f.Time <= to).ToList();
+            return span.Count == 0 ? 0 : span.Max(f => f.MaxFrameTicks) * 1000.0 / Stopwatch.Frequency;
+        }
+    }
+
+    private struct Frame
+    {
+        public long Time;
+        public bool Changed;
+
+        // Desktop updates since the last acquired frame; above 1, the recorder missed some.
+        public int Accumulated;
+    }
+
+    private interface IRecorder : IDisposable
+    {
+        void Start();
+
+        PhaseStats Stats(long from, long to);
+    }
+
+    private static PhaseStats Summarize(List<Frame> all, long from, long to)
+    {
+        var frames = all.Where(f => f.Time >= from && f.Time <= to).ToList();
+        var seconds = (to - from) / (double)Stopwatch.Frequency;
+        var changes = frames.Where(f => f.Changed).Select(f => f.Time).ToList();
+        var gap = 0d;
+        var last = from;
+        foreach (var t in changes)
+        {
+            gap = Math.Max(gap, (t - last) * 1000.0 / Stopwatch.Frequency);
+            last = t;
+        }
+
+        return new PhaseStats
+        {
+            ChangedPerSecond = changes.Count / seconds,
+            PresentsPerSecond = frames.Count / seconds,
+            LongestGapMs = Math.Max(gap, (to - last) * 1000.0 / Stopwatch.Frequency),
+            Missed = frames.Sum(f => Math.Max(0, f.Accumulated - 1)),
+        };
+    }
+
+    /// <summary>
+    /// For --no-capture: records nothing, so the game's frame rate is measured with no capture
+    /// work on the GPU at all.
+    /// </summary>
+    private sealed class NullRecorder : IRecorder
+    {
+        public void Start()
+        {
+        }
+
+        public PhaseStats Stats(long from, long to) => new PhaseStats();
+
+        public void Dispose()
+        {
+        }
+    }
+
+    /// <summary>
+    /// A <see cref="RegionRecorder"/> in a child process (this tool with --record) at normal GPU
+    /// priority, so the bench's --gpu-priority raises only the card's rendering, not the capture's
+    /// copies and readbacks. Frames arrive over the child's standard output.
+    /// </summary>
+    private sealed class RemoteRecorder : IRecorder
+    {
+        private readonly List<Frame> _frames = new List<Frame>();
+        private readonly Process _process;
+
+        public RemoteRecorder(Rect32 r)
+        {
+            var exe = Assembly.GetExecutingAssembly().Location;
+            _process = Process.Start(new ProcessStartInfo(exe, string.Format(CultureInfo.InvariantCulture,
+                "--record {0},{1},{2},{3}", r.Left, r.Top, r.Right, r.Bottom))
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+            });
+            _process.OutputDataReceived += (o, d) =>
+            {
+                var parts = d.Data?.Split(' ');
+                if (parts != null && parts.Length == 4 && parts[0] == "r")
+                {
+                    lock (_frames)
+                    {
+                        _frames.Add(new Frame
+                        {
+                            Time = long.Parse(parts[1], CultureInfo.InvariantCulture),
+                            Changed = parts[2] == "1",
+                            Accumulated = int.Parse(parts[3], CultureInfo.InvariantCulture),
+                        });
+                    }
+                }
+            };
+            _process.BeginOutputReadLine();
+        }
+
+        public void Start()
+        {
+            // The child starts capturing at once; wait for its first frame.
+            var wait = Stopwatch.StartNew();
+            while (wait.ElapsedMilliseconds < 3000)
+            {
+                lock (_frames)
+                {
+                    if (_frames.Count > 0)
+                    {
+                        return;
+                    }
+                }
+
+                Thread.Sleep(20);
+            }
+        }
+
+        public PhaseStats Stats(long from, long to)
+        {
+            // Frames for the span may still be in the pipe.
+            Thread.Sleep(100);
+            lock (_frames)
+            {
+                return Summarize(_frames, from, to);
+            }
+        }
+
+        public void Dispose()
+        {
+            try { _process.Kill(); } catch { }
+        }
+    }
+
+    /// <summary>The --record child: streams "r time changed accumulated" per frame until killed.</summary>
+    private static int RecordChild(string spec)
+    {
+        D3DKMTSetProcessSchedulingPriorityClass(Process.GetCurrentProcess().Handle, 2);
+        var p = spec.Split(',').Select(v => int.Parse(v, CultureInfo.InvariantCulture)).ToArray();
+        var recorder = new RegionRecorder(new Rect32 { Left = p[0], Top = p[1], Right = p[2], Bottom = p[3] });
+        var output = Console.Out;
+        recorder.Sink = f =>
+        {
+            output.WriteLine("r {0} {1} {2}", f.Time, f.Changed ? 1 : 0, f.Accumulated);
+            output.Flush();
+        };
+        recorder.Start();
+        Thread.Sleep(Timeout.Infinite);
+        return 0;
     }
 
     /// <summary>
     /// Desktop duplication of the card's screen rectangle. For every presented frame it records the
     /// present time and whether the rectangle's pixels changed (sampled on a grid).
     /// </summary>
-    private sealed class RegionRecorder : IDisposable
+    private sealed class RegionRecorder : IRecorder
     {
         private readonly Rect32 _rect;
-        private readonly List<KeyValuePair<long, bool>> _frames = new List<KeyValuePair<long, bool>>();
+        private readonly List<Frame> _frames = new List<Frame>();
+
+        /// <summary>Receives every frame on the capture thread, for --record to stream out.</summary>
+        public Action<Frame> Sink;
         private DXGI.Factory1 _factory;
         private DXGI.Adapter1 _adapter;
         private D3D11.Device _device;
@@ -758,8 +1139,6 @@ public static class TemplateBench
 
             throw new InvalidOperationException("no output contains the card");
         }
-
-        public long Now => Stopwatch.GetTimestamp();
 
         public void Start()
         {
@@ -813,10 +1192,13 @@ public static class TemplateBench
                         context.UnmapSubresource(_staging, 0);
                     }
 
+                    var frame = new Frame { Time = info.LastPresentTime, Changed = hash != previous, Accumulated = info.AccumulatedFrames };
                     lock (_frames)
                     {
-                        _frames.Add(new KeyValuePair<long, bool>(info.LastPresentTime, hash != previous));
+                        _frames.Add(frame);
                     }
+
+                    Sink?.Invoke(frame);
 
                     previous = hash;
                 }
@@ -830,28 +1212,10 @@ public static class TemplateBench
 
         public PhaseStats Stats(long from, long to)
         {
-            List<KeyValuePair<long, bool>> frames;
             lock (_frames)
             {
-                frames = _frames.Where(f => f.Key >= from && f.Key <= to).ToList();
+                return Summarize(_frames, from, to);
             }
-
-            var seconds = (to - from) / (double)Stopwatch.Frequency;
-            var changes = frames.Where(f => f.Value).Select(f => f.Key).ToList();
-            var gap = 0d;
-            var last = from;
-            foreach (var t in changes)
-            {
-                gap = Math.Max(gap, (t - last) * 1000.0 / Stopwatch.Frequency);
-                last = t;
-            }
-
-            return new PhaseStats
-            {
-                ChangedPerSecond = changes.Count / seconds,
-                PresentsPerSecond = frames.Count / seconds,
-                LongestGapMs = gap,
-            };
         }
 
         public void Dispose()

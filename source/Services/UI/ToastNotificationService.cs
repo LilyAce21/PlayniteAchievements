@@ -2646,6 +2646,10 @@ namespace PlayniteAchievements.Services.UI
                 }
 
                 PlaceWindow(window, "preshow");
+                if (_settings?.Persisted?.NotificationRenderMode == NotificationRenderMode.Quality)
+                {
+                    ToastGpuPriority.Raise();
+                }
                 window.Show();
                 if (_activeDwmComposed)
                 {
@@ -3098,6 +3102,7 @@ namespace PlayniteAchievements.Services.UI
                 {
                 }
 
+                ToastGpuPriority.Restore();
                 if (ReferenceEquals(_activeWindow, window))
                 {
                     _activeWindow = null;
@@ -5671,6 +5676,8 @@ namespace PlayniteAchievements.Services.UI
             catch
             {
             }
+
+            ToastGpuPriority.Restore();
         }
     }
 }

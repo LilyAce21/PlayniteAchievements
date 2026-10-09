@@ -98,6 +98,65 @@ namespace PlayniteAchievements.Views.Helpers
                 "EffectClock", typeof(AnimationClock), typeof(RarityGlowPulse),
                 new PropertyMetadata(null));
 
+        private static readonly DependencyProperty ElementPulseProperty =
+            DependencyProperty.RegisterAttached(
+                "ElementPulse", typeof(ElementPulse), typeof(RarityGlowPulse), new PropertyMetadata(null));
+
+        private static readonly DependencyProperty IsPausedProperty =
+            DependencyProperty.RegisterAttached(
+                "IsPaused", typeof(bool), typeof(RarityGlowPulse), new PropertyMetadata(false));
+
+        private sealed class ElementPulse
+        {
+            internal AnimationClock Clock;
+            internal bool Shared;
+            internal double? BaseOpacity;
+
+            internal void Pause(FrameworkElement element)
+            {
+                if (!Shared)
+                {
+                    Clock.Controller?.Pause();
+                    return;
+                }
+
+                // A shared clock may also drive library icons outside this toast. Freeze this
+                // consumer only, preserving its base value and the other consumers' phase.
+                if (BaseOpacity.HasValue) return;
+                var opacity = element.Opacity;
+                BaseOpacity = (double)element.GetAnimationBaseValue(UIElement.OpacityProperty);
+                element.ApplyAnimationClock(UIElement.OpacityProperty, null);
+                element.SetCurrentValue(UIElement.OpacityProperty, opacity);
+            }
+
+            internal void Resume(FrameworkElement element)
+            {
+                if (!Shared)
+                {
+                    Clock.Controller?.Resume();
+                    return;
+                }
+
+                if (!BaseOpacity.HasValue) return;
+                element.SetCurrentValue(UIElement.OpacityProperty, BaseOpacity.Value);
+                BaseOpacity = null;
+                element.ApplyAnimationClock(UIElement.OpacityProperty, Clock);
+            }
+        }
+
+        private static void ApplyElementClock(FrameworkElement element, AnimationClock clock, bool shared)
+        {
+            // Settings can retune an already-paused pulse. Restore the saved base before
+            // replacing its clock, then keep the replacement paused until the slide finishes.
+            var previous = element.GetValue(ElementPulseProperty) as ElementPulse;
+            if (previous?.BaseOpacity != null)
+                element.SetCurrentValue(UIElement.OpacityProperty, previous.BaseOpacity.Value);
+            var pulse = new ElementPulse { Clock = clock, Shared = shared };
+            element.SetValue(ElementPulseProperty, pulse);
+            element.ApplyAnimationClock(UIElement.OpacityProperty, clock);
+            if ((bool)element.GetValue(IsPausedProperty)) pulse.Pause(element);
+        }
+
         private static void OnIsActiveChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (!(d is FrameworkElement element))
@@ -302,9 +361,7 @@ namespace PlayniteAchievements.Views.Helpers
 
             if (GetTarget(element) == RarityGlowPulseTarget.Element && GetPhaseLock(element))
             {
-                element.ApplyAnimationClock(
-                    UIElement.OpacityProperty,
-                    GetSharedClock(animation, cycleMilliseconds));
+                ApplyElementClock(element, GetSharedClock(animation, cycleMilliseconds), shared: true);
                 return;
             }
 
@@ -328,6 +385,7 @@ namespace PlayniteAchievements.Views.Helpers
                             var clock = animation.CreateClock();
                             effect.ApplyAnimationClock(DropShadowEffect.OpacityProperty, clock);
                             element.SetValue(EffectClockProperty, clock);
+                            if ((bool)element.GetValue(IsPausedProperty)) clock.Controller?.Pause();
                         }
                     }),
                     DispatcherPriority.Loaded);
@@ -337,12 +395,14 @@ namespace PlayniteAchievements.Views.Helpers
                 animation.BeginTime = GetPhaseLock(element)
                     ? GlowAnimationClock.PhaseLockBeginTime(cycleMilliseconds)
                     : GlowAnimationClock.PeakStartBeginTime(cycleMilliseconds);
-                element.BeginAnimation(UIElement.OpacityProperty, animation);
+                ApplyElementClock(element, animation.CreateClock(), shared: false);
             }
         }
 
         private static void StopAnimation(FrameworkElement element)
         {
+            element.ClearValue(IsPausedProperty);
+            element.ClearValue(ElementPulseProperty);
             if (GetTarget(element) == RarityGlowPulseTarget.Effect)
             {
                 if (element.Effect is DropShadowEffect effect)
@@ -364,52 +424,49 @@ namespace PlayniteAchievements.Views.Helpers
         }
 
         /// <summary>
-        /// Pauses every Effect-target pulse clock in <paramref name="root"/>'s visual tree, for
-        /// the notification slide's span: the pulse invalidates a software-blurred
-        /// DropShadowEffect subtree every frame, which competes with the slide for the frame
-        /// budget. Scoped to a subtree rather than global on purpose — pausing a phase-locked
-        /// clock would desynchronize it from the shared epoch, so only the notification card
-        /// (whose templates opt out of phase lock) should ever be paused. UI thread only.
+        /// Freezes both card-effect and icon-opacity pulses during a slide. Either kind would
+        /// invalidate the whole-card motion cache every frame. Shared clocks keep running for
+        /// consumers outside this subtree. UI thread only.
         /// </summary>
         public static void PauseUnder(DependencyObject root)
         {
-            ForEachEffectClock(root, clock =>
+            ForEachElement(root, element =>
             {
-                if (!clock.IsPaused)
-                {
-                    clock.Controller?.Pause();
-                }
+                if (!GetIsActive(element) || (bool)element.GetValue(IsPausedProperty)) return;
+                element.SetValue(IsPausedProperty, true);
+                (element.GetValue(EffectClockProperty) as AnimationClock)?.Controller?.Pause();
+                (element.GetValue(ElementPulseProperty) as ElementPulse)?.Pause(element);
             });
         }
 
         /// <summary>Resumes the clocks <see cref="PauseUnder"/> paused. UI thread only.</summary>
         public static void ResumeUnder(DependencyObject root)
         {
-            ForEachEffectClock(root, clock =>
+            ForEachElement(root, element =>
             {
-                if (clock.IsPaused)
-                {
-                    clock.Controller?.Resume();
-                }
+                if (!(bool)element.GetValue(IsPausedProperty)) return;
+                element.ClearValue(IsPausedProperty);
+                (element.GetValue(EffectClockProperty) as AnimationClock)?.Controller?.Resume();
+                (element.GetValue(ElementPulseProperty) as ElementPulse)?.Resume(element);
             });
         }
 
-        private static void ForEachEffectClock(DependencyObject root, Action<AnimationClock> action)
+        private static void ForEachElement(DependencyObject root, Action<FrameworkElement> action)
         {
             if (root == null)
             {
                 return;
             }
 
-            if (root.GetValue(EffectClockProperty) is AnimationClock clock)
+            if (root is FrameworkElement element)
             {
-                action(clock);
+                action(element);
             }
 
             var count = VisualTreeHelper.GetChildrenCount(root);
             for (var i = 0; i < count; i++)
             {
-                ForEachEffectClock(VisualTreeHelper.GetChild(root, i), action);
+                ForEachElement(VisualTreeHelper.GetChild(root, i), action);
             }
         }
 

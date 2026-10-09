@@ -155,40 +155,58 @@ namespace PlayniteAchievements.Views.Helpers
         private static void SetNativeGifAnimation(DependencyObject element, NativeGifAnimation value) =>
             element?.SetValue(NativeGifAnimationProperty, value);
 
+        private static readonly DependencyProperty FrameClockProperty = DependencyProperty.RegisterAttached(
+            "FrameClock", typeof(AnimationClock), typeof(AsyncImage), new PropertyMetadata(null));
+
+        private static readonly DependencyProperty AnimationsPausedProperty = DependencyProperty.RegisterAttached(
+            "AnimationsPaused", typeof(bool), typeof(AsyncImage), new PropertyMetadata(false));
+
         /// <summary>
-        /// Pauses every native GIF decoder in <paramref name="root"/>'s visual tree for the
-        /// notification slide's span. Animated WebP is deliberately not paused: its frames are
-        /// discrete keyframe swaps of already-decoded frozen bitmaps, so it costs the slide
-        /// nothing, and re-stamping its animation would deep-copy every frame. UI thread only.
+        /// Pauses native GIF/WebM playback and WebP frame clocks in the visual subtree for a
+        /// notification slide. Even a predecoded frame swap invalidates the whole-card cache.
+        /// Keeping the clock lets WebP resume without cloning its retained bitmaps. UI thread only.
         /// </summary>
         public static void PauseGifAnimationsUnder(DependencyObject root)
         {
-            ForEachNativeGifAnimation(root, animation => animation.Pause());
+            ForEachImage(root, image =>
+            {
+                if ((bool)image.GetValue(AnimationsPausedProperty)) return;
+                image.SetValue(AnimationsPausedProperty, true);
+                GetNativeGifAnimation(image)?.Pause();
+                (image.GetValue(FrameClockProperty) as AnimationClock)?.Controller?.Pause();
+            });
         }
 
         /// <summary>Resumes the decoders <see cref="PauseGifAnimationsUnder"/> paused.</summary>
         public static void ResumeGifAnimationsUnder(DependencyObject root)
         {
-            ForEachNativeGifAnimation(root, animation => animation.Resume());
+            ForEachImage(root, image =>
+            {
+                if (!(bool)image.GetValue(AnimationsPausedProperty)) return;
+                image.ClearValue(AnimationsPausedProperty);
+                GetNativeGifAnimation(image)?.Resume();
+                (image.GetValue(FrameClockProperty) as AnimationClock)?.Controller?.Resume();
+            });
         }
 
-        private static void ForEachNativeGifAnimation(
-            DependencyObject root, Action<NativeGifAnimation> action)
+        private static void ForEachImage(
+            DependencyObject root, Action<DependencyObject> action)
         {
             if (root == null)
             {
                 return;
             }
 
-            if (GetNativeGifAnimation(root) is NativeGifAnimation animation)
+            if (root is System.Windows.Controls.Image || root is ImageBrush)
             {
-                action(animation);
+                action(root);
             }
 
+            if (!(root is Visual)) return;
             var count = VisualTreeHelper.GetChildrenCount(root);
             for (var i = 0; i < count; i++)
             {
-                ForEachNativeGifAnimation(VisualTreeHelper.GetChild(root, i), action);
+                ForEachImage(VisualTreeHelper.GetChild(root, i), action);
             }
         }
 
@@ -334,6 +352,9 @@ namespace PlayniteAchievements.Views.Helpers
         {
             if (sender is DependencyObject d)
             {
+                // A recycled/reparented image can leave the paused subtree before Resume walks
+                // it. Its next attachment must not inherit that old slide's pause.
+                d.ClearValue(AnimationsPausedProperty);
                 // Cancel any pending load but don't clear the source.
                 // The image is cached by ImageService, so clearing causes
                 // unnecessary visual flash during visibility toggles
@@ -622,6 +643,7 @@ namespace PlayniteAchievements.Views.Helpers
                 animation.Failed += OnNativeGifFailed;
                 SetNativeGifAnimation(image, animation);
                 SetActiveAnimationSource(image, localPath);
+                if ((bool)image.GetValue(AnimationsPausedProperty)) animation.Pause();
                 animation.Start();
                 return true;
             }
@@ -869,23 +891,27 @@ namespace PlayniteAchievements.Views.Helpers
             // clone it to adjust BeginTime here: Freezable.Clone on a frozen animation deep-copies
             // every key frame's bitmap through CachedBitmap.CloneCore, which reallocates every
             // decoded frame per attach and exhausts memory on long animations.
+            var clock = animation.CreateClock();
+            target.SetValue(FrameClockProperty, clock);
+            if ((bool)target.GetValue(AnimationsPausedProperty)) clock.Controller?.Pause();
             if (target is System.Windows.Controls.Image image)
             {
                 image.Source = firstFrame;
-                image.BeginAnimation(System.Windows.Controls.Image.SourceProperty, animation, HandoffBehavior.SnapshotAndReplace);
+                image.ApplyAnimationClock(System.Windows.Controls.Image.SourceProperty, clock, HandoffBehavior.SnapshotAndReplace);
                 return;
             }
 
             if (target is System.Windows.Media.ImageBrush brush)
             {
                 brush.ImageSource = firstFrame;
-                brush.BeginAnimation(System.Windows.Media.ImageBrush.ImageSourceProperty, animation, HandoffBehavior.SnapshotAndReplace);
+                brush.ApplyAnimationClock(System.Windows.Media.ImageBrush.ImageSourceProperty, clock, HandoffBehavior.SnapshotAndReplace);
             }
         }
 
         private static void StopAnimation(DependencyObject target)
         {
             SetActiveAnimationSource(target, null);
+            target.ClearValue(FrameClockProperty);
 
             if (target is System.Windows.Controls.Image image)
             {
