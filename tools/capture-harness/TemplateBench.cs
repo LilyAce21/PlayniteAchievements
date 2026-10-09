@@ -49,7 +49,9 @@ public static class TemplateBench
     private static int _load;
     private static bool _software;
     private static int _gameWork;
-    private static bool _noPulse, _noRays, _noCountdown, _stillBackground;
+    private static bool _noPulse, _noRays, _noCountdown, _stillBackground, _stillPulse;
+    private static string _overlayPath;
+    private static Card _overlay;
     private static readonly List<GameSample> _gameFrames = new List<GameSample>();
     private static bool _noCapture, _inProcessCapture;
     private static int _frameRate;
@@ -127,6 +129,11 @@ public static class TemplateBench
                 case "--no-rays": _noRays = true; break;
                 case "--no-countdown": _noCountdown = true; break;
                 case "--still-background": _stillBackground = true; break;
+                // Pauses the card and icon glow pulses only; --no-pulse also stops the rays.
+                case "--still-pulse": _stillPulse = true; break;
+                // A second card from this template in its own window over the first, shown only while
+                // the card rests: the content layer split from the card for the hold.
+                case "--overlay": _overlayPath = args[++i]; break;
                 // Capture runs in a child process at normal GPU priority unless one of these is given.
                 case "--no-capture": _noCapture = true; break;
                 case "--in-process-capture": _inProcessCapture = true; break;
@@ -269,6 +276,12 @@ public static class TemplateBench
         }
 
         var card = await BuildCardAsync(persisted, _templatePath, left: true);
+        if (_overlayPath != null)
+        {
+            _overlay = await BuildCardAsync(persisted, _overlayPath, left: true, backdropUnder: false);
+            Cloak(_overlay, true);
+        }
+
         Console.WriteLine("card window {0}x{1} px, background animating, glow pulse {2}",
             card.Rect.Right - card.Rect.Left, card.Rect.Bottom - card.Rect.Top,
             persisted.GetType().GetProperty("AnimateRarityGlows").GetValue(persisted));
@@ -279,7 +292,14 @@ public static class TemplateBench
         }
 
         await BenchAsync(card);
+        _overlay?.Window.Close();
         card.Window.Close();
+    }
+
+    private static void Cloak(Card card, bool cloaked)
+    {
+        _plugin.GetType("PlayniteAchievements.Services.UI.ToastWindowSurface").GetMethod("SetCloaked")
+            .Invoke(null, new object[] { card.Window, cloaked });
     }
 
     private sealed class Card
@@ -349,7 +369,7 @@ public static class TemplateBench
         return (DataTemplate)call[2];
     }
 
-    private static async Task<Card> BuildCardAsync(object persisted, string templatePath, bool left)
+    private static async Task<Card> BuildCardAsync(object persisted, string templatePath, bool left, bool backdropUnder = true)
     {
         var template = LoadTemplate(templatePath);
         var argsFactory = _plugin.GetType("PlayniteAchievements.Services.UI.ToastPreviewFactory");
@@ -417,7 +437,7 @@ public static class TemplateBench
         };
         // GameLoad already supplies a still backdrop. Adding another top-level window would
         // change the presentation workload being attributed to the notification.
-        if (_gameWork == 0) backdrop.Show();
+        if (_gameWork == 0 && backdropUnder) backdrop.Show();
         window.Closed += (s, e) => backdrop.Close();
 
         window.Show();
@@ -462,12 +482,10 @@ public static class TemplateBench
         if (_noRays)
         {
             HideRays(card.Host);
+            if (_overlay != null) HideRays(_overlay.Host);
         }
 
-        if (_stillBackground)
-        {
-            _plugin.GetType("PlayniteAchievements.Views.Helpers.AsyncImage").GetMethod("PauseGifAnimationsUnder", Flags).Invoke(null, new object[] { card.Host });
-        }
+        StillBackground(card.Host);
 
         IRecorder recorder = _noCapture ? new NullRecorder()
             : _inProcessCapture ? new RegionRecorder(card.Rect)
@@ -528,19 +546,30 @@ public static class TemplateBench
                 var surfaceType = _plugin.GetType("PlayniteAchievements.Services.UI.ToastWindowSurface");
                 var region = surfaceType.GetMethod("SetHitRegion");
                 region.Invoke(null, new object[] { card.Window, card.Surface, 16d });
+                if (_overlay != null)
+                {
+                    Cloak(_overlay, false);
+                }
 
                 if (!_backgroundOnly && !_noCountdown)
                 {
-                    countdown.Invoke(card.Service, new object[] { card.Window, (int)(_holdSeconds * 1000) });
+                    // Split, the countdown is in the front window.
+                    var bar = _overlay ?? card;
+                    countdown.Invoke(bar.Service, new object[] { bar.Window, (int)(_holdSeconds * 1000) });
                 }
                 await Task.Delay(TimeSpan.FromSeconds(_holdSeconds));
                 var t2 = Stopwatch.GetTimestamp();
                 if (!_backgroundOnly && !_noCountdown)
                 {
-                    stopCountdown.Invoke(card.Service, new object[] { card.Window });
+                    var bar = _overlay ?? card;
+                    stopCountdown.Invoke(bar.Service, new object[] { bar.Window });
                 }
 
                 region.Invoke(null, new object[] { card.Window, null, 0d });
+                if (_overlay != null)
+                {
+                    Cloak(_overlay, true);
+                }
                 engage.Invoke(null, new object[] { card.Host, card.Window });
                 await Frames(1);
                 var t3 = Stopwatch.GetTimestamp();
@@ -609,6 +638,9 @@ public static class TemplateBench
     {
         var a = await BuildCardAsync(persisted, _templatePath, left: true);
         var b = await BuildCardAsync(persisted, _comparePath, left: false);
+
+        // --overlay with --compare: B is the split card, its front window stacked over it.
+        var front = _overlayPath != null ? await BuildCardAsync(persisted, _overlayPath, left: false, backdropUnder: false) : null;
         var asyncImage = _plugin.GetType("PlayniteAchievements.Views.Helpers.AsyncImage");
         var pause = asyncImage.GetMethod("PauseGifAnimationsUnder", Flags);
         pause.Invoke(null, new object[] { a.Host });
@@ -751,6 +783,13 @@ public static class TemplateBench
         if (_stillBackground)
         {
             _plugin.GetType("PlayniteAchievements.Views.Helpers.AsyncImage").GetMethod("PauseGifAnimationsUnder", Flags).Invoke(null, new object[] { host });
+        }
+
+        if (_stillPulse)
+        {
+            var pause = _plugin.GetType("PlayniteAchievements.Views.Helpers.RarityGlowPulse").GetMethod("PauseUnder", Flags);
+            pause.Invoke(null, new object[] { host });
+            if (_overlay != null) pause.Invoke(null, new object[] { _overlay.Host });
         }
     }
 
