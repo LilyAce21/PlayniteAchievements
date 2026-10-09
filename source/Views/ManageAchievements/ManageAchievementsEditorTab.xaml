@@ -993,6 +993,9 @@
                                          a line, which is what AcceptsReturn is here for. -->
                                     <controls:EditOnClickPresenter Grid.Column="0"
                                                                    VerticalAlignment="Center"
+                                                                   helpers:EditorCellRouting.Field="DisplayName"
+                                                                   PreviewDragOver="TextDropCell_PreviewDragOver"
+                                                                   PreviewDrop="TextDropCell_Drop"
                                                                    Visibility="{Binding IsTitleHidden, Converter={StaticResource InverseBoolToVis}}">
                                         <controls:EditOnClickPresenter.DisplayTemplate>
                                             <DataTemplate>
@@ -1109,6 +1112,9 @@
                                     </Grid.ColumnDefinitions>
                                     <controls:EditOnClickPresenter Grid.Column="0"
                                                                    VerticalAlignment="Center"
+                                                                   helpers:EditorCellRouting.Field="Description"
+                                                                   PreviewDragOver="TextDropCell_PreviewDragOver"
+                                                                   PreviewDrop="TextDropCell_Drop"
                                                                    Visibility="{Binding IsDescriptionHidden, Converter={StaticResource InverseBoolToVis}}">
                                         <controls:EditOnClickPresenter.DisplayTemplate>
                                             <DataTemplate>
