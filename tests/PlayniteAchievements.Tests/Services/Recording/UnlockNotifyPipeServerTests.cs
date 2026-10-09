@@ -130,7 +130,8 @@ namespace PlayniteAchievements.Services.Tests.Recording
         {
             var name = UniqueName();
             var received = new BlockingCollection<string>();
-            using (var server = new UnlockNotifyPipeServer(name, line => received.Add(line)))
+            var logs = new ConcurrentQueue<string>();
+            using (var server = new UnlockNotifyPipeServer(name, line => received.Add(line), logs.Enqueue))
             {
                 server.Start();
                 for (var i = 0; i < 12; i++)
@@ -141,7 +142,13 @@ namespace PlayniteAchievements.Services.Tests.Recording
                 var seen = new System.Collections.Generic.HashSet<string>();
                 for (var i = 0; i < 12; i++)
                 {
-                    Assert.IsTrue(received.TryTake(out var line, 5000), "only " + seen.Count + " of 12 arrived");
+                    if (!received.TryTake(out var line, 5000))
+                    {
+                        Assert.Fail("only " + seen.Count + " of 12 arrived; accepted=" + server.AcceptedConnections +
+                                    "; delivered=" + server.DeliveredLines + "; seen=[" + string.Join(",", seen) +
+                                    "]; logs=[" + string.Join(" | ", logs) + "]");
+                    }
+
                     seen.Add(line);
                 }
 

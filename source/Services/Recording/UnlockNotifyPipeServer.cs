@@ -28,6 +28,14 @@ namespace PlayniteAchievements.Services.Recording
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private Task _loop;
         private int _started;
+        private int _accepted;
+        private int _delivered;
+
+        /// <summary>Connections accepted so far (for diagnostics and tests).</summary>
+        internal int AcceptedConnections => Volatile.Read(ref _accepted);
+
+        /// <summary>Lines handed to the callback so far (for diagnostics and tests).</summary>
+        internal int DeliveredLines => Volatile.Read(ref _delivered);
 
         public UnlockNotifyPipeServer(string pipeName, Action<string> onMessage, Action<string> log = null)
         {
@@ -59,6 +67,7 @@ namespace PlayniteAchievements.Services.Recording
                     }
 
                     await listening.WaitForConnectionAsync(token).ConfigureAwait(false);
+                    Interlocked.Increment(ref _accepted);
 
                     // Open the next listening instance before looking at this connection, so the
                     // pipe name never disappears: a second announcement a few milliseconds later
@@ -116,7 +125,11 @@ namespace PlayniteAchievements.Services.Recording
                 try
                 {
                     var text = await ReadMessageAsync(server, token).ConfigureAwait(false);
-                    if (!string.IsNullOrEmpty(text))
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        _log("Unlock notify connection carried no message.");
+                    }
+                    else
                     {
                         foreach (var line in text.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
                         {
@@ -217,6 +230,7 @@ namespace PlayniteAchievements.Services.Recording
         {
             try
             {
+                Interlocked.Increment(ref _delivered);
                 _onMessage(line);
             }
             catch (Exception ex)
