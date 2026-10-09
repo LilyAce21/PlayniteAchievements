@@ -1312,6 +1312,67 @@ namespace PlayniteAchievements.Views.ManageAchievements
             }
         }
 
+        /// <summary>
+        /// Accepts dropped text on a resting Name or Description cell. A cell open for editing is
+        /// left to its text box, which inserts the text at the drop point itself.
+        /// </summary>
+        private void TextDropCell_PreviewDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is Controls.EditOnClickPresenter presenter && presenter.IsEditing)
+            {
+                return;
+            }
+
+            e.Effects = ReadDroppedCellText(e.Data) != null ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Replaces the cell's field with the dropped text, on the row it was dropped on.
+        /// </summary>
+        private void TextDropCell_Drop(object sender, DragEventArgs e)
+        {
+            if (!(sender is Controls.EditOnClickPresenter presenter) || presenter.IsEditing)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            var row = EditorCellRouting.ResolveRow(presenter);
+            var field = EditorCellRouting.GetField(presenter);
+            var text = ReadDroppedCellText(e.Data);
+            if (row == null || string.IsNullOrEmpty(field) || text == null)
+            {
+                return;
+            }
+
+            // A name is a single line; a description keeps its line breaks.
+            if (field == nameof(AchievementEditorRow.DisplayName))
+            {
+                text = Regex.Replace(text, @"\s*[\r\n]+\s*", " ");
+            }
+
+            if (!string.Equals(text, ReadRoutedCellText(row, field), StringComparison.Ordinal))
+            {
+                WriteRoutedCellText(row, field, text);
+            }
+        }
+
+        /// <summary>
+        /// The trimmed plain text a drag carries, or null for a file drop or a drag without text.
+        /// </summary>
+        private static string ReadDroppedCellText(IDataObject data)
+        {
+            if (data == null || data.GetDataPresent(DataFormats.FileDrop))
+            {
+                return null;
+            }
+
+            var text = (ReadDroppedText(data, DataFormats.UnicodeText) ??
+                        ReadDroppedText(data, DataFormats.Text))?.Trim();
+            return string.IsNullOrEmpty(text) ? null : text;
+        }
+
         private void NumericTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             var textBox = sender as TextBox;
