@@ -481,6 +481,7 @@
     <Compile Include="..\..\source\Models\Settings\PlaytimeDisplayMode.cs" Link="Source\Models\Settings\PlaytimeDisplayMode.cs" />
     <Compile Include="..\..\source\Models\Settings\CategoryCompletionBadgeMode.cs" Link="Source\Models\Settings\CategoryCompletionBadgeMode.cs" />
     <Compile Include="..\..\source\Models\Settings\ToastScreenCorner.cs" Link="Source\Models\Settings\ToastScreenCorner.cs" />
+    <Compile Include="..\..\source\Models\Settings\NotificationRenderMode.cs" Link="Source\Models\Settings\NotificationRenderMode.cs" />
     <Compile Include="..\..\source\Models\Settings\ToastHorizontalAlignment.cs" Link="Source\Models\Settings\ToastHorizontalAlignment.cs" />
     <Compile Include="..\..\source\Models\Settings\ToastMotion.cs" Link="Source\Models\Settings\ToastMotion.cs" />
     <Compile Include="..\..\source\Models\Settings\GridVerticalAlignment.cs" Link="Source\Models\Settings\GridVerticalAlignment.cs" />
