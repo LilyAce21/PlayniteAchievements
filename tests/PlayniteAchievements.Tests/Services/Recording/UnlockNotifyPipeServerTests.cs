@@ -15,14 +15,25 @@ namespace PlayniteAchievements.Services.Tests.Recording
     {
         private static string UniqueName() => "PlayniteAchievementsTest." + Guid.NewGuid().ToString("N");
 
+        // Behaves like the Achievements app: write the line, then wait for the server to close.
         private static void Send(string pipeName, string text)
         {
-            using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out))
+            using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut))
             {
                 client.Connect(5000);
                 var bytes = Encoding.UTF8.GetBytes(text);
                 client.Write(bytes, 0, bytes.Length);
-                client.Flush();
+                var waitForClose = System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        client.Read(new byte[1], 0, 1);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                });
+                waitForClose.Wait(3000);
             }
         }
 

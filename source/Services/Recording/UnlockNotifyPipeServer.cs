@@ -188,6 +188,10 @@ namespace PlayniteAchievements.Services.Recording
                 security);
         }
 
+        // Protocol: the client writes one JSON line ending in '\n' and then waits for this side to
+        // close the connection. Reading stops at the newline (or at the size cap, or when the
+        // client goes quiet or leaves), so a client that waits for the close is never cut off and
+        // this side never waits for an end-of-stream that the client is itself waiting on.
         private static async Task<string> ReadMessageAsync(Stream stream, CancellationToken token)
         {
             using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
@@ -206,6 +210,10 @@ namespace PlayniteAchievements.Services.Recording
                         }
 
                         collected.Write(buffer, 0, read);
+                        if (Array.IndexOf(buffer, (byte)'\n', 0, read) >= 0)
+                        {
+                            break;
+                        }
                     }
                 }
                 catch (OperationCanceledException)
