@@ -1626,43 +1626,33 @@ namespace PlayniteAchievements.Views.ManageAchievements
             }
 
             var target = EditorCellRouting.ResolveTarget(ViewModel, row);
-            switch (field)
+            if (!WriteRoutedCellText(target, field, value))
             {
-                case nameof(AchievementEditorRow.DisplayName):
-                    target.DisplayName = value;
-                    break;
-
-                case nameof(AchievementEditorRow.Description):
-                    target.Description = value;
-                    break;
-
-                case nameof(AchievementEditorRow.TimeText):
-                    target.TimeText = value;
-                    break;
-
-                case nameof(AchievementEditorRow.RarityInput):
-                    target.RarityInput = value;
-                    break;
-
-                case nameof(AchievementEditorRow.PointsText):
-                    target.PointsText = value;
-                    break;
-
-                case nameof(AchievementEditorRow.ProgressNumText):
-                    target.ProgressNumText = value;
-                    break;
-
-                case nameof(AchievementEditorRow.ProgressDenomText):
-                    target.ProgressDenomText = value;
-                    break;
-
-                default:
-                    return;
+                return;
             }
 
             // The setters normalize and can refuse, so the box shows what was stored rather than
             // what was typed.
             textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+        }
+
+        /// <summary>
+        /// Writes a routed cell's text to <paramref name="target"/> through the row's own setter.
+        /// False when the field is not a text field.
+        /// </summary>
+        private static bool WriteRoutedCellText(AchievementEditorRow target, string field, string value)
+        {
+            switch (field)
+            {
+                case nameof(AchievementEditorRow.DisplayName): target.DisplayName = value; return true;
+                case nameof(AchievementEditorRow.Description): target.Description = value; return true;
+                case nameof(AchievementEditorRow.TimeText): target.TimeText = value; return true;
+                case nameof(AchievementEditorRow.RarityInput): target.RarityInput = value; return true;
+                case nameof(AchievementEditorRow.PointsText): target.PointsText = value; return true;
+                case nameof(AchievementEditorRow.ProgressNumText): target.ProgressNumText = value; return true;
+                case nameof(AchievementEditorRow.ProgressDenomText): target.ProgressDenomText = value; return true;
+                default: return false;
+            }
         }
 
         /// <summary>
