@@ -2646,7 +2646,10 @@ namespace PlayniteAchievements.Services.UI
                 }
 
                 PlaceWindow(window, "preshow");
-                ToastGpuPriority.Raise();
+                if (_settings?.Persisted?.NotificationRenderMode == NotificationRenderMode.Quality)
+                {
+                    ToastGpuPriority.Raise();
+                }
                 window.Show();
                 if (_activeDwmComposed)
                 {
