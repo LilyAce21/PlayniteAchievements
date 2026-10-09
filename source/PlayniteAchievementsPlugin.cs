@@ -106,6 +106,7 @@ namespace PlayniteAchievements
         private readonly Services.Sound.UnlockSoundService _unlockSounds;
         private readonly ToastNotificationService _toastNotifications;
         private readonly Services.Recording.UnlockRecordingService _unlockRecordings;
+        private readonly Services.Recording.NotificationSnapshotService _notificationSnapshots;
         private readonly Services.Captures.CaptureLibraryService _captureLibraryService;
 
         /// <summary>
@@ -929,7 +930,11 @@ namespace PlayniteAchievements
                         // toast service only ever invokes these from an unlock handler, long after
                         // the field is assigned.
                         e => _unlockRecordings?.WouldRequestClip(e) ?? false,
-                        (e, capHeight) => _unlockRecordings?.TryCaptureAnchorFrame(e, capHeight),
+                        // A snapshot taken when the Achievements app announced this unlock wins;
+                        // otherwise the recorder's own answer (none for display recordings), and
+                        // then the caller keeps its normal live capture.
+                        (e, capHeight) => _notificationSnapshots?.TryTake(e, capHeight)
+                            ?? _unlockRecordings?.TryCaptureAnchorFrame(e, capHeight),
                         e => _notifications?.CreateAchievementCaptureContent(e),
                         _unlockSounds);
                     _unlockRecordings = new Services.Recording.UnlockRecordingService(
@@ -950,6 +955,17 @@ namespace PlayniteAchievements
                         // live ones were heard.
                         () => _unlockSounds?.HostProcessId,
                         id => _unlockSounds?.TryGetAudibleOnsetUtc(id));
+                    // Takes the unlock screenshot at the moment the Achievements desktop app
+                    // announces the unlock (instead of when this add-on later detects it).
+                    _notificationSnapshots = new Services.Recording.NotificationSnapshotService(
+                        _logger,
+                        System.Windows.Application.Current?.Dispatcher,
+                        () => settings?.Persisted?.EnableUnlockScreenshots == true,
+                        ResolveRunningGameForAnnouncement,
+                        new Services.UI.UnlockScreenshotService(_logger).CaptureGameWindow,
+                        () => Services.Capture.ResolutionCapMath.CapHeightFor(
+                            settings?.Persisted?.ScreenshotResolution ?? Models.Settings.ScreenshotResolution.Native));
+                    _notificationSnapshots.Start();
                     _captureLibraryService = new Services.Captures.CaptureLibraryService(
                         () => _settingsViewModel?.Settings?.Persisted,
                         _logger);
@@ -1165,6 +1181,61 @@ namespace PlayniteAchievements
         /// Resolves the started process id for a specific running game, or for the most recently
         /// started still-running game when <paramref name="gameId"/> is null or empty.
         /// </summary>
+        /// <summary>
+        /// The running game an unlock announcement from the Achievements app belongs to, with its
+        /// window and process. One running game is taken as is; with several, the game whose name
+        /// matches the announcement (ignoring a trailing "(Steam)"-style tag) wins, and an
+        /// ambiguous announcement is skipped rather than guessed. UI thread only.
+        /// </summary>
+        private Services.Recording.RunningGameTarget ResolveRunningGameForAnnouncement(
+            Services.Recording.UnlockNotifyMessage message)
+        {
+            var running = PlayniteApi?.Database?.Games?
+                .Where(game => game?.IsRunning == true)
+                .ToList();
+            if (running == null || running.Count == 0)
+            {
+                return null;
+            }
+
+            Game game = null;
+            if (running.Count == 1)
+            {
+                game = running[0];
+            }
+            else
+            {
+                var announced = message?.GameName ?? string.Empty;
+                var tag = announced.LastIndexOf('(');
+                if (tag > 0 && announced.EndsWith(")", StringComparison.Ordinal))
+                {
+                    announced = announced.Substring(0, tag);
+                }
+
+                var key = Services.Recording.NotificationSnapshotStore.NormalizeKey(announced);
+                var matches = key.Length == 0
+                    ? new List<Game>()
+                    : running.Where(candidate =>
+                        Services.Recording.NotificationSnapshotStore.NormalizeKey(candidate.Name) == key).ToList();
+                if (matches.Count == 1)
+                {
+                    game = matches[0];
+                }
+            }
+
+            if (game == null)
+            {
+                return null;
+            }
+
+            return new Services.Recording.RunningGameTarget
+            {
+                GameId = game.Id,
+                WindowHandle = _windowTracker?.TryGetFocusedWindowHandle(game.Id) ?? IntPtr.Zero,
+                ProcessId = GetProcessIdForGame(game.Id)
+            };
+        }
+
         private int? GetProcessIdForGame(Guid? gameId)
         {
             if (gameId.HasValue && gameId.Value != Guid.Empty)
@@ -1940,6 +2011,7 @@ namespace PlayniteAchievements
             try { _inGameMonitor?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose inGameMonitor"); }
             try { _toastNotifications?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose toastNotifications"); }
             try { _unlockRecordings?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose unlockRecordings"); }
+            try { _notificationSnapshots?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose notificationSnapshots"); }
             // After the recordings: a session in flight still reads the host's pid until then.
             SettingsSaved -= OnSettingsSavedForUnlockSounds;
             try { _unlockSounds?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose unlockSounds"); }
