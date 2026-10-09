@@ -156,7 +156,12 @@ namespace PlayniteAchievements.Services.Recording
             var self = WindowsIdentity.GetCurrent().User;
             if (self != null)
             {
-                security.AddAccessRule(new PipeAccessRule(self, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+                // CreateNewInstance is needed so the next listening instance can be opened while
+                // this one is busy (without it only the first connection could ever succeed).
+                security.AddAccessRule(new PipeAccessRule(
+                    self,
+                    PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance,
+                    AccessControlType.Allow));
             }
 
             return new NamedPipeServerStream(
