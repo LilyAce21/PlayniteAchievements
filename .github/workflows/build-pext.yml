@@ -1,0 +1,109 @@
+name: Build PlayniteAchievements (.pext)
+
+# Builds the add-on on a GitHub-hosted Windows machine and attaches the installable .pext to the
+# run as an artifact (it is uploaded right after the build, before any tests run). Compiler errors
+# and unit-test results are also written out as annotations.
+# Runs on pushes to ci/** and feature/** branches only.
+
+on:
+  push:
+    branches:
+      - "ci/**"
+      - "feature/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: nuget restore source/PlayniteAchievements.sln
+
+      - name: Build the add-on (Release)
+        id: build
+        shell: pwsh
+        run: |
+          msbuild source/PlayniteAchievements.csproj /p:Configuration=Release /m /v:minimal /nologo 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Show compiler problems as an annotation
+        if: failure() && steps.build.outcome == 'failure'
+        shell: pwsh
+        run: |
+          $errs = Select-String -Path build.log -Pattern ': error ' | Select-Object -First 30 | ForEach-Object { $_.Line.Trim() }
+          if (-not $errs) { $errs = Get-Content build.log -Tail 25 }
+          $msg = ($errs -join "`n") -replace '%','%25' -replace "`r",'' -replace "`n",'%0A'
+          Write-Host "::error title=msbuild failed::$msg"
+
+      - name: Package the .pext
+        shell: pwsh
+        run: |
+          $out = "source/bin/Release"
+          $ver = ((Select-String -Path source/extension.yaml -Pattern '^Version:\s*(.+)$').Matches[0].Groups[1].Value).Trim()
+          $id  = ((Select-String -Path source/extension.yaml -Pattern '^Id:\s*(.+)$').Matches[0].Groups[1].Value).Trim()
+          $zip = "$id`_$ver-display-recording.zip"
+          Compress-Archive -Path "$out/*" -DestinationPath $zip -Force
+          Rename-Item -Path $zip -NewName ($zip -replace '\.zip$','.pext')
+          Get-ChildItem *.pext | Select-Object Name, Length
+
+      - name: Describe the package contents
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $pext = Get-ChildItem *.pext | Select-Object -First 1
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($pext.FullName)
+          try {
+            $names = @($zip.Entries | ForEach-Object { $_.FullName })
+            $top = @($names | Where-Object { $_ -notmatch '/' })
+            $has = @('extension.yaml','PlayniteAchievements.dll','icon.png') | ForEach-Object { "$_=" + ($top -contains $_) }
+            $helper = @($names | Where-Object { $_ -like '*Helper*' } | Select-Object -First 3)
+            $msg = "entries=$($names.Count); top-level files=$($top.Count); $($has -join ', '); helper: $($helper -join ', '); backslashes in names=" + (@($names | Where-Object { $_ -match '\\' }).Count)
+            Write-Host "::notice title=pext layout::$msg"
+          } finally { $zip.Dispose() }
+
+      - name: Upload the add-on
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlayniteAchievements-pext
+          path: "*.pext"
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Run the capstone and PSN tests
+        id: mytests
+        shell: pwsh
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          dotnet test tests/PlayniteAchievements.Tests/PlayniteAchievements.Tests.csproj -c Release --filter "FullyQualifiedName~Capstone|FullyQualifiedName~Psn" --logger "trx;LogFileName=mine.trx" --results-directory TestResults 2>&1 | Tee-Object -FilePath mytests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Report the capstone and PSN tests as annotations
+        if: always()
+        shell: pwsh
+        run: |
+          $trx = Get-ChildItem -Path TestResults -Filter mine.trx -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $trx) {
+            $tail = (Get-Content mytests.log -Tail 30 -ErrorAction SilentlyContinue) -join "`n"
+            $msg = $tail -replace '%','%25' -replace "`r",'' -replace "`n",'%0A'
+            Write-Host "::warning title=capstone and PSN tests produced no results::$msg"
+            exit 0
+          }
+          [xml]$x = Get-Content $trx.FullName
+          $c = $x.TestRun.ResultSummary.Counters
+          Write-Host "::notice title=capstone and PSN tests::total=$($c.total) passed=$($c.passed) failed=$($c.failed)"
+          $bad = @($x.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -ne 'Passed' } | ForEach-Object { "$($_.testName): $($_.outcome)" })
+          if ($bad.Count -gt 0) {
+            $msg = ($bad -join "`n") -replace '%','%25' -replace "`r",'' -replace "`n",'%0A'
+            Write-Host "::error title=capstone and PSN tests failed::$msg"
+          }
