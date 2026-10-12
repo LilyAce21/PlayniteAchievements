@@ -71,6 +71,7 @@ namespace PlayniteAchievements.Services.Workshop
             public string SubmitterKey { get; set; }
             public string DisplayName { get; set; }
             public List<WorkshopSubmissionRecord> Submissions { get; set; } = new List<WorkshopSubmissionRecord>();
+            public List<string> LikedItemIds { get; set; } = new List<string>();
         }
 
         private List<WorkshopSubmissionRecord> _submissions = new List<WorkshopSubmissionRecord>();
@@ -317,6 +318,9 @@ namespace PlayniteAchievements.Services.Workshop
             {
                 EnsureIdentityLoaded();
                 _submitterKey = key.Trim().ToLowerInvariant();
+                // Likes belong to the key they were recorded under; the next listing brings back
+                // whatever the new key has liked.
+                _likedItemIds.Clear();
                 SaveIdentity();
             }
 
@@ -411,6 +415,84 @@ namespace PlayniteAchievements.Services.Workshop
             }
         }
 
+        /// <summary>
+        /// The Workshop items this install has liked. Kept beside the submitter key because the
+        /// key is what a like is recorded under, and read before any network call so a liked item
+        /// shows as liked offline and on the first frame.
+        /// </summary>
+        public IReadOnlyCollection<string> LikedItemIds
+        {
+            get
+            {
+                lock (_sync)
+                {
+                    EnsureIdentityLoaded();
+                    return _likedItemIds.ToList();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Replaces the liked items with <paramref name="itemIds"/>, as the service holds them for
+        /// this install's key. True when the stored set changed.
+        /// </summary>
+        public bool SetLikedItemIds(IEnumerable<string> itemIds)
+        {
+            var liked = new HashSet<string>(
+                (itemIds ?? Enumerable.Empty<string>()).Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
+            lock (_sync)
+            {
+                EnsureIdentityLoaded();
+                if (_likedItemIds.SetEquals(liked))
+                {
+                    return false;
+                }
+
+                _likedItemIds = liked;
+                SaveIdentity();
+                return true;
+            }
+        }
+
+        /// <summary>Records or forgets one liked item. True when the stored set changed.</summary>
+        public bool SetLiked(string itemId, bool liked)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            lock (_sync)
+            {
+                EnsureIdentityLoaded();
+                var changed = liked ? _likedItemIds.Add(itemId.Trim()) : _likedItemIds.Remove(itemId.Trim());
+                if (changed)
+                {
+                    SaveIdentity();
+                }
+
+                return changed;
+            }
+        }
+
+        public bool IsLiked(string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return false;
+            }
+
+            lock (_sync)
+            {
+                EnsureIdentityLoaded();
+                return _likedItemIds.Contains(itemId.Trim());
+            }
+        }
+
+        private HashSet<string> _likedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         private static string HashKey(string key)
         {
             using (var sha = SHA256.Create())
@@ -466,6 +548,9 @@ namespace PlayniteAchievements.Services.Workshop
                 _displayName = identity?.DisplayName;
                 _submissions = identity?.Submissions?.Where(s => s != null && s.IssueNumber > 0).ToList()
                                ?? new List<WorkshopSubmissionRecord>();
+                _likedItemIds = new HashSet<string>(
+                    (identity?.LikedItemIds ?? new List<string>()).Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id.Trim()),
+                    StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
@@ -488,7 +573,13 @@ namespace PlayniteAchievements.Services.Workshop
                 File.WriteAllText(
                     Path.Combine(_directory, IdentityFileName),
                     JsonConvert.SerializeObject(
-                        new IdentityFile { SubmitterKey = _submitterKey, DisplayName = _displayName, Submissions = _submissions },
+                        new IdentityFile
+                        {
+                            SubmitterKey = _submitterKey,
+                            DisplayName = _displayName,
+                            Submissions = _submissions,
+                            LikedItemIds = _likedItemIds.ToList()
+                        },
                         Formatting.Indented));
             }
             catch (Exception ex)
