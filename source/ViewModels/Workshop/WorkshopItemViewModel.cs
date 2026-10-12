@@ -61,6 +61,52 @@ namespace PlayniteAchievements.ViewModels.Workshop
 
         /// <summary>Live count when known, otherwise the count the index carried at its last build.</summary>
         public long Downloads => _liveDownloads ?? Item.Downloads?.Total ?? 0;
+
+        /// <summary>
+        /// The like state, read through the shared store so Browse and the Library page always
+        /// agree. Null until a list hands the store over, which is also what keeps the affordance
+        /// hidden when the service cannot be reached.
+        /// </summary>
+        public WorkshopLikeStore Likes
+        {
+            get => _likes;
+            set
+            {
+                _likes = value;
+                RaiseLikesChanged();
+            }
+        }
+
+        private WorkshopLikeStore _likes;
+
+        /// <summary>Re-reads the like count and state from the store.</summary>
+        public void RaiseLikesChanged()
+        {
+            OnPropertyChanged(nameof(LikeCount));
+            OnPropertyChanged(nameof(IsLiked));
+            OnPropertyChanged(nameof(CanLike));
+        }
+
+        public long LikeCount => _likes?.CountFor(Id) ?? 0;
+
+        public bool IsLiked => _likes?.IsLiked(Id) ?? false;
+
+        /// <summary>True once the service has answered; until then no like is shown at all.</summary>
+        public bool CanLike => _likes?.IsAvailable ?? false;
+
+        /// <summary>Turns this install's like for the item on or off.</summary>
+        public AsyncCommand ToggleLikeCommand => _toggleLikeCommand ?? (_toggleLikeCommand = new AsyncCommand(
+            async _ =>
+            {
+                var store = _likes;
+                if (store != null)
+                {
+                    await store.ToggleAsync(Id, System.Threading.CancellationToken.None).ConfigureAwait(false);
+                }
+            },
+            _ => CanLike));
+
+        private AsyncCommand _toggleLikeCommand;
         public string GameName => Item.Game?.Name;
         public string Tags => string.Join(", ", Item.Tags ?? new List<string>());
         public bool HasTags => Item.Tags != null && Item.Tags.Count > 0;
