@@ -8,22 +8,23 @@ using System.Threading.Tasks;
 namespace PlayniteAchievements.Services.Workshop
 {
     /// <summary>
-    /// The like state every Workshop surface reads: how many likes each item has, and which ones
-    /// this install has liked. One instance is shared by Browse and the Library page, so a press
-    /// on either is seen by both. A press applies locally first and asks the service after, and a
-    /// refused call puts the local state back.
+    /// The Workshop statistics every surface reads: an item's install count, its like count, and
+    /// whether this install has liked it. One instance is shared by Browse and the Library page,
+    /// so a press on either is seen by both. A press applies locally first and asks the service
+    /// after, and a refused call puts the local state back.
     /// </summary>
-    public sealed class WorkshopLikeStore
+    public sealed class WorkshopStatsStore
     {
-        private readonly WorkshopLikesClient _client;
+        private readonly WorkshopStatsClient _client;
         private readonly WorkshopIdentityStore _identity;
         private readonly ILogger _logger;
         private readonly object _sync = new object();
-        private readonly Dictionary<string, long> _counts = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> _likes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> _installs = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
         private Task<bool> _load;
 
-        public WorkshopLikeStore(WorkshopLikesClient client, WorkshopIdentityStore identity, ILogger logger = null)
+        public WorkshopStatsStore(WorkshopStatsClient client, WorkshopIdentityStore identity, ILogger logger = null)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _identity = identity ?? throw new ArgumentNullException(nameof(identity));
@@ -31,14 +32,15 @@ namespace PlayniteAchievements.Services.Workshop
         }
 
         /// <summary>
-        /// Raised with an item's id after its count or its liked state changed, on the thread that
-        /// changed it. Lists subscribe once and raise the affected row's properties.
+        /// Raised with an item's id after one of its counts or its liked state changed, on the
+        /// thread that changed it; a null id means every item changed, as when the listing
+        /// arrives. Lists subscribe once and raise the affected row's properties.
         /// </summary>
-        public event EventHandler<string> LikesChanged;
+        public event EventHandler<string> StatsChanged;
 
         /// <summary>
         /// True once a listing has been read. Until then no count is known to be true, so the
-        /// surfaces hide the like affordance entirely rather than show a zero.
+        /// surfaces leave the numbers and the like button out rather than show a zero.
         /// </summary>
         public bool IsAvailable { get; private set; }
 
@@ -75,11 +77,8 @@ namespace PlayniteAchievements.Services.Workshop
 
             lock (_sync)
             {
-                _counts.Clear();
-                foreach (var pair in snapshot.Counts)
-                {
-                    _counts[pair.Key] = pair.Value;
-                }
+                Replace(_likes, snapshot.Likes);
+                Replace(_installs, snapshot.Installs);
             }
 
             // The service is the record of what this key has liked; a key copied from another
@@ -94,7 +93,20 @@ namespace PlayniteAchievements.Services.Workshop
             return true;
         }
 
-        public long CountFor(string itemId)
+        private static void Replace(Dictionary<string, long> target, Dictionary<string, long> source)
+        {
+            target.Clear();
+            foreach (var pair in source)
+            {
+                target[pair.Key] = pair.Value;
+            }
+        }
+
+        public long LikesFor(string itemId) => CountFor(_likes, itemId);
+
+        public long InstallsFor(string itemId) => CountFor(_installs, itemId);
+
+        private long CountFor(Dictionary<string, long> counts, string itemId)
         {
             if (string.IsNullOrWhiteSpace(itemId))
             {
@@ -103,7 +115,7 @@ namespace PlayniteAchievements.Services.Workshop
 
             lock (_sync)
             {
-                return _counts.TryGetValue(itemId, out var count) ? count : 0;
+                return counts.TryGetValue(itemId, out var count) ? count : 0;
             }
         }
 
@@ -113,7 +125,7 @@ namespace PlayniteAchievements.Services.Workshop
         /// Turns this install's like for an item on or off. The change shows at once and is sent
         /// to the service; a failure undoes it and leaves the count as the service last gave it.
         /// </summary>
-        public async Task ToggleAsync(string itemId, CancellationToken cancel)
+        public async Task ToggleLikeAsync(string itemId, CancellationToken cancel)
         {
             if (string.IsNullOrWhiteSpace(itemId))
             {
@@ -121,19 +133,41 @@ namespace PlayniteAchievements.Services.Workshop
             }
 
             var liked = !_identity.IsLiked(itemId);
-            Apply(itemId, liked, liked ? 1 : -1);
+            ApplyLike(itemId, liked, liked ? 1 : -1);
 
             // Liking is the first thing that needs an identity on an install that has never
             // shared, so this is where the submitter key is created.
             var voter = _identity.GetSubmitterHash();
-            var count = await _client.SetAsync(itemId, voter, liked, cancel).ConfigureAwait(false);
+            var count = await _client.SetLikeAsync(itemId, voter, liked, cancel).ConfigureAwait(false);
             if (count == null)
             {
-                Apply(itemId, !liked, liked ? -1 : 1);
+                ApplyLike(itemId, !liked, liked ? -1 : 1);
                 return;
             }
 
-            SetCount(itemId, count.Value);
+            SetCount(_likes, itemId, count.Value);
+            RaiseChanged(itemId);
+        }
+
+        /// <summary>
+        /// Adds this install to an item's install count. Called once an install has succeeded, so
+        /// the number counts installs rather than the package fetches a preview also makes. A
+        /// service that cannot be reached simply loses the count.
+        /// </summary>
+        public async Task RecordInstallAsync(string itemId, CancellationToken cancel)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return;
+            }
+
+            var count = await _client.RecordInstallAsync(itemId, cancel).ConfigureAwait(false);
+            if (count == null)
+            {
+                return;
+            }
+
+            SetCount(_installs, itemId, count.Value);
             RaiseChanged(itemId);
         }
 
@@ -162,36 +196,36 @@ namespace PlayniteAchievements.Services.Workshop
             foreach (var id in mine)
             {
                 cancel.ThrowIfCancellationRequested();
-                Apply(id, true, 1);
-                var count = await _client.SetAsync(id, voter, true, cancel).ConfigureAwait(false);
+                ApplyLike(id, true, 1);
+                var count = await _client.SetLikeAsync(id, voter, true, cancel).ConfigureAwait(false);
                 if (count == null)
                 {
-                    Apply(id, false, -1);
+                    ApplyLike(id, false, -1);
                     continue;
                 }
 
-                SetCount(id, count.Value);
+                SetCount(_likes, id, count.Value);
                 RaiseChanged(id);
             }
         }
 
-        private void Apply(string itemId, bool liked, long delta)
+        private void ApplyLike(string itemId, bool liked, long delta)
         {
             _identity.SetLiked(itemId, liked);
             lock (_sync)
             {
-                _counts.TryGetValue(itemId, out var count);
-                _counts[itemId] = Math.Max(0, count + delta);
+                _likes.TryGetValue(itemId, out var count);
+                _likes[itemId] = Math.Max(0, count + delta);
             }
 
             RaiseChanged(itemId);
         }
 
-        private void SetCount(string itemId, long count)
+        private void SetCount(Dictionary<string, long> counts, string itemId, long count)
         {
             lock (_sync)
             {
-                _counts[itemId] = Math.Max(0, count);
+                counts[itemId] = Math.Max(0, count);
             }
         }
 
@@ -199,11 +233,11 @@ namespace PlayniteAchievements.Services.Workshop
         {
             try
             {
-                LikesChanged?.Invoke(this, itemId);
+                StatsChanged?.Invoke(this, itemId);
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "A Workshop likes change handler failed.");
+                _logger?.Warn(ex, "A Workshop statistics change handler failed.");
             }
         }
     }
