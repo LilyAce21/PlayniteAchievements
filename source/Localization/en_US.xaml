@@ -1425,6 +1425,7 @@
     <sys:String x:Key="LOCPlayAch_Workshop_Kind_Bundle">Bundles</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_Kind_GameCustomData">Game data</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_SortMostDownloaded">Most downloaded</sys:String>
+    <sys:String x:Key="LOCPlayAch_Workshop_SortMostLiked">Most liked</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_SortNewest">Newest</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_OnlyMyGames">Only games in my library</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_Empty">Nothing matches.</sys:String>
@@ -1434,6 +1435,9 @@
     <sys:String x:Key="LOCPlayAch_Workshop_Reinstall">Reinstall</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_UpdateAvailable">Update available</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_Downloads">Downloads</sys:String>
+    <sys:String x:Key="LOCPlayAch_Workshop_Likes">Likes</sys:String>
+    <sys:String x:Key="LOCPlayAch_Workshop_Like">Like</sys:String>
+    <sys:String x:Key="LOCPlayAch_Workshop_Unlike">Unlike</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_Contents">Contains</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_OpenOnGitHub">Open on GitHub</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_RemoveFromWorkshop">Remove from Workshop</sys:String>
