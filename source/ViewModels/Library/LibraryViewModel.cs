@@ -49,6 +49,7 @@ namespace PlayniteAchievements.ViewModels.Library
         private readonly LibraryUpdateService _updates;
         private readonly GameLinkStore _gameLinks;
         private readonly WorkshopIdentityStore _identity;
+        private readonly WorkshopLikeStore _likes;
         private readonly PersistedSettingsSubscription _settingsSubscription;
         private readonly Dispatcher _dispatcher;
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
@@ -78,6 +79,7 @@ namespace PlayniteAchievements.ViewModels.Library
             _updates = plugin.LibraryUpdateService;
             _gameLinks = plugin.GameLinkStore;
             _identity = plugin.WorkshopIdentityStore;
+            _likes = plugin.WorkshopLikeStore;
             _dispatcher = Dispatcher.CurrentDispatcher;
             _focusGameId = focusGameId;
 
@@ -110,6 +112,7 @@ namespace PlayniteAchievements.ViewModels.Library
             _library.Changed += Source_Changed;
             _gameLinks.Changed += Source_Changed;
             _identity.Changed += Source_Changed;
+            _likes.LikesChanged += Likes_Changed;
             if (plugin.Settings != null)
             {
                 _settingsSubscription = new PersistedSettingsSubscription(
@@ -379,7 +382,10 @@ namespace PlayniteAchievements.ViewModels.Library
                 path = null;
             }
 
-            var row = new LibraryItemRow(item, path, null, item.Kind == LibraryItemKind.Colors ? SwatchesOf(item, path) : null);
+            var row = new LibraryItemRow(item, path, null, item.Kind == LibraryItemKind.Colors ? SwatchesOf(item, path) : null)
+            {
+                Likes = _likes
+            };
             row.Uses = _updates.UsesOf(item).Select(use => new LibraryUseRow(row, use, TargetLabel(use.TargetKey), UseState(item, use))).ToList();
             if (item.IsWorkshop && _index != null && item.WorkshopItemId != null && _index.TryGetValue(item.WorkshopItemId, out var indexItem))
             {
@@ -632,6 +638,7 @@ namespace PlayniteAchievements.ViewModels.Library
                 }
 
                 RaiseCommandStates();
+                _ = LoadLikesAsync(_index.Values.ToList());
                 await FetchThumbnailsAsync();
             }
             catch (OperationCanceledException)
@@ -640,6 +647,55 @@ namespace PlayniteAchievements.ViewModels.Library
             catch (Exception ex)
             {
                 _logger?.Debug(ex, "The Library page could not read the Workshop index.");
+            }
+        }
+
+        /// <summary>
+        /// Reads the Workshop's like listing and likes this install's own items, so the page can
+        /// show and take likes. A service that cannot be reached leaves the hearts out.
+        /// </summary>
+        private async Task LoadLikesAsync(IEnumerable<WorkshopItem> items)
+        {
+            try
+            {
+                if (await _likes.EnsureLoadedAsync(_lifetime.Token).ConfigureAwait(false))
+                {
+                    await _likes.LikeOwnItemsAsync(items, _lifetime.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug($"The Library page could not read Workshop likes: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Raises the like properties of the rows a change touched, on the UI thread; a null id
+        /// means the listing arrived and every row is re-read.
+        /// </summary>
+        private void Likes_Changed(object sender, string itemId)
+        {
+            void Apply()
+            {
+                foreach (var row in Rows)
+                {
+                    if (itemId == null || string.Equals(row.Item.WorkshopItemId, itemId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        row.RaiseLikesChanged();
+                    }
+                }
+            }
+
+            if (_dispatcher.CheckAccess())
+            {
+                Apply();
+            }
+            else
+            {
+                _dispatcher.BeginInvoke(new Action(Apply));
             }
         }
 
@@ -1053,6 +1109,7 @@ namespace PlayniteAchievements.ViewModels.Library
             _library.Changed -= Source_Changed;
             _gameLinks.Changed -= Source_Changed;
             _identity.Changed -= Source_Changed;
+            _likes.LikesChanged -= Likes_Changed;
             _settingsSubscription?.Dispose();
             _lifetime.Cancel();
             _lifetime.Dispose();
