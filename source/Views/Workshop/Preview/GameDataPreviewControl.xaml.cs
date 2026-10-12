@@ -717,6 +717,18 @@ namespace PlayniteAchievements.Views.Workshop.Preview
                 .Select(achievement => AchievementDisplayItem.Create(data, achievement, settings, playniteGameIdOverride: data.PlayniteGameId))
                 .Where(item => item != null)
                 .ToList();
+            if (NeutralRender)
+            {
+                // The published image stamps every row unlocked so it says nothing about the
+                // sharer's progress; without this, that stamp would also unmask the game's hidden
+                // achievements for everyone browsing. The image uses the default hidden settings,
+                // so a hidden row shows the fallback icon and the hidden title.
+                foreach (var item in items)
+                {
+                    item.MaskAsLocked = true;
+                }
+            }
+
             if (!sorted)
             {
                 return items;
