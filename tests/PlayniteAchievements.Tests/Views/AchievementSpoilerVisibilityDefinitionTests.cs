@@ -17,7 +17,9 @@ namespace PlayniteAchievements.Tests.Views
 
             AssertContainsAll(
                 code,
-                "public virtual bool UnlockedForVisibility => Unlocked;",
+                // MaskAsLocked lets a surface that shows no progress, such as the published
+                // Workshop image, keep the hidden rows masked all the same.
+                "public virtual bool UnlockedForVisibility => !MaskAsLocked && Unlocked;",
                 "public bool CanReveal => !UnlockedForVisibility && (!ShowLockedIcon",
                 "public bool IsLockedIconHidden => !UnlockedForVisibility && !ShowLockedIcon && !IsRevealed;",
                 // DisplayIcon reuses IsIconHidden and IsLockedIconHidden to pick the masked
@@ -417,6 +419,27 @@ namespace PlayniteAchievements.Tests.Views
             AssertContainsAll(
                 previewProperties,
                 "nameof(PersistedSettings.RoundRarityPercentages)");
+        }
+
+        [TestMethod]
+        public void PublishedPreviewImage_MasksEveryRowItDraws()
+        {
+            // The image stamps every row unlocked so it carries none of the sharer's progress;
+            // that stamp is also what would hand every browser the game's hidden achievement
+            // names, so the rows it draws have to be masked as locked.
+            var control = File.ReadAllText(FindRepoFile("source", "Views", "Workshop", "Preview", "GameDataPreviewControl.xaml.cs"));
+            var item = File.ReadAllText(FindRepoFile("source", "ViewModels", "Items", "AchievementDisplayItem.cs"));
+
+            AssertContainsAll(
+                control,
+                "if (NeutralRender)",
+                "item.MaskAsLocked = true;");
+
+            // The grids clone a row before rendering it, so the flag has to survive the copy.
+            AssertContainsAll(
+                item,
+                "public bool MaskAsLocked { get; set; }",
+                "clone.MaskAsLocked = MaskAsLocked;");
         }
 
         private static void AssertContainsAll(string content, params string[] expected)
