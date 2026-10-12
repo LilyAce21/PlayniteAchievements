@@ -40,73 +40,60 @@ namespace PlayniteAchievements.ViewModels.Workshop
         public string Author => Item.Author;
         public string Version => Item.Version;
         public string Updated => Item.Updated;
-        private long? _liveDownloads;
-
-        /// <summary>The release API count fetched when the item was picked; null until then.</summary>
-        public long? LiveDownloads
-        {
-            get => _liveDownloads;
-            set
-            {
-                if (_liveDownloads == value)
-                {
-                    return;
-                }
-
-                _liveDownloads = value;
-                OnPropertyChanged(nameof(LiveDownloads));
-                OnPropertyChanged(nameof(Downloads));
-            }
-        }
-
-        /// <summary>Live count when known, otherwise the count the index carried at its last build.</summary>
-        public long Downloads => _liveDownloads ?? Item.Downloads?.Total ?? 0;
-
         /// <summary>
-        /// The like state, read through the shared store so Browse and the Library page always
-        /// agree. Null until a list hands the store over, which is also what keeps the affordance
-        /// hidden when the service cannot be reached.
+        /// The Workshop's counts, read through the shared store so Browse and the Library page
+        /// always agree. Null until a list hands the store over, which is also what keeps the
+        /// counts and the like button out when the service cannot be reached.
         /// </summary>
-        public WorkshopLikeStore Likes
+        public WorkshopStatsStore Stats
         {
-            get => _likes;
+            get => _stats;
             set
             {
-                _likes = value;
-                RaiseLikesChanged();
+                _stats = value;
+                RaiseStatsChanged();
             }
         }
 
-        private WorkshopLikeStore _likes;
+        private WorkshopStatsStore _stats;
 
-        /// <summary>Re-reads the like count and state from the store.</summary>
-        public void RaiseLikesChanged()
+        /// <summary>Re-reads the counts and the liked state from the store.</summary>
+        public void RaiseStatsChanged()
         {
+            OnPropertyChanged(nameof(Installs));
             OnPropertyChanged(nameof(LikeCount));
             OnPropertyChanged(nameof(IsLiked));
             OnPropertyChanged(nameof(CanLike));
+            OnPropertyChanged(nameof(HasStats));
         }
 
-        public long LikeCount => _likes?.CountFor(Id) ?? 0;
+        /// <summary>How many installs the Workshop has recorded for the item.</summary>
+        public long Installs => _stats?.InstallsFor(Id) ?? 0;
 
-        public bool IsLiked => _likes?.IsLiked(Id) ?? false;
+        public long LikeCount => _stats?.LikesFor(Id) ?? 0;
 
-        /// <summary>True once the service has answered; until then no like is shown at all.</summary>
-        public bool CanLike => _likes?.IsAvailable ?? false;
+        public bool IsLiked => _stats?.IsLiked(Id) ?? false;
+
+        /// <summary>True once the service has answered; until then no count is shown at all.</summary>
+        public bool CanLike => _stats?.IsAvailable ?? false;
+
+        /// <summary>True once the service has answered, so the install count can be shown.</summary>
+        public bool HasStats => CanLike;
 
         /// <summary>Turns this install's like for the item on or off.</summary>
         public AsyncCommand ToggleLikeCommand => _toggleLikeCommand ?? (_toggleLikeCommand = new AsyncCommand(
             async _ =>
             {
-                var store = _likes;
+                var store = _stats;
                 if (store != null)
                 {
-                    await store.ToggleAsync(Id, System.Threading.CancellationToken.None).ConfigureAwait(false);
+                    await store.ToggleLikeAsync(Id, System.Threading.CancellationToken.None).ConfigureAwait(false);
                 }
             },
             _ => CanLike));
 
         private AsyncCommand _toggleLikeCommand;
+
         public string GameName => Item.Game?.Name;
         public string Tags => string.Join(", ", Item.Tags ?? new List<string>());
         public bool HasTags => Item.Tags != null && Item.Tags.Count > 0;
