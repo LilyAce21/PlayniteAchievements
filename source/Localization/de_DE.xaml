@@ -1103,10 +1103,10 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_SetCompletionStatus">Status für vervollständigte Spiele setzen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowCompactListRarityBar">Leiste für Seltenheit anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_RevealWhen">Reveal when</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_Spoilers">Spoilers</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_Spoilers">Spoiler</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_SortBy">Sortierung nach</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_SortDirection_Tooltip">Sortierrichtung wechseln</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_GameSummariesSort_PinOrder">Pin order</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_GameSummariesSort_PinOrder">Anheftreihenfolge</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_SortResetHint">Für Standardsortierung Spaltenüberschrift erneut anklicken.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowCompletionGlow">Komplettierungsleuchten anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowFriendSpoilers">Spoiler durch Erfolge von Freunden anzeigen</sys:String>
@@ -1478,8 +1478,8 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ProfileProviderHint">Leerlassen zum Verwenden des Anbieterprofils</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ImageFiles">Grafikdateien</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_AllFiles">Alle Dateien</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_PinToShowcase">An Galerie anheften</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_PinCollection">Sammlung anpinnen</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_PinToShowcase">In Galerie anheften</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_PinCollection">Sammlung anheften</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NewCollection">Neue Sammlung...</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NewCollectionPrompt">Titel für Sammlung eingeben:</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_RenameCollection">Sammlung umbenennen</sys:String>
@@ -1540,11 +1540,11 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MosaicSource_Recent">Letzte Erfolge</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MosaicSource_Rarest">Seltenste Erfolge</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MosaicSource_Capstones">Vollendungserfolge</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_MosaicSource_Pinned">Angepinnte Erfolge</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_MosaicSource_Pinned">Angeheftete Erfolge</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MosaicSource_UnlockNext">Nächste Freischaltung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_GameMosaicSource_Completed">Vervollständigte Spiele</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_GameMosaicSource_All">Alle Spiele</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_GameMosaicSource_Pinned">Angepinnte Spiele</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_GameMosaicSource_Pinned">Angeheftete Spiele</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_GameMosaicSource_PlayniteFavorites">Playnite-Favoriten</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_GameMosaicSource_FinishNext">Nächster Abschluss</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_UnlockNextCriterion">Fokus auf</sys:String>
@@ -1601,9 +1601,9 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MosaicContent_Achievements">Erfolge</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MosaicContent_Games">Spiele</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_AchievementGridSource_All">Freigeschaltete Erfolge</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_AchievementGridSource_Pinned">Angepinnte Sammlung</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_AchievementGridSource_Pinned">Angeheftete Sammlung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_GameGridSource_Library">Alle Spiele</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_GameGridSource_Pinned">Angepinnte Sammlung</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_GameGridSource_Pinned">Angeheftete Sammlung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_GameGridSource_PlayniteFavorites">Playnite-Favoriten</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Widget_ActivityCalendar">Aktivitätskalender</sys:String>
 
