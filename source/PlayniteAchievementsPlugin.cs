@@ -109,6 +109,8 @@ namespace PlayniteAchievements
         private Services.Workshop.WorkshopInstaller _workshopInstaller;
         private Services.Workshop.WorkshopClient _workshopClient;
         private Services.Workshop.WorkshopSubmissionClient _workshopSubmissionClient;
+        private Services.Workshop.WorkshopStatsClient _workshopStatsClient;
+        private Services.Workshop.WorkshopStatsStore _workshopStatsStore;
         private Services.Workshop.WorkshopShareService _workshopShareService;
         private readonly NotificationPublisher _notifications;
         private readonly ProviderRegistry _providerRegistry;
@@ -485,6 +487,11 @@ namespace PlayniteAchievements
                 _logger));
         public Services.Workshop.WorkshopSubmissionClient WorkshopSubmissionClient =>
             _workshopSubmissionClient ?? (_workshopSubmissionClient = new Services.Workshop.WorkshopSubmissionClient(null));
+        public Services.Workshop.WorkshopStatsClient WorkshopStatsClient =>
+            _workshopStatsClient ?? (_workshopStatsClient = new Services.Workshop.WorkshopStatsClient(null, _logger));
+        public Services.Workshop.WorkshopStatsStore WorkshopStatsStore =>
+            _workshopStatsStore ?? (_workshopStatsStore =
+                new Services.Workshop.WorkshopStatsStore(WorkshopStatsClient, WorkshopIdentityStore, _logger));
         public Services.Workshop.WorkshopShareService WorkshopShareService =>
             _workshopShareService ?? (_workshopShareService =
                 new Services.Workshop.WorkshopShareService(this, WorkshopSubmissionClient, WorkshopIdentityStore, _logger));

@@ -40,27 +40,60 @@ namespace PlayniteAchievements.ViewModels.Workshop
         public string Author => Item.Author;
         public string Version => Item.Version;
         public string Updated => Item.Updated;
-        private long? _liveDownloads;
-
-        /// <summary>The release API count fetched when the item was picked; null until then.</summary>
-        public long? LiveDownloads
+        /// <summary>
+        /// The Workshop's counts, read through the shared store so Browse and the Library page
+        /// always agree. Null until a list hands the store over, which is also what keeps the
+        /// counts and the like button out when the service cannot be reached.
+        /// </summary>
+        public WorkshopStatsStore Stats
         {
-            get => _liveDownloads;
+            get => _stats;
             set
             {
-                if (_liveDownloads == value)
-                {
-                    return;
-                }
-
-                _liveDownloads = value;
-                OnPropertyChanged(nameof(LiveDownloads));
-                OnPropertyChanged(nameof(Downloads));
+                _stats = value;
+                RaiseStatsChanged();
             }
         }
 
-        /// <summary>Live count when known, otherwise the count the index carried at its last build.</summary>
-        public long Downloads => _liveDownloads ?? Item.Downloads?.Total ?? 0;
+        private WorkshopStatsStore _stats;
+
+        /// <summary>Re-reads the counts and the liked state from the store.</summary>
+        public void RaiseStatsChanged()
+        {
+            OnPropertyChanged(nameof(Installs));
+            OnPropertyChanged(nameof(LikeCount));
+            OnPropertyChanged(nameof(IsLiked));
+            OnPropertyChanged(nameof(CanLike));
+            OnPropertyChanged(nameof(HasStats));
+        }
+
+        /// <summary>How many installs the Workshop has recorded for the item.</summary>
+        public long Installs => _stats?.InstallsFor(Id) ?? 0;
+
+        public long LikeCount => _stats?.LikesFor(Id) ?? 0;
+
+        public bool IsLiked => _stats?.IsLiked(Id) ?? false;
+
+        /// <summary>True once the service has answered; until then no count is shown at all.</summary>
+        public bool CanLike => _stats?.IsAvailable ?? false;
+
+        /// <summary>True once the service has answered, so the install count can be shown.</summary>
+        public bool HasStats => CanLike;
+
+        /// <summary>Turns this install's like for the item on or off.</summary>
+        public AsyncCommand ToggleLikeCommand => _toggleLikeCommand ?? (_toggleLikeCommand = new AsyncCommand(
+            async _ =>
+            {
+                var store = _stats;
+                if (store != null)
+                {
+                    await store.ToggleLikeAsync(Id, System.Threading.CancellationToken.None).ConfigureAwait(false);
+                }
+            },
+            _ => CanLike));
+
+        private AsyncCommand _toggleLikeCommand;
+
         public string GameName => Item.Game?.Name;
         public string Tags => string.Join(", ", Item.Tags ?? new List<string>());
         public bool HasTags => Item.Tags != null && Item.Tags.Count > 0;

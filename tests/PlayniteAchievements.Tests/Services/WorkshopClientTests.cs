@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PlayniteAchievements.Services.Workshop;
 using System;
 using System.Collections.Generic;
@@ -30,15 +30,13 @@ namespace PlayniteAchievements.Services.Tests
       ""package"": { ""file"": ""neon-1.2.0.pabundle"", ""formatKind"": ""PlayniteAchievements.Bundle"", ""formatVersion"": 1, ""sizeBytes"": 5, ""sha256"": ""HASH"",
                      ""release"": { ""tag"": ""bundles/neon"", ""url"": ""https://example.invalid/neon-1.2.0.pabundle"" } },
       ""preview"": ""preview.png"",
-      ""downloads"": { ""total"": 42, ""current"": 7 },
       ""urls"": { ""package"": ""https://example.invalid/neon-1.2.0.pabundle"", ""preview"": null, ""readme"": null, ""folder"": ""https://github.com/x/y/tree/main/bundles/neon"" }
     },
     { ""id"": """", ""kind"": ""Bundle"" },
     {
       ""id"": ""game-data/steam-440/icons"", ""kind"": ""GameCustomData"", ""name"": ""Icons"", ""version"": ""1.0.0"",
       ""game"": { ""name"": ""Team Fortress 2"", ""keys"": [ { ""providerKey"": ""Steam"", ""providerGameId"": 440 } ] },
-      ""package"": { ""file"": ""icons-1.0.0.pa"", ""sha256"": ""x"", ""release"": { ""url"": ""https://example.invalid/icons.pa"" } },
-      ""downloads"": { ""total"": 1, ""current"": 1 }
+      ""package"": { ""file"": ""icons-1.0.0.pa"", ""sha256"": ""x"", ""release"": { ""url"": ""https://example.invalid/icons.pa"" } }
     }
   ]
 }";
@@ -55,7 +53,6 @@ namespace PlayniteAchievements.Services.Tests
             Assert.AreEqual(2, index.Items.Count);
             var theme = index.Items[0];
             Assert.AreEqual(WorkshopItemKind.Bundle, theme.Kind);
-            Assert.AreEqual(42, theme.Downloads.Total);
             CollectionAssert.AreEqual(new[] { "Colors", "Toast" }, new List<string>(theme.PartNames));
             var game = index.Items[1];
             Assert.AreEqual(440, game.Game.Keys[0].ProviderGameId);
@@ -184,33 +181,6 @@ namespace PlayniteAchievements.Services.Tests
                 LastUrl = request.RequestUri.ToString();
                 return Task.FromResult(_respond(request));
             }
-        }
-
-        [TestMethod]
-        public void ReleaseApiUrl_MapsGitHubReleasePages_AndRejectsOtherAddresses()
-        {
-            Assert.AreEqual(
-                "https://api.github.com/repos/justin-delano/PlayniteAchievements-Workshop/releases/tags/bundles/neon",
-                WorkshopClient.ReleaseApiUrl("https://github.com/justin-delano/PlayniteAchievements-Workshop/releases/tag/bundles/neon"));
-            Assert.AreEqual(
-                "https://api.github.com/repos/o/r/releases/tags/colors%2Fset",
-                WorkshopClient.ReleaseApiUrl("https://github.com/o/r/releases/tag/colors%2Fset"),
-                "percent-encoded tags pass through unchanged");
-            Assert.IsNull(WorkshopClient.ReleaseApiUrl("https://gitlab.com/o/r/releases/tag/x"));
-            Assert.IsNull(WorkshopClient.ReleaseApiUrl("https://github.com/o/r/releases"));
-            Assert.IsNull(WorkshopClient.ReleaseApiUrl("https://github.com/o/r/blob/main/README.md"));
-            Assert.IsNull(WorkshopClient.ReleaseApiUrl(null));
-            Assert.IsNull(WorkshopClient.ReleaseApiUrl("not a url"));
-        }
-
-        [TestMethod]
-        public void SumAssetDownloads_AddsEveryAsset_AndIsNullWithoutAnAssetsArray()
-        {
-            Assert.AreEqual(12L, WorkshopClient.SumAssetDownloads(
-                @"{ ""tag_name"": ""bundles/neon"", ""assets"": [ { ""download_count"": 5 }, { ""download_count"": 7 }, { ""name"": ""no-count"" } ] }"));
-            Assert.AreEqual(0L, WorkshopClient.SumAssetDownloads(@"{ ""assets"": [] }"));
-            Assert.IsNull(WorkshopClient.SumAssetDownloads(@"{ ""message"": ""Not Found"" }"));
-            Assert.IsNull(WorkshopClient.SumAssetDownloads(""));
         }
 
         [TestMethod]

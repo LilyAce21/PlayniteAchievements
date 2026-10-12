@@ -167,7 +167,35 @@ namespace PlayniteAchievements.Services.Workshop
                 }
             }
 
+            // The install is what the Workshop counts, so every surface that installs reports it
+            // from here rather than counting package downloads, which a preview also makes.
+            RecordInstall(request.Item.Id);
             return result;
+        }
+
+        /// <summary>
+        /// Tells the Workshop service this install happened, in the background: the count is a
+        /// statistic, so it must not hold up the window or fail an install that has succeeded.
+        /// </summary>
+        private void RecordInstall(string itemId)
+        {
+            var stats = _plugin.WorkshopStatsStore;
+            if (stats == null || string.IsNullOrWhiteSpace(itemId))
+            {
+                return;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await stats.RecordInstallAsync(itemId, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Debug($"Failed recording the Workshop install of {itemId}: {ex.Message}");
+                }
+            });
         }
 
         private static bool IsLook(WorkshopItemKind kind)
