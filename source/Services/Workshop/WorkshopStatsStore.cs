@@ -23,12 +23,89 @@ namespace PlayniteAchievements.Services.Workshop
         private readonly Dictionary<string, long> _installs = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
         private Task<bool> _load;
+        private bool _cacheRead;
 
         public WorkshopStatsStore(WorkshopStatsClient client, WorkshopIdentityStore identity, ILogger logger = null)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             _identity = identity ?? throw new ArgumentNullException(nameof(identity));
             _logger = logger;
+        }
+
+        /// <summary>Where the last answer is kept, so a window has counts before the service replies.</summary>
+        private string CachePath =>
+            _identity.Directory == null ? null : System.IO.Path.Combine(_identity.Directory, "stats.json");
+
+        private sealed class CacheFile
+        {
+            public Dictionary<string, long> Likes { get; set; }
+            public Dictionary<string, long> Installs { get; set; }
+        }
+
+        /// <summary>
+        /// Shows the counts the last fetch wrote, so hearts and numbers are on screen while the
+        /// service is still answering. Read once; a fetch replaces whatever this put up.
+        /// </summary>
+        private void ReadCache()
+        {
+            var path = CachePath;
+            if (_cacheRead || path == null || !System.IO.File.Exists(path))
+            {
+                _cacheRead = true;
+                return;
+            }
+
+            _cacheRead = true;
+            try
+            {
+                var cached = Newtonsoft.Json.JsonConvert.DeserializeObject<CacheFile>(System.IO.File.ReadAllText(path));
+                if (cached == null)
+                {
+                    return;
+                }
+
+                lock (_sync)
+                {
+                    Replace(_likes, cached.Likes);
+                    Replace(_installs, cached.Installs);
+                }
+
+                IsAvailable = true;
+                RaiseChanged(null);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug($"Failed reading the cached Workshop statistics: {ex.Message}");
+            }
+        }
+
+        private void WriteCache()
+        {
+            var path = CachePath;
+            if (path == null)
+            {
+                return;
+            }
+
+            try
+            {
+                CacheFile file;
+                lock (_sync)
+                {
+                    file = new CacheFile
+                    {
+                        Likes = new Dictionary<string, long>(_likes, StringComparer.OrdinalIgnoreCase),
+                        Installs = new Dictionary<string, long>(_installs, StringComparer.OrdinalIgnoreCase)
+                    };
+                }
+
+                System.IO.Directory.CreateDirectory(_identity.Directory);
+                System.IO.File.WriteAllText(path, Newtonsoft.Json.JsonConvert.SerializeObject(file));
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug($"Failed writing the cached Workshop statistics: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -50,6 +127,7 @@ namespace PlayniteAchievements.Services.Workshop
         /// </summary>
         public Task<bool> EnsureLoadedAsync(CancellationToken cancel)
         {
+            ReadCache();
             lock (_sync)
             {
                 if (_load == null)
@@ -89,6 +167,7 @@ namespace PlayniteAchievements.Services.Workshop
             }
 
             IsAvailable = true;
+            WriteCache();
             RaiseChanged(null);
             return true;
         }
@@ -96,7 +175,7 @@ namespace PlayniteAchievements.Services.Workshop
         private static void Replace(Dictionary<string, long> target, Dictionary<string, long> source)
         {
             target.Clear();
-            foreach (var pair in source)
+            foreach (var pair in source ?? new Dictionary<string, long>())
             {
                 target[pair.Key] = pair.Value;
             }
