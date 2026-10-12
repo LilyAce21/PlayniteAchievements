@@ -601,6 +601,11 @@
     <Compile Include="..\..\source\Services\ThemeMigration\ThemeYamlVersionReader.cs" Link="Source\Services\ThemeMigration\ThemeYamlVersionReader.cs" />
     <Compile Include="..\..\source\Services\Recording\SegmentTimeline.cs" Link="Source\Services\Recording\SegmentTimeline.cs" />
     <Compile Include="..\..\source\Services\Recording\RecordingPaths.cs" Link="Source\Services\Recording\RecordingPaths.cs" />
+    <Compile Include="..\..\source\Services\Psn\PsnPlatinum.cs" Link="Source\Services\Psn\PsnPlatinum.cs" />
+    <Compile Include="..\..\source\Services\Psn\PsnPlatinumImport.cs" Link="Source\Services\Psn\PsnPlatinumImport.cs" />
+    <Compile Include="..\..\source\Services\Psn\PsnTrophyResponse.cs" Link="Source\Services\Psn\PsnTrophyResponse.cs" />
+    <Compile Include="..\..\source\Services\Psn\NpssoProtector.cs" Link="Source\Services\Psn\NpssoProtector.cs" />
+    <Compile Include="..\..\source\Services\Psn\PsnClient.cs" Link="Source\Services\Psn\PsnClient.cs" />
     <Compile Include="..\..\source\Services\Recording\AudioGapTracker.cs" Link="Source\Services\Recording\AudioGapTracker.cs" />
     <Compile Include="..\..\source\Common\MonotonicUtcClock.cs" Link="Source\Common\MonotonicUtcClock.cs" />
     <Compile Include="..\..\source\Common\ServerClockOffset.cs" Link="Source\Common\ServerClockOffset.cs" />
@@ -670,5 +675,9 @@
     <Content Include="..\..\source\Resources\Hoyoverse\**\*.png" Link="Resources\Hoyoverse\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
   </ItemGroup>
 </Project>
