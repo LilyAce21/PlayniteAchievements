@@ -57,9 +57,14 @@ namespace PlayniteAchievements.ViewModels.Workshop
 
         private WorkshopStatsStore _stats;
 
-        /// <summary>Re-reads the counts and the liked state from the store.</summary>
+        /// <summary>
+        /// Re-reads the counts and the liked state from the store. The command's own state is
+        /// raised too: a row binds its heart before the service has answered, and a button whose
+        /// command could not execute at bind time stays disabled until it is told otherwise.
+        /// </summary>
         public void RaiseStatsChanged()
         {
+            _toggleLikeCommand?.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(Installs));
             OnPropertyChanged(nameof(LikeCount));
             OnPropertyChanged(nameof(IsLiked));
