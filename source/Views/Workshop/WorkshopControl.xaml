@@ -112,6 +112,8 @@
                             <TextBlock Text="{Binding Downloads}"
                                        Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"
                                        VerticalAlignment="Center"/>
+                            <Button Style="{StaticResource PlayAch.Workshop.LikeButtonStyle}"
+                                    Margin="10,0,0,0"/>
                         </StackPanel>
                         <TextBlock Text="{DynamicResource LOCPlayAch_Workshop_UpdateAvailable}"
                                    Foreground="{DynamicResource PlayAch.Brush.Accent}"
@@ -195,6 +197,9 @@
                             <Run Text=" · "/>
                             <Run Text="{DynamicResource LOCPlayAch_Workshop_Downloads}"/><Run Text=": "/><Run Text="{Binding Downloads, Mode=OneWay}"/>
                         </TextBlock>
+                        <Button Style="{StaticResource PlayAch.Workshop.LikeButtonStyle}"
+                                HorizontalAlignment="Left"
+                                Margin="-4,4,0,0"/>
                         <TextBlock Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}" Margin="0,2,0,0" TextWrapping="Wrap">
                             <Run Text="{Binding Updated, Mode=OneWay}"/>
                         </TextBlock>
