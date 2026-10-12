@@ -109,6 +109,9 @@ namespace PlayniteAchievements.ViewModels.Workshop
             _library.Changed += Source_Changed;
             _gameData.Links.Changed += Source_Changed;
             _stats.StatsChanged += Stats_Changed;
+            // The counts are fetched alongside the index rather than after it, so the hearts are
+            // up by the time the rows are.
+            _ = _stats.EnsureLoadedAsync(_lifetime.Token);
 
             KindOptions = new List<WorkshopKindOption>
             {
