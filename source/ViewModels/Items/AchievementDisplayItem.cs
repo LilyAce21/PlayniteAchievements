@@ -1650,6 +1650,7 @@ namespace PlayniteAchievements.ViewModels.Items
             // reset any appearance setting that was added to the item but not added to the list,
             // and the grids clone before they render, so the reset is what the user sees.
             clone.ApplyAppearanceSettings(CaptureAppearanceSettings());
+            clone.MaskAsLocked = MaskAsLocked;
             clone.CategoryType = _categoryType;
             clone.CategoryLabel = _categoryLabel;
             clone.GameIconPath = _gameIconPath;
