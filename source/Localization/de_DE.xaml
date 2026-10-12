@@ -63,8 +63,8 @@
     <sys:String x:Key="LOCPlayAch_NoAchievementsMessageAlt">Keine Unterstützung von Erfolgen durch dieses Spiel oder seiner Plattform.</sys:String>
     <sys:String x:Key="LOCPlayAch_NoAchievementsTitle">Keine Erfolge gefunden</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_NotAuthenticated">Nicht authentifiziert</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Redo">Redo</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Reorder">Reorder</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Redo">Wiederherstellen</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Reorder">Umordnen</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_ResetSelected">Ausgewählte zurücksetzen</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_SelectAll">Alle auswählen</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_SelectedCountFormat">{0:N0} ausgewählt</sys:String>
@@ -75,7 +75,7 @@
     <sys:String x:Key="LOCPlayAch_Common_Both">Both</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Status_NoOverrideSet">Keine Übersteuerung festgelegt</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Status_NotLinked">Nicht verknüpft</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Undo">Undo</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Undo">Rückgängig</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Unknown">Unbekannt</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Unlocked">Freischaltung</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_UnlockedCount">Anzahl freigeschaltet</sys:String>
@@ -345,7 +345,7 @@ Dadurch wird die manuelle Verknüpfung, Freischaltzeiten und zwischengespeichert
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_Details">Details</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_ExportAchievements">Export Custom Achievements</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_ExportTemplate">Vorlage exportieren</sys:String>
-    <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_Hidden">Hidden</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_Hidden">Verborgen</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_ImportSummary">Imported {0} rows ({1} added, {2} updated).</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_LockedIcon">Locked Icon</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_NewAchievementName">New Achievement {0}</sys:String>
@@ -944,8 +944,8 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PlaytimeDisplay">Spielzeitformat</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PlaytimeDisplayMode_HoursMinutes">Stunden und Minuten</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PlaytimeDisplayMode_HoursOnly">Stunden</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_ProgressBadgeSource">Progress bar badges</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_ProgressBadgeSource_TrophyWhenAvailable">Trophy when available</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ProgressBadgeSource">Abzeichen auf Fortschrittsleiste</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ProgressBadgeSource_TrophyWhenAvailable">Trophäe wenn verfügbar</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ProgressBadgeSource_Help">Which badges show under the progress bar. Trophy when available uses a game's trophies where it has them and its rarity spread everywhere else; Rarity always shows the rarity spread.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CategoryCompletionBadge">Abzeichen für Kategorievervollständigung</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CategoryCompletionBadgeMode_First">First</sys:String>
@@ -1053,7 +1053,7 @@ Reclaimed {1}.</sys:String>
 
     <!-- Provider: Hypixel -->
     <sys:String x:Key="LOCPlayAch_Settings_Hypixel_NoDatesNote">Achievements are read from your public Hypixel profile. Hypixel does not record when an achievement was earned, so Hypixel achievements show no unlock date.</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_Hypixel_PlayerNotFound">No Hypixel player found with that username.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_Hypixel_PlayerNotFound">Kein Hypixel-Spieler mit diesem Benutzernamen gefunden.</sys:String>
     <!-- Hypixel_Unavailable: leave the domain "hypixel.net" untranslated. -->
     <sys:String x:Key="LOCPlayAch_Settings_Hypixel_Unavailable">hypixel.net could not be reached to look up the player. Try again later.</sys:String>
 
