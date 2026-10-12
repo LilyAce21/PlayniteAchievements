@@ -100,18 +100,20 @@
                                    Visibility="{Binding IsBundle, Converter={StaticResource BoolToVis}}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0">
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    ToolTip="{DynamicResource LOCPlayAch_Workshop_Downloads}">
-                            <TextBlock Text="&#xEF08;"
-                                       FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
-                                       FontSize="{DynamicResource PlayAch.FontSize.Caption}"
-                                       Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0"/>
-                            <TextBlock Text="{Binding Downloads}"
-                                       Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"
-                                       VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <StackPanel Orientation="Horizontal"
+                                        ToolTip="{DynamicResource LOCPlayAch_Workshop_Installs}"
+                                        Visibility="{Binding HasStats, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="&#xEF08;"
+                                           FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                           FontSize="{DynamicResource PlayAch.FontSize.Caption}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,4,0"/>
+                                <TextBlock Text="{Binding Installs}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
                             <Button Style="{StaticResource PlayAch.Workshop.LikeButtonStyle}"
                                     Margin="10,0,0,0"/>
                         </StackPanel>
@@ -194,8 +196,10 @@
                             <Run Text="{DynamicResource LOCAuthorLabel}"/><Run Text=": "/><Run Text="{Binding Author, Mode=OneWay}"/>
                             <Run Text=" · "/>
                             <Run Text="{DynamicResource LOCVersionLabel}"/><Run Text=" "/><Run Text="{Binding Version, Mode=OneWay}"/>
-                            <Run Text=" · "/>
-                            <Run Text="{DynamicResource LOCPlayAch_Workshop_Downloads}"/><Run Text=": "/><Run Text="{Binding Downloads, Mode=OneWay}"/>
+                        </TextBlock>
+                        <TextBlock Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                   Visibility="{Binding HasStats, Converter={StaticResource BoolToVis}}">
+                            <Run Text="{DynamicResource LOCPlayAch_Workshop_Installs}"/><Run Text=": "/><Run Text="{Binding Installs, Mode=OneWay}"/>
                         </TextBlock>
                         <Button Style="{StaticResource PlayAch.Workshop.LikeButtonStyle}"
                                 HorizontalAlignment="Left"
