@@ -8,6 +8,7 @@ using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Library;
 using PlayniteAchievements.Services.Workshop;
 using PlayniteAchievements.ViewModels.Workshop;
+using AsyncCommand = PlayniteAchievements.Common.AsyncCommand;
 using ObservableObject = PlayniteAchievements.Common.ObservableObject;
 
 namespace PlayniteAchievements.ViewModels.Library
@@ -135,6 +136,55 @@ namespace PlayniteAchievements.ViewModels.Library
                 nameof(CanReinstall), nameof(Author), nameof(Secondary), nameof(UpdateTag), nameof(Name), nameof(VersionText),
                 nameof(Description), nameof(HasDescription));
         }
+
+        /// <summary>
+        /// The like state of the Workshop item this row came from, read through the store the
+        /// Workshop window shares, so a like given here shows there and the other way round.
+        /// </summary>
+        public WorkshopLikeStore Likes
+        {
+            get => _likes;
+            set
+            {
+                _likes = value;
+                RaiseLikesChanged();
+            }
+        }
+
+        private WorkshopLikeStore _likes;
+
+        /// <summary>Re-reads the like count and state from the store.</summary>
+        public void RaiseLikesChanged()
+        {
+            OnPropertyChanged(nameof(LikeCount));
+            OnPropertyChanged(nameof(IsLiked));
+            OnPropertyChanged(nameof(CanLike));
+        }
+
+        /// <summary>The Workshop id this row's likes belong to; null for the user's own items.</summary>
+        private string LikeItemId => IsWorkshop ? Item.WorkshopItemId : null;
+
+        public long LikeCount => _likes?.CountFor(LikeItemId) ?? 0;
+
+        public bool IsLiked => _likes?.IsLiked(LikeItemId) ?? false;
+
+        /// <summary>True for a Workshop item once the service has answered; nothing else can be liked.</summary>
+        public bool CanLike => LikeItemId != null && _indexItem != null && (_likes?.IsAvailable ?? false);
+
+        /// <summary>Turns this install's like for the item on or off.</summary>
+        public AsyncCommand ToggleLikeCommand => _toggleLikeCommand ?? (_toggleLikeCommand = new AsyncCommand(
+            async _ =>
+            {
+                var store = _likes;
+                var id = LikeItemId;
+                if (store != null && id != null)
+                {
+                    await store.ToggleAsync(id, System.Threading.CancellationToken.None).ConfigureAwait(false);
+                }
+            },
+            _ => CanLike));
+
+        private AsyncCommand _toggleLikeCommand;
 
         public string ThumbnailPath
         {
