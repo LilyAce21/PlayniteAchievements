@@ -220,6 +220,83 @@ namespace PlayniteAchievements.Services.Tests
             }
         }
 
+        [TestMethod]
+        public async Task Row_LikeCommand_BecomesExecutable_WhenTheCountsArrive()
+        {
+            var directory = NewDirectory();
+            try
+            {
+                var store = new WorkshopStatsStore(
+                    new WorkshopStatsClient(() => "https://service.invalid", null, new FakeHandler(_ =>
+                        Task.FromResult(Json("{\"likes\":{},\"installs\":{},\"mine\":[]}")))),
+                    new WorkshopIdentityStore(directory));
+
+                // A row binds its heart before the service has answered, as the browse list does.
+                var row = new ViewModels.Workshop.WorkshopItemViewModel(new WorkshopItem { Id = "colors/neon", Name = "Neon" })
+                {
+                    Stats = store
+                };
+                Assert.IsFalse(row.CanLike);
+                Assert.IsFalse(row.ToggleLikeCommand.CanExecute(null), "nothing to like until the counts are known");
+
+                var raised = 0;
+                row.ToggleLikeCommand.CanExecuteChanged += (s, e) => raised++;
+
+                await store.EnsureLoadedAsync(CancellationToken.None);
+                row.RaiseStatsChanged();
+
+                Assert.IsTrue(row.CanLike);
+                Assert.IsTrue(row.ToggleLikeCommand.CanExecute(null), "the heart is clickable once the counts are in");
+                Assert.IsTrue(raised > 0, "the button is told its command can run now");
+            }
+            finally
+            {
+                Delete(directory);
+            }
+        }
+
+        [TestMethod]
+        public async Task Load_ShowsTheCachedCounts_BeforeTheServiceAnswers()
+        {
+            var directory = NewDirectory();
+            try
+            {
+                var identity = new WorkshopIdentityStore(directory);
+                var gate = new SemaphoreSlim(0, 1);
+                var store = new WorkshopStatsStore(
+                    new WorkshopStatsClient(() => "https://service.invalid", null, new FakeHandler(async _ =>
+                    {
+                        await gate.WaitAsync();
+                        return Json("{\"likes\":{\"colors/neon\":9},\"installs\":{\"colors/neon\":4},\"mine\":[]}");
+                    })),
+                    identity);
+
+                // What an earlier session left behind.
+                Directory.CreateDirectory(Path.Combine(directory, WorkshopIdentityStore.DirectoryName));
+                File.WriteAllText(
+                    Path.Combine(directory, WorkshopIdentityStore.DirectoryName, "stats.json"),
+                    "{\"Likes\":{\"colors/neon\":2},\"Installs\":{\"colors/neon\":3}}");
+
+                var load = store.EnsureLoadedAsync(CancellationToken.None);
+                Assert.IsTrue(store.IsAvailable, "the cached counts are up before the service answers");
+                Assert.AreEqual(2, store.LikesFor("colors/neon"));
+                Assert.AreEqual(3, store.InstallsFor("colors/neon"));
+
+                gate.Release();
+                Assert.IsTrue(await load);
+                Assert.AreEqual(9, store.LikesFor("colors/neon"), "the service's answer replaces the cache");
+                Assert.AreEqual(4, store.InstallsFor("colors/neon"));
+
+                // And the fresh answer is what the next session starts from.
+                var written = File.ReadAllText(Path.Combine(directory, WorkshopIdentityStore.DirectoryName, "stats.json"));
+                StringAssert.Contains(written, "\"colors/neon\":9");
+            }
+            finally
+            {
+                Delete(directory);
+            }
+        }
+
         private static string NewDirectory()
         {
             var directory = Path.Combine(Path.GetTempPath(), "PlayniteAchievementsTests", Guid.NewGuid().ToString("N"));
