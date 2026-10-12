@@ -25,6 +25,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
     public enum WorkshopSort
     {
         MostDownloaded,
+        MostLiked,
         Newest,
         Name
     }
@@ -71,6 +72,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
         private readonly Services.Library.GameDataLinkService _gameData;
         private readonly WorkshopInstaller _installer;
         private readonly WorkshopGameMatcher _matcher;
+        private readonly WorkshopLikeStore _likes;
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private readonly ConcurrentDictionary<string, WorkshopGameMatch> _matches = new ConcurrentDictionary<string, WorkshopGameMatch>(StringComparer.OrdinalIgnoreCase);
 
@@ -102,9 +104,11 @@ namespace PlayniteAchievements.ViewModels.Workshop
             _matcher = plugin.CreateWorkshopGameMatcher();
             _focusGameId = focusGameId;
             _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
+            _likes = plugin.WorkshopLikeStore;
             _identity.Changed += Source_Changed;
             _library.Changed += Source_Changed;
             _gameData.Links.Changed += Source_Changed;
+            _likes.LikesChanged += Likes_Changed;
 
             KindOptions = new List<WorkshopKindOption>
             {
@@ -120,6 +124,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
             SortOptions = new List<WorkshopSortOption>
             {
                 new WorkshopSortOption(WorkshopSort.MostDownloaded, ResourceProvider.GetString("LOCPlayAch_Workshop_SortMostDownloaded")),
+                new WorkshopSortOption(WorkshopSort.MostLiked, ResourceProvider.GetString("LOCPlayAch_Workshop_SortMostLiked")),
                 new WorkshopSortOption(WorkshopSort.Newest, ResourceProvider.GetString("LOCPlayAch_Workshop_SortNewest")),
                 new WorkshopSortOption(WorkshopSort.Name, ResourceProvider.GetString("LOCNameLabel"))
             };
@@ -337,7 +342,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
                     foreach (var item in index.Items.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase))
                     {
                         _lifetime.Token.ThrowIfCancellationRequested();
-                        var row = new WorkshopItemViewModel(item);
+                        var row = new WorkshopItemViewModel(item) { Likes = _likes };
                         ApplyLocalState(row, library, gameData, owner);
                         built.Add(row);
                     }
@@ -361,6 +366,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
 
                 ApplySort();
                 _ = PrefetchPreviewsAsync(rows);
+                _ = LoadLikesAsync(index.Items);
 
                 if (_focusGameId.HasValue)
                 {
@@ -678,6 +684,63 @@ namespace PlayniteAchievements.ViewModels.Workshop
                 ? part
                 : BundleParts.All;
 
+        // ---- likes -------------------------------------------------------------------------
+
+        /// <summary>
+        /// Reads the like listing and likes this install's own items. A service that cannot be
+        /// reached simply leaves the counts and the button out of the list.
+        /// </summary>
+        private async Task LoadLikesAsync(IEnumerable<WorkshopItem> items)
+        {
+            try
+            {
+                if (await _likes.EnsureLoadedAsync(_lifetime.Token).ConfigureAwait(false))
+                {
+                    await _likes.LikeOwnItemsAsync(items, _lifetime.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug($"Failed reading Workshop likes: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Raises the like properties of the rows a change touched, on the UI thread: a press is
+        /// answered off it. A null id means the whole listing arrived, which is also the only
+        /// moment the view re-sorts, so a press never moves rows under the pointer.
+        /// </summary>
+        private void Likes_Changed(object sender, string itemId)
+        {
+            void Apply()
+            {
+                foreach (var row in Items)
+                {
+                    if (itemId == null || string.Equals(row.Id, itemId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        row.RaiseLikesChanged();
+                    }
+                }
+
+                if (itemId == null && (_selectedSort?.Sort ?? WorkshopSort.MostDownloaded) == WorkshopSort.MostLiked)
+                {
+                    ItemsView.Refresh();
+                }
+            }
+
+            if (_dispatcher.CheckAccess())
+            {
+                Apply();
+            }
+            else
+            {
+                _dispatcher.BeginInvoke(new Action(Apply));
+            }
+        }
+
         private void ApplySort()
         {
             ItemsView.SortDescriptions.Clear();
@@ -689,6 +752,9 @@ namespace PlayniteAchievements.ViewModels.Workshop
 
             switch (_selectedSort?.Sort ?? WorkshopSort.MostDownloaded)
             {
+                case WorkshopSort.MostLiked:
+                    ItemsView.SortDescriptions.Add(new SortDescription(nameof(WorkshopItemViewModel.LikeCount), ListSortDirection.Descending));
+                    break;
                 case WorkshopSort.Newest:
                     ItemsView.SortDescriptions.Add(new SortDescription(nameof(WorkshopItemViewModel.UpdatedDate), ListSortDirection.Descending));
                     break;
@@ -1227,6 +1293,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
             _identity.Changed -= Source_Changed;
             _library.Changed -= Source_Changed;
             _gameData.Links.Changed -= Source_Changed;
+            _likes.LikesChanged -= Likes_Changed;
             DeleteCachedDownload();
             _lifetime.Cancel();
             _lifetime.Dispose();
