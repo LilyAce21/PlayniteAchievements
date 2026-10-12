@@ -14,31 +14,33 @@ namespace PlayniteAchievements.Services.Tests
 {
     [TestClass]
     [DoNotParallelize]
-    public class WorkshopLikesTests
+    public class WorkshopStatsTests
     {
         [TestMethod]
         public async Task Fetch_ReadsCountsAndOwnLikes_AndAsksForTheVoter()
         {
             var requested = new List<string>();
-            var client = new WorkshopLikesClient(() => "https://service.invalid/", null, new FakeHandler(request =>
+            var client = new WorkshopStatsClient(() => "https://service.invalid/", null, new FakeHandler(request =>
             {
                 requested.Add(request.RequestUri.PathAndQuery);
-                return Task.FromResult(Json("{\"counts\":{\"colors/neon\":3,\"sounds/chime\":0},\"mine\":[\"colors/neon\"]}"));
+                return Task.FromResult(Json(
+                    "{\"likes\":{\"colors/neon\":3,\"sounds/chime\":0},\"installs\":{\"colors/neon\":11},\"mine\":[\"colors/neon\"]}"));
             }));
 
             var voter = new string('a', 64);
             var snapshot = await client.FetchAsync(voter, CancellationToken.None);
 
-            CollectionAssert.AreEqual(new[] { "/v1/likes?voter=" + voter }, requested);
-            Assert.AreEqual(3, snapshot.Counts["colors/neon"]);
-            Assert.IsFalse(snapshot.Counts.ContainsKey("sounds/chime"), "an item nobody liked is not carried");
+            CollectionAssert.AreEqual(new[] { "/v1/stats?voter=" + voter }, requested);
+            Assert.AreEqual(3, snapshot.Likes["colors/neon"]);
+            Assert.AreEqual(11, snapshot.Installs["colors/neon"]);
+            Assert.IsFalse(snapshot.Likes.ContainsKey("sounds/chime"), "an item nobody liked is not carried");
             Assert.IsTrue(snapshot.Mine.Contains("colors/neon"));
         }
 
         [TestMethod]
         public async Task Fetch_ReturnsNull_WhenTheServiceFails()
         {
-            var client = new WorkshopLikesClient(() => "https://service.invalid", null,
+            var client = new WorkshopStatsClient(() => "https://service.invalid", null,
                 new FakeHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)
                 {
                     Content = new StringContent("{\"error\":\"nope\"}", Encoding.UTF8, "application/json")
@@ -48,37 +50,60 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
-        public async Task Set_PostsTheItemAndVoter_AndReturnsTheFreshCount()
+        public async Task SetLike_PostsTheItemAndVoter_AndReturnsTheFreshCount()
         {
             JObject sent = null;
-            var client = new WorkshopLikesClient(() => "https://service.invalid", null, new FakeHandler(async request =>
+            var path = string.Empty;
+            var client = new WorkshopStatsClient(() => "https://service.invalid", null, new FakeHandler(async request =>
             {
+                path = request.RequestUri.AbsolutePath;
                 sent = JObject.Parse(await request.Content.ReadAsStringAsync());
                 return Json("{\"itemId\":\"colors/neon\",\"liked\":true,\"count\":4}");
             }));
 
-            var count = await client.SetAsync("colors/neon", new string('A', 64), true, CancellationToken.None);
+            var count = await client.SetLikeAsync("colors/neon", new string('A', 64), true, CancellationToken.None);
 
             Assert.AreEqual(4, count);
+            Assert.AreEqual("/v1/likes", path);
             Assert.AreEqual("colors/neon", sent.Value<string>("itemId"));
             Assert.AreEqual(new string('a', 64), sent.Value<string>("voterHash"), "the hash is sent lowercase");
             Assert.IsTrue(sent.Value<bool>("liked"));
         }
 
         [TestMethod]
-        public async Task Toggle_AppliesAtOnce_AndRevertsWhenTheServiceRefuses()
+        public async Task RecordInstall_PostsTheItemAlone_AndReturnsTheFreshCount()
+        {
+            JObject sent = null;
+            var path = string.Empty;
+            var client = new WorkshopStatsClient(() => "https://service.invalid", null, new FakeHandler(async request =>
+            {
+                path = request.RequestUri.AbsolutePath;
+                sent = JObject.Parse(await request.Content.ReadAsStringAsync());
+                return Json("{\"itemId\":\"colors/neon\",\"count\":12}");
+            }));
+
+            var count = await client.RecordInstallAsync("colors/neon", CancellationToken.None);
+
+            Assert.AreEqual(12, count);
+            Assert.AreEqual("/v1/installs", path);
+            Assert.AreEqual("colors/neon", sent.Value<string>("itemId"));
+            Assert.IsNull(sent["voterHash"], "an install carries no identity");
+        }
+
+        [TestMethod]
+        public async Task ToggleLike_AppliesAtOnce_AndRevertsWhenTheServiceRefuses()
         {
             var directory = NewDirectory();
             try
             {
                 var identity = new WorkshopIdentityStore(directory);
                 var refuse = false;
-                var store = new WorkshopLikeStore(
-                    new WorkshopLikesClient(() => "https://service.invalid", null, new FakeHandler(request =>
+                var store = new WorkshopStatsStore(
+                    new WorkshopStatsClient(() => "https://service.invalid", null, new FakeHandler(request =>
                     {
                         if (request.Method == HttpMethod.Get)
                         {
-                            return Task.FromResult(Json("{\"counts\":{\"colors/neon\":2},\"mine\":[]}"));
+                            return Task.FromResult(Json("{\"likes\":{\"colors/neon\":2},\"installs\":{},\"mine\":[]}"));
                         }
 
                         return Task.FromResult(refuse
@@ -89,17 +114,42 @@ namespace PlayniteAchievements.Services.Tests
 
                 Assert.IsTrue(await store.EnsureLoadedAsync(CancellationToken.None));
                 Assert.IsTrue(store.IsAvailable);
-                Assert.AreEqual(2, store.CountFor("colors/neon"));
+                Assert.AreEqual(2, store.LikesFor("colors/neon"));
 
-                await store.ToggleAsync("colors/neon", CancellationToken.None);
+                await store.ToggleLikeAsync("colors/neon", CancellationToken.None);
                 Assert.IsTrue(store.IsLiked("colors/neon"));
-                Assert.AreEqual(3, store.CountFor("colors/neon"));
+                Assert.AreEqual(3, store.LikesFor("colors/neon"));
                 Assert.IsTrue(identity.IsLiked("colors/neon"), "the like is remembered for the next session");
 
                 refuse = true;
-                await store.ToggleAsync("colors/neon", CancellationToken.None);
+                await store.ToggleLikeAsync("colors/neon", CancellationToken.None);
                 Assert.IsTrue(store.IsLiked("colors/neon"), "a refused press is put back");
-                Assert.AreEqual(3, store.CountFor("colors/neon"));
+                Assert.AreEqual(3, store.LikesFor("colors/neon"));
+            }
+            finally
+            {
+                Delete(directory);
+            }
+        }
+
+        [TestMethod]
+        public async Task RecordInstall_RaisesTheItemsCount()
+        {
+            var directory = NewDirectory();
+            try
+            {
+                var store = new WorkshopStatsStore(
+                    new WorkshopStatsClient(() => "https://service.invalid", null, new FakeHandler(request =>
+                        Task.FromResult(request.Method == HttpMethod.Get
+                            ? Json("{\"likes\":{},\"installs\":{\"colors/neon\":4},\"mine\":[]}")
+                            : Json("{\"count\":5}")))),
+                    new WorkshopIdentityStore(directory));
+
+                await store.EnsureLoadedAsync(CancellationToken.None);
+                Assert.AreEqual(4, store.InstallsFor("colors/neon"));
+
+                await store.RecordInstallAsync("colors/neon", CancellationToken.None);
+                Assert.AreEqual(5, store.InstallsFor("colors/neon"));
             }
             finally
             {
@@ -113,14 +163,15 @@ namespace PlayniteAchievements.Services.Tests
             var directory = NewDirectory();
             try
             {
-                var store = new WorkshopLikeStore(
-                    new WorkshopLikesClient(() => "https://service.invalid", null,
+                var store = new WorkshopStatsStore(
+                    new WorkshopStatsClient(() => "https://service.invalid", null,
                         new FakeHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadGateway)))),
                     new WorkshopIdentityStore(directory));
 
                 Assert.IsFalse(await store.EnsureLoadedAsync(CancellationToken.None));
                 Assert.IsFalse(store.IsAvailable);
-                Assert.AreEqual(0, store.CountFor("colors/neon"));
+                Assert.AreEqual(0, store.LikesFor("colors/neon"));
+                Assert.AreEqual(0, store.InstallsFor("colors/neon"));
             }
             finally
             {
@@ -137,12 +188,12 @@ namespace PlayniteAchievements.Services.Tests
                 var identity = new WorkshopIdentityStore(directory);
                 var owner = identity.GetSubmitterHash();
                 var posted = new List<string>();
-                var store = new WorkshopLikeStore(
-                    new WorkshopLikesClient(() => "https://service.invalid", null, new FakeHandler(async request =>
+                var store = new WorkshopStatsStore(
+                    new WorkshopStatsClient(() => "https://service.invalid", null, new FakeHandler(async request =>
                     {
                         if (request.Method == HttpMethod.Get)
                         {
-                            return Json("{\"counts\":{},\"mine\":[]}");
+                            return Json("{\"likes\":{},\"installs\":{},\"mine\":[]}");
                         }
 
                         posted.Add(JObject.Parse(await request.Content.ReadAsStringAsync()).Value<string>("itemId"));
@@ -161,7 +212,7 @@ namespace PlayniteAchievements.Services.Tests
                 await store.LikeOwnItemsAsync(items, CancellationToken.None);
 
                 CollectionAssert.AreEqual(new[] { "colors/mine" }, posted, "only this install's own item, and only the first time");
-                Assert.AreEqual(1, store.CountFor("colors/mine"));
+                Assert.AreEqual(1, store.LikesFor("colors/mine"));
             }
             finally
             {
