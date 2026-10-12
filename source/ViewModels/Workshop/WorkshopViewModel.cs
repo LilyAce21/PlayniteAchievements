@@ -24,7 +24,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
 {
     public enum WorkshopSort
     {
-        MostDownloaded,
+        MostInstalled,
         MostLiked,
         Newest,
         Name
@@ -72,7 +72,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
         private readonly Services.Library.GameDataLinkService _gameData;
         private readonly WorkshopInstaller _installer;
         private readonly WorkshopGameMatcher _matcher;
-        private readonly WorkshopLikeStore _likes;
+        private readonly WorkshopStatsStore _stats;
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private readonly ConcurrentDictionary<string, WorkshopGameMatch> _matches = new ConcurrentDictionary<string, WorkshopGameMatch>(StringComparer.OrdinalIgnoreCase);
 
@@ -104,11 +104,11 @@ namespace PlayniteAchievements.ViewModels.Workshop
             _matcher = plugin.CreateWorkshopGameMatcher();
             _focusGameId = focusGameId;
             _dispatcher = System.Windows.Threading.Dispatcher.CurrentDispatcher;
-            _likes = plugin.WorkshopLikeStore;
+            _stats = plugin.WorkshopStatsStore;
             _identity.Changed += Source_Changed;
             _library.Changed += Source_Changed;
             _gameData.Links.Changed += Source_Changed;
-            _likes.LikesChanged += Likes_Changed;
+            _stats.StatsChanged += Stats_Changed;
 
             KindOptions = new List<WorkshopKindOption>
             {
@@ -123,7 +123,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
             };
             SortOptions = new List<WorkshopSortOption>
             {
-                new WorkshopSortOption(WorkshopSort.MostDownloaded, ResourceProvider.GetString("LOCPlayAch_Workshop_SortMostDownloaded")),
+                new WorkshopSortOption(WorkshopSort.MostInstalled, ResourceProvider.GetString("LOCPlayAch_Workshop_SortMostInstalled")),
                 new WorkshopSortOption(WorkshopSort.MostLiked, ResourceProvider.GetString("LOCPlayAch_Workshop_SortMostLiked")),
                 new WorkshopSortOption(WorkshopSort.Newest, ResourceProvider.GetString("LOCPlayAch_Workshop_SortNewest")),
                 new WorkshopSortOption(WorkshopSort.Name, ResourceProvider.GetString("LOCNameLabel"))
@@ -342,7 +342,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
                     foreach (var item in index.Items.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase))
                     {
                         _lifetime.Token.ThrowIfCancellationRequested();
-                        var row = new WorkshopItemViewModel(item) { Likes = _likes };
+                        var row = new WorkshopItemViewModel(item) { Stats = _stats };
                         ApplyLocalState(row, library, gameData, owner);
                         built.Add(row);
                     }
@@ -366,7 +366,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
 
                 ApplySort();
                 _ = PrefetchPreviewsAsync(rows);
-                _ = LoadLikesAsync(index.Items);
+                _ = LoadStatsAsync(index.Items);
 
                 if (_focusGameId.HasValue)
                 {
@@ -608,13 +608,6 @@ namespace PlayniteAchievements.ViewModels.Workshop
                     row.PreviewPath = await _client.FetchPreviewAsync(row.Item, _lifetime.Token);
                 }
 
-                // The index carries the count as of its last build; the release API has the
-                // live number, fetched once per item per window.
-                if (row.LiveDownloads == null)
-                {
-                    row.LiveDownloads = await _client.FetchLiveDownloadsAsync(row.Item, _lifetime.Token);
-                }
-
                 if (row.Readme == null)
                 {
                     // The description already shows above the README; an empty result hides it.
@@ -690,13 +683,13 @@ namespace PlayniteAchievements.ViewModels.Workshop
         /// Reads the like listing and likes this install's own items. A service that cannot be
         /// reached simply leaves the counts and the button out of the list.
         /// </summary>
-        private async Task LoadLikesAsync(IEnumerable<WorkshopItem> items)
+        private async Task LoadStatsAsync(IEnumerable<WorkshopItem> items)
         {
             try
             {
-                if (await _likes.EnsureLoadedAsync(_lifetime.Token).ConfigureAwait(false))
+                if (await _stats.EnsureLoadedAsync(_lifetime.Token).ConfigureAwait(false))
                 {
-                    await _likes.LikeOwnItemsAsync(items, _lifetime.Token).ConfigureAwait(false);
+                    await _stats.LikeOwnItemsAsync(items, _lifetime.Token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -704,7 +697,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
             }
             catch (Exception ex)
             {
-                _logger?.Debug($"Failed reading Workshop likes: {ex.Message}");
+                _logger?.Debug($"Failed reading the Workshop statistics: {ex.Message}");
             }
         }
 
@@ -713,7 +706,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
         /// answered off it. A null id means the whole listing arrived, which is also the only
         /// moment the view re-sorts, so a press never moves rows under the pointer.
         /// </summary>
-        private void Likes_Changed(object sender, string itemId)
+        private void Stats_Changed(object sender, string itemId)
         {
             void Apply()
             {
@@ -721,11 +714,11 @@ namespace PlayniteAchievements.ViewModels.Workshop
                 {
                     if (itemId == null || string.Equals(row.Id, itemId, StringComparison.OrdinalIgnoreCase))
                     {
-                        row.RaiseLikesChanged();
+                        row.RaiseStatsChanged();
                     }
                 }
 
-                if (itemId == null && (_selectedSort?.Sort ?? WorkshopSort.MostDownloaded) == WorkshopSort.MostLiked)
+                if (itemId == null && (_selectedSort?.Sort ?? WorkshopSort.MostInstalled) == WorkshopSort.MostLiked)
                 {
                     ItemsView.Refresh();
                 }
@@ -750,7 +743,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
                 ItemsView.SortDescriptions.Add(new SortDescription(nameof(WorkshopItemViewModel.IsBundle), ListSortDirection.Ascending));
             }
 
-            switch (_selectedSort?.Sort ?? WorkshopSort.MostDownloaded)
+            switch (_selectedSort?.Sort ?? WorkshopSort.MostInstalled)
             {
                 case WorkshopSort.MostLiked:
                     ItemsView.SortDescriptions.Add(new SortDescription(nameof(WorkshopItemViewModel.LikeCount), ListSortDirection.Descending));
@@ -762,7 +755,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
                     ItemsView.SortDescriptions.Add(new SortDescription(nameof(WorkshopItemViewModel.Name), ListSortDirection.Ascending));
                     break;
                 default:
-                    ItemsView.SortDescriptions.Add(new SortDescription(nameof(WorkshopItemViewModel.Downloads), ListSortDirection.Descending));
+                    ItemsView.SortDescriptions.Add(new SortDescription(nameof(WorkshopItemViewModel.Installs), ListSortDirection.Descending));
                     break;
             }
 
@@ -1293,7 +1286,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
             _identity.Changed -= Source_Changed;
             _library.Changed -= Source_Changed;
             _gameData.Links.Changed -= Source_Changed;
-            _likes.LikesChanged -= Likes_Changed;
+            _stats.StatsChanged -= Stats_Changed;
             DeleteCachedDownload();
             _lifetime.Cancel();
             _lifetime.Dispose();
