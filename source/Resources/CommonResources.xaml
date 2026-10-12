@@ -336,6 +336,57 @@
         </Style.Triggers>
     </Style>
 
+    <!-- The same like affordance as a heart on its own, large enough to be the thing a reader
+         aims at: it leads the Workshop row, left of the cover, and sits in the detail pane. The
+         count lives with the other counts at the end of the row, not here. -->
+    <Style x:Key="PlayAch.Workshop.LikeToggleStyle" TargetType="Button">
+        <Setter Property="Padding" Value="6"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text.Secondary}"/>
+        <Setter Property="Command" Value="{Binding ToggleLikeCommand}"/>
+        <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Workshop_Like}"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" CornerRadius="16" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <controls:GlyphIcon x:Name="Glyph"
+                                            Glyph="&#xEF44;"
+                                            Size="20"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                            Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsLiked}" Value="True">
+                            <Setter TargetName="Glyph" Property="Glyph" Value="&#xEF45;"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource PlayAch.Brush.Accent}"/>
+                        </DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource PlayAch.Brush.Border}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.72"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding CanLike}" Value="True">
+                <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsLiked}" Value="True">
+                <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Workshop_Unlike}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Import and Export button faces: the editor toolbar's download and upload glyphs before
          the localized word, so every Import and Export in the plugin reads the same. Content
          stays the localized string; the template only adds the glyph. -->
