@@ -22,6 +22,9 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// <summary>Namespaced item id of the display icon, e.g. <c>minecraft:diamond</c>.</summary>
         public string IconItemId { get; set; }
 
+        /// <summary>The icon's custom model data, which picks a model override; null when unset.</summary>
+        public float? IconCustomModelData { get; set; }
+
         /// <summary>task, goal or challenge.</summary>
         public string Frame { get; set; }
         public bool Hidden { get; set; }
@@ -89,6 +92,7 @@ namespace PlayniteAchievements.Providers.Minecraft
                     Title = ResolveText(display["title"], translations),
                     Description = ResolveText(display["description"], translations),
                     IconItemId = NormalizeId(ReadIconItem(display["icon"])),
+                    IconCustomModelData = ReadIconCustomModelData(display["icon"]),
                     Frame = ((string)(display["frame"] as JValue) ?? "task").Trim().ToLowerInvariant(),
                     Hidden = display["hidden"]?.Type == JTokenType.Boolean && (bool)display["hidden"],
                     Requirements = ReadRequirements(entry.Value)
@@ -242,6 +246,39 @@ namespace PlayniteAchievements.Providers.Minecraft
                     : next++;
                 return index >= 0 && index < arguments.Count ? arguments[index] : string.Empty;
             });
+        }
+
+        /// <summary>
+        /// Custom model data from 1.20.5+ components (a number, or 1.21.4's floats list) or from a
+        /// pre-1.20.5 NBT string such as <c>{CustomModelData:3}</c>.
+        /// </summary>
+        private static float? ReadIconCustomModelData(JToken icon)
+        {
+            if (!(icon is JObject iconObject))
+            {
+                return null;
+            }
+
+            var component = iconObject["components"]?["minecraft:custom_model_data"] ?? iconObject["components"]?["custom_model_data"];
+            if (component != null)
+            {
+                if (component.Type == JTokenType.Integer || component.Type == JTokenType.Float)
+                {
+                    return (float)component;
+                }
+
+                var first = (component["floats"] as JArray)?.FirstOrDefault();
+                if (first != null && (first.Type == JTokenType.Integer || first.Type == JTokenType.Float))
+                {
+                    return (float)first;
+                }
+            }
+
+            var nbt = (string)(iconObject["nbt"] as JValue);
+            var match = nbt == null ? null : Regex.Match(nbt, @"CustomModelData\s*:\s*(-?\d+)", RegexOptions.CultureInvariant);
+            return match != null && match.Success
+                ? float.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture)
+                : (float?)null;
         }
 
         private static string ReadIconItem(JToken icon)
