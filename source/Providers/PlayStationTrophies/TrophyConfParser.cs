@@ -47,8 +47,10 @@ namespace PlayniteAchievements.Providers.PlayStationTrophies
 
         /// <summary>
         /// Overlays display text from the TROP_XX.SFM sibling matching the requested
-        /// locale. RPCS3 and Vita3K install every TRP entry into the trophy folder, so the
-        /// localized files sit next to the language-neutral TROPCONF.SFM.
+        /// locale, falling back to the default-language TROP.SFM. RPCS3 and Vita3K install
+        /// every TRP entry into the trophy folder, so the text files sit next to
+        /// TROPCONF.SFM. The TROP.SFM fallback gives display text to a set whose
+        /// TROPCONF.SFM carries no name elements, as Vita3K's own trophy viewer reads it.
         /// </summary>
         private static void ApplyLocalizedSfmSibling(
             List<NpTrophy> trophies,
@@ -56,8 +58,7 @@ namespace PlayniteAchievements.Providers.PlayStationTrophies
             string language,
             ILogger logger)
         {
-            var tropIndex = MapLocaleToTropIndex(language);
-            if (trophies.Count == 0 || !tropIndex.HasValue)
+            if (trophies.Count == 0)
             {
                 return;
             }
@@ -70,7 +71,15 @@ namespace PlayniteAchievements.Providers.PlayStationTrophies
                     return;
                 }
 
-                var localizedPath = Path.Combine(folder, $"TROP_{tropIndex.Value:00}.SFM");
+                var tropIndex = MapLocaleToTropIndex(language);
+                var localizedPath = tropIndex.HasValue
+                    ? Path.Combine(folder, $"TROP_{tropIndex.Value:00}.SFM")
+                    : null;
+                if (localizedPath == null || !File.Exists(localizedPath))
+                {
+                    localizedPath = Path.Combine(folder, "TROP.SFM");
+                }
+
                 if (!File.Exists(localizedPath))
                 {
                     return;
@@ -177,6 +186,42 @@ namespace PlayniteAchievements.Providers.PlayStationTrophies
                 logger?.Debug(ex, $"[Trophies] Failed to extract npcommid from '{trophyTrpPath}'");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// The trophy set's default-language title-name from an installed trophy folder:
+        /// TROPCONF.SFM first, then TROP.SFM. Null when neither carries one.
+        /// </summary>
+        public static string ReadSetTitle(string trophyFolder, ILogger logger)
+        {
+            if (string.IsNullOrWhiteSpace(trophyFolder))
+            {
+                return null;
+            }
+
+            foreach (var fileName in new[] { "TROPCONF.SFM", "TROP.SFM" })
+            {
+                var path = Path.Combine(trophyFolder, fileName);
+                if (!File.Exists(path))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var title = ExtractElementText(File.ReadAllText(path, Encoding.UTF8), "title-name");
+                    if (!string.IsNullOrWhiteSpace(title))
+                    {
+                        return title;
+                    }
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    logger?.Debug(ex, $"[Trophies] Failed to read the set title from '{path}'");
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
