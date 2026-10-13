@@ -6,7 +6,7 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
 {
     /// <summary>
     /// Which points card a game's provider points count toward. A family is named by a provider
-    /// key: Xbox covers Xbox and Xenia, PSN covers PSN, RPCS3 and ShadPS4, and every other
+    /// key: Xbox covers Xbox and Xenia, PSN covers PSN, RPCS3, ShadPS4 and Vita3K, and every other
     /// provider, custom providers included, is its own family.
     /// </summary>
     public static class PointsFamilies
@@ -32,7 +32,8 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
                 ["Xenia"] = Xbox,
                 ["PSN"] = PlayStation,
                 ["RPCS3"] = PlayStation,
-                ["ShadPS4"] = PlayStation
+                ["ShadPS4"] = PlayStation,
+                ["Vita3K"] = PlayStation
             };
 
         /// <summary>
