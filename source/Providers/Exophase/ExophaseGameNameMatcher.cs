@@ -200,6 +200,40 @@ namespace PlayniteAchievements.Providers.Exophase
         }
 
         /// <summary>
+        /// Maps a PS Vita title id to the Exophase region token its fourth letter encodes:
+        /// PCSA/PCSE -> na, PCSB/PCSF -> eu, PCSC/PCSG -> jp, PCSD/PCSH -> as.
+        /// Null for anything else.
+        /// </summary>
+        public static string MapVitaTitleIdToRegionHint(string titleId)
+        {
+            var normalized = titleId?.Trim();
+            if (string.IsNullOrWhiteSpace(normalized) ||
+                normalized.Length != 9 ||
+                !normalized.StartsWith("PCS", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            switch (char.ToUpperInvariant(normalized[3]))
+            {
+                case 'A':
+                case 'E':
+                    return "na";
+                case 'B':
+                case 'F':
+                    return "eu";
+                case 'C':
+                case 'G':
+                    return "jp";
+                case 'D':
+                case 'H':
+                    return "as";
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
         /// Maps a PSN content id (e.g. UP9000-NPWR05784_00 or EP9000-CUSA00552_00,
         /// as PS4 trophy bindings carry) to the Exophase region token its first
         /// letter encodes: U -> na, E -> eu, J -> jp, H/A -> as, K -> kr.
