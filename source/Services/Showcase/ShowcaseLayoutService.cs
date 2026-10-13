@@ -60,9 +60,11 @@ namespace PlayniteAchievements.Services.Showcase
         }
 
         public static ShowcaseSettings CreateDefault(
-            ScoreCardSlot scoreCard1 = ScoreCardSlot.Collection,
-            ScoreCardSlot scoreCard2 = ScoreCardSlot.Prestige)
+            string scoreCard1 = null,
+            string scoreCard2 = null)
         {
+            scoreCard1 ??= ScoreCardSlots.Collection;
+            scoreCard2 ??= ScoreCardSlots.Prestige;
             var settings = new ShowcaseSettings();
             var page = CreatePage(
                 ShowcasePageTemplate.Showcase,
@@ -92,8 +94,8 @@ namespace PlayniteAchievements.Services.Showcase
                 template,
                 settings,
                 name,
-                scoreCard1: ScoreCardSlot.Collection,
-                scoreCard2: ScoreCardSlot.Prestige);
+                scoreCard1: ScoreCardSlots.Collection,
+                scoreCard2: ScoreCardSlots.Prestige);
             settings.Pages.Add(page);
             settings.LastSelectedPageId = page.PageId;
             return page;
@@ -133,8 +135,8 @@ namespace PlayniteAchievements.Services.Showcase
                 template,
                 settings,
                 page.Name,
-                scoreCard1: ScoreCardSlot.Collection,
-                scoreCard2: ScoreCardSlot.Prestige);
+                scoreCard1: ScoreCardSlots.Collection,
+                scoreCard2: ScoreCardSlots.Prestige);
             replacement.PageId = page.PageId;
             replacement.Name = page.Name;
             settings.Pages[pageIndex] = replacement;
@@ -923,8 +925,8 @@ namespace PlayniteAchievements.Services.Showcase
             ShowcasePageTemplate template,
             ShowcaseSettings settings,
             string name,
-            ScoreCardSlot scoreCard1,
-            ScoreCardSlot scoreCard2)
+            string scoreCard1,
+            string scoreCard2)
         {
             var page = new ShowcasePageSettings
             {
@@ -967,7 +969,7 @@ namespace PlayniteAchievements.Services.Showcase
                             ShowcaseGameGridSource.Pinned));
                     break;
                 case ShowcasePageTemplate.Analytics:
-                    AddScoreBlock(settings, page, 0, 0, 2, 5, ScoreCardSlot.Collection, ScoreCardSlot.Prestige);
+                    AddScoreBlock(settings, page, 0, 0, 2, 5, ScoreCardSlots.Collection, ScoreCardSlots.Prestige);
                     AddBlock(settings, page, 2, 0, 3, 3, ShowcaseWidgetKind.ActivityCalendar);
                     AddBlock(settings, page, 2, 3, 1, 2, ShowcaseWidgetKind.Statistics);
                     AddBlock(settings, page, 3, 3, 2, 2, ShowcaseWidgetKind.Pie);
@@ -1043,7 +1045,7 @@ namespace PlayniteAchievements.Services.Showcase
                     break;
                 case ShowcasePageTemplate.TrophyCase:
                     AddBlock(settings, page, 0, 0, 2, 3, ShowcaseWidgetKind.Profile);
-                    AddScoreBlock(settings, page, 0, 3, 2, 2, ScoreCardSlot.Collection, ScoreCardSlot.Prestige);
+                    AddScoreBlock(settings, page, 0, 3, 2, 2, ScoreCardSlots.Collection, ScoreCardSlots.Prestige);
                     AddBlock(
                         settings,
                         page,
@@ -1135,13 +1137,13 @@ namespace PlayniteAchievements.Services.Showcase
             int column,
             int rowSpan,
             int columnSpan,
-            ScoreCardSlot scoreCard1,
-            ScoreCardSlot scoreCard2)
+            string scoreCard1,
+            string scoreCard2)
         {
             var cards = new List<ScoreCardType>();
             foreach (var slot in new[] { scoreCard1, scoreCard2 })
             {
-                if (ScoreCardTypes.TryGetCardType(ScoreCardTypes.Normalize(slot), out var type))
+                if (ScoreCardSlots.TryGetCardType(slot, out var type))
                 {
                     cards.Add(type);
                 }

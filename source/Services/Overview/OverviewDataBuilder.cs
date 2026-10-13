@@ -171,6 +171,7 @@ namespace PlayniteAchievements.Services.Overview
                 }
 
                 var providerKey = ResolveEffectiveProviderKey(game.ProviderKey, game.ProviderPlatformKey);
+                var pointsFamily = PointsFamilies.Resolve(providerKey, game.PointsFamilyOverride);
 
                 // Memoized with the visuals below rather than resolved per game: there are a
                 // few dozen provider keys and a library's worth of games, and the name is a
@@ -220,6 +221,7 @@ namespace PlayniteAchievements.Services.Overview
                     PrestigeScoreTotal = game.PrestigeScoreTotal,
                     Points = game.Points,
                     PlatformScorePoints = game.PlatformScorePoints,
+                    PointsFamily = pointsFamily,
                     TotalCommonPossible = game.TotalCommonPossible,
                     TotalUncommonPossible = game.TotalUncommonPossible,
                     TotalRarePossible = game.TotalRarePossible,
@@ -252,7 +254,7 @@ namespace PlayniteAchievements.Services.Overview
                 snapshot.TotalUltraRare += game.UltraRareCount;
                 snapshot.CollectorScore = AddClamped(snapshot.CollectorScore, game.CollectionScore);
                 snapshot.PrestigeScore = AddClamped(snapshot.PrestigeScore, game.PrestigeScore);
-                platformScores.Add(providerKey, game.PlatformScorePoints);
+                platformScores.AddToFamily(pointsFamily, game.PlatformScorePoints);
                 snapshot.TotalCommonPossible += game.TotalCommonPossible;
                 snapshot.TotalUncommonPossible += game.TotalUncommonPossible;
                 snapshot.TotalRarePossible += game.TotalRarePossible;
@@ -320,6 +322,7 @@ namespace PlayniteAchievements.Services.Overview
                 : 0;
             ApplyScoreSnapshotFromValues(snapshot, snapshot.CollectorScore, snapshot.PrestigeScore);
             snapshot.ApplyPlatformScores(platformScores);
+            ScoreCardChoices.PublishFamiliesWithPoints(platformScores);
 
             Common.LeakWatch.Track("OverviewSnapshot.full", snapshot);
             return snapshot;

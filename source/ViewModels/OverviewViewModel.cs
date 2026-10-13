@@ -874,15 +874,15 @@ namespace PlayniteAchievements.ViewModels
 
         public bool ColorRarityColumnsByRaritySelectedGame => _settings?.Persisted?.OverviewSelectedGameColorRarityColumnsByRarity ?? false;
 
-        public ScoreCardSlot OverviewScoreCardSlot1 =>
-            ScoreCardTypes.Normalize(_settings?.Persisted?.OverviewScoreCardSlot1 ?? ScoreCardSlot.Collection);
+        public string OverviewScoreCardSlot1 =>
+            ScoreCardSlots.Normalize(_settings?.Persisted?.OverviewScoreCardSlot1 ?? ScoreCardSlots.Collection);
 
-        public ScoreCardSlot OverviewScoreCardSlot2 =>
-            ScoreCardTypes.Normalize(_settings?.Persisted?.OverviewScoreCardSlot2 ?? ScoreCardSlot.Prestige);
+        public string OverviewScoreCardSlot2 =>
+            ScoreCardSlots.Normalize(_settings?.Persisted?.OverviewScoreCardSlot2 ?? ScoreCardSlots.Prestige);
 
-        public bool ShowOverviewScoreCard1 => OverviewScoreCardSlot1 != ScoreCardSlot.None;
+        public bool ShowOverviewScoreCard1 => ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot1, out _);
 
-        public bool ShowOverviewScoreCard2 => OverviewScoreCardSlot2 != ScoreCardSlot.None;
+        public bool ShowOverviewScoreCard2 => ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot2, out _);
 
         public bool ShowOverviewScoreCards => _hasAppliedSnapshot && (ShowOverviewScoreCard1 || ShowOverviewScoreCard2);
 
@@ -2201,12 +2201,12 @@ namespace PlayniteAchievements.ViewModels
                 CollectorScore = CollectorScore,
                 PrestigeScore = PrestigeScore
             };
-            if (ScoreCardTypes.TryGetCardType(OverviewScoreCardSlot1, out var first))
+            if (ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot1, out var first))
             {
                 ScoreCard1.ApplyFor(first, snapshot, useUniformRarityBadges);
             }
 
-            if (ScoreCardTypes.TryGetCardType(OverviewScoreCardSlot2, out var second))
+            if (ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot2, out var second))
             {
                 ScoreCard2.ApplyFor(second, snapshot, useUniformRarityBadges);
             }
@@ -2243,21 +2243,7 @@ namespace PlayniteAchievements.ViewModels
             var previous = _latestSnapshot;
             if (previous != null)
             {
-                snapshot.GamerscoreScore = previous.GamerscoreScore;
-                snapshot.GamerscoreLevel = previous.GamerscoreLevel;
-                snapshot.GamerscoreLevelProgress = previous.GamerscoreLevelProgress;
-                snapshot.GamerscoreRank = previous.GamerscoreRank;
-                snapshot.GamerscoreMastery = previous.GamerscoreMastery;
-                snapshot.EpicXpScore = previous.EpicXpScore;
-                snapshot.EpicXpLevel = previous.EpicXpLevel;
-                snapshot.EpicXpLevelProgress = previous.EpicXpLevelProgress;
-                snapshot.EpicXpRank = previous.EpicXpRank;
-                snapshot.EpicXpMastery = previous.EpicXpMastery;
-                snapshot.RetroPointsScore = previous.RetroPointsScore;
-                snapshot.RetroPointsLevel = previous.RetroPointsLevel;
-                snapshot.RetroPointsLevelProgress = previous.RetroPointsLevelProgress;
-                snapshot.RetroPointsRank = previous.RetroPointsRank;
-                snapshot.RetroPointsMastery = previous.RetroPointsMastery;
+                snapshot.ApplyPlatformScores(previous.PointsTotals);
             }
         }
 

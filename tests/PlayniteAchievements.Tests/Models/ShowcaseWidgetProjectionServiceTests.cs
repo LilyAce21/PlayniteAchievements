@@ -972,6 +972,7 @@ namespace PlayniteAchievements.Tests.Models
             var endDate = new DateTime(2026, 7, 31);
             var exophaseXboxGame = Guid.NewGuid();
             var retroGame = Guid.NewGuid();
+            var optedOutGame = Guid.NewGuid();
             AchievementDisplayItem Unlock(Guid? gameId, string providerKey, int points, string categoryType, DateTime? when) =>
                 new AchievementDisplayItem
                 {
@@ -988,8 +989,10 @@ namespace PlayniteAchievements.Tests.Models
             {
                 GameSummaries = new List<GameSummaryItem>
                 {
-                    new GameSummaryItem { PlayniteGameId = exophaseXboxGame, ProviderKey = "Xbox" },
-                    new GameSummaryItem { PlayniteGameId = retroGame, ProviderKey = "RetroAchievements" }
+                    new GameSummaryItem { PlayniteGameId = exophaseXboxGame, ProviderKey = "Xbox", PointsFamily = "Xbox" },
+                    new GameSummaryItem { PlayniteGameId = retroGame, ProviderKey = "RetroAchievements", PointsFamily = "RetroAchievements" },
+                    // Set to count toward no card: its unlocks stay out of every points line.
+                    new GameSummaryItem { PlayniteGameId = optedOutGame, ProviderKey = "Xbox", PointsFamily = null }
                 },
                 Achievements = new List<AchievementDisplayItem>
                 {
@@ -999,7 +1002,8 @@ namespace PlayniteAchievements.Tests.Models
                     Unlock(null, "Epic", 40, null, endDate),
                     Unlock(retroGame, "RetroAchievements", 10, "Base|Hardcore", endDate.AddDays(-1)),
                     Unlock(retroGame, "RetroAchievements", 25, "Base|Softcore", endDate.AddDays(-1)),
-                    Unlock(null, "Steam", 999, null, endDate)
+                    Unlock(null, "Steam", 999, null, endDate),
+                    Unlock(optedOutGame, "Xbox", 700, null, endDate)
                 }
             };
             var instance = new ShowcaseWidgetInstanceSettings { Kind = ShowcaseWidgetKind.Scores };
@@ -1010,6 +1014,7 @@ namespace PlayniteAchievements.Tests.Models
             Assert.AreEqual(150, last.Gamerscore);
             Assert.AreEqual(40, last.EpicXp);
             Assert.AreEqual(10, last.RetroPoints);
+            Assert.AreEqual(999, last.GetPoints("Steam"));
             Assert.AreEqual(150, last.GetScore(PlayniteAchievements.Models.Achievements.Scoring.ScoreCardType.Gamerscore));
             // The undated Xenia unlock is a baseline from the first point.
             Assert.AreEqual(50, points[0].Gamerscore);

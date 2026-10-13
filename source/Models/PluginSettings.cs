@@ -2349,6 +2349,13 @@ namespace PlayniteAchievements.Models
         }
 
         [DontSerialize]
+        public List<PointsScoreItem> PointsScores
+        {
+            get => ModernTheme.PointsScores;
+            set => ModernTheme.PointsScores = value;
+        }
+
+        [DontSerialize]
         public int Level
         {
             get => LegacyTheme.Level;

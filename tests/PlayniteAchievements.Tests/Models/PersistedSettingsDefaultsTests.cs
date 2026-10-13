@@ -684,8 +684,8 @@ namespace PlayniteAchievements.Models.Tests
         {
             var settings = new PersistedSettings();
 
-            Assert.AreEqual(ScoreCardSlot.Collection, settings.OverviewScoreCardSlot1);
-            Assert.AreEqual(ScoreCardSlot.Prestige, settings.OverviewScoreCardSlot2);
+            Assert.AreEqual("Collection", settings.OverviewScoreCardSlot1);
+            Assert.AreEqual("Prestige", settings.OverviewScoreCardSlot2);
         }
 
         [TestMethod]
@@ -1156,18 +1156,18 @@ namespace PlayniteAchievements.Models.Tests
         {
             var source = new PersistedSettings
             {
-                OverviewScoreCardSlot1 = ScoreCardSlot.Gamerscore,
-                OverviewScoreCardSlot2 = ScoreCardSlot.None
+                OverviewScoreCardSlot1 = "Points:Xbox",
+                OverviewScoreCardSlot2 = "None"
             };
 
             var clone = source.Clone();
             var target = new PersistedSettings();
             target.CopyFrom(source);
 
-            Assert.AreEqual(ScoreCardSlot.Gamerscore, clone.OverviewScoreCardSlot1);
-            Assert.AreEqual(ScoreCardSlot.None, clone.OverviewScoreCardSlot2);
-            Assert.AreEqual(ScoreCardSlot.Gamerscore, target.OverviewScoreCardSlot1);
-            Assert.AreEqual(ScoreCardSlot.None, target.OverviewScoreCardSlot2);
+            Assert.AreEqual("Points:Xbox", clone.OverviewScoreCardSlot1);
+            Assert.AreEqual("None", clone.OverviewScoreCardSlot2);
+            Assert.AreEqual("Points:Xbox", target.OverviewScoreCardSlot1);
+            Assert.AreEqual("None", target.OverviewScoreCardSlot2);
         }
 
         [TestMethod]
@@ -1676,8 +1676,8 @@ namespace PlayniteAchievements.Models.Tests
                 RoundRarityPercentages = true,
                 OverviewGameSummariesUseCoverImages = false,
                 OverviewRecentAchievementsUseCoverImages = false,
-                OverviewScoreCardSlot1 = ScoreCardSlot.RetroPoints,
-                OverviewScoreCardSlot2 = ScoreCardSlot.None,
+                OverviewScoreCardSlot1 = "Points:RetroAchievements",
+                OverviewScoreCardSlot2 = "None",
                 ShowOverviewMiniShowcase = false,
                 OverviewMiniShowcaseHeight = 400d,
                 ShowOverviewGameMetadataPlatform = false,

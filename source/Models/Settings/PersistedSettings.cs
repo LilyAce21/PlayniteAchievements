@@ -196,8 +196,8 @@ namespace PlayniteAchievements.Models.Settings
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
-        private ScoreCardSlot _overviewScoreCardSlot1 = ScoreCardSlot.Collection;
-        private ScoreCardSlot _overviewScoreCardSlot2 = ScoreCardSlot.Prestige;
+        private string _overviewScoreCardSlot1 = ScoreCardSlots.Collection;
+        private string _overviewScoreCardSlot2 = ScoreCardSlots.Prestige;
         private bool _showFriendSpoilers;
         private int _friendsOverviewRecentUnlockLimit = 200;
         private bool _showTopMenuBarButton = true;
@@ -2285,20 +2285,21 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
-        /// The first score card in the overview header, or None. Profiles saved with the old
+        /// The first score card in the overview header, or None. Stored as a card key
+        /// (Collection, Prestige or Points:&lt;family&gt;) or None; see ScoreCardSlots. Profiles saved with the old
         /// per-card visibility toggles are converted by OverviewSettingsMigration.
         /// </summary>
-        public ScoreCardSlot OverviewScoreCardSlot1
+        public string OverviewScoreCardSlot1
         {
             get => _overviewScoreCardSlot1;
-            set => SetValue(ref _overviewScoreCardSlot1, ScoreCardTypes.Normalize(value));
+            set => SetValue(ref _overviewScoreCardSlot1, ScoreCardSlots.Normalize(value));
         }
 
         /// <summary>The second score card in the overview header, or None.</summary>
-        public ScoreCardSlot OverviewScoreCardSlot2
+        public string OverviewScoreCardSlot2
         {
             get => _overviewScoreCardSlot2;
-            set => SetValue(ref _overviewScoreCardSlot2, ScoreCardTypes.Normalize(value));
+            set => SetValue(ref _overviewScoreCardSlot2, ScoreCardSlots.Normalize(value));
         }
 
         /// <summary>

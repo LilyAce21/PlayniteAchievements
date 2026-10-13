@@ -57,10 +57,12 @@ namespace PlayniteAchievements.Tests.ViewModels
             var card = new ScoreCardViewModel(ScoreCardType.Collection);
             var snapshot = new PlayniteAchievements.Services.Overview.OverviewDataSnapshot
             {
-                CollectorScore = 10000,
-                GamerscoreScore = 10000,
-                RetroPointsScore = 400
+                CollectorScore = 10000
             };
+            var totals = new PlatformScoreTotals();
+            totals.Add("Xbox", null, 10000);
+            totals.Add("RetroAchievements", null, 400);
+            snapshot.ApplyPlatformScores(totals);
 
             card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
             Assert.AreEqual(ScoreCardType.Collection, card.ScoreType);

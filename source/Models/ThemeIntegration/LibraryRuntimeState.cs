@@ -77,6 +77,9 @@ namespace PlayniteAchievements.Models.ThemeIntegration
         public string RetroPointsRank { get; set; } = "Bronze5";
         public int RetroPointsMastery { get; set; }
 
+        /// <summary>Every points family with points, largest total first.</summary>
+        public List<PointsScoreItem> PointsScores { get; set; } = new List<PointsScoreItem>();
+
         public List<AchievementDetail> AllAchievements { get; set; } = new List<AchievementDetail>();
         public List<AchievementDetail> AllAchievementsUnlockAsc { get; set; } = new List<AchievementDetail>();
         public List<AchievementDetail> AllAchievementsUnlockDesc { get; set; } = new List<AchievementDetail>();

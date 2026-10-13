@@ -534,6 +534,7 @@ namespace PlayniteAchievements.Services.Achievements
                 gameId => GetGame(gameId)?.Name,
                 PlayniteAchievementsPlugin.Instance?.ManagedCustomIconService,
                 ResolveCustomProviderPlatformKey);
+            ApplyPointsFamilyOverrides(summaryData.Games, customDataByGameId);
 
             var gameIdsNeedingCompletionOverrides = new HashSet<Guid>(
                 summaryData.Games
@@ -563,6 +564,24 @@ namespace PlayniteAchievements.Services.Achievements
             ApplyAchievementSummaryCustomization(achievementDetails, customizationByGameId, summaryData);
 
             return summaryData;
+        }
+
+        /// <summary>Carries each game's points family override onto its summary row for the points totals.</summary>
+        private static void ApplyPointsFamilyOverrides(
+            IEnumerable<CachedGameSummaryData> games,
+            IReadOnlyDictionary<Guid, GameCustomDataFile> customDataByGameId)
+        {
+            foreach (var game in games ?? Enumerable.Empty<CachedGameSummaryData>())
+            {
+                if (game?.PlayniteGameId.HasValue != true)
+                {
+                    continue;
+                }
+
+                GameCustomDataFile customData = null;
+                customDataByGameId?.TryGetValue(game.PlayniteGameId.Value, out customData);
+                game.PointsFamilyOverride = customData?.PointsFamily;
+            }
         }
 
         private Dictionary<Guid, SummaryCustomizationData> BuildSummaryCustomizationByGameId(

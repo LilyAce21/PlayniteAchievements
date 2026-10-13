@@ -65,6 +65,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             nameof(PlayniteAchievementsSettings.RetroPointsLevelProgress),
             nameof(PlayniteAchievementsSettings.RetroPointsRank),
             nameof(PlayniteAchievementsSettings.RetroPointsMastery),
+            nameof(PlayniteAchievementsSettings.PointsScores),
             nameof(PlayniteAchievementsSettings.Level),
             nameof(PlayniteAchievementsSettings.LevelProgress),
             nameof(PlayniteAchievementsSettings.Rank),

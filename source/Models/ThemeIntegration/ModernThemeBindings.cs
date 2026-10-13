@@ -412,6 +412,7 @@ namespace PlayniteAchievements.Models.ThemeIntegration
         private double _retroPointsLevelProgress;
         private string _retroPointsRank = "Bronze5";
         private int _retroPointsMastery;
+        private List<PointsScoreItem> _pointsScores = new List<PointsScoreItem>();
 
         [DontSerialize]
         private readonly BulkObservableCollection<GameAchievementSummary> _steamGames = new BulkObservableCollection<GameAchievementSummary>();
@@ -1816,6 +1817,17 @@ namespace PlayniteAchievements.Models.ThemeIntegration
         {
             get => _retroPointsMastery;
             set => SetValue(ref _retroPointsMastery, value < 0 ? 0 : value);
+        }
+
+        /// <summary>
+        /// Every points family with points, largest total first: Gamerscore (Xbox and Xenia),
+        /// PlayStation (PSN, RPCS3 and ShadPS4), Epic XP, RetroAchievements, and one per other provider.
+        /// </summary>
+        [DontSerialize]
+        public List<PointsScoreItem> PointsScores
+        {
+            get => _pointsScores;
+            set => SetValue(ref _pointsScores, value ?? new List<PointsScoreItem>());
         }
         [DontSerialize]
         public List<AchievementDetail> AllAchievementsUnlockAsc

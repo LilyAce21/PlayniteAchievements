@@ -110,14 +110,7 @@ namespace PlayniteAchievements.Views.Showcase
                     AddChoice(
                         panel,
                         Localize("LOCTypeLabel"),
-                        new[]
-                        {
-                            ScoreCardType.Collection,
-                            ScoreCardType.Prestige,
-                            ScoreCardType.Gamerscore,
-                            ScoreCardType.EpicXp,
-                            ScoreCardType.RetroPoints
-                        },
+                        ScoreCardChoices.Build(ShowcaseWidgetOptions.GetScoreCardType(_settings)).ToArray(),
                         ShowcaseWidgetOptions.GetScoreCardType(_settings),
                         value => ShowcaseWidgetOptions.SetScoreCardType(_settings, value),
                         ScoreCardTypeName);

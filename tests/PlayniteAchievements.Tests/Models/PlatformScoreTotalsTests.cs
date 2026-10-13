@@ -16,22 +16,57 @@ namespace PlayniteAchievements.Tests.Models
     public class PlatformScoreTotalsTests
     {
         [TestMethod]
-        public void Add_SumsByEffectiveProviderKey()
+        public void Add_SumsByPointsFamily()
         {
             var totals = new PlatformScoreTotals();
-            totals.Add("Xbox", 1000);
-            totals.Add("xenia", 250);
-            totals.Add("Epic", 1250);
-            totals.Add("RetroAchievements", 400);
-            totals.Add("Steam", 9999);
-            totals.Add(null, 9999);
-            totals.Add("Xbox", -5);
+            totals.Add("Xbox", null, 1000);
+            totals.Add("xenia", null, 250);
+            totals.Add("Epic", null, 1250);
+            totals.Add("RetroAchievements", null, 400);
+            totals.Add("PSN", null, 90);
+            totals.Add("RPCS3", null, 30);
+            totals.Add("ShadPS4", null, 15);
+            totals.Add("Steam", null, 70);
+            totals.Add(null, null, 9999);
+            totals.Add("Custom", null, 9999);
+            totals.Add("Xbox", null, -5);
 
             Assert.AreEqual(1250, totals.Gamerscore);
             Assert.AreEqual(1250, totals.EpicXp);
             Assert.AreEqual(400, totals.RetroPoints);
+            Assert.AreEqual(135, totals.Get(PointsFamilies.PlayStation));
+            Assert.AreEqual(70, totals.Get("Steam"));
             Assert.AreEqual(1250, totals.Get(ScoreCardType.Gamerscore));
+            Assert.AreEqual(135, totals.Get(ScoreCardType.Points("RPCS3")));
             Assert.AreEqual(0, totals.Get(ScoreCardType.Collection));
+        }
+
+        [TestMethod]
+        public void Add_OverrideRedirectsOrDropsTheGamesPoints()
+        {
+            var totals = new PlatformScoreTotals();
+            totals.Add("Custom", "Xbox", 100);
+            totals.Add("Custom:abc", null, 40);
+            totals.Add("Switch", "PSN", 20);
+            totals.Add("Xbox", PointsFamilies.NoneOverride, 500);
+
+            Assert.AreEqual(100, totals.Gamerscore);
+            Assert.AreEqual(40, totals.Get("Custom:abc"));
+            Assert.AreEqual(20, totals.Get(PointsFamilies.PlayStation));
+            Assert.AreEqual(0, totals.Get("Switch"));
+        }
+
+        [TestMethod]
+        public void Families_ListsFamiliesWithPointsLargestFirst()
+        {
+            var totals = new PlatformScoreTotals();
+            totals.Add("Steam", null, 10);
+            totals.Add("Xenia", null, 50);
+            totals.Add("PSN", null, 30);
+
+            CollectionAssert.AreEqual(
+                new[] { "Xbox", "PSN", "Steam" },
+                new List<string>(System.Linq.Enumerable.Select(totals.Families, pair => pair.Key)));
         }
 
         [TestMethod]
@@ -79,6 +114,11 @@ namespace PlayniteAchievements.Tests.Models
             Assert.AreEqual(1, state.GamerscoreLevel);
             Assert.AreEqual("Bronze5", state.GamerscoreRank);
             Assert.AreEqual(0, state.GamerscoreMastery);
+            Assert.AreEqual("Steam", state.PointsScores[0].FamilyKey);
+            Assert.AreEqual(1000, state.PointsScores[0].Score);
+            Assert.AreEqual("Xbox", state.PointsScores[1].FamilyKey);
+            Assert.AreEqual(150, state.PointsScores[1].Score);
+            Assert.AreEqual(4, state.PointsScores.Count);
         }
 
         [TestMethod]
@@ -86,20 +126,20 @@ namespace PlayniteAchievements.Tests.Models
         {
             var games = new List<GameSummaryItem>
             {
-                new GameSummaryItem { ProviderKey = "Xbox", PlatformScorePoints = 6000, Points = 6000 },
-                new GameSummaryItem { ProviderKey = "Xenia", PlatformScorePoints = 1500, Points = 1500 },
-                new GameSummaryItem { ProviderKey = "RetroAchievements", PlatformScorePoints = 400, Points = 900 },
-                new GameSummaryItem { ProviderKey = "Steam", PlatformScorePoints = 70, Points = 70 }
+                new GameSummaryItem { ProviderKey = "Xbox", PointsFamily = "Xbox", PlatformScorePoints = 6000, Points = 6000 },
+                new GameSummaryItem { ProviderKey = "Xenia", PointsFamily = "Xbox", PlatformScorePoints = 1500, Points = 1500 },
+                new GameSummaryItem { ProviderKey = "RetroAchievements", PointsFamily = "RetroAchievements", PlatformScorePoints = 400, Points = 900 },
+                new GameSummaryItem { ProviderKey = "Steam", PointsFamily = null, PlatformScorePoints = 70, Points = 70 }
             };
 
             var snapshot = new OverviewDataSnapshot();
             snapshot.ApplyGameSummaryTotals(games, (a, b) => a + b);
 
             Assert.AreEqual(7500, snapshot.GamerscoreScore);
-            Assert.AreEqual("Silver5", snapshot.GamerscoreRank);
-            Assert.AreEqual(50, snapshot.GamerscoreLevel);
+            Assert.AreEqual("Silver5", ScoreCardTypes.Calculate(ScoreCardType.Gamerscore, snapshot.GamerscoreScore).Rank);
             Assert.AreEqual(400, snapshot.RetroPointsScore);
-            Assert.AreEqual("Bronze4", snapshot.RetroPointsRank);
+            Assert.AreEqual("Bronze4", ScoreCardTypes.Calculate(ScoreCardType.RetroPoints, snapshot.RetroPointsScore).Rank);
+            Assert.AreEqual(0, snapshot.PointsTotals.Get("Steam"));
             Assert.AreEqual(0, snapshot.EpicXpScore);
             Assert.AreEqual(7500, snapshot.GetScore(ScoreCardType.Gamerscore));
         }
