@@ -522,6 +522,9 @@
     <Compile Include="..\..\source\ViewModels\ManageAchievements\ManageOverviewSummaryBuilder.cs" Link="Source\ViewModels\ManageAchievements\ManageOverviewSummaryBuilder.cs" />
     <Compile Include="..\..\source\Models\Settings\CapstoneAssignment.cs" Link="Source\Models\Settings\CapstoneAssignment.cs" />
     <Compile Include="..\..\source\Models\Settings\GameCustomDataFile.cs" Link="Source\Models\Settings\GameCustomDataFile.cs" />
+    <Compile Include="..\..\source\Models\Settings\RuleClaim.cs" Link="Source\Models\Settings\RuleClaim.cs" />
+    <Compile Include="..\..\source\Services\Rules\RuleReconciler.cs" Link="Source\Services\Rules\RuleReconciler.cs" />
+    <Compile Include="..\..\source\Services\Rules\FilterExclusionRuleService.cs" Link="Source\Services\Rules\FilterExclusionRuleService.cs" />
     <Compile Include="..\..\source\Models\Settings\GameCustomDataPortableFile.cs" Link="Source\Models\Settings\GameCustomDataPortableFile.cs" />
     <Compile Include="..\..\source\Models\Settings\PortableGameKey.cs" Link="Source\Models\Settings\PortableGameKey.cs" />
     <Compile Include="..\..\source\Models\Settings\CustomAchievementDefinition.cs" Link="Source\Models\Settings\CustomAchievementDefinition.cs" />
