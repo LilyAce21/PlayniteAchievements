@@ -85,36 +85,10 @@
                 <RowDefinition Height="*" MinHeight="110" />
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0"
-                        Orientation="Horizontal"
-                        Margin="{StaticResource PlayAch.Thickness.Bottom.Sm}">
-                <Button x:Name="BoldButton"
-                        Content="B"
-                        FontWeight="Bold"
-                        Width="34"
-                        Height="{StaticResource PlayAch.Size.Control.Height}"
-                        Padding="{StaticResource PlayAch.Thickness.None}"
-                        Margin="{StaticResource PlayAch.Thickness.Right.Compact}"
-                        ToolTip="{DynamicResource LOCPlayAch_NotesDialog_Bold}"
-                        Click="BoldButton_Click" />
-                <Button x:Name="ItalicButton"
-                        Content="I"
-                        FontStyle="Italic"
-                        Width="34"
-                        Height="{StaticResource PlayAch.Size.Control.Height}"
-                        Padding="{StaticResource PlayAch.Thickness.None}"
-                        Margin="{StaticResource PlayAch.Thickness.Right.Compact}"
-                        ToolTip="{DynamicResource LOCPlayAch_NotesDialog_Italic}"
-                        Click="ItalicButton_Click" />
-                <Button x:Name="UnderlineButton"
-                        Width="34"
-                        Height="{StaticResource PlayAch.Size.Control.Height}"
-                        Padding="{StaticResource PlayAch.Thickness.None}"
-                        ToolTip="{DynamicResource LOCPlayAch_NotesDialog_Underline}"
-                        Click="UnderlineButton_Click">
-                    <TextBlock Text="U" TextDecorations="Underline" />
-                </Button>
-            </StackPanel>
+            <!-- Filled in code from MarkdownEditing.CreateToolbar, shared with the showcase Text widget. -->
+            <ContentControl x:Name="FormatToolbarHost"
+                            Grid.Row="0"
+                            Focusable="False" />
 
             <TextBox x:Name="NoteTextBox"
                      Grid.Row="1"
@@ -127,6 +101,7 @@
                      HorizontalScrollBarVisibility="Disabled"
                      ScrollViewer.CanContentScroll="True"
                      Padding="8"
+                     helpers:MarkdownEditing.Shortcuts="True"
                      KeyDown="NoteTextBox_KeyDown" />
 
             <TextBlock x:Name="CharacterCountTextBlock"
