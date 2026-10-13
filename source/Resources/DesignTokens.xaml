@@ -57,7 +57,7 @@
     <Color x:Key="PlayAch.Color.ProviderRiot">#D13639</Color>
     <Color x:Key="PlayAch.Color.ProviderRpcs3">#686DE0</Color>
     <Color x:Key="PlayAch.Color.ProviderShadPS4">#752BFD</Color>
-    <Color x:Key="PlayAch.Color.ProviderVita3K">#3B7DDD</Color>
+    <Color x:Key="PlayAch.Color.ProviderVita3K">#E97F02</Color>
     <Color x:Key="PlayAch.Color.ProviderUbisoft">#0044AA</Color>
     <Color x:Key="PlayAch.Color.ProviderXbox">#107C10</Color>
     <Color x:Key="PlayAch.Color.ProviderXenia">#92C83E</Color>
