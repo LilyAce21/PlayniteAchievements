@@ -595,6 +595,64 @@
         </ScrollViewer>
     </DataTemplate>
 
+    <!-- Image: one stored picture across the whole card (the host drops its inset and clips to
+         the rounded corners). The alignment places a fitted picture, and for a filled one picks
+         the part that stays in view: the overflow falls off the far side, cut by ClipToBounds. -->
+    <DataTemplate DataType="{x:Type widgets:ImageWidgetViewModel}">
+        <Grid ClipToBounds="True">
+            <Image Stretch="{Binding Stretch}"
+                   HorizontalAlignment="{Binding HorizontalAlignment}"
+                   VerticalAlignment="{Binding VerticalAlignment}"
+                   IsHitTestVisible="False"
+                   Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}"
+                   helpers:AsyncImage.Uri="{Binding ImagePath}"
+                   helpers:AsyncImage.DecodePixel="{Binding DecodePixel}"/>
+        </Grid>
+    </DataTemplate>
+
+    <!-- Text: the widget's text with inline markdown (bold, italic, underline, strikethrough,
+         links). Sizes map onto the theme's font sizes; Huge scales the title size so it keeps
+         following the theme. A long text scrolls; the grid fills the viewport while the text is
+         shorter, so vertical alignment still places it. -->
+    <DataTemplate DataType="{x:Type widgets:TextWidgetViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Grid MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                <TextBlock HorizontalAlignment="{Binding HorizontalAlignment}"
+                           VerticalAlignment="{Binding VerticalAlignment}"
+                           TextAlignment="{Binding TextAlignment}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource PlayAch.Brush.Text}"
+                           helpers:InlineMarkdownFormatter.FormattedText="{Binding Text}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Body}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Small">
+                                    <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Caption}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Large">
+                                    <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Title}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Huge">
+                                    <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Title}"/>
+                                    <Setter Property="LayoutTransform">
+                                        <Setter.Value>
+                                            <ScaleTransform ScaleX="2" ScaleY="2"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding HasFontFamily}" Value="True">
+                                    <Setter Property="FontFamily" Value="{Binding FontFamily}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </ScrollViewer>
+    </DataTemplate>
+
     <!-- NativePoints: horizontal bars of top-N points by provider or game. -->
     <DataTemplate DataType="{x:Type widgets:NativePointsWidgetViewModel}">
         <ScrollViewer VerticalScrollBarVisibility="Auto"
