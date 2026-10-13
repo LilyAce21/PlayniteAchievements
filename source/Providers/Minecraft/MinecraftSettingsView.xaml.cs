@@ -62,7 +62,7 @@ namespace PlayniteAchievements.Providers.Minecraft
 
         private static ProviderPathValidation ValidateGameFolder(string path)
         {
-            return MinecraftPaths.ResolveGameFolder(Environment.ExpandEnvironmentVariables(path ?? string.Empty)) != null
+            return MinecraftPaths.ExpandGameFolders(Environment.ExpandEnvironmentVariables(path ?? string.Empty)).Count > 0
                 ? ProviderPathValidation.Valid
                 : ProviderPathValidation.Invalid("LOCPlayAch_InvalidPath");
         }
