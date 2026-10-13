@@ -3,12 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace PlayniteAchievements.Providers.RPCS3
+namespace PlayniteAchievements.Providers.PlayStationTrophies
 {
     /// <summary>
     /// A single named entry inside a TROPHY.TRP archive.
     /// </summary>
-    internal sealed class Rpcs3TrpEntry
+    internal sealed class TrpEntry
     {
         public string Name { get; set; }
         public long Offset { get; set; }
@@ -16,7 +16,7 @@ namespace PlayniteAchievements.Providers.RPCS3
     }
 
     /// <summary>
-    /// Reader for the PS3 TROPHY.TRP container format.
+    /// Reader for the NP TROPHY.TRP container format (PS3 and PS Vita).
     /// Layout (all integers big-endian, per rpcs3 Loader/TRP.h):
     /// header = magic u32 (0xDCA24D00), version u32, file size u64,
     /// entry count u32, element size u32 (0x40), dev flag u32, sha1[20],
@@ -24,7 +24,7 @@ namespace PlayniteAchievements.Providers.RPCS3
     /// is 64 bytes: name char[32] (NUL-padded ASCII), offset u64, size u64,
     /// 16 bytes reserved. SFM entries contain plain XML trophy documents.
     /// </summary>
-    internal static class Rpcs3TrpArchiveReader
+    internal static class TrpArchiveReader
     {
         private const uint TrpMagic = 0xDCA24D00;
         private const int EntrySize = 64;
@@ -43,7 +43,7 @@ namespace PlayniteAchievements.Providers.RPCS3
         /// Returns null when the bytes are not a structurally valid TRP archive;
         /// never throws.
         /// </summary>
-        public static IReadOnlyList<Rpcs3TrpEntry> ReadEntries(byte[] trpBytes, ILogger logger = null)
+        public static IReadOnlyList<TrpEntry> ReadEntries(byte[] trpBytes, ILogger logger = null)
         {
             if (!HasTrpMagic(trpBytes) || trpBytes.Length < HeaderSizeV1)
             {
@@ -54,18 +54,18 @@ namespace PlayniteAchievements.Providers.RPCS3
             var entryCount = (int)ReadUInt32BE(trpBytes, 0x10);
             if (entryCount <= 0 || entryCount > MaxEntries)
             {
-                logger?.Debug($"[RPCS3] TRP entry count {entryCount} out of range");
+                logger?.Debug($"[Trophies] TRP entry count {entryCount} out of range");
                 return null;
             }
 
             var tableStart = ResolveEntryTableStart(trpBytes, version, entryCount);
             if (tableStart < 0)
             {
-                logger?.Debug("[RPCS3] Could not locate a valid TRP entry table");
+                logger?.Debug("[Trophies] Could not locate a valid TRP entry table");
                 return null;
             }
 
-            var entries = new List<Rpcs3TrpEntry>(entryCount);
+            var entries = new List<TrpEntry>(entryCount);
             for (var i = 0; i < entryCount; i++)
             {
                 var entryOffset = tableStart + (i * EntrySize);
@@ -81,7 +81,7 @@ namespace PlayniteAchievements.Providers.RPCS3
                     continue;
                 }
 
-                entries.Add(new Rpcs3TrpEntry { Name = name, Offset = dataOffset, Size = dataSize });
+                entries.Add(new TrpEntry { Name = name, Offset = dataOffset, Size = dataSize });
             }
 
             return entries;
@@ -90,7 +90,7 @@ namespace PlayniteAchievements.Providers.RPCS3
         /// <summary>
         /// Extracts a named entry's bytes, or null when absent.
         /// </summary>
-        public static byte[] ExtractEntry(byte[] trpBytes, IReadOnlyList<Rpcs3TrpEntry> entries, string entryName)
+        public static byte[] ExtractEntry(byte[] trpBytes, IReadOnlyList<TrpEntry> entries, string entryName)
         {
             if (trpBytes == null || entries == null || string.IsNullOrWhiteSpace(entryName))
             {
@@ -115,7 +115,7 @@ namespace PlayniteAchievements.Providers.RPCS3
         /// <summary>
         /// Extracts a named entry as UTF-8 text (BOM stripped), or null when absent.
         /// </summary>
-        public static string ExtractEntryText(byte[] trpBytes, IReadOnlyList<Rpcs3TrpEntry> entries, string entryName)
+        public static string ExtractEntryText(byte[] trpBytes, IReadOnlyList<TrpEntry> entries, string entryName)
         {
             var data = ExtractEntry(trpBytes, entries, entryName);
             if (data == null)

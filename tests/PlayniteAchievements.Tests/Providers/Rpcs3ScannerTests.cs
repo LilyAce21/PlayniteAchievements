@@ -9,6 +9,7 @@ using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.EmuLibrary;
 using PlayniteAchievements.Providers.RPCS3;
+using PlayniteAchievements.Providers.PlayStationTrophies;
 using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.Images;
@@ -2780,7 +2781,7 @@ BCUS98246: 'D:\RPCS3\Other Collection.iso' # trailing comment
                 var paramSfo = Path.Combine(tempDir, "PARAM.SFO");
                 CreateParamSfo(paramSfo, "Sly 1", "BCUS00001");
 
-                var values = Rpcs3ParamSfoReader.ReadStringValues(paramSfo);
+                var values = ParamSfoReader.ReadStringValues(paramSfo);
 
                 Assert.AreEqual("Sly 1", values["TITLE"]);
                 Assert.AreEqual("BCUS00001", values["TITLE_ID"]);

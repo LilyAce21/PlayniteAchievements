@@ -57,6 +57,7 @@
     <Color x:Key="PlayAch.Color.ProviderRiot">#D13639</Color>
     <Color x:Key="PlayAch.Color.ProviderRpcs3">#686DE0</Color>
     <Color x:Key="PlayAch.Color.ProviderShadPS4">#752BFD</Color>
+    <Color x:Key="PlayAch.Color.ProviderVita3K">#3B7DDD</Color>
     <Color x:Key="PlayAch.Color.ProviderUbisoft">#0044AA</Color>
     <Color x:Key="PlayAch.Color.ProviderXbox">#107C10</Color>
     <Color x:Key="PlayAch.Color.ProviderXenia">#92C83E</Color>
@@ -139,6 +140,7 @@
     <SolidColorBrush x:Key="PlayAch.Brush.ProviderRiot" Color="{StaticResource PlayAch.Color.ProviderRiot}"/>
     <SolidColorBrush x:Key="PlayAch.Brush.ProviderRpcs3" Color="{StaticResource PlayAch.Color.ProviderRpcs3}"/>
     <SolidColorBrush x:Key="PlayAch.Brush.ProviderShadPS4" Color="{StaticResource PlayAch.Color.ProviderShadPS4}"/>
+    <SolidColorBrush x:Key="PlayAch.Brush.ProviderVita3K" Color="{StaticResource PlayAch.Color.ProviderVita3K}"/>
     <SolidColorBrush x:Key="PlayAch.Brush.ProviderUbisoft" Color="{StaticResource PlayAch.Color.ProviderUbisoft}"/>
     <SolidColorBrush x:Key="PlayAch.Brush.ProviderXbox" Color="{StaticResource PlayAch.Color.ProviderXbox}"/>
     <SolidColorBrush x:Key="PlayAch.Brush.ProviderXenia" Color="{StaticResource PlayAch.Color.ProviderXenia}"/>

@@ -1,12 +1,12 @@
 using System;
 
-namespace PlayniteAchievements.Providers.RPCS3.Models
+namespace PlayniteAchievements.Providers.PlayStationTrophies
 {
     /// <summary>
-    /// Internal DTO for parsed RPCS3 trophy data.
+    /// Internal DTO for a parsed NP trophy (RPCS3 and Vita3K).
     /// Represents a single trophy from TROPCONF.SFM combined with unlock data from TROPUSR.DAT.
     /// </summary>
-    internal sealed class Rpcs3Trophy
+    internal sealed class NpTrophy
     {
         /// <summary>
         /// The trophy ID (0-indexed).
@@ -50,7 +50,7 @@ namespace PlayniteAchievements.Providers.RPCS3.Models
 
         /// <summary>
         /// UTC timestamp when the trophy was unlocked, if applicable.
-        /// RPCS3 uses Windows FILETIME format (ticks since DateTime.MinValue).
+        /// Each emulator converts its own timestamp format to UTC.
         /// </summary>
         public DateTime? UnlockTimeUtc { get; set; }
     }

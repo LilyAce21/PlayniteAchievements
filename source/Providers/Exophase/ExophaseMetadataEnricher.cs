@@ -622,6 +622,9 @@ namespace PlayniteAchievements.Providers.Exophase
                 case "playstation 4":
                 case "playstation4":
                     return "ps4";
+                case "playstation vita":
+                case "playstationvita":
+                    return "psvita";
                 default:
                     return normalized;
             }

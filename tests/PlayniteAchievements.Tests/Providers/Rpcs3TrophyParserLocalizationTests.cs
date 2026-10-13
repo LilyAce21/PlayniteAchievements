@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PlayniteAchievements.Providers.RPCS3;
+using PlayniteAchievements.Providers.PlayStationTrophies;
 using System;
 using System.IO;
 
@@ -25,7 +26,7 @@ namespace PlayniteAchievements.Providers.Tests
                 WriteTropconf(folder, "Default Trophy", "Default Description", "Default Group");
                 WriteLocalizedSfm(folder, ItalianTropIndex, "Trofeo Italiano", "Descrizione Italiana", "Gruppo Italiano");
 
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitions(
+                var trophies = TrophyConfParser.ParseTrophyDefinitions(
                     Path.Combine(folder, "TROPCONF.SFM"), "it", null);
 
                 Assert.AreEqual(1, trophies.Count);
@@ -53,7 +54,7 @@ namespace PlayniteAchievements.Providers.Tests
             {
                 WriteTropconf(folder, "Default Trophy", "Default Description", "Default Group");
 
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitions(
+                var trophies = TrophyConfParser.ParseTrophyDefinitions(
                     Path.Combine(folder, "TROPCONF.SFM"), "it", null);
 
                 Assert.AreEqual(1, trophies.Count);
@@ -78,7 +79,7 @@ namespace PlayniteAchievements.Providers.Tests
                 WriteLocalizedSfm(folder, ItalianTropIndex, "Trofeo Italiano", "Descrizione Italiana", "Gruppo Italiano");
 
                 // "el" (Greek) has no PS3 language id, so no TROP_XX.SFM is eligible.
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitions(
+                var trophies = TrophyConfParser.ParseTrophyDefinitions(
                     Path.Combine(folder, "TROPCONF.SFM"), "el", null);
 
                 Assert.AreEqual(1, trophies.Count);
@@ -100,7 +101,7 @@ namespace PlayniteAchievements.Providers.Tests
                 WriteTropconf(folder, "Default Trophy", "Default Description", "Default Group");
                 WriteLocalizedSfm(folder, ItalianTropIndex, string.Empty, string.Empty, "Gruppo Italiano");
 
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitions(
+                var trophies = TrophyConfParser.ParseTrophyDefinitions(
                     Path.Combine(folder, "TROPCONF.SFM"), "it", null);
 
                 Assert.AreEqual(1, trophies.Count);
