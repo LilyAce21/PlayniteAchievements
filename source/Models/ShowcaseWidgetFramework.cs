@@ -406,6 +406,7 @@ namespace PlayniteAchievements.Models
         private const string HorizontalAlign = "HorizontalAlignment";
         private const string VerticalAlign = "VerticalAlignment";
         private const string TextSizeOption = "TextSize";
+        private const string TextPixelSizeOption = "TextPixelSize";
         private const string FontFamilyOption = "FontFamily";
 
         /// <summary>Option key of the Image widget's stored file, which travels as a bundled file rather than as an option value.</summary>
@@ -1162,6 +1163,13 @@ namespace PlayniteAchievements.Models
 
         public static void SetTextSize(ShowcaseWidgetInstanceSettings settings, ShowcaseTextSize value) =>
             settings?.SetOption(TextSizeOption, value);
+
+        /// <summary>The Text widget's size in pixels while its size is Custom.</summary>
+        public static int GetTextPixelSize(ShowcaseWidgetInstanceSettings settings) =>
+            Clamp(settings?.GetOption(TextPixelSizeOption, 24) ?? 24, 6, 200);
+
+        public static void SetTextPixelSize(ShowcaseWidgetInstanceSettings settings, int value) =>
+            settings?.SetOption(TextPixelSizeOption, Clamp(value, 6, 200));
 
         /// <summary>The Text widget's font family name; null inherits the theme font.</summary>
         public static string GetFontFamily(ShowcaseWidgetInstanceSettings settings) =>
