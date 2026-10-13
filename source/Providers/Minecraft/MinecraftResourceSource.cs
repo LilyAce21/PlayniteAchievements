@@ -30,8 +30,19 @@ namespace PlayniteAchievements.Providers.Minecraft
             @"^assets/(?<ns>[^/]+)/lang/(?<locale>[^/]+)\.(?<ext>json|lang)$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+        // Every texture: models also draw items with entity and custom-folder textures.
         private static readonly Regex TextureEntry = new Regex(
-            @"^assets/[^/]+/textures/(?:item|items|block|blocks)/[^/]+\.png$",
+            @"^assets/[^/]+/textures/.+\.png$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        // assets/<ns>/models/item|block/<path>.json, keyed ns:item/<path> as models reference them.
+        private static readonly Regex ModelEntry = new Regex(
+            @"^assets/(?<ns>[^/]+)/models/(?<path>(?:item|items|block|blocks)/.+)\.json$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        // assets/<ns>/items/<name>.json (1.21.4+): the item definition naming its model.
+        private static readonly Regex ItemDefinitionEntry = new Regex(
+            @"^assets/(?<ns>[^/]+)/items/(?<path>.+)\.json$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         private static readonly ConcurrentDictionary<string, MinecraftResourceSource> ArchiveCache =
@@ -54,11 +65,17 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// <summary>Advancement JSON by id (<c>namespace:path</c>); recipe advancements are skipped.</summary>
         public Dictionary<string, string> Advancements { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
+        /// <summary>Item and block model JSON by model id (<c>namespace:item/path</c>).</summary>
+        public Dictionary<string, string> Models { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>1.21.4+ item definition JSON by item id (<c>namespace:path</c>).</summary>
+        public Dictionary<string, string> ItemDefinitions { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Translations by locale (lowercase), then key.</summary>
         public Dictionary<string, Dictionary<string, string>> Languages { get; } =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Item and block texture entry names, lowercase with forward slashes.</summary>
+        /// <summary>Texture entry names, lowercase with forward slashes.</summary>
         public HashSet<string> Textures { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
@@ -174,6 +191,30 @@ namespace PlayniteAchievements.Providers.Minecraft
                 if (!Advancements.ContainsKey(id))
                 {
                     Advancements[id] = readText();
+                }
+
+                return;
+            }
+
+            var model = ModelEntry.Match(name);
+            if (model.Success)
+            {
+                var id = (model.Groups["ns"].Value + ":" + model.Groups["path"].Value).ToLowerInvariant();
+                if (!Models.ContainsKey(id))
+                {
+                    Models[id] = readText();
+                }
+
+                return;
+            }
+
+            var itemDefinition = ItemDefinitionEntry.Match(name);
+            if (itemDefinition.Success)
+            {
+                var id = (itemDefinition.Groups["ns"].Value + ":" + itemDefinition.Groups["path"].Value).ToLowerInvariant();
+                if (!ItemDefinitions.ContainsKey(id))
+                {
+                    ItemDefinitions[id] = readText();
                 }
 
                 return;
