@@ -2062,7 +2062,6 @@ namespace PlayniteAchievements.Models
 
         // === SuccessStory Compatibility ===
 
-
         [DontSerialize]
         public AchievementRarityStats NoCommon => Uncommon;
 
@@ -2251,31 +2250,10 @@ namespace PlayniteAchievements.Models
         }
 
         [DontSerialize]
-        public int GamerscoreLevel
+        public int GamerscoreTotal
         {
-            get => ModernTheme.GamerscoreLevel;
-            set => ModernTheme.GamerscoreLevel = value;
-        }
-
-        [DontSerialize]
-        public double GamerscoreLevelProgress
-        {
-            get => ModernTheme.GamerscoreLevelProgress;
-            set => ModernTheme.GamerscoreLevelProgress = value;
-        }
-
-        [DontSerialize]
-        public string GamerscoreRank
-        {
-            get => ModernTheme.GamerscoreRank;
-            set => ModernTheme.GamerscoreRank = value;
-        }
-
-        [DontSerialize]
-        public int GamerscoreMastery
-        {
-            get => ModernTheme.GamerscoreMastery;
-            set => ModernTheme.GamerscoreMastery = value;
+            get => ModernTheme.GamerscoreTotal;
+            set => ModernTheme.GamerscoreTotal = value;
         }
 
         [DontSerialize]
@@ -2286,31 +2264,10 @@ namespace PlayniteAchievements.Models
         }
 
         [DontSerialize]
-        public int EpicXpLevel
+        public int EpicXpTotal
         {
-            get => ModernTheme.EpicXpLevel;
-            set => ModernTheme.EpicXpLevel = value;
-        }
-
-        [DontSerialize]
-        public double EpicXpLevelProgress
-        {
-            get => ModernTheme.EpicXpLevelProgress;
-            set => ModernTheme.EpicXpLevelProgress = value;
-        }
-
-        [DontSerialize]
-        public string EpicXpRank
-        {
-            get => ModernTheme.EpicXpRank;
-            set => ModernTheme.EpicXpRank = value;
-        }
-
-        [DontSerialize]
-        public int EpicXpMastery
-        {
-            get => ModernTheme.EpicXpMastery;
-            set => ModernTheme.EpicXpMastery = value;
+            get => ModernTheme.EpicXpTotal;
+            set => ModernTheme.EpicXpTotal = value;
         }
 
         [DontSerialize]
@@ -2321,31 +2278,10 @@ namespace PlayniteAchievements.Models
         }
 
         [DontSerialize]
-        public int RetroPointsLevel
+        public int RetroPointsTotal
         {
-            get => ModernTheme.RetroPointsLevel;
-            set => ModernTheme.RetroPointsLevel = value;
-        }
-
-        [DontSerialize]
-        public double RetroPointsLevelProgress
-        {
-            get => ModernTheme.RetroPointsLevelProgress;
-            set => ModernTheme.RetroPointsLevelProgress = value;
-        }
-
-        [DontSerialize]
-        public string RetroPointsRank
-        {
-            get => ModernTheme.RetroPointsRank;
-            set => ModernTheme.RetroPointsRank = value;
-        }
-
-        [DontSerialize]
-        public int RetroPointsMastery
-        {
-            get => ModernTheme.RetroPointsMastery;
-            set => ModernTheme.RetroPointsMastery = value;
+            get => ModernTheme.RetroPointsTotal;
+            set => ModernTheme.RetroPointsTotal = value;
         }
 
         [DontSerialize]

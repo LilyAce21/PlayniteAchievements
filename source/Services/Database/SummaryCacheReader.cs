@@ -363,6 +363,8 @@ namespace PlayniteAchievements.Services.Database
                         PrestigeScoreTotal = possibleScoreTotals.PrestigeScore,
                         Points = scoreTotals.Points,
                         PlatformScorePoints = scoreTotals.PlatformScorePoints,
+                        // Every achievement's points: softcore marks an unlock, not the achievement.
+                        PlatformScorePointsTotal = possibleScoreTotals.Points,
                         CommonCount = (int)Math.Max(0, row.CommonCount),
                         UncommonCount = (int)Math.Max(0, row.UncommonCount),
                         RareCount = (int)Math.Max(0, row.RareCount),

@@ -21,8 +21,11 @@ namespace PlayniteAchievements.ViewModels
         /// </summary>
         private const int MaxSegments = 25;
 
-        private static readonly int MaxDisplayLevel =
-            AchievementLevelCurveSettings.ModernDefault.MaxDisplayLevel;
+        // Collection and Prestige climb the Modern ladder. Points cards have no ladder: they
+        // show the platform's points earned out of the points their games hold.
+        private static readonly AchievementLevelCurveSettings Curve = AchievementLevelCurveSettings.ModernDefault;
+
+        private static readonly int MaxDisplayLevel = Curve.MaxDisplayLevel;
 
         private const byte BackgroundAlpha = 0x24;
 
@@ -39,19 +42,18 @@ namespace PlayniteAchievements.ViewModels
         private Brush _accentGlossBrush;
 
         private int _score;
+        private int _total;
         private int _level;
         private double _levelProgress;
         private string _rank = DefaultRank;
         private bool _useUniformRarityBadges;
         private AchievementLevelSnapshot _snapshot;
         private ScoreCardType _scoreType;
-        private AchievementLevelCurveSettings _curve;
 
         public ScoreCardViewModel(ScoreCardType scoreType)
         {
             _scoreType = scoreType;
-            _curve = ScoreCardTypes.GetCurve(scoreType);
-            _snapshot = AchievementLevelCalculator.Calculate(0, _curve);
+            _snapshot = AchievementLevelCalculator.Calculate(0, Curve);
             ResolveAccentBrushes();
             UpdateSegments();
         }
@@ -60,6 +62,12 @@ namespace PlayniteAchievements.ViewModels
         public ScoreCardType ScoreType => _scoreType;
 
         public int Score => _score;
+
+        /// <summary>A points card's possible points: every achievement in its games. 0 for Collection and Prestige.</summary>
+        public int Total => _total;
+
+        /// <summary>True for a points card, which shows earned out of total and no tier, level or bar.</summary>
+        public bool IsPoints => _scoreType.IsPoints;
 
         public int Level => _level;
 
@@ -118,7 +126,11 @@ namespace PlayniteAchievements.ViewModels
             L("LOCPlayAch_Score_LevelFormat"),
             Level);
 
-        public string TierText => AchievementRankPresentation.FormatRank(Rank);
+        /// <summary>The card's main line: the rank, or a points card's earned out of total.</summary>
+        public string TierText => IsPoints ? CountsText : AchievementRankPresentation.FormatRank(Rank);
+
+        /// <summary>Points earned out of the points the card's games hold.</summary>
+        public string CountsText => FormatCounts(Score, Total);
 
         /// <summary>The tier line of the compact card, which has no separate label line.</summary>
         public string CompactTierText => FormatPair(ShortLabel, TierText);
@@ -126,16 +138,20 @@ namespace PlayniteAchievements.ViewModels
         /// <summary>Completed passes through the rank ladder; 0 until level 250.</summary>
         public int Mastery => _snapshot?.Mastery ?? 0;
 
-        public bool HasMastery => Mastery > 0;
+        public bool HasMastery => !IsPoints && Mastery > 0;
 
         public string MasteryText => FormatMastery(Mastery);
 
-        public string TooltipTitleText => HasMastery
+        public string TooltipTitleText => IsPoints
+            ? Label
+            : HasMastery
             ? FormatPair(TierText, MasteryText)
             : TierText;
 
         /// <summary>Tooltip title for compact cards, which can collapse to the badge alone.</summary>
-        public string CompactTooltipTitleText => HasMastery
+        public string CompactTooltipTitleText => IsPoints
+            ? Label
+            : HasMastery
             ? FormatPair(CompactTierText, MasteryText)
             : CompactTierText;
 
@@ -214,7 +230,7 @@ namespace PlayniteAchievements.ViewModels
             _levelProgress = levelProgress;
             _rank = rank;
             _useUniformRarityBadges = useUniformRarityBadges;
-            _snapshot = AchievementLevelCalculator.Calculate(score, _curve);
+            _snapshot = AchievementLevelCalculator.Calculate(score, Curve);
             ResolveAccentBrushes();
             UpdateSegments();
             RaiseAllPropertiesChanged();
@@ -222,7 +238,7 @@ namespace PlayniteAchievements.ViewModels
 
         public void ApplyFromScore(int score, bool useUniformRarityBadges)
         {
-            var snapshot = AchievementLevelCalculator.Calculate(score, _curve);
+            var snapshot = AchievementLevelCalculator.Calculate(score, Curve);
             Apply(
                 score,
                 GetDisplayLevel(snapshot),
@@ -240,14 +256,43 @@ namespace PlayniteAchievements.ViewModels
             if (_scoreType != type)
             {
                 _scoreType = type;
-                _curve = ScoreCardTypes.GetCurve(type);
 
-                // A new type means a new curve, so the same score can land on another level.
+                // A new type shows a different score, so re-apply even when the number matches.
                 _score = -1;
                 OnPropertyChanged(nameof(ScoreType));
+                OnPropertyChanged(nameof(IsPoints));
             }
 
+            if (type.IsPoints)
+            {
+                ApplyPoints(snapshot?.GetScore(type) ?? 0, snapshot?.GetPossibleScore(type) ?? 0, useUniformRarityBadges);
+                return;
+            }
+
+            _total = 0;
             ApplyFromScore(snapshot?.GetScore(type) ?? 0, useUniformRarityBadges);
+        }
+
+        /// <summary>Shows a points card's earned and possible points. Points cards have no level or rank.</summary>
+        public void ApplyPoints(int score, int total, bool useUniformRarityBadges)
+        {
+            score = Math.Max(0, score);
+            total = Math.Max(0, total);
+            if (_score == score && _total == total && _useUniformRarityBadges == useUniformRarityBadges)
+            {
+                return;
+            }
+
+            _score = score;
+            _total = total;
+            _level = 0;
+            _levelProgress = 0;
+            _rank = DefaultRank;
+            _useUniformRarityBadges = useUniformRarityBadges;
+            _snapshot = AchievementLevelCalculator.Calculate(0, Curve);
+            ResolveAccentBrushes();
+            UpdateSegments();
+            RaiseAllPropertiesChanged();
         }
 
         /// <summary>
@@ -367,6 +412,9 @@ namespace PlayniteAchievements.ViewModels
         private void RaiseAllPropertiesChanged()
         {
             OnPropertyChanged(nameof(Score));
+            OnPropertyChanged(nameof(Total));
+            OnPropertyChanged(nameof(IsPoints));
+            OnPropertyChanged(nameof(CountsText));
             OnPropertyChanged(nameof(Level));
             OnPropertyChanged(nameof(LevelProgress));
             OnPropertyChanged(nameof(Rank));

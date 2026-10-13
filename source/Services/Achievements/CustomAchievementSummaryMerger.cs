@@ -253,6 +253,7 @@ namespace PlayniteAchievements.Services.Achievements
 
             game.CollectionScoreTotal = AddClamped(game.CollectionScoreTotal, AchievementScoreCalculator.GetCollectionValue(achievement.Rarity));
             game.PrestigeScoreTotal = AddClamped(game.PrestigeScoreTotal, AchievementScoreCalculator.GetPrestigeValue(achievement.GlobalPercentUnlocked, achievement.Rarity));
+            game.PlatformScorePointsTotal = AddClamped(game.PlatformScorePointsTotal, achievement.Points ?? 0);
             AddRarity(game, achievement.Rarity, possible: true);
             AddTrophy(game, achievement.TrophyType, possible: true);
 

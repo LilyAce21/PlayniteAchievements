@@ -873,12 +873,10 @@ namespace PlayniteAchievements.ThemeIntegration.Tests
             context.Settings.OpenAchievementWindow.Execute(null);
 
             Assert.AreEqual(1000, context.Settings.GamerscoreScore);
-            Assert.AreEqual(10, context.Settings.GamerscoreLevel);
-            Assert.AreEqual("Bronze4", context.Settings.GamerscoreRank);
-            Assert.AreEqual(0, context.Settings.GamerscoreMastery);
+            Assert.AreEqual(1500, context.Settings.GamerscoreTotal);
             Assert.AreEqual(0, context.Settings.EpicXpScore);
             Assert.AreEqual(0, context.Settings.RetroPointsScore);
-            Assert.AreEqual("Bronze5", context.Settings.RetroPointsRank);
+            Assert.AreEqual(0, context.Settings.RetroPointsTotal);
         }
 
         [TestMethod]

@@ -5,12 +5,15 @@ using System.Linq;
 namespace PlayniteAchievements.Models.Achievements.Scoring
 {
     /// <summary>
-    /// Running points sums: unlocked provider points per points family (see
-    /// <see cref="PointsFamilies.Resolve"/>).
+    /// Running points sums per points family (see <see cref="PointsFamilies.Resolve"/>): the
+    /// unlocked points earned, and the points of every achievement, unlocked or not.
     /// </summary>
     public sealed class PlatformScoreTotals
     {
-        private readonly Dictionary<string, int> _byFamily =
+        private readonly Dictionary<string, int> _earnedByFamily =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        private readonly Dictionary<string, int> _possibleByFamily =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         public int Gamerscore => Get(PointsFamilies.Xbox);
@@ -19,47 +22,69 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
 
         public int RetroPoints => Get(PointsFamilies.RetroAchievements);
 
-        /// <summary>Every family with points, largest total first.</summary>
-        public IReadOnlyList<KeyValuePair<string, int>> Families =>
-            _byFamily
-                .Where(pair => pair.Value > 0)
-                .OrderByDescending(pair => pair.Value)
-                .ThenBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+        public int GamerscoreTotal => GetPossible(PointsFamilies.Xbox);
+
+        public int EpicXpTotal => GetPossible(PointsFamilies.Epic);
+
+        public int RetroPointsTotal => GetPossible(PointsFamilies.RetroAchievements);
+
+        /// <summary>Every family with points to earn, most earned first.</summary>
+        public IReadOnlyList<string> Families =>
+            _possibleByFamily.Keys
+                .Union(_earnedByFamily.Keys, StringComparer.OrdinalIgnoreCase)
+                .Where(family => Get(family) > 0 || GetPossible(family) > 0)
+                .OrderByDescending(Get)
+                .ThenByDescending(GetPossible)
+                .ThenBy(family => family, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
         /// <summary>
         /// Adds a game's points to the family it counts toward: <paramref name="overrideFamily"/>
         /// when the user set one, otherwise its effective provider key's family.
         /// </summary>
-        public void Add(string effectiveProviderKey, string overrideFamily, int platformScorePoints) =>
-            AddToFamily(PointsFamilies.Resolve(effectiveProviderKey, overrideFamily), platformScorePoints);
+        public void Add(string effectiveProviderKey, string overrideFamily, int earnedPoints, int possiblePoints) =>
+            AddToFamily(PointsFamilies.Resolve(effectiveProviderKey, overrideFamily), earnedPoints, possiblePoints);
 
         /// <summary>Adds points to an already resolved family; a null family counts nowhere.</summary>
-        public void AddToFamily(string family, int platformScorePoints)
+        public void AddToFamily(string family, int earnedPoints, int possiblePoints)
         {
             var key = PointsFamilies.Normalize(family);
-            if (platformScorePoints <= 0 || key == null)
+            if (key == null)
             {
                 return;
             }
 
-            _byFamily.TryGetValue(key, out var current);
-            _byFamily[key] = AddClamped(current, platformScorePoints);
+            AddClamped(_earnedByFamily, key, earnedPoints);
+            AddClamped(_possibleByFamily, key, possiblePoints);
         }
 
-        /// <summary>The total for a points family; 0 for a family with no points.</summary>
-        public int Get(string family)
-        {
-            var key = PointsFamilies.Normalize(family);
-            return key != null && _byFamily.TryGetValue(key, out var total) ? total : 0;
-        }
+        /// <summary>The points earned toward a family; 0 for a family with no points.</summary>
+        public int Get(string family) => Lookup(_earnedByFamily, family);
 
-        /// <summary>The total a card shows; 0 for Collection and Prestige.</summary>
+        /// <summary>The points of every achievement in a family's games, unlocked or not.</summary>
+        public int GetPossible(string family) => Lookup(_possibleByFamily, family);
+
+        /// <summary>The points a card shows as earned; 0 for Collection and Prestige.</summary>
         public int Get(ScoreCardType type) => type.IsPoints ? Get(type.PointsFamily) : 0;
 
-        private static int AddClamped(int current, int value)
+        /// <summary>The points a card shows as possible; 0 for Collection and Prestige.</summary>
+        public int GetPossible(ScoreCardType type) => type.IsPoints ? GetPossible(type.PointsFamily) : 0;
+
+        private static int Lookup(Dictionary<string, int> totals, string family)
         {
-            return current > int.MaxValue - value ? int.MaxValue : current + value;
+            var key = PointsFamilies.Normalize(family);
+            return key != null && totals.TryGetValue(key, out var total) ? total : 0;
+        }
+
+        private static void AddClamped(Dictionary<string, int> totals, string key, int value)
+        {
+            if (value <= 0)
+            {
+                return;
+            }
+
+            totals.TryGetValue(key, out var current);
+            totals[key] = current > int.MaxValue - value ? int.MaxValue : current + value;
         }
     }
 }

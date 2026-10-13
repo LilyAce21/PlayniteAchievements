@@ -49,6 +49,9 @@ namespace PlayniteAchievements.Services.Summaries
                 stats.PrestigeScoreTotal,
                 achievement.PrestigeScore);
             AddTrophyTotal(stats, achievement.TrophyType);
+            stats.PlatformScorePointsTotal = AchievementGameStats.AddClamped(
+                stats.PlatformScorePointsTotal,
+                achievement.Points ?? 0);
 
             if (!achievement.Unlocked)
             {
@@ -85,6 +88,9 @@ namespace PlayniteAchievements.Services.Summaries
                 stats.PrestigeScoreTotal,
                 achievement.PrestigeScore);
             AddTrophyTotal(stats, achievement.TrophyType);
+            stats.PlatformScorePointsTotal = AchievementGameStats.AddClamped(
+                stats.PlatformScorePointsTotal,
+                achievement.Points);
 
             if (!treatItemAsUnlocked && !achievement.Unlocked)
             {

@@ -20,9 +20,7 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
         /// <summary>Records the families with points from a fresh library total.</summary>
         public static void PublishFamiliesWithPoints(PlatformScoreTotals totals)
         {
-            var families = (totals?.Families ?? Array.Empty<KeyValuePair<string, int>>())
-                .Select(pair => pair.Key)
-                .ToList();
+            var families = (totals?.Families ?? Array.Empty<string>()).ToList();
 
             lock (Sync)
             {

@@ -572,7 +572,6 @@
     <Compile Include="..\..\source\Models\Achievements\AchievementCompletionPercentCalculator.cs" Link="Source\Models\Achievements\AchievementCompletionPercentCalculator.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementLevelCurveSettings.cs" Link="Source\Models\Achievements\Scoring\AchievementLevelCurveSettings.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementLevelCalculator.cs" Link="Source\Models\Achievements\Scoring\AchievementLevelCalculator.cs" />
-    <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementMilestoneLadder.cs" Link="Source\Models\Achievements\Scoring\AchievementMilestoneLadder.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\ScoreCardType.cs" Link="Source\Models\Achievements\Scoring\ScoreCardType.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\PlatformScoreTotals.cs" Link="Source\Models\Achievements\Scoring\PlatformScoreTotals.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\PointsFamilies.cs" Link="Source\Models\Achievements\Scoring\PointsFamilies.cs" />

@@ -35,17 +35,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
                 ["ShadPS4"] = PlayStation
             };
 
-        // Each family climbs the Gamerscore milestone ladder at its own scale. Epic's 1.25 is a
-        // full Epic game's 1,000 XP base pool plus the 250 XP Platinum, against ~1,000 Gamerscore;
-        // RetroAchievements' 0.4 is its former 400-point per-set cap. Every other family uses 1.
-        private static readonly Dictionary<string, Func<AchievementLevelCurveSettings>> NamedCurves =
-            new Dictionary<string, Func<AchievementLevelCurveSettings>>(StringComparer.OrdinalIgnoreCase)
-            {
-                [Xbox] = () => AchievementLevelCurveSettings.Gamerscore,
-                [Epic] = () => AchievementLevelCurveSettings.EpicXp,
-                [RetroAchievements] = () => AchievementLevelCurveSettings.RetroAchievementsPoints
-            };
-
         /// <summary>
         /// The family a game's points count toward: <paramref name="overrideFamily"/> when the
         /// user set one (<see cref="NoneOverride"/> for none), otherwise the family of its
@@ -93,14 +82,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
 
         public static bool IsNoneOverride(string value) =>
             string.Equals(value?.Trim(), NoneOverride, StringComparison.OrdinalIgnoreCase);
-
-        public static AchievementLevelCurveSettings GetCurve(string family)
-        {
-            var key = Normalize(family);
-            return key != null && NamedCurves.TryGetValue(key, out var curve)
-                ? curve()
-                : AchievementLevelCurveSettings.Gamerscore;
-        }
 
         public static bool AreSame(string left, string right) =>
             string.Equals(Normalize(left), Normalize(right), StringComparison.OrdinalIgnoreCase);

@@ -25,6 +25,12 @@
                 <Setter Property="Background" Value="{Binding AccentBackgroundBrush}"/>
                 <Setter Property="BorderBrush" Value="{Binding AccentBrush}"/>
                 <Style.Triggers>
+                    <!-- Points cards have no rank, so no rank color: they take the neutral surface.
+                         Listed first so Compact and Flat below still win. -->
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.GridSurface}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Border}"/>
+                    </DataTrigger>
                     <DataTrigger Binding="{Binding IsFeatured, ElementName=Root}" Value="True">
                         <Setter Property="CornerRadius" Value="10"/>
                         <Setter Property="BorderThickness" Value="1"/>
@@ -71,6 +77,10 @@
                     </MultiDataTrigger>
                     <DataTrigger Binding="{Binding BadgeOnly, ElementName=Root}" Value="True">
                         <Setter Property="Margin" Value="0"/>
+                    </DataTrigger>
+                    <!-- A points card has no rank badge. -->
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed"/>
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -160,6 +170,7 @@
             <Style x:Key="ScoreCardTierTextStyle" TargetType="TextBlock" BasedOn="{StaticResource PlayAch.TextBlock.BaseStyle}">
                 <Setter Property="DockPanel.Dock" Value="Left"/>
                 <Setter Property="Text" Value="{Binding TierText}"/>
+                <Setter Property="Foreground" Value="{Binding AccentBrush}"/>
                 <Setter Property="FontSize" Value="15"/>
                 <Setter Property="FontWeight" Value="Bold"/>
                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
@@ -176,6 +187,9 @@
                     </DataTrigger>
                     <DataTrigger Binding="{Binding BadgePosition, ElementName=Root}" Value="{x:Static settings:ScoreCardBadgePosition.Right}">
                         <Setter Property="DockPanel.Dock" Value="Right"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -205,6 +219,10 @@
                         </MultiDataTrigger.Conditions>
                         <Setter Property="Margin" Value="0,0,10,2"/>
                     </MultiDataTrigger>
+                    <!-- A points card's main line already states the points earned. -->
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
@@ -233,6 +251,9 @@
                         </MultiDataTrigger.Conditions>
                         <Setter Property="Margin" Value="-3,9,0,0"/>
                     </MultiDataTrigger>
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
@@ -252,17 +273,26 @@
                     <DataTrigger Binding="{Binding Compact, ElementName=Root}" Value="True">
                         <Setter Property="Visibility" Value="Collapsed"/>
                     </DataTrigger>
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
             <Style x:Key="ScoreCardTooltipBorderStyle" TargetType="Border">
                 <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.PopupSurface}"/>
+                <Setter Property="BorderBrush" Value="{Binding AccentBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Padding" Value="12,10"/>
                 <Setter Property="Width" Value="300"/>
                 <Setter Property="MaxWidth" Value="300"/>
                 <Setter Property="SnapsToDevicePixels" Value="True"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Border}"/>
+                    </DataTrigger>
+                </Style.Triggers>
             </Style>
 
             <Style x:Key="ScoreCardTooltipTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource PlayAch.TextBlock.BaseStyle}">
@@ -298,19 +328,29 @@
                  names the score and carries the points. -->
             <Style x:Key="ScoreCardTooltipTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource ScoreCardTooltipTitleTextStyle}">
                 <Setter Property="Text" Value="{Binding TooltipTitleText}"/>
+                <Setter Property="Foreground" Value="{Binding AccentBrush}"/>
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding Tag.Compact, RelativeSource={RelativeSource AncestorType=ToolTip}}" Value="True">
                         <Setter Property="Text" Value="{Binding CompactTooltipTitleText}"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
 
             <Style x:Key="ScoreCardTooltipPointsStyle" TargetType="TextBlock" BasedOn="{StaticResource ScoreCardTooltipValueTextStyle}">
+                <Setter Property="Text" Value="{Binding PointsText}"/>
                 <Setter Property="Margin" Value="12,0,0,6"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="Visibility" Value="Collapsed"/>
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding Tag.BadgeOnly, RelativeSource={RelativeSource AncestorType=ToolTip}}" Value="True">
+                        <Setter Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                    <!-- A points card's tooltip has no rank rows, so it always states earned out of total. -->
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Text" Value="{Binding CountsText}"/>
                         <Setter Property="Visibility" Value="Visible"/>
                     </DataTrigger>
                 </Style.Triggers>
@@ -326,6 +366,15 @@
                         </MultiDataTrigger.Conditions>
                         <Setter Property="Visibility" Value="Visible"/>
                     </MultiDataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Level, rank and next-level rows: a points card has none of them. -->
+            <Style x:Key="ScoreCardTooltipRankRowsStyle" TargetType="StackPanel">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
@@ -360,76 +409,75 @@
                          HasDropShadow="True">
                     <!-- The card face states where you are; the tooltip states the ladder it sits
                          on, so no line here repeats one on the card. -->
-                    <Border Style="{StaticResource ScoreCardTooltipBorderStyle}"
-                            BorderBrush="{Binding AccentBrush}">
+                    <Border Style="{StaticResource ScoreCardTooltipBorderStyle}">
                         <StackPanel>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Style="{StaticResource ScoreCardTooltipTitleStyle}"
-                                           Foreground="{Binding AccentBrush}"/>
+                                <TextBlock Style="{StaticResource ScoreCardTooltipTitleStyle}"/>
                                 <TextBlock Grid.Column="1"
-                                           Text="{Binding PointsText}"
                                            Style="{StaticResource ScoreCardTooltipPointsStyle}"/>
                             </Grid>
 
-                            <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
-                            <Grid Style="{StaticResource ScoreCardTooltipRowStyle}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding TooltipLevelLabel}"
-                                           Style="{StaticResource ScoreCardTooltipLabelTextStyle}"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding TooltipLevelValueText}"
-                                           Style="{StaticResource ScoreCardTooltipValueTextStyle}"/>
-                            </Grid>
-
-                            <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
-                            <Grid Style="{StaticResource ScoreCardTooltipRowStyle}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding TooltipRankPositionLabel}"
-                                           Style="{StaticResource ScoreCardTooltipLabelTextStyle}"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding TooltipRankPositionValueText}"
-                                           Style="{StaticResource ScoreCardTooltipValueTextStyle}"/>
-                            </Grid>
-
-                            <StackPanel Style="{StaticResource ScoreCardTooltipNextLevelStyle}">
+                            <StackPanel Style="{StaticResource ScoreCardTooltipRankRowsStyle}">
                                 <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
                                 <Grid Style="{StaticResource ScoreCardTooltipRowStyle}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{Binding TooltipNextLevelLabel}"
+                                    <TextBlock Text="{Binding TooltipLevelLabel}"
                                                Style="{StaticResource ScoreCardTooltipLabelTextStyle}"/>
                                     <TextBlock Grid.Column="1"
-                                               Text="{Binding TooltipNextLevelValueText}"
+                                               Text="{Binding TooltipLevelValueText}"
+                                               Style="{StaticResource ScoreCardTooltipValueTextStyle}"/>
+                                </Grid>
+
+                                <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
+                                <Grid Style="{StaticResource ScoreCardTooltipRowStyle}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding TooltipRankPositionLabel}"
+                                               Style="{StaticResource ScoreCardTooltipLabelTextStyle}"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding TooltipRankPositionValueText}"
+                                               Style="{StaticResource ScoreCardTooltipValueTextStyle}"/>
+                                </Grid>
+
+                                <StackPanel Style="{StaticResource ScoreCardTooltipNextLevelStyle}">
+                                    <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
+                                    <Grid Style="{StaticResource ScoreCardTooltipRowStyle}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding TooltipNextLevelLabel}"
+                                                   Style="{StaticResource ScoreCardTooltipLabelTextStyle}"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding TooltipNextLevelValueText}"
+                                                   Style="{StaticResource ScoreCardTooltipValueTextStyle}"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
+                                <Grid Style="{StaticResource ScoreCardTooltipRowStyle}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding TooltipNextRankLabel}"
+                                               Style="{StaticResource ScoreCardTooltipLabelTextStyle}"
+                                               Foreground="{Binding NextTierAccentBrush}"
+                                               Opacity="{StaticResource PlayAch.Opacity.Full}"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding TooltipNextRankValueText}"
                                                Style="{StaticResource ScoreCardTooltipValueTextStyle}"/>
                                 </Grid>
                             </StackPanel>
-
-                            <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
-                            <Grid Style="{StaticResource ScoreCardTooltipRowStyle}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding TooltipNextRankLabel}"
-                                           Style="{StaticResource ScoreCardTooltipLabelTextStyle}"
-                                           Foreground="{Binding NextTierAccentBrush}"
-                                           Opacity="{StaticResource PlayAch.Opacity.Full}"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding TooltipNextRankValueText}"
-                                           Style="{StaticResource ScoreCardTooltipValueTextStyle}"/>
-                            </Grid>
 
                             <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
                             <TextBlock Text="{DynamicResource LOCPlayAch_Score_Info_CardHint}"
@@ -466,6 +514,10 @@
                                 <DataTrigger Binding="{Binding BadgeOnly, ElementName=Root}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
+                                <!-- A points card has no badge to collapse to, so it keeps its text. -->
+                                <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Grid.Style>
@@ -483,8 +535,7 @@
                     <!-- Rank is the card's identity; the score rides alongside it rather than
                          above it, so the bar below reads as the rank's own progress. -->
                     <DockPanel Grid.Row="1" LastChildFill="True">
-                        <TextBlock Style="{StaticResource ScoreCardTierTextStyle}"
-                                   Foreground="{Binding AccentBrush}"/>
+                        <TextBlock Style="{StaticResource ScoreCardTierTextStyle}"/>
                         <TextBlock Text="{Binding PointsText}"
                                    Style="{StaticResource ScoreCardPointsTextStyle}"/>
                     </DockPanel>

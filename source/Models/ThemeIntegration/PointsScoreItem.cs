@@ -1,8 +1,8 @@
 namespace PlayniteAchievements.Models.ThemeIntegration
 {
     /// <summary>
-    /// One points family's total for themes: the unlocked provider points summed for the family
-    /// and the level, rank and mastery they reach on its ladder.
+    /// One points family's totals for themes: the unlocked provider points summed for the family,
+    /// and the points of every achievement in its games.
     /// </summary>
     public sealed class PointsScoreItem
     {
@@ -12,14 +12,10 @@ namespace PlayniteAchievements.Models.ThemeIntegration
         /// <summary>The family's card name, e.g. Gamerscore or PlayStation Points.</summary>
         public string Name { get; set; }
 
+        /// <summary>Unlocked points earned toward the family.</summary>
         public int Score { get; set; }
 
-        public int Level { get; set; }
-
-        public double LevelProgress { get; set; }
-
-        public string Rank { get; set; } = "Bronze5";
-
-        public int Mastery { get; set; }
+        /// <summary>Points of every achievement in the family's games, unlocked or not.</summary>
+        public int Total { get; set; }
     }
 }
