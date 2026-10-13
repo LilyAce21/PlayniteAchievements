@@ -82,8 +82,7 @@ namespace PlayniteAchievements.Providers.Minecraft
             }
 
             var configured = ProviderPathList.Normalize(settings?.GameFolders)
-                .Select(MinecraftPaths.ResolveGameFolder)
-                .Where(folder => folder != null)
+                .SelectMany(MinecraftPaths.ExpandGameFolders)
                 .ToList();
             if (configured.Count > 0)
             {
@@ -95,7 +94,8 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// A world folder, or a .minecraft folder or launcher instance. Null when neither.
+        /// A world folder, a .minecraft folder or launcher instance, or a folder of instances.
+        /// Null when none of these.
         /// </summary>
         internal static MinecraftGameSource FromFolder(string folder, string resolvedBy)
         {
@@ -119,8 +119,8 @@ namespace PlayniteAchievements.Providers.Minecraft
                 };
             }
 
-            var resolved = MinecraftPaths.ResolveGameFolder(folder);
-            return resolved == null ? null : FromGameFolders(new[] { resolved }, resolvedBy);
+            var resolved = MinecraftPaths.ExpandGameFolders(folder);
+            return resolved.Count == 0 ? null : FromGameFolders(resolved, resolvedBy);
         }
 
         private static MinecraftGameSource FromGameFolders(IEnumerable<string> gameFolders, string resolvedBy)
