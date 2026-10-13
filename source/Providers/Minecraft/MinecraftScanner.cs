@@ -316,21 +316,12 @@ namespace PlayniteAchievements.Providers.Minecraft
             }
         }
 
-        /// <summary>Base for the minecraft namespace, plus Challenge for challenge frames.</summary>
+        /// <summary>Base for the minecraft namespace; no type for mods and datapacks.</summary>
         internal static string GetCategoryType(MinecraftAdvancement advancement)
         {
-            var types = new List<string>();
-            if (string.Equals(advancement.Namespace, MinecraftNamespace, StringComparison.Ordinal))
-            {
-                types.Add("Base");
-            }
-
-            if (advancement.Frame == "challenge")
-            {
-                types.Add("Challenge");
-            }
-
-            return types.Count == 0 ? null : AchievementCategoryTypeHelper.Combine(types);
+            return string.Equals(advancement.Namespace, MinecraftNamespace, StringComparison.Ordinal)
+                ? "Base"
+                : null;
         }
 
         private static bool HasAdvancementFiles(string world)
