@@ -67,6 +67,8 @@ namespace PlayniteAchievements.Models.Settings
         private bool _enablePeriodicUpdates = true;
         private bool _includeHiddenGamesInBulkScans = true;
         private bool _includeHiddenGamesInSummaries = true;
+        private HashSet<Guid> _refreshExclusionFilterPresetIds = new HashSet<Guid>();
+        private HashSet<Guid> _summaryExclusionFilterPresetIds = new HashSet<Guid>();
         private int _periodicUpdateHours = 6;
         private bool _enableFriendsPeriodicUpdates = false;
         private int _friendsPeriodicUpdateHours = 24;
@@ -858,6 +860,27 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _includeHiddenGamesInSummaries;
             set => SetValue(ref _includeHiddenGamesInSummaries, value);
+        }
+
+        /// <summary>
+        /// Playnite saved filter presets whose matching games are excluded from refreshes. The
+        /// exclusion is written to each game and taken back when the game stops matching; a game
+        /// the user included or excluded by hand keeps the user's choice.
+        /// </summary>
+        public HashSet<Guid> RefreshExclusionFilterPresetIds
+        {
+            get => _refreshExclusionFilterPresetIds ?? (_refreshExclusionFilterPresetIds = new HashSet<Guid>());
+            set => SetValue(ref _refreshExclusionFilterPresetIds, NormalizeGuidSet(value));
+        }
+
+        /// <summary>
+        /// Playnite saved filter presets whose matching games are excluded from summaries, with
+        /// the same ownership rules as <see cref="RefreshExclusionFilterPresetIds"/>.
+        /// </summary>
+        public HashSet<Guid> SummaryExclusionFilterPresetIds
+        {
+            get => _summaryExclusionFilterPresetIds ?? (_summaryExclusionFilterPresetIds = new HashSet<Guid>());
+            set => SetValue(ref _summaryExclusionFilterPresetIds, NormalizeGuidSet(value));
         }
 
         /// <summary>
@@ -3171,6 +3194,8 @@ namespace PlayniteAchievements.Models.Settings
                 EnablePeriodicUpdates = this.EnablePeriodicUpdates,
                 IncludeHiddenGamesInBulkScans = this.IncludeHiddenGamesInBulkScans,
                 IncludeHiddenGamesInSummaries = this.IncludeHiddenGamesInSummaries,
+                RefreshExclusionFilterPresetIds = new HashSet<Guid>(this.RefreshExclusionFilterPresetIds),
+                SummaryExclusionFilterPresetIds = new HashSet<Guid>(this.SummaryExclusionFilterPresetIds),
                 PeriodicUpdateHours = this.PeriodicUpdateHours,
                 EnableFriendsPeriodicUpdates = this.EnableFriendsPeriodicUpdates,
                 FriendsPeriodicUpdateHours = this.FriendsPeriodicUpdateHours,
@@ -3723,6 +3748,23 @@ namespace PlayniteAchievements.Models.Settings
                 }
 
                 normalized[key] = pair.Value;
+            }
+
+            return normalized;
+        }
+
+        private static HashSet<Guid> NormalizeGuidSet(IEnumerable<Guid> value)
+        {
+            var normalized = new HashSet<Guid>();
+            if (value != null)
+            {
+                foreach (var id in value)
+                {
+                    if (id != Guid.Empty)
+                    {
+                        normalized.Add(id);
+                    }
+                }
             }
 
             return normalized;
