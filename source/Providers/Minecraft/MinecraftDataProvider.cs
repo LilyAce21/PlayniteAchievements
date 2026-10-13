@@ -72,7 +72,7 @@ namespace PlayniteAchievements.Providers.Minecraft
         public bool IsCapable(Game game)
         {
             var source = MinecraftGameResolver.Resolve(game, ProviderSettings, _playniteApi);
-            return source != null && source.Worlds.Count > 0;
+            return source != null && source.HasWorlds;
         }
 
         public Task<RebuildPayload> RefreshAsync(
