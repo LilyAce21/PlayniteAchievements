@@ -407,6 +407,8 @@
     <sys:String x:Key="LOCPlayAch_NotesDialog_CharacterCountFormat">{0} / {1} characters</sys:String>
     <sys:String x:Key="LOCPlayAch_NotesDialog_EditTitle">Edit Note</sys:String>
     <sys:String x:Key="LOCPlayAch_NotesDialog_Italic">Italic</sys:String>
+    <sys:String x:Key="LOCPlayAch_NotesDialog_Link">Link</sys:String>
+    <sys:String x:Key="LOCPlayAch_NotesDialog_Strikethrough">Strikethrough</sys:String>
     <sys:String x:Key="LOCPlayAch_NotesDialog_Underline">Underline</sys:String>
     <sys:String x:Key="LOCPlayAch_NotesDialog_ViewTitle">View Note</sys:String>
 
@@ -1390,12 +1392,12 @@
     <sys:String x:Key="LOCPlayAch_Showcase_SlideshowSource_AchievementCollection">Achievement collection</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ImageFit_Fit">Fit</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ImageFit_Fill">Fill</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_TextMarkdownHint">**bold**, *italic*, __underline__, ~~strikethrough~~ and links. Ctrl+Enter saves.</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize">Text size</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Small">Small</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Normal">Normal</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Large">Large</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Huge">Huge</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Custom">Custom</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_HorizontalAlignment">Horizontal alignment</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_VerticalAlignment">Vertical alignment</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ActivityTooltipFormat">{0} — {1} unlocked</sys:String>
