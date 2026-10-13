@@ -89,8 +89,8 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// The game's advancements, or null when definitions or the player's progress could not be
-        /// read, so the cached achievements are kept.
+        /// The game's advancements, one set per instance, or null when no instance yields
+        /// definitions or a player's progress could not be read, so the cached achievements are kept.
         /// </summary>
         internal GameAchievementData BuildGameData(
             Game game,
@@ -100,84 +100,33 @@ namespace PlayniteAchievements.Providers.Minecraft
         {
             var locale = MinecraftPaths.MapGlobalLanguageToLocale(_settings?.Persisted?.GlobalLanguage);
             var locales = new[] { MinecraftAdvancementCatalog.DefaultLocale, locale }.Distinct().ToList();
-
-            var sources = LoadSources(source, locales, cancel);
-            var assetLanguage = MinecraftPaths.FindAssetLanguage(source.GameFolders, locale);
-            var catalog = MinecraftAdvancementCatalog.Build(
-                sources,
-                assetLanguage == null ? null : new[] { assetLanguage },
-                locale);
-            if (catalog.Count == 0)
-            {
-                _logger?.Info($"[Minecraft] '{game.Name}': no advancement definitions found (no game jar near [{string.Join(", ", source.GameFolders)}]); cached achievements preserved.");
-                return null;
-            }
-
-            cancel.ThrowIfCancellationRequested();
-
             var uuids = MinecraftAccounts.Resolve(_providerSettings.PlayerUuid, source.GameFolders);
-            var progress = MinecraftProgressReader.Read(
-                source.Worlds,
-                uuids,
-                message => _logger?.Warn($"[Minecraft] '{game.Name}': {message}; cached achievements preserved."),
-                out var worldsRead);
-            if (progress == null)
-            {
-                return null;
-            }
-
-            if (worldsRead == 0 && source.Worlds.Any(HasAdvancementFiles))
-            {
-                _logger?.Warn(
-                    $"[Minecraft] '{game.Name}': no advancement file in {source.Worlds.Count} world(s) belongs to " +
-                    $"{(uuids.Count == 0 ? "a known account" : string.Join(", ", uuids))}; set the player UUID in Minecraft settings. Cached achievements preserved.");
-                return null;
-            }
 
             var achievements = new List<AchievementDetail>();
             var tabArt = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var advancement in OrderForDisplay(catalog))
+            foreach (var instance in source.Instances)
             {
-                progress.TryGetValue(advancement.Id, out var state);
-                var iconPath = iconExtractor?.GetIconPath(advancement.IconItemId, sources);
-                catalog.TryGetValue(advancement.RootId ?? string.Empty, out var root);
-                var category = CategoryPathHelper.SanitizeSegment(root?.Title);
-                if (!string.IsNullOrWhiteSpace(category) && !tabArt.ContainsKey(category) && root != null)
+                cancel.ThrowIfCancellationRequested();
+                var rows = BuildInstanceRows(game, instance, locale, locales, uuids, iconExtractor, tabArt, cancel);
+                if (rows == null)
                 {
-                    var rootIcon = iconExtractor?.GetIconPath(root.IconItemId, sources);
-                    if (rootIcon != null)
-                    {
-                        tabArt[category] = rootIcon;
-                    }
+                    return null;
                 }
 
-                var done = state?.Done == true;
-                var detail = new AchievementDetail
-                {
-                    ApiName = advancement.Id,
-                    DisplayName = string.IsNullOrWhiteSpace(advancement.Title) ? advancement.Id : advancement.Title,
-                    Description = advancement.Description,
-                    UnlockedIconPath = iconPath,
-                    LockedIconPath = iconPath,
-                    Hidden = advancement.Hidden,
-                    Unlocked = done,
-                    UnlockTimeUtc = done ? state.CompletedUtc : null,
-                    GlobalPercentUnlocked = null,
-                    Rarity = GetRarity(advancement),
-                    CategoryType = GetCategoryType(advancement),
-                    Category = category
-                };
+                achievements.AddRange(rows);
+            }
 
-                ApplyProgress(detail, advancement, state);
-                achievements.Add(detail);
+            if (achievements.Count == 0)
+            {
+                _logger?.Info($"[Minecraft] '{game.Name}': no advancement definitions found in [{string.Join(", ", source.GameFolders)}]; cached achievements preserved.");
+                return null;
             }
 
             ApplyDefaultCategoryArt(game, tabArt);
 
             _logger?.Info(
                 $"[Minecraft] '{game.Name}': {achievements.Count} advancements ({achievements.Count(a => a.Unlocked)} unlocked) " +
-                $"from {worldsRead}/{source.Worlds.Count} world(s) and {sources.Count} definition source(s) " +
-                $"(resolved by {source.ResolvedBy}: [{string.Join(", ", source.GameFolders)}]).");
+                $"from {source.Instances.Count} instance(s) (resolved by {source.ResolvedBy}).");
 
             return new GameAchievementData
             {
@@ -193,19 +142,108 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// Definition sources in ascending priority: the game jar, then mods, then world datapacks.
+        /// One instance's rows: its worlds merged, keyed <c>instance|advancement</c> and categorized
+        /// Instance > Tab. Null when a progress file is unreadable or no world has the player's file.
         /// </summary>
-        private List<MinecraftResourceSource> LoadSources(MinecraftGameSource source, IReadOnlyCollection<string> locales, CancellationToken cancel)
+        private List<AchievementDetail> BuildInstanceRows(
+            Game game,
+            MinecraftInstance instance,
+            string locale,
+            IReadOnlyCollection<string> locales,
+            ISet<string> uuids,
+            MinecraftIconExtractor iconExtractor,
+            IDictionary<string, string> tabArt,
+            CancellationToken cancel)
         {
-            var paths = new List<string>();
-            paths.AddRange(source.GameFolders.Select(MinecraftPaths.FindGameJar).Where(jar => jar != null));
-            foreach (var gameFolder in source.GameFolders)
+            var sources = LoadSources(instance, locales, cancel);
+            var assetLanguage = MinecraftPaths.FindAssetLanguage(new[] { instance.GameFolder }, locale);
+            var catalog = MinecraftAdvancementCatalog.Build(
+                sources,
+                assetLanguage == null ? null : new[] { assetLanguage },
+                locale);
+            if (catalog.Count == 0)
             {
-                paths.AddRange(MinecraftPaths.SafeFiles(Path.Combine(gameFolder, "mods"), "*.jar")
-                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+                _logger?.Info($"[Minecraft] '{game.Name}': instance '{instance.Name}' has no advancement definitions (no game jar found); skipped.");
+                return new List<AchievementDetail>();
             }
 
-            foreach (var world in source.Worlds)
+            var progress = MinecraftProgressReader.Read(
+                instance.Worlds,
+                uuids,
+                message => _logger?.Warn($"[Minecraft] '{game.Name}': {message}; cached achievements preserved."),
+                out var worldsRead);
+            if (progress == null)
+            {
+                return null;
+            }
+
+            if (worldsRead == 0 && instance.Worlds.Any(HasAdvancementFiles))
+            {
+                _logger?.Warn(
+                    $"[Minecraft] '{game.Name}': no advancement file in instance '{instance.Name}' belongs to " +
+                    $"{(uuids.Count == 0 ? "a known account" : string.Join(", ", uuids))}; set the player UUID in Minecraft settings. Cached achievements preserved.");
+                return null;
+            }
+
+            var rows = new List<AchievementDetail>();
+            foreach (var advancement in OrderForDisplay(catalog))
+            {
+                progress.TryGetValue(advancement.Id, out var state);
+                var iconPath = iconExtractor?.GetIconPath(advancement.IconItemId, advancement.IconCustomModelData, sources);
+                catalog.TryGetValue(advancement.RootId ?? string.Empty, out var root);
+                var category = CategoryPathHelper.JoinRaw(instance.Name, root?.Title);
+                if (!string.IsNullOrWhiteSpace(category) && !tabArt.ContainsKey(category) && root != null)
+                {
+                    var rootIcon = iconExtractor?.GetIconPath(root.IconItemId, root.IconCustomModelData, sources);
+                    if (rootIcon != null)
+                    {
+                        tabArt[category] = rootIcon;
+                    }
+                }
+
+                var done = state?.Done == true;
+                var detail = new AchievementDetail
+                {
+                    ApiName = instance.Key + "|" + advancement.Id,
+                    DisplayName = string.IsNullOrWhiteSpace(advancement.Title) ? advancement.Id : advancement.Title,
+                    Description = advancement.Description,
+                    UnlockedIconPath = iconPath,
+                    LockedIconPath = iconPath,
+                    Hidden = advancement.Hidden,
+                    Unlocked = done,
+                    UnlockTimeUtc = done ? state.CompletedUtc : null,
+                    GlobalPercentUnlocked = null,
+                    Rarity = GetRarity(advancement),
+                    CategoryType = GetCategoryType(advancement),
+                    Category = category
+                };
+
+                ApplyProgress(detail, advancement, state);
+                rows.Add(detail);
+            }
+
+            _logger?.Info(
+                $"[Minecraft] '{game.Name}': instance '{instance.Name}': {rows.Count} advancements ({rows.Count(a => a.Unlocked)} unlocked) " +
+                $"from {worldsRead}/{instance.Worlds.Count} world(s) and {sources.Count} definition source(s) in '{instance.GameFolder}'.");
+            return rows;
+        }
+
+        /// <summary>
+        /// Definition sources in ascending priority: the game jar, then mods, then world datapacks.
+        /// </summary>
+        private List<MinecraftResourceSource> LoadSources(MinecraftInstance instance, IReadOnlyCollection<string> locales, CancellationToken cancel)
+        {
+            var paths = new List<string>();
+            var gameJar = MinecraftPaths.FindGameJar(instance.GameFolder);
+            if (gameJar != null)
+            {
+                paths.Add(gameJar);
+            }
+
+            paths.AddRange(MinecraftPaths.SafeFiles(Path.Combine(instance.GameFolder, "mods"), "*.jar")
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+
+            foreach (var world in instance.Worlds)
             {
                 var datapacks = Path.Combine(world, "datapacks");
                 paths.AddRange(MinecraftPaths.SafeFiles(datapacks, "*.zip")
