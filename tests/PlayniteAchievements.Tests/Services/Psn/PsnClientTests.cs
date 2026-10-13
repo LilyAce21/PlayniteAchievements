@@ -38,7 +38,7 @@ namespace PlayniteAchievements.Services.Tests.Psn
                 var seen = new Seen
                 {
                     Method = request.Method,
-                    Url = request.RequestUri.ToString(),
+                    Url = request.RequestUri.AbsoluteUri,
                     Authorization = request.Headers.Authorization?.ToString(),
                     Cookie = request.Headers.TryGetValues("Cookie", out var cookies) ? string.Join(";", cookies) : null,
                     Body = request.Content == null ? null : await request.Content.ReadAsStringAsync().ConfigureAwait(false)
