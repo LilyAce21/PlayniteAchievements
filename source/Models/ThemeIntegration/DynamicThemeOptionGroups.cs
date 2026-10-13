@@ -225,6 +225,7 @@ namespace PlayniteAchievements.Models.ThemeIntegration
             "ShadPS4",
             "Vita3K",
             "Xenia",
+            "Minecraft",
             "Manual",
             "Exophase",
             "Hoyoverse"
