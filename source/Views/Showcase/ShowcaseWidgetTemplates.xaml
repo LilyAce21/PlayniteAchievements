@@ -634,6 +634,9 @@
                                 <DataTrigger Binding="{Binding TextSize}" Value="Large">
                                     <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Title}"/>
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Custom">
+                                    <Setter Property="FontSize" Value="{Binding PixelSize}"/>
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding TextSize}" Value="Huge">
                                     <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Title}"/>
                                     <Setter Property="LayoutTransform">
