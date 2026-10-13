@@ -102,7 +102,7 @@ namespace PlayniteAchievements.Providers.Minecraft
             }
 
             var expanded = Environment.ExpandEnvironmentVariables(trimmed);
-            return MinecraftPaths.IsWorldFolder(expanded) || MinecraftPaths.ResolveGameFolder(expanded) != null
+            return MinecraftPaths.IsWorldFolder(expanded) || MinecraftPaths.ExpandGameFolders(expanded).Count > 0
                 ? ProviderOverrideValidation.Valid(trimmed)
                 : ProviderOverrideValidation.Invalid("LOCPlayAch_InvalidPath");
         }
