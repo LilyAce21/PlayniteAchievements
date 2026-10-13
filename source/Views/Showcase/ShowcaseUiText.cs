@@ -166,6 +166,36 @@ namespace PlayniteAchievements.Views.Showcase
             }
         }
 
+        // Alignment values share the dock and grid alignment labels.
+        public static string HorizontalAlignmentName(ShowcaseHorizontalAlignment value)
+        {
+            switch (value)
+            {
+                case ShowcaseHorizontalAlignment.Left:
+                    return Localize("LOCDockLeft");
+                case ShowcaseHorizontalAlignment.Right:
+                    return Localize("LOCDockRight");
+                default:
+                    return Localize("LOCPlayAch_Settings_GridAlignment_Center");
+            }
+        }
+
+        public static string VerticalAlignmentName(ShowcaseVerticalAlignment value)
+        {
+            switch (value)
+            {
+                case ShowcaseVerticalAlignment.Top:
+                    return Localize("LOCDockTop");
+                case ShowcaseVerticalAlignment.Bottom:
+                    return Localize("LOCDockBottom");
+                default:
+                    return Localize("LOCPlayAch_Settings_GridAlignment_Center");
+            }
+        }
+
+        public static string TextSizeName(ShowcaseTextSize value) =>
+            EnumValueName("LOCPlayAch_Showcase_TextSize_", value);
+
         private static string EnumValueName<T>(string prefix, T value)
         {
             return Localize(prefix + Convert.ToString(value));
