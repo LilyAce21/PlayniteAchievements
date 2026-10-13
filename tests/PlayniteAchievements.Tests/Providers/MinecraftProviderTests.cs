@@ -93,8 +93,7 @@ namespace PlayniteAchievements.Providers.Tests
                 Assert.AreEqual(3, adventuring.ProgressDenom);
                 Assert.AreEqual(RarityTier.Rare, adventuring.Rarity);
                 Assert.AreEqual("Adventure", adventuring.Category);
-                StringAssert.Contains(adventuring.CategoryType, "Challenge");
-                StringAssert.Contains(adventuring.CategoryType, "Base");
+                Assert.AreEqual("Base", adventuring.CategoryType);
 
                 var secret = byId["minecraft:nether/secret"];
                 Assert.IsTrue(secret.Hidden);
