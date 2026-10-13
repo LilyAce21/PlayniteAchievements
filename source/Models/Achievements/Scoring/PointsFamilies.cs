@@ -19,9 +19,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
 
         public const string RetroAchievements = "RetroAchievements";
 
-        /// <summary>The per-game override value that counts a game's points toward no card.</summary>
-        public const string NoneOverride = "None";
-
         /// <summary>The families every card picker lists, whether or not any game has their points.</summary>
         public static readonly IReadOnlyList<string> AlwaysListed = new[] { Xbox, Epic, RetroAchievements };
 
@@ -34,22 +31,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
                 ["RPCS3"] = PlayStation,
                 ["ShadPS4"] = PlayStation
             };
-
-        /// <summary>
-        /// The family a game's points count toward: <paramref name="overrideFamily"/> when the
-        /// user set one (<see cref="NoneOverride"/> for none), otherwise the family of its
-        /// effective provider key. Null means the points count toward no card.
-        /// </summary>
-        public static string Resolve(string effectiveProviderKey, string overrideFamily)
-        {
-            var normalizedOverride = overrideFamily?.Trim();
-            if (string.IsNullOrEmpty(normalizedOverride))
-            {
-                return FromProviderKey(effectiveProviderKey);
-            }
-
-            return IsNoneOverride(normalizedOverride) ? null : Normalize(normalizedOverride);
-        }
 
         /// <summary>
         /// The family a provider key belongs to. Null for a blank key, Unknown, and the plain
@@ -69,21 +50,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
         }
 
         /// <summary>A family key with provider aliases folded in, or null when blank.</summary>
-        public static string Normalize(string family)
-        {
-            var key = family?.Trim();
-            if (string.IsNullOrEmpty(key) || IsNoneOverride(key))
-            {
-                return null;
-            }
-
-            return FromProviderKey(key);
-        }
-
-        public static bool IsNoneOverride(string value) =>
-            string.Equals(value?.Trim(), NoneOverride, StringComparison.OrdinalIgnoreCase);
-
-        public static bool AreSame(string left, string right) =>
-            string.Equals(Normalize(left), Normalize(right), StringComparison.OrdinalIgnoreCase);
+        public static string Normalize(string family) => FromProviderKey(family);
     }
 }

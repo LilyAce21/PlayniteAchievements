@@ -50,8 +50,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             List<GameAchievementData> allData,
             IPlayniteAPI api,
             CancellationToken token,
-            bool includeHeavyAchievementLists = true,
-            GameCustomDataStore customDataStore = null)
+            bool includeHeavyAchievementLists = true)
         {
             token.ThrowIfCancellationRequested();
 
@@ -100,11 +99,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 var providerName = ProviderRegistry.GetLocalizedName(providerKey);
                 collectorScore = AddScore(collectorScore, stats.CollectionScore);
                 prestigeScore = AddScore(prestigeScore, stats.PrestigeScore);
-                platformScores.Add(
-                    providerKey,
-                    customDataStore?.QueryGame(data.PlayniteGameId.Value, customData => customData.PointsFamily),
-                    stats.PlatformScorePoints,
-                    stats.PlatformScorePointsTotal);
+                platformScores.Add(providerKey, stats.PlatformScorePoints, stats.PlatformScorePointsTotal);
 
                 var summary = new GameAchievementSummary(
                     data.PlayniteGameId.Value,
@@ -244,7 +239,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
 
                 collectorScore = AddScore(collectorScore, game.CollectionScore);
                 prestigeScore = AddScore(prestigeScore, game.PrestigeScore);
-                platformScores.Add(providerKey, game.PointsFamilyOverride, game.PlatformScorePoints, game.PlatformScorePointsTotal);
+                platformScores.Add(providerKey, game.PlatformScorePoints, game.PlatformScorePointsTotal);
             }
 
             ApplySummaryListsAndTotals(state, allGames);

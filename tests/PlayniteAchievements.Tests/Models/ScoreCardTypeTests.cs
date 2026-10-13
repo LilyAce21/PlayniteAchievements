@@ -68,37 +68,24 @@ namespace PlayniteAchievements.Tests.Models
         }
 
         [DataTestMethod]
-        [DataRow("Xbox", null, "Xbox")]
-        [DataRow("Xenia", null, "Xbox")]
-        [DataRow("ShadPS4", null, "PSN")]
-        [DataRow("Steam", null, "Steam")]
-        [DataRow("Custom:abc", null, "Custom:abc")]
-        [DataRow("Custom", null, null)]
-        [DataRow("Unknown", null, null)]
-        [DataRow("Custom", "Xenia", "Xbox")]
-        [DataRow("Xbox", "None", null)]
-        [DataRow("Xbox", "  ", "Xbox")]
-        public void Resolve_FoldsAliasesAndAppliesOverride(string providerKey, string overrideFamily, string expected)
+        [DataRow("Xbox", "Xbox")]
+        [DataRow("Xenia", "Xbox")]
+        [DataRow("ShadPS4", "PSN")]
+        [DataRow("Steam", "Steam")]
+        [DataRow("Custom:abc", "Custom:abc")]
+        [DataRow("Custom", null)]
+        [DataRow("Unknown", null)]
+        [DataRow("  ", null)]
+        public void FromProviderKey_FoldsAliases(string providerKey, string expected)
         {
-            Assert.AreEqual(expected, PointsFamilies.Resolve(providerKey, overrideFamily));
-        }
-
-        [TestMethod]
-        public void CustomData_PointsFamilySurvivesCloneAndPortableRoundTrip()
-        {
-            var data = new GameCustomDataFile { PointsFamily = "PSN" };
-
-            Assert.AreEqual("PSN", data.Clone().PointsFamily);
-            Assert.AreEqual("PSN", data.ToPortable().PointsFamily);
-            Assert.AreEqual("PSN", data.ToPortable().Clone().PointsFamily);
-            Assert.AreEqual("PSN", GameCustomDataFile.FromPortable(data.ToPortable(), System.Guid.NewGuid(), null, null).PointsFamily);
+            Assert.AreEqual(expected, PointsFamilies.FromProviderKey(providerKey));
         }
 
         [TestMethod]
         public void Choices_ListPlatformFamiliesPublishedFamiliesAndTheCurrentCard()
         {
             var totals = new PlatformScoreTotals();
-            totals.Add("PSN", null, 90, 300);
+            totals.Add("PSN", 90, 300);
             ScoreCardChoices.PublishFamiliesWithPoints(totals);
             try
             {

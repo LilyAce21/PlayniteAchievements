@@ -328,7 +328,7 @@ namespace PlayniteAchievements.ViewModels.Items
         // Points of every achievement, unlocked or not: the most PlatformScorePoints can reach.
         public int PlatformScorePointsTotal { get; set; }
 
-        // The points family PlatformScorePoints count toward (see PointsFamilies.Resolve); null for none.
+        // The points family PlatformScorePoints count toward (see PointsFamilies.FromProviderKey); null for none.
         public string PointsFamily { get; set; }
 
         // Total rarity counts (including locked achievements)

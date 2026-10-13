@@ -403,8 +403,7 @@ namespace PlayniteAchievements.Services.Library
                     allData,
                     _api,
                     token,
-                    includeHeavyAchievementLists: false,
-                    customDataStore: _customDataStore)
+                    includeHeavyAchievementLists: false)
             };
         }
 
@@ -424,8 +423,7 @@ namespace PlayniteAchievements.Services.Library
                     allData,
                     _api,
                     token,
-                    includeHeavyAchievementLists: true,
-                    customDataStore: _customDataStore)
+                    includeHeavyAchievementLists: true)
             };
         }
 

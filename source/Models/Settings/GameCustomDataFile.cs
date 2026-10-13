@@ -216,13 +216,6 @@ namespace PlayniteAchievements.Models.Settings
         /// </summary>
         public string CustomProviderId { get; set; }
 
-        /// <summary>
-        /// The points family whose card this game's points count toward, overriding the one its
-        /// provider implies (see PointsFamilies). "None" counts them toward no card; null follows
-        /// the provider.
-        /// </summary>
-        public string PointsFamily { get; set; }
-
         public GameCustomDataFile Clone()
         {
             return new GameCustomDataFile
@@ -284,7 +277,6 @@ namespace PlayniteAchievements.Models.Settings
                 UnlockSounds = UnlockSounds?.Clone(),
                 ProviderOverride = ProviderOverride?.Clone(),
                 ExophaseEnrichmentSlugOverride = ExophaseEnrichmentSlugOverride,
-                PointsFamily = PointsFamily,
                 ManualLink = ManualLink?.Clone(),
                 CustomAchievements = CustomAchievements != null
                     ? CustomAchievements.ConvertAll(item => item?.Clone()).FindAll(item => item != null)
@@ -347,7 +339,6 @@ namespace PlayniteAchievements.Models.Settings
                 NotificationAppearanceOverride = NotificationAppearanceOverride?.Clone(),
                 ProviderOverride = ProviderOverride?.Clone(),
                 ExophaseEnrichmentSlugOverride = ExophaseEnrichmentSlugOverride,
-                PointsFamily = PointsFamily,
                 ManualLink = ManualLink?.Clone(),
                 CustomAchievements = CustomAchievements != null
                     ? CustomAchievements.ConvertAll(item => item?.Clone()).FindAll(item => item != null)
@@ -418,7 +409,6 @@ namespace PlayniteAchievements.Models.Settings
                 NotificationAppearanceOverride = portable?.NotificationAppearanceOverride?.Clone(),
                 ProviderOverride = portable?.ProviderOverride?.Clone(),
                 ExophaseEnrichmentSlugOverride = portable?.ExophaseEnrichmentSlugOverride,
-                PointsFamily = portable?.PointsFamily,
                 ManualLink = portable?.ManualLink?.Clone(),
                 CustomAchievements = portable?.CustomAchievements != null
                     ? portable.CustomAchievements.ConvertAll(item => item?.Clone()).FindAll(item => item != null)
