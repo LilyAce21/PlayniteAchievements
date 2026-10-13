@@ -51,7 +51,7 @@ namespace PlayniteAchievements.Views.Settings.General
                     ResourceProvider.GetString("LOCPlayAch_Section_SyncUpdates"),
                     iconGlyph: "\uEFD1",
                     viewFactory: () => _syncUpdatesSection =
-                        new SyncUpdatesSection()),
+                        new SyncUpdatesSection(settings, plugin.PlayniteApi)),
                 new SettingsNavigationItem(
                     "Hotkeys",
                     ResourceProvider.GetString("LOCPlayAch_Hotkeys_Title"),
@@ -84,6 +84,7 @@ namespace PlayniteAchievements.Views.Settings.General
 
         public void Dispose()
         {
+            _syncUpdatesSection?.Dispose();
             _hotkeySection?.Dispose();
         }
     }
