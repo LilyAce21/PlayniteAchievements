@@ -25,12 +25,34 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// <summary>%AppData%\.minecraft.</summary>
         public static string DefaultGameFolder => Path.Combine(AppData, ".minecraft");
 
+        // Where launchers keep their instances, relative to the launcher's data folder: Prism,
+        // MultiMC, PolyMC, ATLauncher, FTB App and GDLauncher use instances/ (CurseForge Instances/),
+        // Modrinth profiles/, Technic modpacks/, GDLauncher Carbon data/instances/.
+        private static readonly string[] InstanceContainers =
+        {
+            "instances",
+            "profiles",
+            "modpacks",
+            Path.Combine("data", "instances")
+        };
+
+        // The game folder inside an instance, when it is not the instance itself.
+        private static readonly string[] GameFolderChildren = { ".minecraft", "minecraft", "instance" };
+
         public static IEnumerable<string> DefaultLauncherDataFolders()
         {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             yield return DefaultGameFolder;
             yield return Path.Combine(AppData, "PrismLauncher");
             yield return Path.Combine(AppData, "PolyMC");
             yield return Path.Combine(AppData, "ModrinthApp");
+            yield return Path.Combine(AppData, "ATLauncher");
+            yield return Path.Combine(AppData, "gdlauncher_next");
+            yield return Path.Combine(AppData, "gdlauncher_carbon");
+            yield return Path.Combine(AppData, ".technic");
+            yield return Path.Combine(localAppData, ".ftba");
+            yield return Path.Combine(userProfile, "curseforge", "minecraft");
         }
 
         /// <summary>The folder and up to <paramref name="levels"/> of its parents.</summary>
@@ -60,7 +82,7 @@ namespace PlayniteAchievements.Providers.Minecraft
 
         /// <summary>
         /// The game folder (the one holding saves/) for a .minecraft folder or a launcher instance:
-        /// the folder itself, or its .minecraft or minecraft child. Null when none has saves/.
+        /// the folder itself, or its .minecraft, minecraft or instance child. Null when none has saves/.
         /// </summary>
         public static string ResolveGameFolder(string folder)
         {
@@ -69,7 +91,7 @@ namespace PlayniteAchievements.Providers.Minecraft
                 return null;
             }
 
-            foreach (var candidate in new[] { folder, Path.Combine(folder, ".minecraft"), Path.Combine(folder, "minecraft") })
+            foreach (var candidate in new[] { folder }.Concat(GameFolderChildren.Select(child => Path.Combine(folder, child))))
             {
                 if (Directory.Exists(Path.Combine(candidate, "saves")))
                 {
@@ -78,6 +100,42 @@ namespace PlayniteAchievements.Providers.Minecraft
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Game folders for a configured folder: the folder itself when it is a .minecraft folder or
+        /// an instance, otherwise every instance in a launcher data folder (see
+        /// <see cref="InstanceContainers"/>) or directly under it (an instances folder itself).
+        /// </summary>
+        public static List<string> ExpandGameFolders(string folder)
+        {
+            var single = ResolveGameFolder(folder);
+            if (single != null)
+            {
+                return new List<string> { single };
+            }
+
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                return new List<string>();
+            }
+
+            var containers = InstanceContainers
+                .Select(container => Path.Combine(folder, container))
+                .Where(Directory.Exists)
+                .ToList();
+            if (containers.Count == 0)
+            {
+                containers.Add(folder);
+            }
+
+            return containers
+                .SelectMany(SafeDirectories)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .Select(ResolveGameFolder)
+                .Where(path => path != null)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         public static bool IsWorldFolder(string folder)
