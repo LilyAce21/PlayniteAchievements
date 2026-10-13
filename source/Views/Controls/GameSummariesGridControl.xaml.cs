@@ -1863,6 +1863,15 @@ namespace PlayniteAchievements.Views.Controls
                 control._columnPersistence.Dispose();
                 control._columnPersistence = null;
             }
+            else if (control._isAttached && !string.Equals(
+                         e.OldValue as string,
+                         e.NewValue as string,
+                         StringComparison.Ordinal))
+            {
+                // The service reads the surface through the current key, so re-applying shows
+                // the new key's columns instead of the layout applied under the previous one.
+                control._columnPersistence?.Refresh();
+            }
 
             control.PrepareColumnsForFirstMeasure();
         }
