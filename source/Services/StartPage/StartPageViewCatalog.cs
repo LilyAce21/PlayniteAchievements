@@ -57,6 +57,8 @@ namespace PlayniteAchievements.Services.StartPage
         public const string ShowcaseIconMosaicViewId = "PlayniteAchievements_Showcase_IconMosaic";
         public const string ShowcaseScreenshotSlideshowViewId = "PlayniteAchievements_Showcase_ScreenshotSlideshow";
         public const string ShowcaseActivityCalendarViewId = "PlayniteAchievements_Showcase_ActivityCalendar";
+        public const string ShowcaseImageViewId = "PlayniteAchievements_Showcase_Image";
+        public const string ShowcaseTextViewId = "PlayniteAchievements_Showcase_Text";
 
         private const string MintedViewIdPrefix = "PlayniteAchievements_Showcase_";
 
@@ -83,7 +85,9 @@ namespace PlayniteAchievements.Services.StartPage
                 // surfaces on first load.
                 [ShowcaseWidgetKind.RecentAchievements] = (RecentUnlocksGridViewId, StartPageWidgetKind.RecentUnlocksGrid),
                 [ShowcaseWidgetKind.GameSummaries] = (GameSummariesGridViewId, StartPageWidgetKind.GameSummariesGrid),
-                [ShowcaseWidgetKind.ActivityCalendar] = (ShowcaseActivityCalendarViewId, StartPageWidgetKind.ShowcaseActivityCalendar)
+                [ShowcaseWidgetKind.ActivityCalendar] = (ShowcaseActivityCalendarViewId, StartPageWidgetKind.ShowcaseActivityCalendar),
+                [ShowcaseWidgetKind.Image] = (ShowcaseImageViewId, StartPageWidgetKind.ShowcaseImage),
+                [ShowcaseWidgetKind.Text] = (ShowcaseTextViewId, StartPageWidgetKind.ShowcaseText)
             };
 
         /// <summary>
