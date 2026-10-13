@@ -41,6 +41,7 @@ namespace PlayniteAchievements.Providers
             {
                 "RetroAchievements",
                 "ShadPS4",
+                "Vita3K",
                 "Xenia",
                 "RPCS3"
             };
