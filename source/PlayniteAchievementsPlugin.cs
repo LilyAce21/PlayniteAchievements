@@ -169,6 +169,8 @@ namespace PlayniteAchievements
         private bool _tagSyncDrainRunning;
         private TagSyncService _tagSyncService;
         private FilterExclusionRuleService _filterExclusionRules;
+
+        internal FilterExclusionRuleService FilterExclusionRules => _filterExclusionRules;
         private AutoCapstoneMaintainer _autoCapstoneMaintainer;
         private AutoCapstoneGenerator _autoCapstoneGenerator;
         private AutoCapstoneAuthoring _autoCapstoneAuthoring;
