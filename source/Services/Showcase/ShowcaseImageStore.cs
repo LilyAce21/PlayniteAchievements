@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using Playnite.SDK;
+using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Images;
 
@@ -137,11 +138,15 @@ namespace PlayniteAchievements.Services.Showcase
                     profile.AvatarPath = avatar;
                     changed = true;
                 }
+            }
 
-                var background = Rehome(profile.BackgroundPath);
-                if (background != profile.BackgroundPath)
+            foreach (var widget in EnumerateWidgets(settings))
+            {
+                var path = ShowcaseWidgetImages.GetFilePath(widget);
+                var rehomed = Rehome(path);
+                if (rehomed != path)
                 {
-                    profile.BackgroundPath = background;
+                    ShowcaseWidgetImages.SetFilePath(widget, rehomed);
                     changed = true;
                 }
             }
@@ -178,7 +183,10 @@ namespace PlayniteAchievements.Services.Showcase
             }
         }
 
-        /// <summary>Every image path the layout's profile widgets hold, blanks removed.</summary>
+        /// <summary>
+        /// Every image path the layout's widgets hold, blanks removed: profile avatars, and each
+        /// widget's page image (a profile background or an Image widget's picture).
+        /// </summary>
         public static IEnumerable<string> ReferencedPaths(ShowcaseSettings settings)
         {
             foreach (var profile in EnumerateProfiles(settings))
@@ -187,20 +195,29 @@ namespace PlayniteAchievements.Services.Showcase
                 {
                     yield return profile.AvatarPath;
                 }
+            }
 
-                if (!string.IsNullOrWhiteSpace(profile.BackgroundPath))
+            foreach (var widget in EnumerateWidgets(settings))
+            {
+                var path = ShowcaseWidgetImages.GetFilePath(widget);
+                if (!string.IsNullOrWhiteSpace(path))
                 {
-                    yield return profile.BackgroundPath;
+                    yield return path;
                 }
             }
         }
 
+        private static IEnumerable<ShowcaseWidgetInstanceSettings> EnumerateWidgets(ShowcaseSettings settings)
+        {
+            return (settings?.WidgetInstances ?? Enumerable.Empty<ShowcaseWidgetInstanceSettings>())
+                .Concat(settings?.StartPageInstances?.Values ?? Enumerable.Empty<ShowcaseWidgetInstanceSettings>())
+                .Where(widget => widget != null);
+        }
+
         private static IEnumerable<ShowcaseProfileSettings> EnumerateProfiles(ShowcaseSettings settings)
         {
-            var widgets = (settings?.WidgetInstances ?? Enumerable.Empty<ShowcaseWidgetInstanceSettings>())
-                .Concat(settings?.StartPageInstances?.Values ?? Enumerable.Empty<ShowcaseWidgetInstanceSettings>());
-            return widgets
-                .Where(widget => widget?.Kind == ShowcaseWidgetKind.Profile && widget.Profile != null)
+            return EnumerateWidgets(settings)
+                .Where(widget => widget.Kind == ShowcaseWidgetKind.Profile && widget.Profile != null)
                 .Select(widget => widget.Profile);
         }
 
