@@ -694,7 +694,6 @@
                 <Image Stretch="Uniform"
                        Margin="2"
                        RenderOptions.BitmapScalingMode="HighQuality"
-                       SnapsToDevicePixels="True"
                        IsHitTestVisible="False"
                        helpers:AsyncImage.Uri="{Binding DisplayIcon}"
                        helpers:AsyncImage.DecodePixel="128">
@@ -750,7 +749,6 @@
                 <Image Stretch="Uniform"
                        Margin="2"
                        RenderOptions.BitmapScalingMode="HighQuality"
-                       SnapsToDevicePixels="True"
                        IsHitTestVisible="False"
                        helpers:AsyncImage.Uri="{Binding DisplayIcon}"
                        helpers:AsyncImage.DecodePixel="128">
@@ -798,7 +796,6 @@
             <Image Stretch="Uniform"
                    Margin="2"
                    RenderOptions.BitmapScalingMode="HighQuality"
-                   SnapsToDevicePixels="True"
                    helpers:AsyncImage.Uri="{Binding DisplayIcon}"
                    helpers:AsyncImage.DecodePixel="128">
                 <Image.Style>
