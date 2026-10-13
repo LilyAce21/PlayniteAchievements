@@ -38,7 +38,8 @@ namespace PlayniteAchievements.Providers.Minecraft
 
     /// <summary>
     /// Merges advancement definitions and translations from game jars, mods and datapacks, in
-    /// ascending priority, into the displayed advancements a player can see.
+    /// ascending priority, into the displayed advancements a player can see: those with a display
+    /// whose tree root also has one.
     /// </summary>
     internal static class MinecraftAdvancementCatalog
     {
@@ -97,6 +98,13 @@ namespace PlayniteAchievements.Providers.Minecraft
             foreach (var advancement in result.Values)
             {
                 advancement.RootId = FindRoot(advancement, raw);
+            }
+
+            // The game opens a tab only for a root with a display, so a tree under a display-less
+            // root (a mod's internal tracking advancements) never appears in-game.
+            foreach (var hiddenTree in result.Values.Where(advancement => !result.ContainsKey(advancement.RootId)).ToList())
+            {
+                result.Remove(hiddenTree.Id);
             }
 
             return result;
