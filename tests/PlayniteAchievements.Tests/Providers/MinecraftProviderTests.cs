@@ -297,6 +297,33 @@ namespace PlayniteAchievements.Providers.Tests
         }
 
         [TestMethod]
+        public void ExpandGameFolders_ExpandsLauncherDataAndInstanceFolders()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var prism = Path.Combine(root, "PrismLauncher");
+                Directory.CreateDirectory(Path.Combine(prism, "instances", "Pack A", "minecraft", "saves"));
+                Directory.CreateDirectory(Path.Combine(prism, "instances", "Pack B", ".minecraft", "saves"));
+                Directory.CreateDirectory(Path.Combine(prism, "instances", "Empty"));
+                var modrinth = Path.Combine(root, "ModrinthApp");
+                Directory.CreateDirectory(Path.Combine(modrinth, "profiles", "Pack C", "saves"));
+                var carbon = Path.Combine(root, "gdlauncher_carbon");
+                Directory.CreateDirectory(Path.Combine(carbon, "data", "instances", "Pack D", "instance", "saves"));
+
+                Assert.AreEqual(2, MinecraftPaths.ExpandGameFolders(prism).Count);
+                Assert.AreEqual(2, MinecraftPaths.ExpandGameFolders(Path.Combine(prism, "instances")).Count);
+                StringAssert.EndsWith(MinecraftPaths.ExpandGameFolders(modrinth).Single(), "Pack C");
+                StringAssert.EndsWith(MinecraftPaths.ExpandGameFolders(carbon).Single(), "instance");
+                StringAssert.EndsWith(MinecraftPaths.ExpandGameFolders(Path.Combine(prism, "instances", "Pack A")).Single(), "minecraft");
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [TestMethod]
         public void SelectPlayerFiles_UsesSoleFileOrMatchingUuid()
         {
             var root = CreateTempDirectory();
