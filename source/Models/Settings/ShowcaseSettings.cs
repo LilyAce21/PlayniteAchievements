@@ -217,13 +217,17 @@ namespace PlayniteAchievements.Models.Settings
         Bottom = 2
     }
 
-    /// <summary>The Text widget's size, mapped onto the theme's font size resources.</summary>
+    /// <summary>
+    /// The Text widget's size: one of the theme's font size resources, or Custom for the
+    /// widget's own size in pixels.
+    /// </summary>
     public enum ShowcaseTextSize
     {
         Small = 0,
         Normal = 1,
         Large = 2,
-        Huge = 3
+        Huge = 3,
+        Custom = 4
     }
 
     /// <summary>
