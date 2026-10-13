@@ -33,18 +33,6 @@ namespace PlayniteAchievements.Providers.RPCS3
         private const int TrophyStateEntrySize = TrophyStateEntryHeaderSize + (int)TrophyStateEntryContentsSize;
 
         /// <summary>
-        /// Parses trophy unlock data from TROPUSR.DAT binary file.
-        /// Updates the provided trophy list with unlock status and timestamps.
-        /// </summary>
-        /// <param name="tropusrPath">Path to TROPUSR.DAT file.</param>
-        /// <param name="trophies">List of trophies to update with unlock data.</param>
-        /// <param name="logger">Logger for error reporting.</param>
-        public static void ParseTrophyUnlockData(string tropusrPath, List<NpTrophy> trophies, ILogger logger)
-        {
-            TryParseTrophyUnlockData(tropusrPath, trophies, logger);
-        }
-
-        /// <summary>
         /// Parses the authoritative unlock-state table in TROPUSR.DAT. Returns
         /// false without changing <paramref name="trophies"/> when the file is
         /// malformed, incomplete, or internally inconsistent. Callers use that

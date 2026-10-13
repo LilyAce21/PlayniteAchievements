@@ -16,22 +16,6 @@ namespace PlayniteAchievements.Providers.Exophase
     /// </summary>
     internal static class ExophaseRarityEnrichment
     {
-        public static bool SupportsProvider(string providerKey)
-        {
-            switch ((providerKey ?? string.Empty).Trim().ToUpperInvariant())
-            {
-                case "XBOX":
-                case "XENIA":
-                case "EA":
-                case "RPCS3":
-                case "SHADPS4":
-                case "VITA3K":
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
         public static bool IsEnabledForProvider(string providerKey)
         {
             switch ((providerKey ?? string.Empty).Trim().ToUpperInvariant())

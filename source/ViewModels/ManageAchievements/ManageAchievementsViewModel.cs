@@ -2244,13 +2244,6 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             return FindProviderOverrideOption(normalized)?.ProviderKey ?? ProviderOverrideNoneKey;
         }
 
-        private bool ProviderOverrideUsesOptionalValue(string providerKey)
-        {
-            var descriptor = GetProviderOverrideDescriptor(NormalizeProviderOverrideSelection(providerKey));
-            return descriptor != null &&
-                   (descriptor.ValueKind == ProviderOverrideValueKind.None || descriptor.ValueOptional);
-        }
-
         private static string L(string key)
         {
             return ResourceProvider.GetString(key);

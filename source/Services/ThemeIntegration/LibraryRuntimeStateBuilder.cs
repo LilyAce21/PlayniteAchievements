@@ -798,43 +798,6 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 : current + value;
         }
 
-        private static void AccumulateGameRarityStats(
-            GameAchievementData data,
-            AchievementRarityStats common,
-            AchievementRarityStats uncommon,
-            AchievementRarityStats rare,
-            AchievementRarityStats ultraRare)
-        {
-            if (data?.Achievements == null)
-            {
-                return;
-            }
-
-            foreach (var achievement in data.Achievements)
-            {
-                if (!TryGetEffectiveRarityTier(achievement, out var tier))
-                {
-                    continue;
-                }
-
-                var target = GetStatsForTier(tier, common, uncommon, rare, ultraRare);
-                if (target == null)
-                {
-                    continue;
-                }
-
-                target.Total++;
-                if (achievement.Unlocked)
-                {
-                    target.Unlocked++;
-                }
-                else
-                {
-                    target.Locked++;
-                }
-            }
-        }
-
         private static void AddRarityStats(AchievementRarityStats target, AchievementRarityStats source)
         {
             if (target == null || source == null)
@@ -845,38 +808,6 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             target.Total += source.Total;
             target.Unlocked += source.Unlocked;
             target.Locked += source.Locked;
-        }
-
-        private static bool TryGetEffectiveRarityTier(AchievementDetail achievement, out RarityTier tier)
-        {
-            tier = RarityTier.Common;
-            if (achievement == null)
-            {
-                return false;
-            }
-
-            tier = achievement.Rarity;
-            return true;
-        }
-
-        private static AchievementRarityStats GetStatsForTier(
-            RarityTier tier,
-            AchievementRarityStats common,
-            AchievementRarityStats uncommon,
-            AchievementRarityStats rare,
-            AchievementRarityStats ultraRare)
-        {
-            switch (tier)
-            {
-                case RarityTier.UltraRare:
-                    return ultraRare;
-                case RarityTier.Rare:
-                    return rare;
-                case RarityTier.Uncommon:
-                    return uncommon;
-                default:
-                    return common;
-            }
         }
 
         private static DateTime NormalizeUtc(DateTime timestamp)
