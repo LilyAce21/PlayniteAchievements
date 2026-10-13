@@ -927,7 +927,7 @@
     <sys:String x:Key="LOCPlayAch_Settings_Hypixel_Unavailable">hypixel.net could not be reached to look up the player. Try again later.</sys:String>
 
     <!-- Provider: Minecraft -->
-    <sys:String x:Key="LOCPlayAch_Settings_MinecraftGameFoldersHint">Used for games named Minecraft that have no folder of their own. Leave empty for %AppData%\.minecraft. Prism, MultiMC, CurseForge and Modrinth instances are found from each game's launch action or install folder.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_MinecraftGameFoldersHint">Add a launcher folder such as %AppData%\PrismLauncher to read all of its instances, or a single instance or .minecraft folder. Empty reads %AppData%\.minecraft.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_MinecraftPlayerUuid">Player UUID</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_MinecraftPlayerUuid_Help">Optional. Leave empty to use the accounts signed in to your launchers.</sys:String>
 
