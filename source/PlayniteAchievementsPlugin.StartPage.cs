@@ -727,6 +727,10 @@ namespace PlayniteAchievements
             // display options and column layout.
             var catalog = Settings.Persisted.GridOptions;
             var surfaceKey = ShowcaseGridSurfaces.ResolveWidgetSurface(kind, settings.InstanceId);
+            _logger?.Info(
+                $"Start page widget {key}: no saved settings (stored {showcase.StartPageInstances.Count}, " +
+                $"kind match {(existing == null ? "n/a" : (existing.Kind == kind).ToString())}); " +
+                $"creating defaults, grid surface already present {catalog.GameSummaries?.ContainsKey(surfaceKey ?? string.Empty) == true}.");
             if (kind == ShowcaseWidgetKind.RecentAchievements)
             {
                 catalog.SeedAchievementFrom(surfaceKey, GridOptionKeys.Achievement.StartPageRecent);
