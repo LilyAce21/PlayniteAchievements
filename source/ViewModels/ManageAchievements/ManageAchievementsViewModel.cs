@@ -918,6 +918,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     currentCustomData?.UseSeparateLockedIconsOverride == true);
                 OnPropertyChanged(nameof(SeparateLockedIconsStatusText));
                 ReloadProviderOverrideState(currentCustomData);
+                ReloadPointsFamilyState(currentCustomData, gameData?.EffectiveProviderKey);
                 ReloadExophaseEnrichmentSlugState(currentCustomData, game, gameData?.ProviderGameKey);
 
                 HasManualTrackingLink = hasManualLink;
