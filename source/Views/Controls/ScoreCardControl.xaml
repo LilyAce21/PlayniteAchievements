@@ -24,12 +24,11 @@
                      trigger below can strip them for hosts that provide their own chrome. -->
                 <Setter Property="Background" Value="{Binding AccentBackgroundBrush}"/>
                 <Setter Property="BorderBrush" Value="{Binding AccentBrush}"/>
+                <Setter Property="Cursor" Value="Hand"/>
                 <Style.Triggers>
-                    <!-- Points cards have no rank, so no rank color: they take the neutral surface.
-                         Listed first so Compact and Flat below still win. -->
+                    <!-- A points card has no rank to explain, so it opens no score info dialog. -->
                     <DataTrigger Binding="{Binding IsPoints}" Value="True">
-                        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.GridSurface}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Border}"/>
+                        <Setter Property="Cursor" Value="Arrow"/>
                     </DataTrigger>
                     <DataTrigger Binding="{Binding IsFeatured, ElementName=Root}" Value="True">
                         <Setter Property="CornerRadius" Value="10"/>
@@ -188,9 +187,6 @@
                     <DataTrigger Binding="{Binding BadgePosition, ElementName=Root}" Value="{x:Static settings:ScoreCardBadgePosition.Right}">
                         <Setter Property="DockPanel.Dock" Value="Right"/>
                     </DataTrigger>
-                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
-                        <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
-                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
@@ -251,9 +247,6 @@
                         </MultiDataTrigger.Conditions>
                         <Setter Property="Margin" Value="-3,9,0,0"/>
                     </MultiDataTrigger>
-                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
@@ -288,11 +281,6 @@
                 <Setter Property="Width" Value="300"/>
                 <Setter Property="MaxWidth" Value="300"/>
                 <Setter Property="SnapsToDevicePixels" Value="True"/>
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
-                        <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Border}"/>
-                    </DataTrigger>
-                </Style.Triggers>
             </Style>
 
             <Style x:Key="ScoreCardTooltipTitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource PlayAch.TextBlock.BaseStyle}">
@@ -333,9 +321,6 @@
                     <DataTrigger Binding="{Binding Tag.Compact, RelativeSource={RelativeSource AncestorType=ToolTip}}" Value="True">
                         <Setter Property="Text" Value="{Binding CompactTooltipTitleText}"/>
                     </DataTrigger>
-                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
-                        <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
-                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
@@ -369,6 +354,15 @@
                 </Style.Triggers>
             </Style>
 
+            <!-- The click hint: a points card opens nothing. -->
+            <Style x:Key="ScoreCardTooltipHintStyle" TargetType="StackPanel">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
             <!-- Level, rank and next-level rows: a points card has none of them. -->
             <Style x:Key="ScoreCardTooltipRankRowsStyle" TargetType="StackPanel">
                 <Style.Triggers>
@@ -391,7 +385,6 @@
         <Border x:Name="PanelBorder"
                 Style="{StaticResource ScoreCardPanelStyle}"
                 Tag="{Binding ElementName=Root}"
-                Cursor="Hand"
                 MouseLeftButtonDown="Panel_MouseLeftButtonDown"
                 MouseLeftButtonUp="Panel_MouseLeftButtonUp"
                 LostMouseCapture="Panel_LostMouseCapture">
@@ -479,10 +472,12 @@
                                 </Grid>
                             </StackPanel>
 
-                            <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
-                            <TextBlock Text="{DynamicResource LOCPlayAch_Score_Info_CardHint}"
-                                       Style="{StaticResource ScoreCardTooltipLabelTextStyle}"
-                                       Margin="0,5,0,0"/>
+                            <StackPanel Style="{StaticResource ScoreCardTooltipHintStyle}">
+                                <Border Style="{StaticResource ScoreCardTooltipSeparatorStyle}"/>
+                                <TextBlock Text="{DynamicResource LOCPlayAch_Score_Info_CardHint}"
+                                           Style="{StaticResource ScoreCardTooltipLabelTextStyle}"
+                                           Margin="0,5,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </ToolTip>

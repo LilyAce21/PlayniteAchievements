@@ -77,9 +77,15 @@ namespace PlayniteAchievements.Views.Controls
                 ?? card.UseUniformRarityBadges);
         }
 
-        // Every card opens the score-info dialog, on release over the card it was pressed on.
+        // Collection and Prestige cards open the score-info dialog, on release over the card they
+        // were pressed on. A points card has no rank to explain, so it is not clickable.
         private void Panel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (ScoreCard?.IsPoints == true)
+            {
+                return;
+            }
+
             _pressed = PanelBorder.CaptureMouse();
             e.Handled = _pressed;
         }

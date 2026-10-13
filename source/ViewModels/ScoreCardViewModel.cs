@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Media;
 using Playnite.SDK;
 using PlayniteAchievements.Common;
@@ -323,7 +324,8 @@ namespace PlayniteAchievements.ViewModels
         /// </summary>
         private void UpdateSegments()
         {
-            var count = Math.Max(1, Math.Min(MaxSegments, _snapshot?.LevelsInRank ?? 1));
+            // A points card has no levels, so its bar is one cell filled to earned out of total.
+            var count = IsPoints ? 1 : Math.Max(1, Math.Min(MaxSegments, _snapshot?.LevelsInRank ?? 1));
 
             while (Segments.Count > count)
             {
@@ -336,11 +338,13 @@ namespace PlayniteAchievements.ViewModels
             }
 
             var track = AccentTrackBrush;
-            var completed = Math.Max(0, Math.Min(count, _snapshot?.LevelsCompletedInRank ?? 0));
-            var partial = _snapshot?.IsMaxLevel == true ? 1d : _levelProgress / 100d;
+            var completed = IsPoints ? 0 : Math.Max(0, Math.Min(count, _snapshot?.LevelsCompletedInRank ?? 0));
+            var partial = IsPoints
+                ? PointsFraction
+                : _snapshot?.IsMaxLevel == true ? 1d : _levelProgress / 100d;
 
             // Master ranks sweep the completed gradient across the bar, one solid step per cell.
-            var isMaster = AchievementRankPresentation.IsMasterRank(Rank);
+            var isMaster = !IsPoints && AchievementRankPresentation.IsMasterRank(Rank);
             var sweepStart = isMaster ? RarityAppearanceHelper.GetCompletedStartColor() : default(Color);
             var sweepEnd = isMaster ? RarityAppearanceHelper.GetCompletedEndColor() : default(Color);
 
@@ -567,13 +571,35 @@ namespace PlayniteAchievements.ViewModels
 
         private void ResolveAccentBrushes()
         {
-            var accent = GetAccentColor(Rank);
+            var accent = IsPoints ? GetPointsAccentColor(PointsFraction >= 1d) : GetAccentColor(Rank);
             _accentBrush = CreateFrozenBrush(accent);
             _accentBackgroundBrush = CreateFrozenBrush(WithAlpha(accent, BackgroundAlpha));
             _accentTrackBrush = CreateFrozenBrush(WithAlpha(accent, TrackAlpha));
             _accentGlossBrush = CreateGlossBrush(accent);
-            _nextTierAccentBrush = CreateFrozenBrush(GetAccentColor(
-                string.IsNullOrWhiteSpace(_snapshot?.NextRank) ? Rank : _snapshot.NextRank));
+            _nextTierAccentBrush = IsPoints
+                ? _accentBrush
+                : CreateFrozenBrush(GetAccentColor(
+                    string.IsNullOrWhiteSpace(_snapshot?.NextRank) ? Rank : _snapshot.NextRank));
+        }
+
+        /// <summary>Points earned out of total, 0 to 1; 0 when the card's games hold no points.</summary>
+        private double PointsFraction => _total > 0 ? Math.Min(1d, (double)_score / _total) : 0d;
+
+        /// <summary>
+        /// A points card's color, from the same tokens as the plugin's game progress bars: the
+        /// progress fill (the theme accent) while points remain, and the completed-game color once
+        /// every point is earned.
+        /// </summary>
+        private static Color GetPointsAccentColor(bool complete)
+        {
+            if (complete)
+            {
+                return RarityAppearanceHelper.GetCompletedColor();
+            }
+
+            return Application.Current?.TryFindResource("PlayAch.Brush.Progress.Fill") is SolidColorBrush fill
+                ? fill.Color
+                : RarityAppearanceHelper.GetBaseColor(RarityTier.Common);
         }
 
         /// <summary>

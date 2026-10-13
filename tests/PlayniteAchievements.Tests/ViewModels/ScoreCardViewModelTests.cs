@@ -62,6 +62,7 @@ namespace PlayniteAchievements.Tests.ViewModels
             Assert.AreEqual(10000, card.Score);
             Assert.AreEqual(40000, card.Total);
             Assert.AreEqual("10,000/40,000", card.TierText);
+            Assert.AreEqual(1, card.Segments.Count, "a points card has one bar cell, filled to earned out of total");
             Assert.AreEqual("Gamerscore", card.TooltipTitleText);
             Assert.AreEqual(0, card.Level);
             Assert.IsFalse(card.HasMastery);
@@ -73,6 +74,7 @@ namespace PlayniteAchievements.Tests.ViewModels
             card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
             Assert.IsFalse(card.IsPoints);
             Assert.AreEqual(0, card.Total);
+            Assert.IsTrue(card.Segments.Count > 1, "Collection is back on its levels");
             Assert.AreEqual(AchievementLevelCalculator.CalculateModern(10000).Rank, card.Rank);
         }
 
