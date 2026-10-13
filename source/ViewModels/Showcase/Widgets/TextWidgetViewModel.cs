@@ -17,6 +17,7 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
         private VerticalAlignment _verticalAlignment = VerticalAlignment.Center;
         private TextAlignment _textAlignment = TextAlignment.Center;
         private ShowcaseTextSize _textSize = ShowcaseTextSize.Normal;
+        private double _pixelSize = 24;
         private FontFamily _fontFamily;
         private bool _hasFontFamily;
 
@@ -46,6 +47,9 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
         /// <summary>Read by the template, which maps each size onto a theme font size resource.</summary>
         public ShowcaseTextSize TextSize { get => _textSize; private set => SetValue(ref _textSize, value); }
 
+        /// <summary>The size in pixels the template applies while <see cref="TextSize"/> is Custom.</summary>
+        public double PixelSize { get => _pixelSize; private set => SetValue(ref _pixelSize, value); }
+
         /// <summary>The chosen font; only applied while <see cref="HasFontFamily"/>, so the theme font is inherited otherwise.</summary>
         public FontFamily FontFamily { get => _fontFamily; private set => SetValue(ref _fontFamily, value); }
 
@@ -67,6 +71,7 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
                     ? TextAlignment.Right
                     : TextAlignment.Center;
             TextSize = ShowcaseWidgetOptions.GetTextSize(instance);
+            PixelSize = ShowcaseWidgetOptions.GetTextPixelSize(instance);
 
             var family = ShowcaseWidgetOptions.GetFontFamily(instance);
             if (family != null && !string.Equals(family, FontFamily?.Source, System.StringComparison.Ordinal))
