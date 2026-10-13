@@ -358,7 +358,7 @@ namespace PlayniteAchievements.Services.Tagging
                         // Also reconcile completion status in the same pass. Keyed off the
                         // game's own completion, not the Completed tag, so disabling that
                         // tag does not disable completion status syncing.
-                        if (ApplyCompletionStatus(game, evaluation.IsCompleted, targetCompletionStatusId))
+                        if (ApplyCompletionStatus(game, evaluation.Completion, targetCompletionStatusId))
                         {
                             _api.Database.Games.Update(game);
                         }
@@ -415,7 +415,7 @@ namespace PlayniteAchievements.Services.Tagging
 
                             // Also reconcile completion status. Keyed off the game's own
                             // completion, not the Completed tag.
-                            if (ApplyCompletionStatus(game, evaluation.IsCompleted, targetStatusId))
+                            if (ApplyCompletionStatus(game, evaluation.Completion, targetStatusId))
                             {
                                 _api.Database.Games.Update(game);
                             }
@@ -791,6 +791,15 @@ namespace PlayniteAchievements.Services.Tagging
         {
             public List<TagType> TagTypes;
             public bool IsCompleted;
+
+            /// <summary>
+            /// True when the evaluation stopped before looking at completion, as it does for an
+            /// excluded game, so <see cref="IsCompleted"/> says nothing about the game.
+            /// </summary>
+            public bool CompletionUnknown;
+
+            /// <summary>Completion for the status rule: null when unknown.</summary>
+            public bool? Completion => CompletionUnknown ? (bool?)null : IsCompleted;
         }
 
         /// <summary>
@@ -864,6 +873,7 @@ namespace PlayniteAchievements.Services.Tagging
             if (GameCustomDataLookup.IsExcludedFromRefreshes(gameId, Settings))
             {
                 types.Add(TagType.Excluded);
+                result.CompletionUnknown = true;
                 return result;
             }
 
@@ -893,6 +903,7 @@ namespace PlayniteAchievements.Services.Tagging
             if (data.ExcludedByUser)
             {
                 types.Add(TagType.Excluded);
+                result.CompletionUnknown = true;
                 return result;
             }
 
@@ -1112,7 +1123,7 @@ namespace PlayniteAchievements.Services.Tagging
 
                         try
                         {
-                            if (ApplyCompletionStatus(game, IsGameCompleted(game), targetStatusId))
+                            if (ApplyCompletionStatus(game, EvaluateGame(game).Completion, targetStatusId))
                             {
                                 _api.Database.Games.Update(game);
                                 updatedCount++;
@@ -1188,17 +1199,19 @@ namespace PlayniteAchievements.Services.Tagging
         /// user chose is never overwritten. Returns whether the game's status changed, in which
         /// case the caller must write the game.
         /// </summary>
-        private bool ApplyCompletionStatus(Game game, bool isCompleted, Guid? targetStatusId)
+        /// <param name="isCompleted">Null when the game's completion is unknown, which leaves its
+        /// status alone while the feature is on.</param>
+        private bool ApplyCompletionStatus(Game game, bool? isCompleted, Guid? targetStatusId)
         {
             var store = Store;
-            if (game == null || store == null)
+            if (game == null || store == null || (targetStatusId.HasValue && !isCompleted.HasValue))
             {
                 return false;
             }
 
             const string field = RuleFields.CompletionStatus;
             var current = ToStatusText(game.CompletionStatusId);
-            var desired = isCompleted && targetStatusId.HasValue ? ToStatusText(targetStatusId.Value) : null;
+            var desired = isCompleted == true && targetStatusId.HasValue ? ToStatusText(targetStatusId.Value) : null;
             var stored = store.TryLoad(game.Id, out var data) ? data : null;
             var decision = RuleReconciler.Decide(
                 field,
