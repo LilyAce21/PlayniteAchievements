@@ -138,6 +138,65 @@ namespace PlayniteAchievements.Providers.Minecraft
                 .ToList();
         }
 
+        /// <summary>
+        /// The instance folder for a game folder: its parent when the game folder is an instance's
+        /// .minecraft/minecraft/instance child, otherwise the game folder itself.
+        /// </summary>
+        private static string GetInstanceFolder(string gameFolder)
+        {
+            var trimmed = (gameFolder ?? string.Empty).TrimEnd('\\', '/');
+            var leaf = Path.GetFileName(trimmed);
+            var isChild = GameFolderChildren.Contains(leaf, StringComparer.OrdinalIgnoreCase) &&
+                          !string.Equals(trimmed, DefaultGameFolder.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+            return isChild ? Path.GetDirectoryName(trimmed) ?? trimmed : trimmed;
+        }
+
+        /// <summary>The instance folder's name, which keys the instance's rows.</summary>
+        public static string GetInstanceKey(string gameFolder)
+        {
+            var name = Path.GetFileName(GetInstanceFolder(gameFolder));
+            return string.IsNullOrWhiteSpace(name) ? ".minecraft" : name;
+        }
+
+        /// <summary>
+        /// The name the launcher shows for an instance: Prism/MultiMC instance.cfg, CurseForge
+        /// minecraftinstance.json, Modrinth profile.json, or ATLauncher/FTB App/GDLauncher
+        /// instance.json. Null when none names it.
+        /// </summary>
+        public static string ReadInstanceName(string gameFolder)
+        {
+            var folder = GetInstanceFolder(gameFolder);
+            try
+            {
+                var cfg = Path.Combine(folder, "instance.cfg");
+                if (File.Exists(cfg))
+                {
+                    var line = File.ReadLines(cfg).FirstOrDefault(text => text.StartsWith("name=", StringComparison.OrdinalIgnoreCase));
+                    var fromCfg = line?.Substring("name=".Length).Trim();
+                    if (!string.IsNullOrEmpty(fromCfg))
+                    {
+                        return fromCfg;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+            }
+
+            var candidates = new[]
+            {
+                ReadJson(Path.Combine(folder, "minecraftinstance.json"))?["name"],
+                ReadJson(Path.Combine(folder, "profile.json"))?["name"],
+                ReadJson(Path.Combine(folder, "profile.json"))?["metadata"]?["name"],
+                ReadJson(Path.Combine(folder, "instance.json"))?["launcher"]?["name"],
+                ReadJson(Path.Combine(folder, "instance.json"))?["name"]
+            };
+            return candidates
+                .OfType<JValue>()
+                .Select(value => value.ToString().Trim())
+                .FirstOrDefault(value => value.Length > 0);
+        }
+
         public static bool IsWorldFolder(string folder)
         {
             return !string.IsNullOrWhiteSpace(folder) && File.Exists(Path.Combine(folder, "level.dat"));
