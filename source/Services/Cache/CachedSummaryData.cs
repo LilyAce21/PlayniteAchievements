@@ -66,9 +66,6 @@ namespace PlayniteAchievements.Services.Cache
         /// <summary>Points of every achievement, unlocked or not: the most <see cref="PlatformScorePoints"/> can reach.</summary>
         public int PlatformScorePointsTotal { get; set; }
 
-        /// <summary>The game's points family override from its custom data, or null to follow its provider.</summary>
-        public string PointsFamilyOverride { get; set; }
-
         public int CommonCount { get; set; }
 
         public int UncommonCount { get; set; }

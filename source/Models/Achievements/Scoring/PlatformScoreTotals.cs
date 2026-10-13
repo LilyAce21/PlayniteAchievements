@@ -5,7 +5,7 @@ using System.Linq;
 namespace PlayniteAchievements.Models.Achievements.Scoring
 {
     /// <summary>
-    /// Running points sums per points family (see <see cref="PointsFamilies.Resolve"/>): the
+    /// Running points sums per points family (see <see cref="PointsFamilies.FromProviderKey"/>): the
     /// unlocked points earned, and the points of every achievement, unlocked or not.
     /// </summary>
     public sealed class PlatformScoreTotals
@@ -38,12 +38,9 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
                 .ThenBy(family => family, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-        /// <summary>
-        /// Adds a game's points to the family it counts toward: <paramref name="overrideFamily"/>
-        /// when the user set one, otherwise its effective provider key's family.
-        /// </summary>
-        public void Add(string effectiveProviderKey, string overrideFamily, int earnedPoints, int possiblePoints) =>
-            AddToFamily(PointsFamilies.Resolve(effectiveProviderKey, overrideFamily), earnedPoints, possiblePoints);
+        /// <summary>Adds a game's points to the family of its effective provider key.</summary>
+        public void Add(string effectiveProviderKey, int earnedPoints, int possiblePoints) =>
+            AddToFamily(PointsFamilies.FromProviderKey(effectiveProviderKey), earnedPoints, possiblePoints);
 
         /// <summary>Adds points to an already resolved family; a null family counts nowhere.</summary>
         public void AddToFamily(string family, int earnedPoints, int possiblePoints)

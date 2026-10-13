@@ -93,8 +93,6 @@ namespace PlayniteAchievements.Models.Settings
 
         public string CustomProviderId { get; set; }
 
-        public string PointsFamily { get; set; }
-
         /// <summary>
         /// Snapshot of the assigned custom provider (name, color, icon path data) so a package
         /// imported on another machine can recreate it. A local definition with the same id wins
@@ -160,7 +158,6 @@ namespace PlayniteAchievements.Models.Settings
                 NotificationAppearanceOverride = NotificationAppearanceOverride?.Clone(),
                 ProviderOverride = ProviderOverride?.Clone(),
                 ExophaseEnrichmentSlugOverride = ExophaseEnrichmentSlugOverride,
-                PointsFamily = PointsFamily,
                 ManualLink = ManualLink?.Clone(),
                 CustomAchievements = CustomAchievements != null
                     ? CustomAchievements.ConvertAll(item => item?.Clone()).FindAll(item => item != null)

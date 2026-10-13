@@ -19,17 +19,17 @@ namespace PlayniteAchievements.Tests.Models
         public void Add_SumsByPointsFamily()
         {
             var totals = new PlatformScoreTotals();
-            totals.Add("Xbox", null, 1000, 1500);
-            totals.Add("xenia", null, 250, 250);
-            totals.Add("Epic", null, 1250, 2000);
-            totals.Add("RetroAchievements", null, 400, 800);
-            totals.Add("PSN", null, 90, 300);
-            totals.Add("RPCS3", null, 30, 30);
-            totals.Add("ShadPS4", null, 15, 15);
-            totals.Add("Steam", null, 70, 100);
-            totals.Add(null, null, 9999, 9999);
-            totals.Add("Custom", null, 9999, 9999);
-            totals.Add("Xbox", null, -5, -5);
+            totals.Add("Xbox", 1000, 1500);
+            totals.Add("xenia", 250, 250);
+            totals.Add("Epic", 1250, 2000);
+            totals.Add("RetroAchievements", 400, 800);
+            totals.Add("PSN", 90, 300);
+            totals.Add("RPCS3", 30, 30);
+            totals.Add("ShadPS4", 15, 15);
+            totals.Add("Steam", 70, 100);
+            totals.Add(null, 9999, 9999);
+            totals.Add("Custom", 9999, 9999);
+            totals.Add("Xbox", -5, -5);
 
             Assert.AreEqual(1250, totals.Gamerscore);
             Assert.AreEqual(1250, totals.EpicXp);
@@ -48,33 +48,30 @@ namespace PlayniteAchievements.Tests.Models
         }
 
         [TestMethod]
-        public void Add_OverrideRedirectsOrDropsTheGamesPoints()
+        public void Add_CustomProvidersAndOtherPlatformsGetTheirOwnFamily()
         {
             var totals = new PlatformScoreTotals();
-            totals.Add("Custom", "Xbox", 100, 200);
-            totals.Add("Custom:abc", null, 40, 40);
-            totals.Add("Switch", "PSN", 20, 60);
-            totals.Add("Xbox", PointsFamilies.NoneOverride, 500, 500);
+            totals.Add("Custom:abc", 40, 40);
+            totals.Add("Switch", 20, 60);
 
-            Assert.AreEqual(100, totals.Gamerscore);
             Assert.AreEqual(40, totals.Get("Custom:abc"));
-            Assert.AreEqual(20, totals.Get(PointsFamilies.PlayStation));
-            Assert.AreEqual(0, totals.Get("Switch"));
-            Assert.AreEqual(200, totals.GamerscoreTotal);
-            Assert.AreEqual(60, totals.GetPossible(PointsFamilies.PlayStation));
+            Assert.AreEqual(20, totals.Get("Switch"));
+            Assert.AreEqual(60, totals.GetPossible("Switch"));
+            Assert.AreEqual(0, totals.Gamerscore);
+            Assert.AreEqual(0, totals.Get(PointsFamilies.PlayStation));
         }
 
         [TestMethod]
         public void Families_ListsFamiliesWithPointsToEarnMostEarnedFirst()
         {
             var totals = new PlatformScoreTotals();
-            totals.Add("Steam", null, 10, 100);
-            totals.Add("Xenia", null, 50, 50);
-            totals.Add("PSN", null, 30, 90);
+            totals.Add("Steam", 10, 100);
+            totals.Add("Xenia", 50, 50);
+            totals.Add("PSN", 30, 90);
             // Nothing earned yet, but points to earn: still a family.
-            totals.Add("GOG", null, 0, 400);
+            totals.Add("GOG", 0, 400);
             // No points at all: not a family.
-            totals.Add("Ubisoft", null, 0, 0);
+            totals.Add("Ubisoft", 0, 0);
 
             CollectionAssert.AreEqual(
                 new[] { "Xbox", "PSN", "Steam", "GOG" },

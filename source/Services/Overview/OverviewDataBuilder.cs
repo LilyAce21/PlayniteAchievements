@@ -171,7 +171,7 @@ namespace PlayniteAchievements.Services.Overview
                 }
 
                 var providerKey = ResolveEffectiveProviderKey(game.ProviderKey, game.ProviderPlatformKey);
-                var pointsFamily = PointsFamilies.Resolve(providerKey, game.PointsFamilyOverride);
+                var pointsFamily = PointsFamilies.FromProviderKey(providerKey);
 
                 // Memoized with the visuals below rather than resolved per game: there are a
                 // few dozen provider keys and a library's worth of games, and the name is a

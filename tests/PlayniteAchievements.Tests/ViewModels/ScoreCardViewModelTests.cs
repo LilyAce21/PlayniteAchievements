@@ -46,8 +46,8 @@ namespace PlayniteAchievements.Tests.ViewModels
                 CollectorScore = 10000
             };
             var totals = new PlatformScoreTotals();
-            totals.Add("Xbox", null, 10000, 40000);
-            totals.Add("RetroAchievements", null, 400, 1200);
+            totals.Add("Xbox", 10000, 40000);
+            totals.Add("RetroAchievements", 400, 1200);
             snapshot.ApplyPlatformScores(totals);
 
             card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
