@@ -9,6 +9,7 @@ using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Settings;
 using PlayniteAchievements.Services.Showcase;
+using PlayniteAchievements.Services.UI;
 using PlayniteAchievements.Views.Settings.Controls;
 using static PlayniteAchievements.Views.Showcase.ShowcaseUiText;
 
@@ -63,6 +64,8 @@ namespace PlayniteAchievements.Views.Showcase
                 case ShowcaseWidgetKind.RecentAchievements:
                 case ShowcaseWidgetKind.GameSummaries:
                 case ShowcaseWidgetKind.ActivityCalendar:
+                case ShowcaseWidgetKind.Image:
+                case ShowcaseWidgetKind.Text:
                     return true;
                 default:
                     return false;
@@ -518,6 +521,45 @@ namespace PlayniteAchievements.Views.Showcase
                         ShowcaseWidgetOptions.GetInfoPanelPosition(_settings),
                         value => ShowcaseWidgetOptions.SetInfoPanelPosition(_settings, value),
                         InfoPanelPositionName);
+                    break;
+                case ShowcaseWidgetKind.Image:
+                    ShowcaseProfileSettingsEditor.AddImagePicker(
+                        panel,
+                        Localize("LOCPlayAch_Showcase_Widget_Image"),
+                        () => ShowcaseWidgetOptions.GetImagePath(_settings),
+                        value => ShowcaseWidgetOptions.SetImagePath(_settings, value),
+                        Committed);
+                    AddChoice(
+                        panel,
+                        Localize("LOCPlayAch_Showcase_FitMode"),
+                        new[] { ShowcaseImageFitMode.Fit, ShowcaseImageFitMode.Fill },
+                        ShowcaseWidgetOptions.GetImageFitMode(_settings),
+                        value => ShowcaseWidgetOptions.SetImageFitMode(_settings, value),
+                        FitModeName);
+                    AddAlignmentChoices(panel);
+                    break;
+                case ShowcaseWidgetKind.Text:
+                    AddMultilineText(
+                        panel,
+                        Localize("LOCPlayAch_Settings_Appearance_Resource_Text"),
+                        Localize("LOCPlayAch_Showcase_TextMarkdownHint"),
+                        () => ShowcaseWidgetOptions.GetText(_settings),
+                        value => ShowcaseWidgetOptions.SetText(_settings, value));
+                    AddChoice(
+                        panel,
+                        Localize("LOCPlayAch_Showcase_TextSize"),
+                        new[]
+                        {
+                            ShowcaseTextSize.Small,
+                            ShowcaseTextSize.Normal,
+                            ShowcaseTextSize.Large,
+                            ShowcaseTextSize.Huge
+                        },
+                        ShowcaseWidgetOptions.GetTextSize(_settings),
+                        value => ShowcaseWidgetOptions.SetTextSize(_settings, value),
+                        TextSizeName);
+                    AddFontFamilyChoice(panel);
+                    AddAlignmentChoices(panel);
                     break;
                 case ShowcaseWidgetKind.GameSummaries:
                     // The collapsed Game Summaries Grid: library scope filters only apply to
@@ -1261,6 +1303,183 @@ namespace PlayniteAchievements.Views.Showcase
                 default:
                     return Localize("LOCPlayAch_Settings_OverviewPieSmallSliceMode_Round");
             }
+        }
+
+        // Persists and publishes one committed edit, as every row does.
+        private void Committed()
+        {
+            _persist?.Invoke();
+            if (_publishChanges)
+            {
+                ShowcaseConfigurationEvents.RaiseChanged();
+            }
+        }
+
+        // The Image and Text widgets place their content with the same pair of rows.
+        private void AddAlignmentChoices(Panel panel)
+        {
+            AddChoice(
+                panel,
+                Localize("LOCPlayAch_Showcase_HorizontalAlignment"),
+                new[]
+                {
+                    ShowcaseHorizontalAlignment.Left,
+                    ShowcaseHorizontalAlignment.Center,
+                    ShowcaseHorizontalAlignment.Right
+                },
+                ShowcaseWidgetOptions.GetHorizontalAlignment(_settings),
+                value => ShowcaseWidgetOptions.SetHorizontalAlignment(_settings, value),
+                HorizontalAlignmentName);
+            AddChoice(
+                panel,
+                Localize("LOCPlayAch_Showcase_VerticalAlignment"),
+                new[]
+                {
+                    ShowcaseVerticalAlignment.Top,
+                    ShowcaseVerticalAlignment.Center,
+                    ShowcaseVerticalAlignment.Bottom
+                },
+                ShowcaseWidgetOptions.GetVerticalAlignment(_settings),
+                value => ShowcaseWidgetOptions.SetVerticalAlignment(_settings, value),
+                VerticalAlignmentName);
+        }
+
+        /// <summary>
+        /// A label over a multi-line box with a hint under it. Enter adds a line; the text
+        /// commits on focus loss or Ctrl+Enter.
+        /// </summary>
+        private void AddMultilineText(Panel panel, string label, string hint, Func<string> read, Action<string> apply)
+        {
+            var row = new StackPanel();
+            row.SetResourceReference(MarginProperty, "PlayAch.Thickness.Bottom.Md");
+            var labelBlock = new TextBlock
+            {
+                Text = label,
+                Margin = new Thickness(0, 0, 0, 4),
+                FontWeight = FontWeights.SemiBold
+            };
+            labelBlock.SetResourceReference(TextBlock.ForegroundProperty, "PlayAch.Brush.Text");
+            row.Children.Add(labelBlock);
+
+            var box = new TextBox
+            {
+                Text = read() ?? string.Empty,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                MinHeight = 96,
+                MaxHeight = 220,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Padding = new Thickness(7, 4, 7, 4)
+            };
+            void Commit()
+            {
+                var value = string.IsNullOrWhiteSpace(box.Text) ? null : box.Text;
+                if (string.Equals(value, read(), StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                apply(value);
+                Committed();
+            }
+
+            box.LostFocus += (_, __) => Commit();
+            box.KeyDown += (_, args) =>
+            {
+                if (args.Key == System.Windows.Input.Key.Enter &&
+                    (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) != 0)
+                {
+                    Commit();
+                    args.Handled = true;
+                }
+            };
+            row.Children.Add(box);
+
+            var hintBlock = new TextBlock
+            {
+                Text = hint,
+                Margin = new Thickness(0, 4, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            };
+            hintBlock.SetResourceReference(TextBlock.ForegroundProperty, "PlayAch.Brush.Text");
+            hintBlock.SetResourceReference(OpacityProperty, "PlayAch.Opacity.Subtle");
+            hintBlock.SetResourceReference(TextBlock.FontSizeProperty, "PlayAch.FontSize.Caption");
+            row.Children.Add(hintBlock);
+            panel.Children.Add(row);
+        }
+
+        /// <summary>
+        /// The Text widget's font: Theme default first, then every installed family, each drawn
+        /// in its own face, with type-to-search. A stored family this machine lacks stays listed.
+        /// </summary>
+        private void AddFontFamilyChoice(Panel panel)
+        {
+            var row = new Grid();
+            row.SetResourceReference(MarginProperty, "PlayAch.Thickness.Bottom.Md");
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+            var labelBlock = new TextBlock
+            {
+                Text = Localize("LOCPlayAch_Settings_Style_FontFamily"),
+                Margin = new Thickness(0, 0, 8, 0),
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            labelBlock.SetResourceReference(TextBlock.ForegroundProperty, "PlayAch.Brush.Text");
+            row.Children.Add(labelBlock);
+
+            var current = ShowcaseWidgetOptions.GetFontFamily(_settings);
+            var options = new List<FontFamilyOption>
+            {
+                new FontFamilyOption(
+                    Localize("LOCPlayAch_Settings_Style_FontThemeDefault"),
+                    familyName: null,
+                    previewFamily: SystemFonts.MessageFontFamily)
+            };
+            options.AddRange(SystemFontCatalog.Families);
+            var selected = current == null
+                ? options[0]
+                : options.FirstOrDefault(option =>
+                    string.Equals(option.FamilyName, current, StringComparison.OrdinalIgnoreCase));
+            if (selected == null)
+            {
+                selected = SystemFontCatalog.CreateUnlistedOption(current);
+                options.Insert(1, selected);
+            }
+
+            var combo = new ComboBox
+            {
+                MinHeight = 30,
+                MaxDropDownHeight = 360,
+                ItemsSource = options,
+                SelectedItem = selected,
+                ItemsPanel = new ItemsPanelTemplate(new FrameworkElementFactory(typeof(VirtualizingStackPanel))),
+                ItemTemplate = FontOptionTemplate()
+            };
+            VirtualizingPanel.SetIsVirtualizing(combo, true);
+            Helpers.FontPickerBehavior.SetEnableSearch(combo, true);
+            combo.SelectionChanged += (_, __) =>
+            {
+                if (!(combo.SelectedItem is FontFamilyOption option) ||
+                    string.Equals(option.FamilyName, ShowcaseWidgetOptions.GetFontFamily(_settings), StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                ShowcaseWidgetOptions.SetFontFamily(_settings, option.FamilyName);
+                Committed();
+            };
+            Grid.SetColumn(combo, 1);
+            row.Children.Add(combo);
+            panel.Children.Add(row);
+        }
+
+        private static DataTemplate FontOptionTemplate()
+        {
+            var text = new FrameworkElementFactory(typeof(TextBlock));
+            text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(FontFamilyOption.DisplayName)));
+            text.SetBinding(TextBlock.FontFamilyProperty, new System.Windows.Data.Binding(nameof(FontFamilyOption.PreviewFamily)));
+            return new DataTemplate { VisualTree = text };
         }
 
         private Grid AddChoice<T>(
