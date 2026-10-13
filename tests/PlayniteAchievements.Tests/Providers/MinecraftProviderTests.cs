@@ -66,6 +66,7 @@ namespace PlayniteAchievements.Providers.Tests
                 Assert.IsFalse(ids.Any(id => id.Contains("recipes/")));
                 Assert.IsFalse(ids.Contains("minecraft:story/technical"));
                 Assert.IsFalse(ids.Contains("minecraft:story/removed_by_datapack"));
+                Assert.IsFalse(ids.Contains("coolmod:tracking/ritual"));
 
                 // Only the other player's file in World B has this one done.
                 var secret = data.Achievements.Single(a => a.ApiName == "minecraft:nether/secret");
@@ -419,7 +420,10 @@ namespace PlayniteAchievements.Providers.Tests
             {
                 ["data/coolmod/advancements/root.json"] = Json("{\"display\":{\"title\":{\"text\":\"Cool \",\"extra\":[\"Mod\"]},\"description\":\"\",\"icon\":{\"item\":\"coolmod:gadget\"}},\"criteria\":{\"x\":{}}}"),
                 ["data/coolmod/advancements/first.json"] = Json("{\"parent\":\"coolmod:root\",\"display\":{\"title\":{\"translate\":\"coolmod.first\"},\"description\":\"\",\"icon\":{\"item\":\"coolmod:gadget\"}},\"criteria\":{\"x\":{}}}"),
-                ["assets/coolmod/lang/en_us.json"] = Json("{\"coolmod.first\":\"First Steps\"}")
+                ["assets/coolmod/lang/en_us.json"] = Json("{\"coolmod.first\":\"First Steps\"}"),
+                // A tracking tree: the root has no display, so the game never shows its children.
+                ["data/coolmod/advancements/tracking/root.json"] = Json("{\"criteria\":{\"tick\":{}}}"),
+                ["data/coolmod/advancements/tracking/ritual.json"] = Json("{\"parent\":\"coolmod:tracking/root\",\"display\":{\"title\":\"Ritual\",\"description\":\"\",\"icon\":{\"id\":\"coolmod:gadget\"},\"hidden\":true},\"criteria\":{\"x\":{}}}")
             });
 
             var worldA = Path.Combine(gameFolder, "saves", "World A");
