@@ -59,7 +59,7 @@ namespace PlayniteAchievements.Providers.Vita3K
 
         public string ProviderIconKey => "ProviderIconVita3K";
 
-        public string ProviderColorHex => "#3B7DDD";
+        public string ProviderColorHex => "#E97F02";
 
         public ISessionManager AuthSession => null;
 
