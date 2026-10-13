@@ -117,6 +117,51 @@ namespace PlayniteAchievements.Services.Rules
             Run(all: false, gameIds);
         }
 
+        /// <summary>Whether the game matches a refresh exclusion filter and a summary one.</summary>
+        public (bool Refresh, bool Summary) GetMatches(Guid gameId)
+        {
+            var game = _api.Database?.Games?.Get(gameId);
+            if (game == null)
+            {
+                return (false, false);
+            }
+
+            return (
+                Matches(game, ResolvePresets(Settings?.RefreshExclusionFilterPresetIds)),
+                Matches(game, ResolvePresets(Settings?.SummaryExclusionFilterPresetIds)));
+        }
+
+        /// <summary>
+        /// Drops the user's own choice for the game's exclusions and lets the filters decide again.
+        /// </summary>
+        public void FollowFilters(Guid gameId)
+        {
+            if (gameId == Guid.Empty)
+            {
+                return;
+            }
+
+            lock (_runSync)
+            {
+                if (_store.TryLoad(gameId, out var stored) &&
+                    (RuleReconciler.IsPinned(stored, RuleFields.ExcludedFromRefreshes) ||
+                     RuleReconciler.IsPinned(stored, RuleFields.ExcludedFromSummaries)))
+                {
+                    _store.Update(
+                        gameId,
+                        data =>
+                        {
+                            RuleReconciler.SetPinned(data, RuleFields.ExcludedFromRefreshes, false);
+                            RuleReconciler.SetPinned(data, RuleFields.ExcludedFromSummaries, false);
+                        },
+                        affectsSummaryData: false,
+                        affectsOverrideMirror: false);
+                }
+            }
+
+            Run(all: false, new[] { gameId });
+        }
+
         private void Drain()
         {
             bool all;
