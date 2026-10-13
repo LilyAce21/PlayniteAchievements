@@ -202,6 +202,7 @@ namespace PlayniteAchievements.Tests.Views
                 "LOCPlayAch_Showcase_AchievementGridSource_",
                 value => value != ShowcaseAchievementGridSource.UnlockNext);
             AssertEnumKeys<ShowcaseImageFitMode>(localization, "LOCPlayAch_Showcase_ImageFit_");
+            AssertEnumKeys<ShowcaseTextSize>(localization, "LOCPlayAch_Showcase_TextSize_");
             AssertEnumKeys<ShowcaseGameMosaicSource>(localization, "LOCPlayAch_Showcase_GameMosaicSource_");
             AssertEnumKeys<UnlockNextCriterion>(localization, "LOCPlayAch_Showcase_UnlockNextCriterion_");
         }
