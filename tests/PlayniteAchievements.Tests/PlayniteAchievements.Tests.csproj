@@ -179,6 +179,7 @@
     <Compile Include="..\..\source\Services\Images\Webm\WebmStill.cs" Link="Source\Services\Images\Webm\WebmStill.cs" />
     <Compile Include="..\..\source\Services\Capture\MediaFoundationRuntime.cs" Link="Source\Services\Capture\MediaFoundationRuntime.cs" />
     <Compile Include="..\..\source\Services\Images\MemoryImageService.cs" Link="Source\Services\Images\MemoryImageService.cs" />
+    <Compile Include="..\..\source\Services\Images\ImagePixelSize.cs" Link="Source\Services\Images\ImagePixelSize.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrack.cs" Link="Source\Services\Images\RayTrack.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrackBuilder.cs" Link="Source\Services\Images\RayTrackBuilder.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrackService.cs" Link="Source\Services\Images\RayTrackService.cs" />
