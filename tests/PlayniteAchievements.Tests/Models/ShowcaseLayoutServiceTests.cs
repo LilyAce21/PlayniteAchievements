@@ -82,7 +82,7 @@ namespace PlayniteAchievements.Tests.Models
         [TestMethod]
         public void DefaultLayout_UsesRequestedScoreModeAndExpectedGeometry()
         {
-            var collection = ShowcaseLayoutService.CreateDefault(ScoreCardSlot.Collection, ScoreCardSlot.None);
+            var collection = ShowcaseLayoutService.CreateDefault("Collection", "None");
             var score = collection.WidgetInstances.Single(widget => widget.Kind == ShowcaseWidgetKind.Scores);
 
             Assert.AreEqual(ScoreCardType.Collection, ShowcaseWidgetOptions.GetScoreCardType(score));
@@ -91,7 +91,7 @@ namespace PlayniteAchievements.Tests.Models
                 collection.Pages.Single().Blocks,
                 collection.Pages.Single().RowCount, collection.Pages.Single().ColumnCount));
 
-            var none = ShowcaseLayoutService.CreateDefault(ScoreCardSlot.None, ScoreCardSlot.None);
+            var none = ShowcaseLayoutService.CreateDefault("None", "None");
             var scoreBlock = none.Pages.Single().Blocks.Single(block =>
                 block.Row == 0 && block.Column == 3 && block.ColumnSpan == 2);
             Assert.IsNull(scoreBlock.WidgetInstanceId);
@@ -127,7 +127,7 @@ namespace PlayniteAchievements.Tests.Models
         public void Split_KeepsAnOccupiedWidgetInTheLargerResultingBlock()
         {
             // One score card keeps the template's whole 2x2 score block.
-            var settings = ShowcaseLayoutService.CreateDefault(ScoreCardSlot.Collection, ScoreCardSlot.None);
+            var settings = ShowcaseLayoutService.CreateDefault("Collection", "None");
             var page = settings.Pages.Single();
             var scoreBlock = page.Blocks.Single(block =>
                 block.Row == 0 && block.Column == 3 && block.ColumnSpan == 2);
@@ -690,14 +690,14 @@ namespace PlayniteAchievements.Tests.Models
         }
 
         [DataTestMethod]
-        [DataRow(ScoreCardSlot.Collection, ScoreCardSlot.Prestige, "Collection,Prestige")]
-        [DataRow(ScoreCardSlot.Collection, ScoreCardSlot.None, "Collection")]
-        [DataRow(ScoreCardSlot.None, ScoreCardSlot.Prestige, "Prestige")]
-        [DataRow(ScoreCardSlot.Gamerscore, ScoreCardSlot.EpicXp, "Gamerscore,EpicXp")]
-        [DataRow(ScoreCardSlot.None, ScoreCardSlot.None, "")]
+        [DataRow("Collection", "Prestige", "Collection,Prestige")]
+        [DataRow("Collection", "None", "Collection")]
+        [DataRow("None", "Prestige", "Prestige")]
+        [DataRow("Gamerscore", "Points:Epic", "Points:Xbox,Points:Epic")]
+        [DataRow("None", "None", "")]
         public void PersistedSettings_SeedsTheDefaultScoreCardsOnce(
-            ScoreCardSlot slot1,
-            ScoreCardSlot slot2,
+            string slot1,
+            string slot2,
             string expectedCards)
         {
             var persisted = new PersistedSettings

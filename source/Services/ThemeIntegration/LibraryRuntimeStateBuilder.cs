@@ -50,7 +50,8 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             List<GameAchievementData> allData,
             IPlayniteAPI api,
             CancellationToken token,
-            bool includeHeavyAchievementLists = true)
+            bool includeHeavyAchievementLists = true,
+            GameCustomDataStore customDataStore = null)
         {
             token.ThrowIfCancellationRequested();
 
@@ -99,7 +100,10 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 var providerName = ProviderRegistry.GetLocalizedName(providerKey);
                 collectorScore = AddScore(collectorScore, stats.CollectionScore);
                 prestigeScore = AddScore(prestigeScore, stats.PrestigeScore);
-                platformScores.Add(providerKey, stats.PlatformScorePoints);
+                platformScores.Add(
+                    providerKey,
+                    customDataStore?.QueryGame(data.PlayniteGameId.Value, customData => customData.PointsFamily),
+                    stats.PlatformScorePoints);
 
                 var summary = new GameAchievementSummary(
                     data.PlayniteGameId.Value,
@@ -239,7 +243,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
 
                 collectorScore = AddScore(collectorScore, game.CollectionScore);
                 prestigeScore = AddScore(prestigeScore, game.PrestigeScore);
-                platformScores.Add(providerKey, game.PlatformScorePoints);
+                platformScores.Add(providerKey, game.PointsFamilyOverride, game.PlatformScorePoints);
             }
 
             ApplySummaryListsAndTotals(state, allGames);
@@ -352,6 +356,30 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             state.RetroPointsLevelProgress = retroPoints.LevelProgress;
             state.RetroPointsRank = retroPoints.Rank ?? "Bronze5";
             state.RetroPointsMastery = retroPoints.Mastery;
+
+            state.PointsScores = BuildPointsScores(platformScores);
+            ScoreCardChoices.PublishFamiliesWithPoints(platformScores);
+        }
+
+        private static List<PointsScoreItem> BuildPointsScores(PlatformScoreTotals platformScores)
+        {
+            var items = new List<PointsScoreItem>();
+            foreach (var pair in platformScores.Families)
+            {
+                var level = ScoreCardTypes.Calculate(ScoreCardType.Points(pair.Key), pair.Value);
+                items.Add(new PointsScoreItem
+                {
+                    FamilyKey = pair.Key,
+                    Name = PointsFamilyNames.GetLabel(pair.Key),
+                    Score = pair.Value,
+                    Level = GetDisplayLevel(level),
+                    LevelProgress = level.LevelProgress,
+                    Rank = level.Rank ?? "Bronze5",
+                    Mastery = level.Mastery
+                });
+            }
+
+            return items;
         }
 
         private static int GetDisplayLevel(AchievementLevelSnapshot snapshot)

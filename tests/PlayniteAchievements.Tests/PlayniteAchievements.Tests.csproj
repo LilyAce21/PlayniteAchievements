@@ -571,6 +571,9 @@
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementMilestoneLadder.cs" Link="Source\Models\Achievements\Scoring\AchievementMilestoneLadder.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\ScoreCardType.cs" Link="Source\Models\Achievements\Scoring\ScoreCardType.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\PlatformScoreTotals.cs" Link="Source\Models\Achievements\Scoring\PlatformScoreTotals.cs" />
+    <Compile Include="..\..\source\Models\Achievements\Scoring\PointsFamilies.cs" Link="Source\Models\Achievements\Scoring\PointsFamilies.cs" />
+    <Compile Include="..\..\source\Models\Achievements\Scoring\ScoreCardChoices.cs" Link="Source\Models\Achievements\Scoring\ScoreCardChoices.cs" />
+    <Compile Include="..\..\source\Services\Achievements\PointsFamilyNames.cs" Link="Source\Services\Achievements\PointsFamilyNames.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementLevelSnapshot.cs" Link="Source\Models\Achievements\Scoring\AchievementLevelSnapshot.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementRank.cs" Link="Source\Models\Achievements\Scoring\AchievementRank.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementRankDebugRow.cs" Link="Source\Models\Achievements\Scoring\AchievementRankDebugRow.cs" />
@@ -584,6 +587,7 @@
     <Compile Include="..\..\source\Models\ThemeIntegration\DynamicThemeViewState.cs" Link="Source\Models\ThemeIntegration\DynamicThemeViewState.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\LegacyThemeBindings.cs" Link="Source\Models\ThemeIntegration\LegacyThemeBindings.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\LibraryRuntimeState.cs" Link="Source\Models\ThemeIntegration\LibraryRuntimeState.cs" />
+    <Compile Include="..\..\source\Models\ThemeIntegration\PointsScoreItem.cs" Link="Source\Models\ThemeIntegration\PointsScoreItem.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\FriendRuntimeState.cs" Link="Source\Models\ThemeIntegration\FriendRuntimeState.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\ModernThemeBindings.cs" Link="Source\Models\ThemeIntegration\ModernThemeBindings.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\SelectedGameRuntimeState.cs" Link="Source\Models\ThemeIntegration\SelectedGameRuntimeState.cs" />

@@ -52,6 +52,7 @@ namespace PlayniteAchievements.Services.GameCustomData
             NormalizeCapstones(normalized);
             normalized.ExophaseSlugOverride = NormalizeString(normalized.ExophaseSlugOverride);
             normalized.ExophaseEnrichmentSlugOverride = NormalizeString(normalized.ExophaseEnrichmentSlugOverride);
+            normalized.PointsFamily = NormalizeString(normalized.PointsFamily);
             normalized.XeniaTitleIdOverride = XeniaTitleIdHelper.Normalize(normalized.XeniaTitleIdOverride);
             normalized.ShadPS4MatchIdOverride = ShadPS4MatchIdHelper.Normalize(normalized.ShadPS4MatchIdOverride);
             normalized.RetroAchievementsGameIdOverride =
@@ -112,6 +113,7 @@ namespace PlayniteAchievements.Services.GameCustomData
             NormalizeCapstones(normalized);
             normalized.ExophaseSlugOverride = NormalizeString(normalized.ExophaseSlugOverride);
             normalized.ExophaseEnrichmentSlugOverride = NormalizeString(normalized.ExophaseEnrichmentSlugOverride);
+            normalized.PointsFamily = NormalizeString(normalized.PointsFamily);
             normalized.XeniaTitleIdOverride = XeniaTitleIdHelper.Normalize(normalized.XeniaTitleIdOverride);
             normalized.ShadPS4MatchIdOverride = ShadPS4MatchIdHelper.Normalize(normalized.ShadPS4MatchIdOverride);
             normalized.RetroAchievementsGameIdOverride =
@@ -188,6 +190,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                    (data.AchievementOverrides != null && data.AchievementOverrides.Count > 0) ||
                    data.ProviderOverride != null ||
                    !string.IsNullOrWhiteSpace(data.ExophaseEnrichmentSlugOverride) ||
+                   !string.IsNullOrWhiteSpace(data.PointsFamily) ||
                    (data.RetroAchievementsGameIdOverride.HasValue && data.RetroAchievementsGameIdOverride.Value > 0) ||
                    !string.IsNullOrWhiteSpace(data.XeniaTitleIdOverride) ||
                    !string.IsNullOrWhiteSpace(data.ShadPS4MatchIdOverride) ||
@@ -230,6 +233,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                    (data.AchievementOverrides != null && data.AchievementOverrides.Count > 0) ||
                    data.ProviderOverride != null ||
                    !string.IsNullOrWhiteSpace(data.ExophaseEnrichmentSlugOverride) ||
+                   !string.IsNullOrWhiteSpace(data.PointsFamily) ||
                    (data.RetroAchievementsGameIdOverride.HasValue && data.RetroAchievementsGameIdOverride.Value > 0) ||
                    !string.IsNullOrWhiteSpace(data.XeniaTitleIdOverride) ||
                    !string.IsNullOrWhiteSpace(data.ShadPS4MatchIdOverride) ||
@@ -266,6 +270,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                    (data.AchievementOverrides != null && data.AchievementOverrides.Count > 0) ||
                    data.ProviderOverride != null ||
                    !string.IsNullOrWhiteSpace(data.ExophaseEnrichmentSlugOverride) ||
+                   !string.IsNullOrWhiteSpace(data.PointsFamily) ||
                    (data.RetroAchievementsGameIdOverride.HasValue && data.RetroAchievementsGameIdOverride.Value > 0) ||
                    !string.IsNullOrWhiteSpace(data.XeniaTitleIdOverride) ||
                    !string.IsNullOrWhiteSpace(data.ShadPS4MatchIdOverride) ||
@@ -372,6 +377,9 @@ namespace PlayniteAchievements.Services.GameCustomData
                 ExophaseEnrichmentSlugOverride = !string.IsNullOrWhiteSpace(existing.ExophaseEnrichmentSlugOverride)
                     ? existing.ExophaseEnrichmentSlugOverride
                     : legacy.ExophaseEnrichmentSlugOverride,
+                PointsFamily = !string.IsNullOrWhiteSpace(existing.PointsFamily)
+                    ? existing.PointsFamily
+                    : legacy.PointsFamily,
                 ManualLink = existing.ManualLink?.Clone() ?? legacy.ManualLink?.Clone(),
                 CustomAchievements = existing.CustomAchievements != null && existing.CustomAchievements.Count > 0
                     ? existing.CustomAchievements.ConvertAll(item => item?.Clone()).FindAll(item => item != null)

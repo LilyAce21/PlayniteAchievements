@@ -113,16 +113,16 @@ namespace PlayniteAchievements.Tests.StartPage
         }
 
         [DataTestMethod]
-        [DataRow(StartPageViewCatalog.PrestigeScoreCardViewId, ScoreCardType.Prestige)]
-        [DataRow(StartPageViewCatalog.CollectionScoreCardViewId, ScoreCardType.Collection)]
-        [DataRow(StartPageViewCatalog.ShowcaseDualScoresViewId, ScoreCardType.Collection)]
-        public void SeedViewOptions_SeedsEachScoreCardViewsCard(string viewId, ScoreCardType expected)
+        [DataRow(StartPageViewCatalog.PrestigeScoreCardViewId, "Prestige")]
+        [DataRow(StartPageViewCatalog.CollectionScoreCardViewId, "Collection")]
+        [DataRow(StartPageViewCatalog.ShowcaseDualScoresViewId, "Collection")]
+        public void SeedViewOptions_SeedsEachScoreCardViewsCard(string viewId, string expected)
         {
             var settings = ShowcaseWidgetSettingsFactory.CreateDefault(ShowcaseWidgetKind.Scores, "instance");
 
             StartPageViewCatalog.SeedViewOptions(viewId, settings);
 
-            Assert.AreEqual(expected, ShowcaseWidgetOptions.GetScoreCardType(settings));
+            Assert.AreEqual(expected, ShowcaseWidgetOptions.GetScoreCardType(settings).Key);
         }
 
         [TestMethod]

@@ -1384,6 +1384,23 @@ namespace PlayniteAchievements.Services.Achievements
             });
         }
 
+        /// <summary>
+        /// Sets the points family this game's points count toward; null or blank follows the
+        /// provider, and PointsFamilies.NoneOverride counts them toward no card.
+        /// </summary>
+        public void SetPointsFamily(Guid gameId, string pointsFamily)
+        {
+            if (gameId == Guid.Empty)
+            {
+                return;
+            }
+
+            _gameCustomDataStore.Update(gameId, customData =>
+            {
+                customData.PointsFamily = string.IsNullOrWhiteSpace(pointsFamily) ? null : pointsFamily.Trim();
+            });
+        }
+
         public void SetProviderOverride(Guid gameId, ProviderOverrideData providerOverride)
         {
             if (gameId == Guid.Empty)

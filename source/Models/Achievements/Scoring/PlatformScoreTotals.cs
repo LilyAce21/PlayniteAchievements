@@ -1,55 +1,61 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace PlayniteAchievements.Models.Achievements.Scoring
 {
     /// <summary>
-    /// Running platform score sums: unlocked provider points per platform, keyed by the game's
-    /// effective provider key (see <see cref="ScoreCardTypes.TryGetPlatformScore"/>).
+    /// Running points sums: unlocked provider points per points family (see
+    /// <see cref="PointsFamilies.Resolve"/>).
     /// </summary>
     public sealed class PlatformScoreTotals
     {
-        public int Gamerscore { get; private set; }
+        private readonly Dictionary<string, int> _byFamily =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        public int EpicXp { get; private set; }
+        public int Gamerscore => Get(PointsFamilies.Xbox);
 
-        public int RetroPoints { get; private set; }
+        public int EpicXp => Get(PointsFamilies.Epic);
 
-        /// <summary>Adds a game's platform score points to the total its platform counts toward, if any.</summary>
-        public void Add(string effectiveProviderKey, int platformScorePoints)
+        public int RetroPoints => Get(PointsFamilies.RetroAchievements);
+
+        /// <summary>Every family with points, largest total first.</summary>
+        public IReadOnlyList<KeyValuePair<string, int>> Families =>
+            _byFamily
+                .Where(pair => pair.Value > 0)
+                .OrderByDescending(pair => pair.Value)
+                .ThenBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+        /// <summary>
+        /// Adds a game's points to the family it counts toward: <paramref name="overrideFamily"/>
+        /// when the user set one, otherwise its effective provider key's family.
+        /// </summary>
+        public void Add(string effectiveProviderKey, string overrideFamily, int platformScorePoints) =>
+            AddToFamily(PointsFamilies.Resolve(effectiveProviderKey, overrideFamily), platformScorePoints);
+
+        /// <summary>Adds points to an already resolved family; a null family counts nowhere.</summary>
+        public void AddToFamily(string family, int platformScorePoints)
         {
-            if (platformScorePoints <= 0 ||
-                !ScoreCardTypes.TryGetPlatformScore(effectiveProviderKey, out var type))
+            var key = PointsFamilies.Normalize(family);
+            if (platformScorePoints <= 0 || key == null)
             {
                 return;
             }
 
-            switch (type)
-            {
-                case ScoreCardType.Gamerscore:
-                    Gamerscore = AddClamped(Gamerscore, platformScorePoints);
-                    break;
-                case ScoreCardType.EpicXp:
-                    EpicXp = AddClamped(EpicXp, platformScorePoints);
-                    break;
-                case ScoreCardType.RetroPoints:
-                    RetroPoints = AddClamped(RetroPoints, platformScorePoints);
-                    break;
-            }
+            _byFamily.TryGetValue(key, out var current);
+            _byFamily[key] = AddClamped(current, platformScorePoints);
         }
 
-        /// <summary>The platform total for a platform card type; 0 for Collection and Prestige.</summary>
-        public int Get(ScoreCardType type)
+        /// <summary>The total for a points family; 0 for a family with no points.</summary>
+        public int Get(string family)
         {
-            switch (type)
-            {
-                case ScoreCardType.Gamerscore:
-                    return Gamerscore;
-                case ScoreCardType.EpicXp:
-                    return EpicXp;
-                case ScoreCardType.RetroPoints:
-                    return RetroPoints;
-                default:
-                    return 0;
-            }
+            var key = PointsFamilies.Normalize(family);
+            return key != null && _byFamily.TryGetValue(key, out var total) ? total : 0;
         }
+
+        /// <summary>The total a card shows; 0 for Collection and Prestige.</summary>
+        public int Get(ScoreCardType type) => type.IsPoints ? Get(type.PointsFamily) : 0;
 
         private static int AddClamped(int current, int value)
         {

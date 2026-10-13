@@ -249,19 +249,19 @@ namespace PlayniteAchievements.Models.Settings
 
             if (persisted[slot1Name] == null && persisted[slot2Name] == null)
             {
-                var slots = new List<ScoreCardSlot>();
+                var slots = new List<string>();
                 if (ReadBool(persisted[collectionName], true))
                 {
-                    slots.Add(ScoreCardSlot.Collection);
+                    slots.Add(ScoreCardSlots.Collection);
                 }
 
                 if (ReadBool(persisted[prestigeName], true))
                 {
-                    slots.Add(ScoreCardSlot.Prestige);
+                    slots.Add(ScoreCardSlots.Prestige);
                 }
 
-                persisted[slot1Name] = (slots.Count > 0 ? slots[0] : ScoreCardSlot.None).ToString();
-                persisted[slot2Name] = (slots.Count > 1 ? slots[1] : ScoreCardSlot.None).ToString();
+                persisted[slot1Name] = slots.Count > 0 ? slots[0] : ScoreCardSlots.NoneKey;
+                persisted[slot2Name] = slots.Count > 1 ? slots[1] : ScoreCardSlots.NoneKey;
             }
 
             persisted.Remove(collectionName);

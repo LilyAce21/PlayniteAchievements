@@ -521,7 +521,7 @@ namespace PlayniteAchievements.Models
         {
             if (HasOption(settings, ScoreCard))
             {
-                return GetEnum(settings, ScoreCard, ScoreCardType.Collection);
+                return ScoreCardType.ParseOrDefault(settings.Options[ScoreCard], ScoreCardType.Collection);
             }
 
             return GetEnum(settings, Mode, ShowcaseScoreMode.Dual) == ShowcaseScoreMode.Prestige
@@ -530,7 +530,7 @@ namespace PlayniteAchievements.Models
         }
 
         public static void SetScoreCardType(ShowcaseWidgetInstanceSettings settings, ScoreCardType value) =>
-            settings?.SetOption(ScoreCard, value);
+            settings?.SetOption(ScoreCard, value.Key);
 
         /// <summary>
         /// Which side the card's badge sits on. A widget saved before the option existed keeps the

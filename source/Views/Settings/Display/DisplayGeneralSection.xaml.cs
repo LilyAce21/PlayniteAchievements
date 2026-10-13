@@ -1,13 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using Playnite.SDK;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Views.Helpers;
 using PlayniteAchievements.Views.Settings.Controls;
+using PlayniteAchievements.Views.Showcase;
 
 namespace PlayniteAchievements.Views.Settings.Display
 {
@@ -46,6 +49,18 @@ namespace PlayniteAchievements.Views.Settings.Display
                 OnSettingsReloaded);
 
             UpdateGlowTierTexts();
+            UpdateScoreCardSlotOptions();
+        }
+
+        /// <summary>The Overview score card choices: every card a picker lists, then None.</summary>
+        public static readonly DependencyProperty ScoreCardSlotOptionsProperty =
+            DependencyProperty.Register(nameof(ScoreCardSlotOptions), typeof(IReadOnlyList<ScoreCardSlotOption>),
+                typeof(DisplayGeneralSection), new PropertyMetadata(Array.Empty<ScoreCardSlotOption>()));
+
+        public IReadOnlyList<ScoreCardSlotOption> ScoreCardSlotOptions
+        {
+            get => (IReadOnlyList<ScoreCardSlotOption>)GetValue(ScoreCardSlotOptionsProperty);
+            set => SetValue(ScoreCardSlotOptionsProperty, value);
         }
 
         /// <summary>Summary text for the soft-glow tier selector button.</summary>
@@ -104,6 +119,33 @@ namespace PlayniteAchievements.Views.Settings.Display
         private void OnSettingsReloaded()
         {
             UpdateGlowTierTexts();
+            UpdateScoreCardSlotOptions();
+        }
+
+        /// <summary>
+        /// Lists the cards for the two Overview slots, keeping each slot's saved card even when its
+        /// points family no longer has points.
+        /// </summary>
+        private void UpdateScoreCardSlotOptions()
+        {
+            var persisted = _settings?.Persisted;
+            var options = new List<ScoreCardSlotOption>();
+            foreach (var card in ScoreCardChoices.Build())
+            {
+                options.Add(new ScoreCardSlotOption(card.Key, ShowcaseUiText.ScoreCardTypeName(card)));
+            }
+
+            foreach (var slot in new[] { persisted?.OverviewScoreCardSlot1, persisted?.OverviewScoreCardSlot2 })
+            {
+                if (ScoreCardSlots.TryGetCardType(slot, out var saved) &&
+                    !options.Exists(option => option.Key == saved.Key))
+                {
+                    options.Add(new ScoreCardSlotOption(saved.Key, ShowcaseUiText.ScoreCardTypeName(saved)));
+                }
+            }
+
+            options.Add(new ScoreCardSlotOption(ScoreCardSlots.NoneKey, ResourceProvider.GetString("LOCNone")));
+            ScoreCardSlotOptions = options;
         }
 
         private void OnPersistedPropertyChanged(object sender, PropertyChangedEventArgs e)

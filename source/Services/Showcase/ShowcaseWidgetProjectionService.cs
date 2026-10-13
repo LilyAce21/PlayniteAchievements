@@ -79,30 +79,29 @@ namespace PlayniteAchievements.Services.Showcase
         /// <summary>Cumulative prestige score as of the end of <see cref="Date"/>.</summary>
         public int PrestigeScore { get; set; }
 
-        /// <summary>Cumulative Gamerscore as of the end of <see cref="Date"/>.</summary>
-        public int Gamerscore { get; set; }
+        /// <summary>Cumulative points per points family as of the end of <see cref="Date"/>.</summary>
+        public IReadOnlyDictionary<string, int> PointsByFamily { get; set; } =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Cumulative Epic XP as of the end of <see cref="Date"/>.</summary>
-        public int EpicXp { get; set; }
+        public int Gamerscore => GetPoints(PointsFamilies.Xbox);
 
-        /// <summary>Cumulative RetroAchievements points as of the end of <see cref="Date"/>.</summary>
-        public int RetroPoints { get; set; }
+        public int EpicXp => GetPoints(PointsFamilies.Epic);
+
+        public int RetroPoints => GetPoints(PointsFamilies.RetroAchievements);
+
+        public int GetPoints(string family) =>
+            family != null && PointsByFamily != null && PointsByFamily.TryGetValue(family, out var points)
+                ? points
+                : 0;
 
         public int GetScore(ScoreCardType type)
         {
-            switch (type)
+            if (type.IsPrestige)
             {
-                case ScoreCardType.Prestige:
-                    return PrestigeScore;
-                case ScoreCardType.Gamerscore:
-                    return Gamerscore;
-                case ScoreCardType.EpicXp:
-                    return EpicXp;
-                case ScoreCardType.RetroPoints:
-                    return RetroPoints;
-                default:
-                    return CollectionScore;
+                return PrestigeScore;
             }
+
+            return type.IsPoints ? GetPoints(type.PointsFamily) : CollectionScore;
         }
     }
 
@@ -1120,63 +1119,51 @@ namespace PlayniteAchievements.Services.Showcase
         {
             public readonly Dictionary<DateTime, int> Collection = new Dictionary<DateTime, int>();
             public readonly Dictionary<DateTime, int> Prestige = new Dictionary<DateTime, int>();
-            public readonly Dictionary<DateTime, int> Gamerscore = new Dictionary<DateTime, int>();
-            public readonly Dictionary<DateTime, int> EpicXp = new Dictionary<DateTime, int>();
-            public readonly Dictionary<DateTime, int> RetroPoints = new Dictionary<DateTime, int>();
+            public readonly Dictionary<string, Dictionary<DateTime, int>> Points =
+                new Dictionary<string, Dictionary<DateTime, int>>(StringComparer.OrdinalIgnoreCase);
+            public readonly Dictionary<string, int> PointsBaseline =
+                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             public int BaselineCollection;
             public int BaselinePrestige;
-            public int BaselineGamerscore;
-            public int BaselineEpicXp;
-            public int BaselineRetroPoints;
             public bool SawUnlocked;
 
-            public Dictionary<DateTime, int> Platform(ScoreCardType type)
+            public void AddPoints(string family, DateTime day, int points)
             {
-                switch (type)
+                if (!Points.TryGetValue(family, out var daily))
                 {
-                    case ScoreCardType.Gamerscore:
-                        return Gamerscore;
-                    case ScoreCardType.EpicXp:
-                        return EpicXp;
-                    default:
-                        return RetroPoints;
+                    daily = new Dictionary<DateTime, int>();
+                    Points[family] = daily;
                 }
+
+                daily.TryGetValue(day, out var earned);
+                daily[day] = earned + points;
             }
 
-            public void AddPlatformBaseline(ScoreCardType type, int points)
+            public void AddPointsBaseline(string family, int points)
             {
-                switch (type)
-                {
-                    case ScoreCardType.Gamerscore:
-                        BaselineGamerscore += points;
-                        break;
-                    case ScoreCardType.EpicXp:
-                        BaselineEpicXp += points;
-                        break;
-                    default:
-                        BaselineRetroPoints += points;
-                        break;
-                }
+                PointsBaseline.TryGetValue(family, out var baseline);
+                PointsBaseline[family] = baseline + points;
             }
         }
 
         /// <summary>
-        /// The effective platform key per game: the game summary's provider key, which is the
-        /// platform key for aggregator-sourced games. Achievement rows carry the raw provider key,
-        /// so an Exophase Xbox unlock is resolved through its game here.
+        /// The points family per game, from the game summary, which already folds in the game's
+        /// override and its effective platform key. Achievement rows carry the raw provider key,
+        /// so an Exophase Xbox unlock is resolved through its game here. A game whose points count
+        /// toward no card maps to null.
         /// </summary>
-        private static Dictionary<Guid, string> BuildPlatformKeysByGame(OverviewDataSnapshot snapshot)
+        private static Dictionary<Guid, string> BuildPointsFamiliesByGame(OverviewDataSnapshot snapshot)
         {
-            var keys = new Dictionary<Guid, string>();
+            var families = new Dictionary<Guid, string>();
             foreach (var game in snapshot?.GameSummaries ?? new List<GameSummaryItem>())
             {
-                if (game?.PlayniteGameId.HasValue == true && !string.IsNullOrWhiteSpace(game.ProviderKey))
+                if (game?.PlayniteGameId.HasValue == true)
                 {
-                    keys[game.PlayniteGameId.Value] = game.ProviderKey;
+                    families[game.PlayniteGameId.Value] = game.PointsFamily;
                 }
             }
 
-            return keys;
+            return families;
         }
 
         /// <summary>
@@ -1198,7 +1185,7 @@ namespace PlayniteAchievements.Services.Showcase
             }
 
             var deltas = new DailyScoreDeltas();
-            var platformKeysByGame = BuildPlatformKeysByGame(snapshot);
+            var familiesByGame = BuildPointsFamiliesByGame(snapshot);
             // Single pass over the full achievement list - materializing the unlocked subset
             // would allocate a list the size of the user's whole unlock history.
             foreach (var item in snapshot.Achievements ?? new List<AchievementDisplayItem>())
@@ -1209,15 +1196,14 @@ namespace PlayniteAchievements.Services.Showcase
                 }
 
                 deltas.SawUnlocked = true;
-                var platformKey = item.PlayniteGameId.HasValue &&
-                    platformKeysByGame.TryGetValue(item.PlayniteGameId.Value, out var gameKey)
-                        ? gameKey
-                        : item.ProviderKey;
+                var family = item.PlayniteGameId.HasValue &&
+                    familiesByGame.TryGetValue(item.PlayniteGameId.Value, out var gameFamily)
+                        ? gameFamily
+                        : PointsFamilies.FromProviderKey(item.ProviderKey);
                 var platformPoints = item.Points;
-                var platformType = ScoreCardType.Collection;
-                // Softcore unlocks are left out, as in the platform score totals.
+                // Softcore unlocks are left out, as in the points totals.
                 var hasPlatformScore = platformPoints > 0 &&
-                    ScoreCardTypes.TryGetPlatformScore(platformKey, out platformType) &&
+                    family != null &&
                     !AchievementCategoryTypeHelper.IsSoftcore(item.CategoryType);
 
                 if (item.UnlockTimeUtc.HasValue)
@@ -1229,9 +1215,7 @@ namespace PlayniteAchievements.Services.Showcase
                     deltas.Prestige[day] = prestige + item.PrestigeScore;
                     if (hasPlatformScore)
                     {
-                        var platform = deltas.Platform(platformType);
-                        platform.TryGetValue(day, out var earned);
-                        platform[day] = earned + platformPoints;
+                        deltas.AddPoints(family, day, platformPoints);
                     }
                 }
                 else
@@ -1240,7 +1224,7 @@ namespace PlayniteAchievements.Services.Showcase
                     deltas.BaselinePrestige += item.PrestigeScore;
                     if (hasPlatformScore)
                     {
-                        deltas.AddPlatformBaseline(platformType, platformPoints);
+                        deltas.AddPointsBaseline(family, platformPoints);
                     }
                 }
             }
@@ -1279,12 +1263,16 @@ namespace PlayniteAchievements.Services.Showcase
                 dailyCollection.Where(pair => pair.Key < start).Sum(pair => pair.Value);
             var cumulativePrestige = deltas.BaselinePrestige +
                 dailyPrestige.Where(pair => pair.Key < start).Sum(pair => pair.Value);
-            var cumulativeGamerscore = deltas.BaselineGamerscore +
-                deltas.Gamerscore.Where(pair => pair.Key < start).Sum(pair => pair.Value);
-            var cumulativeEpicXp = deltas.BaselineEpicXp +
-                deltas.EpicXp.Where(pair => pair.Key < start).Sum(pair => pair.Value);
-            var cumulativeRetroPoints = deltas.BaselineRetroPoints +
-                deltas.RetroPoints.Where(pair => pair.Key < start).Sum(pair => pair.Value);
+            var cumulativePoints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var family in deltas.Points.Keys
+                .Concat(deltas.PointsBaseline.Keys)
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                deltas.PointsBaseline.TryGetValue(family, out var baseline);
+                cumulativePoints[family] = baseline + (deltas.Points.TryGetValue(family, out var daily)
+                    ? daily.Where(pair => pair.Key < start).Sum(pair => pair.Value)
+                    : 0);
+            }
 
             var rangeDays = Math.Max(1, (endDate - start).Days + 1);
             // The chart is a couple of hundred pixels wide at most, and a hoverable LiveCharts
@@ -1301,19 +1289,12 @@ namespace PlayniteAchievements.Services.Showcase
                     cumulativePrestige += prestige;
                 }
 
-                if (deltas.Gamerscore.TryGetValue(day.Date, out var gamerscore))
+                foreach (var family in deltas.Points)
                 {
-                    cumulativeGamerscore += gamerscore;
-                }
-
-                if (deltas.EpicXp.TryGetValue(day.Date, out var epicXp))
-                {
-                    cumulativeEpicXp += epicXp;
-                }
-
-                if (deltas.RetroPoints.TryGetValue(day.Date, out var retroPoints))
-                {
-                    cumulativeRetroPoints += retroPoints;
+                    if (family.Value.TryGetValue(day.Date, out var earned))
+                    {
+                        cumulativePoints[family.Key] += earned;
+                    }
                 }
 
                 if (offset % step == 0 || offset == rangeDays - 1)
@@ -1323,9 +1304,7 @@ namespace PlayniteAchievements.Services.Showcase
                         Date = day.Date,
                         CollectionScore = cumulativeCollection,
                         PrestigeScore = cumulativePrestige,
-                        Gamerscore = cumulativeGamerscore,
-                        EpicXp = cumulativeEpicXp,
-                        RetroPoints = cumulativeRetroPoints
+                        PointsByFamily = new Dictionary<string, int>(cumulativePoints, StringComparer.OrdinalIgnoreCase)
                     });
                 }
 

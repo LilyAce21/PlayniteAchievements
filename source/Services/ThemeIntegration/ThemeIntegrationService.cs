@@ -1958,6 +1958,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             _settings.ModernTheme.RetroPointsLevelProgress = library.RetroPointsLevelProgress;
             _settings.ModernTheme.RetroPointsRank = library.RetroPointsRank;
             _settings.ModernTheme.RetroPointsMastery = library.RetroPointsMastery;
+            _settings.ModernTheme.PointsScores = library.PointsScores;
             _settings.ModernTheme.SteamGames = ProjectGameSummaries(library.SteamGames);
             _settings.ModernTheme.GOGGames = ProjectGameSummaries(library.GOGGames);
             _settings.ModernTheme.EpicGames = ProjectGameSummaries(library.EpicGames);

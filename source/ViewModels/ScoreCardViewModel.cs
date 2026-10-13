@@ -5,6 +5,7 @@ using Playnite.SDK;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Achievements.Scoring;
+using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.Overview;
 using PlayniteAchievements.ViewModels.Items;
 
@@ -83,37 +84,27 @@ namespace PlayniteAchievements.ViewModels
 
         public static string GetLabel(ScoreCardType type)
         {
-            switch (type)
+            if (type.IsPoints)
             {
-                case ScoreCardType.Prestige:
-                    return L("LOCPlayAch_Score_Prestige");
-                case ScoreCardType.Gamerscore:
-                    return L("LOCPlayAch_Score_Gamerscore");
-                case ScoreCardType.EpicXp:
-                    return L("LOCPlayAch_Score_EpicXp");
-                case ScoreCardType.RetroPoints:
-                    return L("LOCPlayAch_Score_RetroPoints");
-                default:
-                    return L("LOCPlayAch_Score_Collection");
+                return PointsFamilyNames.GetLabel(type.PointsFamily);
             }
+
+            return type.IsPrestige
+                ? L("LOCPlayAch_Score_Prestige")
+                : L("LOCPlayAch_Score_Collection");
         }
 
         /// <summary>The score's short name: the card type's name in pickers and compact tier lines.</summary>
         public static string GetShortLabel(ScoreCardType type)
         {
-            switch (type)
+            if (type.IsPoints)
             {
-                case ScoreCardType.Prestige:
-                    return L("LOCPlayAch_Showcase_ScoreMode_Prestige");
-                case ScoreCardType.Gamerscore:
-                    return L("LOCPlayAch_Score_Gamerscore");
-                case ScoreCardType.EpicXp:
-                    return L("LOCPlayAch_Score_EpicXp");
-                case ScoreCardType.RetroPoints:
-                    return L("LOCPlayAch_Provider_RetroAchievements");
-                default:
-                    return L("LOCPlayAch_Showcase_ScoreMode_Collection");
+                return PointsFamilyNames.GetShortLabel(type.PointsFamily);
             }
+
+            return type.IsPrestige
+                ? L("LOCPlayAch_Showcase_ScoreMode_Prestige")
+                : L("LOCPlayAch_Showcase_ScoreMode_Collection");
         }
 
         public string ScoreText => Score.ToString("N0", FormattingCulture.Current);
