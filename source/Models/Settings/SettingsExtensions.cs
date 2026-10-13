@@ -60,6 +60,8 @@ namespace PlayniteAchievements.Models.Settings
             target.EnablePeriodicUpdates = source.EnablePeriodicUpdates;
             target.IncludeHiddenGamesInBulkScans = source.IncludeHiddenGamesInBulkScans;
             target.IncludeHiddenGamesInSummaries = source.IncludeHiddenGamesInSummaries;
+            target.RefreshExclusionFilterPresetIds = new HashSet<Guid>(source.RefreshExclusionFilterPresetIds);
+            target.SummaryExclusionFilterPresetIds = new HashSet<Guid>(source.SummaryExclusionFilterPresetIds);
             target.PeriodicUpdateHours = source.PeriodicUpdateHours;
             target.EnableFriendsPeriodicUpdates = source.EnableFriendsPeriodicUpdates;
             target.FriendsPeriodicUpdateHours = source.FriendsPeriodicUpdateHours;
