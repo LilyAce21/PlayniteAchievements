@@ -430,6 +430,38 @@ namespace PlayniteAchievements.Services.Images
             return Math.Min(quantized, MaxDecodePixel);
         }
 
+        /// <summary>
+        /// The decode width to ask for, never above the file's own pixel width. DecodePixelWidth
+        /// resamples up as readily as down, so a request larger than the source upscales at decode
+        /// and leaves WPF a second resample on the way to the rendered size. 0 means "leave
+        /// DecodePixelWidth unset": the file decodes at native size and is scaled once, at render.
+        /// </summary>
+        internal static int ClampDecodeToNative(int decodePixel, int nativeWidth)
+        {
+            if (decodePixel <= 0 || nativeWidth <= 0)
+            {
+                return decodePixel;
+            }
+
+            return decodePixel >= nativeWidth ? 0 : decodePixel;
+        }
+
+        /// <summary>
+        /// <see cref="ClampDecodeToNative"/> against the file at <paramref name="path"/>. A file
+        /// whose header cannot be read keeps the requested size.
+        /// </summary>
+        private static int ResolveEffectiveDecode(string path, int decodePixel)
+        {
+            if (decodePixel <= 0)
+            {
+                return decodePixel;
+            }
+
+            return ImagePixelSize.TryRead(path, out var nativeWidth, out var nativeHeight)
+                ? ClampDecodeToNative(decodePixel, nativeWidth)
+                : decodePixel;
+        }
+
         private void AddToCache(string key, BitmapSource value)
         {
             var bytes = EstimateBytes(value);
@@ -514,9 +546,10 @@ namespace PlayniteAchievements.Services.Images
                 // This service is the caching layer, so the WPF cache is redundant here.
                 bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
 
-                if (!keepFullSize && decodePixel > 0)
+                var effectiveDecode = keepFullSize ? 0 : ResolveEffectiveDecode(uri, decodePixel);
+                if (effectiveDecode > 0)
                 {
-                    bitmap.DecodePixelWidth = decodePixel;
+                    bitmap.DecodePixelWidth = effectiveDecode;
                 }
 
                 bitmap.UriSource = new Uri(uri, UriKind.RelativeOrAbsolute);
@@ -575,6 +608,7 @@ namespace PlayniteAchievements.Services.Images
                 // Content-based here: the file exists, so a still WebP keeps its decode-time
                 // downscale instead of paying full resolution for a format that merely could animate.
                 var keepFullSize = KeepsFullSizeStill(cachePath);
+                var effectiveDecode = keepFullSize ? 0 : ResolveEffectiveDecode(cachePath, decodePixel);
 
                 return await Task.Run(() =>
                 {
@@ -582,9 +616,9 @@ namespace PlayniteAchievements.Services.Images
                     bitmap.BeginInit();
                     bitmap.CacheOption = BitmapCacheOption.OnLoad;
                     bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile | BitmapCreateOptions.IgnoreImageCache;
-                    if (!keepFullSize && decodePixel > 0)
+                    if (effectiveDecode > 0)
                     {
-                        bitmap.DecodePixelWidth = decodePixel;
+                        bitmap.DecodePixelWidth = effectiveDecode;
                     }
                     bitmap.UriSource = new Uri(cachePath, UriKind.Absolute);
                     bitmap.EndInit();
