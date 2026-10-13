@@ -542,9 +542,9 @@ namespace PlayniteAchievements.Views.Showcase
                     AddMultilineText(
                         panel,
                         Localize("LOCPlayAch_Settings_Appearance_Resource_Text"),
-                        Localize("LOCPlayAch_Showcase_TextMarkdownHint"),
                         () => ShowcaseWidgetOptions.GetText(_settings),
                         value => ShowcaseWidgetOptions.SetText(_settings, value));
+                    FrameworkElement textPixelSizeRow = null;
                     AddChoice(
                         panel,
                         Localize("LOCPlayAch_Showcase_TextSize"),
@@ -553,11 +553,29 @@ namespace PlayniteAchievements.Views.Showcase
                             ShowcaseTextSize.Small,
                             ShowcaseTextSize.Normal,
                             ShowcaseTextSize.Large,
-                            ShowcaseTextSize.Huge
+                            ShowcaseTextSize.Huge,
+                            ShowcaseTextSize.Custom
                         },
                         ShowcaseWidgetOptions.GetTextSize(_settings),
-                        value => ShowcaseWidgetOptions.SetTextSize(_settings, value),
+                        value =>
+                        {
+                            ShowcaseWidgetOptions.SetTextSize(_settings, value);
+                            if (textPixelSizeRow != null)
+                            {
+                                textPixelSizeRow.Visibility = value == ShowcaseTextSize.Custom
+                                    ? Visibility.Visible
+                                    : Visibility.Collapsed;
+                            }
+                        },
                         TextSizeName);
+                    textPixelSizeRow = AddNumberRow(
+                        panel,
+                        Localize("LOCPlayAch_Showcase_TextSize") + " (px)",
+                        () => ShowcaseWidgetOptions.GetTextPixelSize(_settings),
+                        value => ShowcaseWidgetOptions.SetTextPixelSize(_settings, value));
+                    textPixelSizeRow.Visibility = ShowcaseWidgetOptions.GetTextSize(_settings) == ShowcaseTextSize.Custom
+                        ? Visibility.Visible
+                        : Visibility.Collapsed;
                     AddFontFamilyChoice(panel);
                     AddAlignmentChoices(panel);
                     break;
@@ -1345,10 +1363,10 @@ namespace PlayniteAchievements.Views.Showcase
         }
 
         /// <summary>
-        /// A label over a multi-line box with a hint under it. Enter adds a line; the text
-        /// commits on focus loss or Ctrl+Enter.
+        /// A label over the shared markdown toolbar and a multi-line box. Enter adds a line; the
+        /// text commits on focus loss or Ctrl+Enter.
         /// </summary>
-        private void AddMultilineText(Panel panel, string label, string hint, Func<string> read, Action<string> apply)
+        private void AddMultilineText(Panel panel, string label, Func<string> read, Action<string> apply)
         {
             var row = new StackPanel();
             row.SetResourceReference(MarginProperty, "PlayAch.Thickness.Bottom.Md");
@@ -1371,6 +1389,7 @@ namespace PlayniteAchievements.Views.Showcase
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 Padding = new Thickness(7, 4, 7, 4)
             };
+            Helpers.MarkdownEditing.SetShortcuts(box, true);
             void Commit()
             {
                 var value = string.IsNullOrWhiteSpace(box.Text) ? null : box.Text;
@@ -1393,18 +1412,8 @@ namespace PlayniteAchievements.Views.Showcase
                     args.Handled = true;
                 }
             };
+            row.Children.Add(Helpers.MarkdownEditing.CreateToolbar(box));
             row.Children.Add(box);
-
-            var hintBlock = new TextBlock
-            {
-                Text = hint,
-                Margin = new Thickness(0, 4, 0, 0),
-                TextWrapping = TextWrapping.Wrap
-            };
-            hintBlock.SetResourceReference(TextBlock.ForegroundProperty, "PlayAch.Brush.Text");
-            hintBlock.SetResourceReference(OpacityProperty, "PlayAch.Opacity.Subtle");
-            hintBlock.SetResourceReference(TextBlock.FontSizeProperty, "PlayAch.FontSize.Caption");
-            row.Children.Add(hintBlock);
             panel.Children.Add(row);
         }
 
