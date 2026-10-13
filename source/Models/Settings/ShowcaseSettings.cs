@@ -20,7 +20,9 @@ namespace PlayniteAchievements.Models.Settings
         ScreenshotSlideshow = 9,
         RecentAchievements = 10,
         GameSummaries = 11,
-        ActivityCalendar = 13
+        ActivityCalendar = 13,
+        Image = 14,
+        Text = 15
     }
 
     public enum ShowcasePageTemplate
@@ -197,6 +199,31 @@ namespace PlayniteAchievements.Models.Settings
     {
         Fit = 0,
         Fill = 1
+    }
+
+    /// <summary>Where the Image and Text widgets place their content across the card.</summary>
+    public enum ShowcaseHorizontalAlignment
+    {
+        Left = 0,
+        Center = 1,
+        Right = 2
+    }
+
+    /// <summary>Where the Image and Text widgets place their content down the card.</summary>
+    public enum ShowcaseVerticalAlignment
+    {
+        Top = 0,
+        Center = 1,
+        Bottom = 2
+    }
+
+    /// <summary>The Text widget's size, mapped onto the theme's font size resources.</summary>
+    public enum ShowcaseTextSize
+    {
+        Small = 0,
+        Normal = 1,
+        Large = 2,
+        Huge = 3
     }
 
     /// <summary>

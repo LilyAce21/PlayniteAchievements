@@ -84,7 +84,9 @@ namespace PlayniteAchievements.Models
                 Define(ShowcaseWidgetKind.ScreenshotSlideshow, "LOCPlayAch_Showcase_Widget_ScreenshotSlideshow", true, false),
                 Define(ShowcaseWidgetKind.RecentAchievements, "LOCPlayAch_Showcase_Widget_RecentAchievements", true, false),
                 Define(ShowcaseWidgetKind.GameSummaries, "LOCPlayAch_Showcase_Widget_GameSummaries", true, false),
-                Define(ShowcaseWidgetKind.ActivityCalendar, "LOCPlayAch_Showcase_Widget_ActivityCalendar", true, false)
+                Define(ShowcaseWidgetKind.ActivityCalendar, "LOCPlayAch_Showcase_Widget_ActivityCalendar", true, false),
+                Define(ShowcaseWidgetKind.Image, "LOCPlayAch_Showcase_Widget_Image", true, false),
+                Define(ShowcaseWidgetKind.Text, "LOCPlayAch_Showcase_Widget_Text", true, false)
             };
 
         public static IReadOnlyList<ShowcaseWidgetDefinition> Definitions => DefinitionsValue;
@@ -399,6 +401,15 @@ namespace PlayniteAchievements.Models
         private const string MaxPerGame = "MaxPerGame";
         private const string IncludeHiddenAchievements = "IncludeHiddenAchievements";
         private const string InfoPanel = "InfoPanel";
+        private const string ImagePath = "ImagePath";
+        private const string TextContent = "Text";
+        private const string HorizontalAlign = "HorizontalAlignment";
+        private const string VerticalAlign = "VerticalAlignment";
+        private const string TextSizeOption = "TextSize";
+        private const string FontFamilyOption = "FontFamily";
+
+        /// <summary>Option key of the Image widget's stored file, which travels as a bundled file rather than as an option value.</summary>
+        public const string ImagePathKey = ImagePath;
 
         /// <summary>Stat keys the profile stat slots show when the option is unset.</summary>
         public static readonly IReadOnlyList<string> DefaultProfileStatKeys = new[]
@@ -1118,6 +1129,79 @@ namespace PlayniteAchievements.Models
             ShowcaseWidgetInstanceSettings settings,
             bool value) => settings?.SetOption(ShowCompletionFrame, value);
 
+        /// <summary>The Image widget's stored file, or null while none is picked.</summary>
+        public static string GetImagePath(ShowcaseWidgetInstanceSettings settings) =>
+            GetString(settings, ImagePath);
+
+        public static void SetImagePath(ShowcaseWidgetInstanceSettings settings, string value) =>
+            SetString(settings, ImagePath, value);
+
+        /// <summary>The Text widget's text, in inline markdown; null while empty.</summary>
+        public static string GetText(ShowcaseWidgetInstanceSettings settings) =>
+            GetString(settings, TextContent, trim: false);
+
+        public static void SetText(ShowcaseWidgetInstanceSettings settings, string value) =>
+            SetString(settings, TextContent, value, trim: false);
+
+        public static ShowcaseHorizontalAlignment GetHorizontalAlignment(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, HorizontalAlign, ShowcaseHorizontalAlignment.Center);
+
+        public static void SetHorizontalAlignment(
+            ShowcaseWidgetInstanceSettings settings,
+            ShowcaseHorizontalAlignment value) => settings?.SetOption(HorizontalAlign, value);
+
+        public static ShowcaseVerticalAlignment GetVerticalAlignment(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, VerticalAlign, ShowcaseVerticalAlignment.Center);
+
+        public static void SetVerticalAlignment(
+            ShowcaseWidgetInstanceSettings settings,
+            ShowcaseVerticalAlignment value) => settings?.SetOption(VerticalAlign, value);
+
+        public static ShowcaseTextSize GetTextSize(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, TextSizeOption, ShowcaseTextSize.Normal);
+
+        public static void SetTextSize(ShowcaseWidgetInstanceSettings settings, ShowcaseTextSize value) =>
+            settings?.SetOption(TextSizeOption, value);
+
+        /// <summary>The Text widget's font family name; null inherits the theme font.</summary>
+        public static string GetFontFamily(ShowcaseWidgetInstanceSettings settings) =>
+            GetString(settings, FontFamilyOption);
+
+        public static void SetFontFamily(ShowcaseWidgetInstanceSettings settings, string value) =>
+            SetString(settings, FontFamilyOption, value);
+
+        private static string GetString(ShowcaseWidgetInstanceSettings settings, string key, bool trim = true)
+        {
+            if (settings?.Options == null || !settings.Options.TryGetValue(key, out var value))
+            {
+                return null;
+            }
+
+            return string.IsNullOrWhiteSpace(value) ? null : trim ? value.Trim() : value;
+        }
+
+        // A blank value removes the key, so an unset option and a cleared one read the same.
+        private static void SetString(ShowcaseWidgetInstanceSettings settings, string key, string value, bool trim = true)
+        {
+            if (settings == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                settings.Options?.Remove(key);
+                return;
+            }
+
+            if (settings.Options == null)
+            {
+                settings.Options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            settings.Options[key] = trim ? value.Trim() : value;
+        }
+
         private static T GetEnum<T>(
             ShowcaseWidgetInstanceSettings settings,
             string key,
@@ -1207,9 +1291,59 @@ namespace PlayniteAchievements.Models
                 case ShowcaseWidgetKind.ActivityCalendar:
                     ShowcaseTimelineOptions.SetWindow(settings, TimeWindow.All);
                     break;
+                case ShowcaseWidgetKind.Image:
+                    ShowcaseWidgetOptions.SetImageFitMode(settings, ShowcaseImageFitMode.Fill);
+                    ShowcaseWidgetOptions.SetHorizontalAlignment(settings, ShowcaseHorizontalAlignment.Center);
+                    ShowcaseWidgetOptions.SetVerticalAlignment(settings, ShowcaseVerticalAlignment.Center);
+                    break;
+                case ShowcaseWidgetKind.Text:
+                    ShowcaseWidgetOptions.SetHorizontalAlignment(settings, ShowcaseHorizontalAlignment.Center);
+                    ShowcaseWidgetOptions.SetVerticalAlignment(settings, ShowcaseVerticalAlignment.Center);
+                    ShowcaseWidgetOptions.SetTextSize(settings, ShowcaseTextSize.Normal);
+                    break;
             }
 
             return settings;
+        }
+    }
+
+    /// <summary>
+    /// The one image file a widget carries as page content: a profile card's background or an
+    /// Image widget's picture. Export bundles it, import and library updates restore it, and the
+    /// image store keeps it from being pruned. The profile avatar identifies the user and is not
+    /// part of this.
+    /// </summary>
+    public static class ShowcaseWidgetImages
+    {
+        public static string GetFilePath(ShowcaseWidgetInstanceSettings widget)
+        {
+            switch (widget?.Kind)
+            {
+                case ShowcaseWidgetKind.Profile:
+                    return string.IsNullOrWhiteSpace(widget.Profile?.BackgroundPath) ? null : widget.Profile.BackgroundPath;
+                case ShowcaseWidgetKind.Image:
+                    return ShowcaseWidgetOptions.GetImagePath(widget);
+                default:
+                    return null;
+            }
+        }
+
+        public static void SetFilePath(ShowcaseWidgetInstanceSettings widget, string path)
+        {
+            switch (widget?.Kind)
+            {
+                case ShowcaseWidgetKind.Profile:
+                    if (widget.Profile != null || !string.IsNullOrWhiteSpace(path))
+                    {
+                        widget.Profile = widget.Profile ?? new ShowcaseProfileSettings();
+                        widget.Profile.BackgroundPath = path;
+                    }
+
+                    break;
+                case ShowcaseWidgetKind.Image:
+                    ShowcaseWidgetOptions.SetImagePath(widget, path);
+                    break;
+            }
         }
     }
 }

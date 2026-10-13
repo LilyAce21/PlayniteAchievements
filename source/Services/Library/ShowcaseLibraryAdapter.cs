@@ -14,7 +14,8 @@ namespace PlayniteAchievements.Services.Library
     /// One showcase page as a library target. The projection holds the page's scalars
     /// (<c>Page</c>: name, row and column counts and weights), its grid (<c>Layout</c>, one
     /// value) and each widget on it by its id on this page (<c>Widgets</c>: kind, title, options
-    /// as one value, grid settings as one value, and the profile background as a file hash).
+    /// as one value, grid settings as one value, and its image - a profile background or an Image
+    /// widget's picture - as a file hash under Background).
     /// Options that belong to the user (pin collection, search and filter state) and every part
     /// of a profile card but its background stay out, as they stay out of a page package. The
     /// link maps the package's widget ids to this page's, so a merge pairs each widget with the
@@ -49,7 +50,7 @@ namespace PlayniteAchievements.Services.Library
         private readonly Action<PersistedSettings> _afterWrite;
 
         /// <param name="pageId">The page this adapter writes.</param>
-        /// <param name="storeImage">Stores an extracted profile background and returns its stored path.</param>
+        /// <param name="storeImage">Stores an extracted widget image and returns its stored path.</param>
         /// <param name="afterWrite">Runs after the page changed, with the settings it changed in.</param>
         public ShowcaseLibraryAdapter(string pageId, Func<string, string> storeImage, Action<PersistedSettings> afterWrite = null)
         {
@@ -89,7 +90,7 @@ namespace PlayniteAchievements.Services.Library
                 id => FindWidget(layout, id),
                 id => id,
                 widget => GridOf(grid, widget.Kind, widget.InstanceId),
-                widget => widget.Profile?.BackgroundPath);
+                widget => ShowcaseWidgetImages.GetFilePath(widget));
         }
 
         public IReadOnlyCollection<string> OwnedKeys(string packagePath) => null;
@@ -266,7 +267,7 @@ namespace PlayniteAchievements.Services.Library
             var extracted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var widget in normalized.WidgetInstances)
             {
-                var entry = widget.Profile?.BackgroundPath?.Trim();
+                var entry = ShowcaseWidgetImages.GetFilePath(widget)?.Trim();
                 if (!string.IsNullOrEmpty(entry)
                     && map.TryGetValue(widget.InstanceId ?? string.Empty, out var local)
                     && portable.BundledImages != null
@@ -434,6 +435,9 @@ namespace PlayniteAchievements.Services.Library
 
                 widget.CustomTitle = (string)value[TitleKey];
 
+                // Read before the options are rebuilt: an Image widget keeps its file there.
+                var currentImage = ShowcaseWidgetImages.GetFilePath(widget);
+
                 // The user's own options (pin collection, search and filter state) stay.
                 var options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var pair in widget.Options ?? new Dictionary<string, string>())
@@ -448,7 +452,7 @@ namespace PlayniteAchievements.Services.Library
                 {
                     foreach (var option in mergedOptions.Properties())
                     {
-                        if (!ShowcasePagePortableStore.IsUserOption(option.Name))
+                        if (!ShowcasePagePortableStore.IsUserOption(option.Name) && !IsFileOption(option.Name))
                         {
                             options[option.Name] = option.Value.Type == JTokenType.Null ? null : option.Value.ToString();
                         }
@@ -462,21 +466,22 @@ namespace PlayniteAchievements.Services.Library
                 }
 
                 incomingBackgrounds.TryGetValue(id, out var incomingFile);
-                var background = ResolveBackground(
+                var image = ResolveBackground(
                     value[BackgroundKey],
                     currentValue?[BackgroundKey],
                     incomingValue?[BackgroundKey],
-                    widget.Profile?.BackgroundPath,
+                    currentImage,
                     incomingFile);
-                if (widget.Profile != null || background != null)
-                {
-                    widget.Profile = widget.Profile ?? new ShowcaseProfileSettings();
-                    widget.Profile.BackgroundPath = background;
-                }
+                ShowcaseWidgetImages.SetFilePath(widget, image);
 
                 WriteGrid(grid, widget, value[GridKey], currentValue?[GridKey]);
             }
         }
+
+        // An Image widget's file is projected as a hash under Background; its machine-specific
+        // path never merges as an option.
+        private static bool IsFileOption(string key) =>
+            string.Equals(key, ShowcaseWidgetOptions.ImagePathKey, StringComparison.OrdinalIgnoreCase);
 
         private string ResolveBackground(JToken merged, JToken current, JToken incoming, string currentPath, string incomingFile)
         {
@@ -570,7 +575,7 @@ namespace PlayniteAchievements.Services.Library
 
                 var options = new JObject();
                 foreach (var pair in (widget.Options ?? new Dictionary<string, string>())
-                         .Where(pair => !ShowcasePagePortableStore.IsUserOption(pair.Key))
+                         .Where(pair => !ShowcasePagePortableStore.IsUserOption(pair.Key) && !IsFileOption(pair.Key))
                          .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
                 {
                     options[pair.Key] = pair.Value;

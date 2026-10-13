@@ -1326,6 +1326,8 @@
     <sys:String x:Key="LOCPlayAch_Showcase_RemoveFromCollection">Remove from collection</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NoPinnedAchievements">Pin achievements to see them here.</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NoFavoriteGames">Pin games or use Playnite favorites.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_NoImage">Choose an image in the widget settings.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_NoText">Add text in the widget settings.</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NoData">No data yet</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_UnknownProvider">Unknown provider</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_UnavailableAchievement">Unavailable achievement</sys:String>
@@ -1388,6 +1390,14 @@
     <sys:String x:Key="LOCPlayAch_Showcase_SlideshowSource_AchievementCollection">Achievement collection</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ImageFit_Fit">Fit</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ImageFit_Fill">Fill</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextMarkdownHint">**bold**, *italic*, __underline__, ~~strikethrough~~ and links. Ctrl+Enter saves.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextSize">Text size</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Small">Small</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Normal">Normal</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Large">Large</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Huge">Huge</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_HorizontalAlignment">Horizontal alignment</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_VerticalAlignment">Vertical alignment</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ActivityTooltipFormat">{0} — {1} unlocked</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ActivityLegend_Less">Less</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ActivityLegend_More">More</sys:String>
@@ -1422,6 +1432,8 @@
     <sys:String x:Key="LOCPlayAch_Showcase_AchievementGridSource_All">Unlocked achievements</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_AchievementGridSource_Pinned">Pinned collection</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Widget_ActivityCalendar">Activity Calendar</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Widget_Image">Image</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Widget_Text">Text</sys:String>
 
     <!-- ================================================================= -->
     <!-- 19 Workshop -->

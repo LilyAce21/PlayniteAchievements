@@ -199,6 +199,35 @@ namespace PlayniteAchievements.Services.Tests
             Assert.IsFalse(_apply.GetSettingsState(_targets.AdapterFor(page.PageId), _live).IsEdited);
         }
 
+        [TestMethod]
+        public void Update_KeepsAPictureTheUserSwappedOnAnImageWidget_AndNeverMergesItsPathAsAnOption()
+        {
+            var authorPicture = Path.Combine(_root, "author-1.png");
+            File.WriteAllBytes(authorPicture, new byte[] { 1, 1, 1 });
+            var authorImage = ShowcaseLayoutService.CreateWidget(_author, ShowcaseWidgetKind.Image);
+            ShowcaseWidgetOptions.SetImagePath(authorImage, authorPicture);
+            Assert.IsTrue(ShowcaseLayoutService.PlaceWidget(_author, _authorPage.PageId, AuthorBlocks()[2].BlockId, authorImage.InstanceId));
+            var page = Install("1.0.0");
+            var image = Local(page, ShowcaseWidgetKind.Image);
+            Assert.IsNotNull(ShowcaseWidgetOptions.GetImagePath(image), "the installed widget got the bundled picture");
+
+            var userPicture = Path.Combine(_root, "mine.png");
+            File.WriteAllBytes(userPicture, new byte[] { 2, 2, 2 });
+            ShowcaseWidgetOptions.SetImagePath(image, userPicture);
+            var authorPicture2 = Path.Combine(_root, "author-2.png");
+            File.WriteAllBytes(authorPicture2, new byte[] { 3, 3, 3 });
+            ShowcaseWidgetOptions.SetImagePath(authorImage, authorPicture2);
+            ShowcaseWidgetOptions.SetImageFitMode(authorImage, ShowcaseImageFitMode.Fit);
+            WritePackage("1.1.0");
+            _updates.MergeIntoTargets("ws:trophies", LibraryApplyMode.Merge);
+
+            Assert.AreSame(image, Local(page, ShowcaseWidgetKind.Image));
+            Assert.AreEqual(userPicture, ShowcaseWidgetOptions.GetImagePath(image), "the user's picture stays");
+            Assert.AreEqual(ShowcaseImageFitMode.Fit, ShowcaseWidgetOptions.GetImageFitMode(image), "other options follow the update");
+            var projected = _targets.AdapterFor(page.PageId).Project(_live);
+            StringAssert.DoesNotMatch(projected.ToString(), new System.Text.RegularExpressions.Regex("ImagePath"));
+        }
+
         // ---- helpers ----------------------------------------------------------------------------
 
         private List<ShowcaseBlockSettings> AuthorBlocks()

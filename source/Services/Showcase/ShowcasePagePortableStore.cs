@@ -60,7 +60,8 @@ namespace PlayniteAchievements.Services.Showcase
 
     /// <summary>
     /// Exports and imports a single showcase page as a <c>.pashowcase</c> zip package holding a
-    /// JSON manifest plus an <c>images/</c> folder with the profile backgrounds the page uses.
+    /// JSON manifest plus an <c>images/</c> folder with the widget images (profile backgrounds and
+    /// Image widget pictures) the page uses.
     /// The <see cref="BuildPortable"/> and <see cref="ApplyPortable"/> transforms are pure over
     /// the settings objects (the manifest refers to images by entry name and the caller supplies
     /// how an extracted file becomes a stored one); <see cref="Write"/> and <see cref="Read"/>
@@ -134,7 +135,7 @@ namespace PlayniteAchievements.Services.Showcase
 
                 var copy = widget.Clone();
                 StripUserOptions(copy);
-                BundleProfileBackground(copy, portable);
+                BundleWidgetImage(copy, portable);
                 portable.Widgets.Add(copy);
                 CaptureGridSurface(gridOptions, copy, portable);
             }
@@ -144,7 +145,7 @@ namespace PlayniteAchievements.Services.Showcase
 
         /// <summary>
         /// Inserts the file's page after <paramref name="insertAfterPageId"/> under fresh ids and
-        /// writes its grid settings onto the new widget instances. A profile background the file
+        /// writes its grid settings onto the new widget instances. A widget image the file
         /// bundles is handed to <paramref name="storeImage"/> as the extracted file's path and
         /// replaced by what it returns (null drops the image). The caller persists the result
         /// through the normal save path, which normalizes the page.
@@ -168,7 +169,7 @@ namespace PlayniteAchievements.Services.Showcase
                 (source, imported) =>
                 {
                     RestoreGridSurface(gridOptions, portable, source, imported);
-                    RestoreProfileBackground(portable, imported, storeImage);
+                    RestoreWidgetImage(portable, imported, storeImage);
                     if (idMap != null && !string.IsNullOrWhiteSpace(source.InstanceId))
                     {
                         idMap[source.InstanceId.Trim()] = imported.InstanceId;
@@ -246,7 +247,7 @@ namespace PlayniteAchievements.Services.Showcase
         }
 
         /// <summary>
-        /// Reads the manifest and extracts the bundled images the page's profile widgets refer
+        /// Reads the manifest and extracts the bundled images the page's widgets refer
         /// to into a temporary folder (<see cref="ShowcasePagePortableFile.ExtractedDirectory"/>),
         /// which the caller removes with <see cref="DeleteExtractedImages"/> after
         /// <see cref="ApplyPortable"/> has stored them.
@@ -408,22 +409,22 @@ namespace PlayniteAchievements.Services.Showcase
             }
         }
 
-        // Rewrites the profile background to an archive entry name and records the file it is
-        // read from; a background whose file is gone is dropped.
-        private static void BundleProfileBackground(
+        // Rewrites the widget's image (a profile background or an Image widget's picture) to an
+        // archive entry name and records the file it is read from; an image whose file is gone
+        // is dropped.
+        private static void BundleWidgetImage(
             ShowcaseWidgetInstanceSettings widget,
             ShowcasePagePortableFile portable)
         {
-            var profile = widget.Profile;
-            if (profile == null)
+            var path = ShowcaseWidgetImages.GetFilePath(widget)?.Trim();
+            if (string.IsNullOrWhiteSpace(path))
             {
                 return;
             }
 
-            var path = profile.BackgroundPath?.Trim();
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            if (!File.Exists(path))
             {
-                profile.BackgroundPath = null;
+                ShowcaseWidgetImages.SetFilePath(widget, null);
                 return;
             }
 
@@ -441,35 +442,37 @@ namespace PlayniteAchievements.Services.Showcase
             }
 
             portable.BundledImages[entryName] = path;
-            profile.BackgroundPath = entryName;
+            ShowcaseWidgetImages.SetFilePath(widget, entryName);
         }
 
-        private static void RestoreProfileBackground(
+        private static void RestoreWidgetImage(
             ShowcasePagePortableFile portable,
             ShowcaseWidgetInstanceSettings imported,
             Func<string, string> storeImage)
         {
-            var profile = imported.Profile;
-            if (profile == null || string.IsNullOrWhiteSpace(profile.BackgroundPath))
+            var entry = ShowcaseWidgetImages.GetFilePath(imported)?.Trim();
+            if (string.IsNullOrWhiteSpace(entry))
             {
                 return;
             }
 
-            // Every background in a portable file names an archive entry; anything else (or an
+            // Every widget image in a portable file names an archive entry; anything else (or an
             // entry the archive did not carry) cannot be shown on this machine.
             string extracted = null;
             var hasEntry = portable.BundledImages != null &&
-                           portable.BundledImages.TryGetValue(profile.BackgroundPath.Trim(), out extracted);
-            profile.BackgroundPath = hasEntry && !string.IsNullOrWhiteSpace(extracted)
-                ? storeImage?.Invoke(extracted)
-                : null;
+                           portable.BundledImages.TryGetValue(entry, out extracted);
+            ShowcaseWidgetImages.SetFilePath(
+                imported,
+                hasEntry && !string.IsNullOrWhiteSpace(extracted)
+                    ? storeImage?.Invoke(extracted)
+                    : null);
         }
 
         private static void ExtractBundledImages(ZipArchive archive, ShowcasePagePortableFile portable)
         {
             var wanted = new HashSet<string>(
                 (portable.Widgets ?? new List<ShowcaseWidgetInstanceSettings>())
-                    .Select(widget => widget?.Profile?.BackgroundPath?.Trim())
+                    .Select(widget => ShowcaseWidgetImages.GetFilePath(widget)?.Trim())
                     .Where(name => !string.IsNullOrWhiteSpace(name)),
                 StringComparer.OrdinalIgnoreCase);
             if (wanted.Count == 0)

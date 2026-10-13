@@ -80,12 +80,14 @@ namespace PlayniteAchievements.Views.Showcase
                 panel,
                 Localize("LOCPlayAch_Column_Avatar"),
                 () => _profile.AvatarPath,
-                value => _profile.AvatarPath = value);
+                value => _profile.AvatarPath = value,
+                _onChanged);
             AddImagePicker(
                 panel,
                 Localize("LOCPlayAch_Showcase_ProfileBackground"),
                 () => _profile.BackgroundPath,
-                value => _profile.BackgroundPath = value);
+                value => _profile.BackgroundPath = value,
+                _onChanged);
             BuildProfileLinks(panel);
             return panel;
         }
@@ -328,7 +330,7 @@ namespace PlayniteAchievements.Views.Showcase
         // A picked file is copied into the showcase image store right away (content-addressed,
         // so the stored name never changes meaning and needs no cache eviction). A copy that
         // fails keeps the previous image rather than dropping it.
-        private void AddImagePicker(Panel panel, string label, Func<string> read, Action<string> apply)
+        internal static void AddImagePicker(Panel panel, string label, Func<string> read, Action<string> apply, Action onChanged)
         {
             var row = new Grid();
             row.SetResourceReference(MarginProperty, "PlayAch.Thickness.Bottom.Md");
@@ -378,7 +380,7 @@ namespace PlayniteAchievements.Views.Showcase
 
                 apply(imported);
                 box.Text = imported;
-                _onChanged?.Invoke();
+                onChanged?.Invoke();
             };
             Grid.SetColumn(browse, 2);
             row.Children.Add(browse);
@@ -397,7 +399,7 @@ namespace PlayniteAchievements.Views.Showcase
 
                 apply(null);
                 box.Text = string.Empty;
-                _onChanged?.Invoke();
+                onChanged?.Invoke();
             };
             Grid.SetColumn(clear, 3);
             row.Children.Add(clear);
