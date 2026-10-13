@@ -9,9 +9,10 @@ using System.Windows.Media.Imaging;
 namespace PlayniteAchievements.Providers.Minecraft
 {
     /// <summary>
-    /// Resolves an advancement's display item to its item or block texture and writes it to the
-    /// plugin's icon cache, cropped to the first animation frame and scaled up with nearest
-    /// neighbour so the pixel art stays sharp.
+    /// Resolves an advancement's display item to its item or block texture, through the item's
+    /// model when it has one and by name otherwise, and writes it to the plugin's icon cache,
+    /// cropped to the first animation frame and scaled up with nearest neighbour so the pixel art
+    /// stays sharp.
     /// </summary>
     internal sealed class MinecraftIconExtractor
     {
@@ -24,7 +25,8 @@ namespace PlayniteAchievements.Providers.Minecraft
 
         private readonly string _cacheFolder;
         private readonly ILogger _logger;
-        private readonly Dictionary<string, string> _resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<IReadOnlyList<MinecraftResourceSource>, Dictionary<string, string>> _resolved =
+            new Dictionary<IReadOnlyList<MinecraftResourceSource>, Dictionary<string, string>>();
 
         public MinecraftIconExtractor(string pluginUserDataPath, ILogger logger)
         {
@@ -38,24 +40,32 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// The cached icon file for a namespaced item id, or null when no source has its texture.
         /// <paramref name="sourcesByPriority"/> is ascending; the last source with the texture wins.
         /// </summary>
-        public string GetIconPath(string itemId, IReadOnlyList<MinecraftResourceSource> sourcesByPriority)
+        public string GetIconPath(string itemId, float? customModelData, IReadOnlyList<MinecraftResourceSource> sourcesByPriority)
         {
             if (_cacheFolder == null || string.IsNullOrWhiteSpace(itemId) || sourcesByPriority == null)
             {
                 return null;
             }
 
-            if (_resolved.TryGetValue(itemId, out var known))
+            // Lookups are per source list: each instance has its own game jar and mods.
+            if (!_resolved.TryGetValue(sourcesByPriority, out var resolved))
+            {
+                resolved = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                _resolved[sourcesByPriority] = resolved;
+            }
+
+            var key = customModelData.HasValue ? $"{itemId}#{customModelData.Value}" : itemId;
+            if (resolved.TryGetValue(key, out var known))
             {
                 return known;
             }
 
-            var path = Resolve(itemId, sourcesByPriority);
-            _resolved[itemId] = path;
+            var path = Resolve(itemId, customModelData, sourcesByPriority);
+            resolved[key] = path;
             return path;
         }
 
-        private string Resolve(string itemId, IReadOnlyList<MinecraftResourceSource> sources)
+        private string Resolve(string itemId, float? customModelData, IReadOnlyList<MinecraftResourceSource> sources)
         {
             var separator = itemId.IndexOf(':');
             var ns = separator > 0 ? itemId.Substring(0, separator) : "minecraft";
@@ -65,7 +75,10 @@ namespace PlayniteAchievements.Providers.Minecraft
                 return null;
             }
 
-            foreach (var entry in CandidateEntries(ns, name))
+            var entries = MinecraftModelResolver.ResolveTextureEntries(ns, name, customModelData, sources)
+                .Concat(CandidateEntries(ns, name))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in entries)
             {
                 for (var i = sources.Count - 1; i >= 0; i--)
                 {
@@ -75,7 +88,9 @@ namespace PlayniteAchievements.Providers.Minecraft
                         continue;
                     }
 
-                    var target = Path.Combine(_cacheFolder, ns, name + ".png");
+                    // Cached by texture, so two items drawn with the same texture share one file.
+                    var relative = entry.Substring("assets/".Length).Replace('/', Path.DirectorySeparatorChar);
+                    var target = Path.Combine(_cacheFolder, relative);
                     if (File.Exists(target) && File.GetLastWriteTimeUtc(target) >= source.StampUtc)
                     {
                         return target;
@@ -92,6 +107,7 @@ namespace PlayniteAchievements.Providers.Minecraft
             return null;
         }
 
+        /// <summary>Texture names guessed from the item id, for items without a resolvable model.</summary>
         private static IEnumerable<string> CandidateEntries(string ns, string name)
         {
             foreach (var suffix in TextureSuffixes)
