@@ -36,14 +36,15 @@ namespace PlayniteAchievements.Providers.Tests
 
                 Assert.IsNotNull(data);
                 Assert.AreEqual("Minecraft", data.ProviderKey);
-                var byId = data.Achievements.ToDictionary(a => a.ApiName);
+                var byId = data.Achievements.ToDictionary(a => Strip(a.ApiName));
 
                 var mineStone = byId["minecraft:story/mine_stone"];
                 Assert.IsTrue(mineStone.Unlocked);
                 Assert.AreEqual(new DateTime(2024, 2, 1, 13, 0, 0, DateTimeKind.Utc), mineStone.UnlockTimeUtc);
                 Assert.AreEqual("Stone Age", mineStone.DisplayName);
                 Assert.AreEqual("Mine Stone with your new Pickaxe", mineStone.Description);
-                Assert.AreEqual("Minecraft", mineStone.Category);
+                Assert.AreEqual("Fixture Pack::Minecraft", mineStone.Category);
+                Assert.AreEqual(Path.GetFileName(root) + "|minecraft:story/mine_stone", data.Achievements.Single(a => a.DisplayName == "Stone Age").ApiName);
                 Assert.AreEqual("Base", mineStone.CategoryType);
                 Assert.AreEqual(RarityTier.Common, mineStone.Rarity);
             }
@@ -61,7 +62,7 @@ namespace PlayniteAchievements.Providers.Tests
             {
                 var gameFolder = CreateFixture(root);
                 var data = await RefreshAsync(gameFolder, root).ConfigureAwait(false);
-                var ids = data.Achievements.Select(a => a.ApiName).ToList();
+                var ids = data.Achievements.Select(a => Strip(a.ApiName)).ToList();
 
                 Assert.IsFalse(ids.Any(id => id.Contains("recipes/")));
                 Assert.IsFalse(ids.Contains("minecraft:story/technical"));
@@ -69,7 +70,7 @@ namespace PlayniteAchievements.Providers.Tests
                 Assert.IsFalse(ids.Contains("coolmod:tracking/ritual"));
 
                 // Only the other player's file in World B has this one done.
-                var secret = data.Achievements.Single(a => a.ApiName == "minecraft:nether/secret");
+                var secret = data.Achievements.Single(a => Strip(a.ApiName) == "minecraft:nether/secret");
                 Assert.IsFalse(secret.Unlocked);
             }
             finally
@@ -86,14 +87,14 @@ namespace PlayniteAchievements.Providers.Tests
             {
                 var gameFolder = CreateFixture(root);
                 var data = await RefreshAsync(gameFolder, root).ConfigureAwait(false);
-                var byId = data.Achievements.ToDictionary(a => a.ApiName);
+                var byId = data.Achievements.ToDictionary(a => Strip(a.ApiName));
 
                 var adventuring = byId["minecraft:adventure/adventuring_time"];
                 Assert.IsFalse(adventuring.Unlocked);
                 Assert.AreEqual(2, adventuring.ProgressNum);
                 Assert.AreEqual(3, adventuring.ProgressDenom);
                 Assert.AreEqual(RarityTier.Rare, adventuring.Rarity);
-                Assert.AreEqual("Adventure", adventuring.Category);
+                Assert.AreEqual("Fixture Pack::Adventure", adventuring.Category);
                 Assert.AreEqual("Base", adventuring.CategoryType);
 
                 var secret = byId["minecraft:nether/secret"];
@@ -117,9 +118,9 @@ namespace PlayniteAchievements.Providers.Tests
             {
                 var gameFolder = CreateFixture(root);
                 var data = await RefreshAsync(gameFolder, root).ConfigureAwait(false);
-                var first = data.Achievements.Single(a => a.ApiName == "coolmod:first");
+                var first = data.Achievements.Single(a => Strip(a.ApiName) == "coolmod:first");
 
-                Assert.AreEqual("Cool Mod", first.Category);
+                Assert.AreEqual("Fixture Pack::Cool Mod", first.Category);
                 Assert.IsNull(first.CategoryType);
                 Assert.AreEqual("First Steps", first.DisplayName);
                 Assert.IsTrue(first.Unlocked);
@@ -139,7 +140,7 @@ namespace PlayniteAchievements.Providers.Tests
             {
                 var gameFolder = CreateFixture(root);
                 var data = await RefreshAsync(gameFolder, root).ConfigureAwait(false);
-                var ids = data.Achievements.Select(a => a.ApiName).ToList();
+                var ids = data.Achievements.Select(a => Strip(a.ApiName)).ToList();
 
                 CollectionAssert.AreEqual(
                     new[]
@@ -151,7 +152,9 @@ namespace PlayniteAchievements.Providers.Tests
                         "minecraft:adventure/root",
                         "minecraft:adventure/adventuring_time",
                         "coolmod:root",
-                        "coolmod:first"
+                        "coolmod:badge",
+                        "coolmod:first",
+                        "coolmod:oil"
                     },
                     ids);
             }
@@ -169,8 +172,8 @@ namespace PlayniteAchievements.Providers.Tests
             {
                 var gameFolder = CreateFixture(root);
                 var data = await RefreshAsync(gameFolder, root).ConfigureAwait(false);
-                var mineStone = data.Achievements.Single(a => a.ApiName == "minecraft:story/mine_stone");
-                var rootRow = data.Achievements.Single(a => a.ApiName == "minecraft:story/root");
+                var mineStone = data.Achievements.Single(a => Strip(a.ApiName) == "minecraft:story/mine_stone");
+                var rootRow = data.Achievements.Single(a => Strip(a.ApiName) == "minecraft:story/root");
 
                 Assert.IsNotNull(mineStone.UnlockedIconPath);
                 Assert.IsTrue(File.Exists(mineStone.UnlockedIconPath));
@@ -181,8 +184,22 @@ namespace PlayniteAchievements.Providers.Tests
                     Assert.AreEqual(MinecraftIconExtractor.IconSize, frame.PixelHeight);
                 }
 
-                // grass_block has no plain texture; the _side block texture is used.
-                StringAssert.EndsWith(rootRow.UnlockedIconPath, "grass_block.png");
+                // grass_block has no model or plain texture; the _side block texture is used.
+                StringAssert.EndsWith(rootRow.UnlockedIconPath, "grass_block_side.png");
+
+                // diamond_boots' item model points at a texture in a subfolder.
+                var adventuring = data.Achievements.Single(a => Strip(a.ApiName) == "minecraft:adventure/adventuring_time");
+                StringAssert.EndsWith(adventuring.UnlockedIconPath, Path.Combine("item", "tools", "boots_custom.png"));
+
+                // coolmod:gadget's 1.21.4 item definition names a block model whose texture is the face.
+                var first = data.Achievements.Single(a => Strip(a.ApiName) == "coolmod:first");
+                StringAssert.EndsWith(first.UnlockedIconPath, "gadget_face.png");
+
+                // A NeoForge fluid-container bucket falls back to the vanilla bucket.
+                StringAssert.EndsWith(data.Achievements.Single(a => Strip(a.ApiName) == "coolmod:oil").UnlockedIconPath, Path.Combine("item", "bucket.png"));
+
+                // Custom model data 2 picks the second override's model, not the base texture.
+                StringAssert.EndsWith(data.Achievements.Single(a => Strip(a.ApiName) == "coolmod:badge").UnlockedIconPath, "badge_two.png");
             }
             finally
             {
@@ -221,6 +238,42 @@ namespace PlayniteAchievements.Providers.Tests
                 WriteText(Path.Combine(gameFolder, "saves", "World A", "advancements", PlayerUuid + ".json"), "{ \"minecraft:story/mine_stone\": ");
                 var data = await RefreshAsync(gameFolder, root).ConfigureAwait(false);
                 Assert.IsNull(data);
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [TestMethod]
+        public async Task Refresh_KeepsInstancesApartUnderInstanceCategories()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var prism = Path.Combine(root, "PrismLauncher");
+                var packA = Path.Combine(prism, "instances", "packa");
+                var packB = Path.Combine(prism, "instances", "packb");
+                CreateFixture(packA, "Pack A");
+                CreateFixture(packB, "Pack B");
+                // Pack B's only world progress: a fresh world with nothing done.
+                foreach (var world in Directory.GetDirectories(Path.Combine(packB, ".minecraft", "saves")))
+                {
+                    foreach (var file in Directory.GetFiles(Path.Combine(world, "advancements")))
+                    {
+                        File.WriteAllText(file, "{\"DataVersion\":3953}");
+                    }
+                }
+
+                var data = await RefreshAsync(null, root, configuredFolders: new[] { prism }).ConfigureAwait(false);
+
+                var stoneA = data.Achievements.Single(a => a.ApiName == "packa|minecraft:story/mine_stone");
+                var stoneB = data.Achievements.Single(a => a.ApiName == "packb|minecraft:story/mine_stone");
+                Assert.IsTrue(stoneA.Unlocked);
+                Assert.IsFalse(stoneB.Unlocked);
+                Assert.AreEqual("Pack A::Minecraft", stoneA.Category);
+                Assert.AreEqual("Pack B::Minecraft", stoneB.Category);
+                Assert.AreEqual(data.Achievements.Count / 2, data.Achievements.Count(a => a.ApiName.StartsWith("packa|", StringComparison.Ordinal)));
             }
             finally
             {
@@ -284,11 +337,13 @@ namespace PlayniteAchievements.Providers.Tests
                 var world = Path.Combine(gameFolder, "saves", "World B");
                 var source = MinecraftGameResolver.FromFolder(world, "test");
 
-                CollectionAssert.AreEqual(new[] { world }, source.Worlds);
-                Assert.AreEqual(gameFolder, source.GameFolders.Single());
+                CollectionAssert.AreEqual(new[] { world }, source.Instances.Single().Worlds);
+                Assert.AreEqual(gameFolder, source.Instances.Single().GameFolder);
+                Assert.AreEqual(Path.GetFileName(root), source.Instances.Single().Key);
+                Assert.AreEqual("Fixture Pack", source.Instances.Single().Name);
 
                 var instance = MinecraftGameResolver.FromFolder(root, "test");
-                Assert.AreEqual(2, instance.Worlds.Count);
+                Assert.AreEqual(2, instance.Instances.Single().Worlds.Count);
             }
             finally
             {
@@ -363,16 +418,34 @@ namespace PlayniteAchievements.Providers.Tests
             }
         }
 
-        private static async Task<GameAchievementData> RefreshAsync(string gameFolder, string userDataRoot, string playerUuid = PlayerUuid)
+        /// <summary>The advancement id of a row, without its instance prefix.</summary>
+        private static string Strip(string apiName) => apiName.Substring(apiName.IndexOf('|') + 1);
+
+        /// <summary>
+        /// Refreshes a game whose install folder is <paramref name="gameFolder"/>, or, when
+        /// <paramref name="configuredFolders"/> is given, a game named Minecraft read from those folders.
+        /// </summary>
+        private static async Task<GameAchievementData> RefreshAsync(
+            string gameFolder,
+            string userDataRoot,
+            string playerUuid = PlayerUuid,
+            IEnumerable<string> configuredFolders = null)
         {
             var settings = new PlayniteAchievementsSettings();
             var registry = new ProviderRegistry(settings, new[] { "Minecraft" });
             var providerSettings = registry.GetSettings<MinecraftSettings>();
             providerSettings.PlayerUuid = playerUuid;
+            if (configuredFolders != null)
+            {
+                providerSettings.GameFolders = configuredFolders.ToList();
+            }
+
             registry.Save(providerSettings);
 
             var provider = new MinecraftDataProvider(new FakeLogger(), settings, new FakePlayniteApi(), Path.Combine(userDataRoot, "userdata"));
-            var game = new Game("Fixture Pack") { Id = Guid.NewGuid(), InstallDirectory = gameFolder };
+            var game = configuredFolders == null
+                ? new Game("Fixture Pack") { Id = Guid.NewGuid(), InstallDirectory = gameFolder }
+                : new Game("Minecraft") { Id = Guid.NewGuid() };
             Assert.IsTrue(provider.IsCapable(game));
 
             GameAchievementData captured = null;
@@ -392,10 +465,11 @@ namespace PlayniteAchievements.Providers.Tests
         /// A Prism-style instance: root/mmc-pack.json names 1.21, root/.minecraft holds the game jar,
         /// a mod, two worlds and a datapack.
         /// </summary>
-        private static string CreateFixture(string root)
+        private static string CreateFixture(string root, string instanceName = "Fixture Pack")
         {
             var gameFolder = Path.Combine(root, ".minecraft");
             WriteText(Path.Combine(root, "mmc-pack.json"), "{\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"1.21\"}]}");
+            WriteText(Path.Combine(root, "instance.cfg"), "[General]\nname=" + instanceName + "\n");
 
             var jarEntries = new Dictionary<string, byte[]>
             {
@@ -411,6 +485,11 @@ namespace PlayniteAchievements.Providers.Tests
                 ["assets/minecraft/lang/en_us.json"] = Json("{\"advancements.story.root.title\":\"Minecraft\",\"advancements.story.root.description\":\"The heart and story of the game\",\"advancements.story.mine_stone.title\":\"Stone Age\",\"advancements.story.mine_stone.description\":\"Mine Stone with your new Pickaxe\",\"advancements.nether.root.title\":\"Nether\",\"advancements.adventure.root.title\":\"Adventure\"}"),
                 ["assets/minecraft/textures/item/wooden_pickaxe.png"] = Png(16, 32),
                 ["assets/minecraft/textures/block/grass_block_side.png"] = Png(16, 16),
+                ["assets/minecraft/models/item/diamond_boots.json"] = Json("{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"minecraft:item/tools/boots_custom\"}}"),
+                ["assets/minecraft/models/item/generated.json"] = Json("{\"parent\":\"builtin/generated\"}"),
+                ["assets/minecraft/textures/item/tools/boots_custom.png"] = Png(16, 16),
+                ["assets/minecraft/textures/item/bucket.png"] = Png(16, 16),
+                ["assets/minecraft/models/block/cube_all.json"] = Json("{\"parent\":\"block/cube\",\"textures\":{\"particle\":\"#all\",\"down\":\"#all\"}}"),
                 // Pads the jar past the loader-stub size threshold.
                 ["padding.bin"] = Padding(1100 * 1024)
             };
@@ -421,6 +500,16 @@ namespace PlayniteAchievements.Providers.Tests
                 ["data/coolmod/advancements/root.json"] = Json("{\"display\":{\"title\":{\"text\":\"Cool \",\"extra\":[\"Mod\"]},\"description\":\"\",\"icon\":{\"item\":\"coolmod:gadget\"}},\"criteria\":{\"x\":{}}}"),
                 ["data/coolmod/advancements/first.json"] = Json("{\"parent\":\"coolmod:root\",\"display\":{\"title\":{\"translate\":\"coolmod.first\"},\"description\":\"\",\"icon\":{\"item\":\"coolmod:gadget\"}},\"criteria\":{\"x\":{}}}"),
                 ["assets/coolmod/lang/en_us.json"] = Json("{\"coolmod.first\":\"First Steps\"}"),
+                ["data/coolmod/advancements/oil.json"] = Json("{\"parent\":\"coolmod:root\",\"display\":{\"title\":\"Oil\",\"description\":\"\",\"icon\":{\"id\":\"coolmod:oil_bucket\"}},\"criteria\":{\"x\":{}}}"),
+                ["assets/coolmod/models/item/oil_bucket.json"] = Json("{\"parent\":\"neoforge:item/bucket\",\"loader\":\"neoforge:fluid_container\",\"fluid\":\"coolmod:oil\"}"),
+                ["data/coolmod/advancements/badge.json"] = Json("{\"parent\":\"coolmod:root\",\"display\":{\"title\":\"Badge\",\"description\":\"\",\"icon\":{\"id\":\"coolmod:badge\",\"components\":{\"minecraft:custom_model_data\":2}}},\"criteria\":{\"x\":{}}}"),
+                ["assets/coolmod/models/item/badge.json"] = Json("{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"coolmod:item/badge_zero\"},\"overrides\":[{\"predicate\":{\"minecraft:custom_model_data\":1},\"model\":\"coolmod:item/badge_one\"},{\"predicate\":{\"minecraft:custom_model_data\":2},\"model\":\"coolmod:item/badge_two\"},{\"predicate\":{\"minecraft:custom_model_data\":3},\"model\":\"coolmod:item/badge_three\"}]}"),
+                ["assets/coolmod/models/item/badge_two.json"] = Json("{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"coolmod:item/badge_two\"}}"),
+                ["assets/coolmod/textures/item/badge_zero.png"] = Png(16, 16),
+                ["assets/coolmod/textures/item/badge_two.png"] = Png(16, 16),
+                ["assets/coolmod/items/gadget.json"] = Json("{\"model\":{\"type\":\"minecraft:model\",\"model\":\"coolmod:block/gadget_block\"}}"),
+                ["assets/coolmod/models/block/gadget_block.json"] = Json("{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":\"coolmod:block/gadget_face\"}}"),
+                ["assets/coolmod/textures/block/gadget_face.png"] = Png(16, 16),
                 // A tracking tree: the root has no display, so the game never shows its children.
                 ["data/coolmod/advancements/tracking/root.json"] = Json("{\"criteria\":{\"tick\":{}}}"),
                 ["data/coolmod/advancements/tracking/ritual.json"] = Json("{\"parent\":\"coolmod:tracking/root\",\"display\":{\"title\":\"Ritual\",\"description\":\"\",\"icon\":{\"id\":\"coolmod:gadget\"},\"hidden\":true},\"criteria\":{\"x\":{}}}")
