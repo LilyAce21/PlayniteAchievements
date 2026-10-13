@@ -284,6 +284,13 @@
     <Compile Include="..\..\source\Providers\PlayStationTrophies\TrpArchiveReader.cs" Link="Source\Providers\PlayStationTrophies\TrpArchiveReader.cs" />
     <Compile Include="..\..\source\Providers\PlayStationTrophies\NpTrophy.cs" Link="Source\Providers\PlayStationTrophies\NpTrophy.cs" />
     <Compile Include="..\..\source\Providers\PlayStationTrophies\TrophyConfParser.cs" Link="Source\Providers\PlayStationTrophies\TrophyConfParser.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KDataProvider.cs" Link="Source\Providers\Vita3K\Vita3KDataProvider.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KInstallationContext.cs" Link="Source\Providers\Vita3K\Vita3KInstallationContext.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KMatchIdHelper.cs" Link="Source\Providers\Vita3K\Vita3KMatchIdHelper.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KScanner.cs" Link="Source\Providers\Vita3K\Vita3KScanner.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KSettings.cs" Link="Source\Providers\Vita3K\Vita3KSettings.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KTitleIdResolver.cs" Link="Source\Providers\Vita3K\Vita3KTitleIdResolver.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KTropusrReader.cs" Link="Source\Providers\Vita3K\Vita3KTropusrReader.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseDataProvider.cs" Link="Source\Providers\Hoyoverse\HoyoverseDataProvider.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseGameCatalog.cs" Link="Source\Providers\Hoyoverse\HoyoverseGameCatalog.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseScanner.cs" Link="Source\Providers\Hoyoverse\HoyoverseScanner.cs" />
