@@ -223,6 +223,7 @@ namespace PlayniteAchievements.Models.ThemeIntegration
             "RetroAchievements",
             "RPCS3",
             "ShadPS4",
+            "Vita3K",
             "Xenia",
             "Manual",
             "Exophase",
