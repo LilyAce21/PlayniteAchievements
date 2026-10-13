@@ -117,6 +117,38 @@ namespace PlayniteAchievements.Models.Tests
         }
 
         [TestMethod]
+        public void CloneAndCopyFrom_PreserveExclusionFilterPresets()
+        {
+            var refreshPreset = Guid.NewGuid();
+            var summaryPreset = Guid.NewGuid();
+            var source = new PersistedSettings
+            {
+                RefreshExclusionFilterPresetIds = new HashSet<Guid> { refreshPreset, Guid.Empty },
+                SummaryExclusionFilterPresetIds = new HashSet<Guid> { summaryPreset }
+            };
+
+            var clone = source.Clone();
+            var target = new PersistedSettings();
+            target.CopyFrom(source);
+
+            foreach (var copy in new[] { clone, target })
+            {
+                CollectionAssert.AreEquivalent(new[] { refreshPreset }, copy.RefreshExclusionFilterPresetIds.ToList());
+                CollectionAssert.AreEquivalent(new[] { summaryPreset }, copy.SummaryExclusionFilterPresetIds.ToList());
+                Assert.AreNotSame(source.RefreshExclusionFilterPresetIds, copy.RefreshExclusionFilterPresetIds);
+            }
+        }
+
+        [TestMethod]
+        public void ExclusionFilterPresets_DefaultEmpty()
+        {
+            var settings = new PersistedSettings();
+
+            Assert.AreEqual(0, settings.RefreshExclusionFilterPresetIds.Count);
+            Assert.AreEqual(0, settings.SummaryExclusionFilterPresetIds.Count);
+        }
+
+        [TestMethod]
         public void CloneAndCopyFrom_PreserveProviderUnlockSounds()
         {
             var source = new PersistedSettings();
