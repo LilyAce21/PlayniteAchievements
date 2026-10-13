@@ -338,9 +338,12 @@ namespace PlayniteAchievements.Views.Showcase
         private void RebuildBody()
         {
             // A full-bleed profile takes the whole card; its view model reapplies the same inset
-            // to the foreground so only the background reaches the edge.
-            var fullBleed = _projection?.Instance?.Kind == ShowcaseWidgetKind.Profile &&
-                            ShowcaseWidgetOptions.GetProfileFullBleed(_projection.Instance);
+            // to the foreground so only the background reaches the edge. An Image widget always
+            // reaches the edge.
+            var kind = _projection?.Instance?.Kind;
+            var fullBleed = kind == ShowcaseWidgetKind.Image ||
+                            (kind == ShowcaseWidgetKind.Profile &&
+                             ShowcaseWidgetOptions.GetProfileFullBleed(_projection.Instance));
             var inset = ShowcaseWidgetViewModelBase.GetBodyInset(_viewport.Density);
             // A linked timeline's title would sit on its tallest bars, so the chart starts below
             // it, with or without a title: a title coming or going then never resizes the chart,
@@ -458,6 +461,16 @@ namespace PlayniteAchievements.Views.Showcase
                     break;
                 case ShowcaseWidgetKind.ActivityCalendar:
                     SetBodyContent(UpdateBodyViewModel<ActivityCalendarWidgetViewModel>());
+                    break;
+                case ShowcaseWidgetKind.Image:
+                    SetBodyContent(ShowcaseWidgetOptions.GetImagePath(_projection.Instance) != null
+                        ? (object)UpdateBodyViewModel<ImageWidgetViewModel>()
+                        : CreateEmptyText(Localize("LOCPlayAch_Showcase_NoImage")));
+                    break;
+                case ShowcaseWidgetKind.Text:
+                    SetBodyContent(ShowcaseWidgetOptions.GetText(_projection.Instance) != null
+                        ? (object)UpdateBodyViewModel<TextWidgetViewModel>()
+                        : CreateEmptyText(Localize("LOCPlayAch_Showcase_NoText")));
                     break;
                 default:
                     SetBodyContent(CreateEmptyText());
