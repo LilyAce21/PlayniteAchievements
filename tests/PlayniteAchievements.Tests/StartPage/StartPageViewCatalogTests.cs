@@ -42,7 +42,9 @@ namespace PlayniteAchievements.Tests.StartPage
                     StartPageViewCatalog.ShowcaseScreenshotSlideshowViewId,
                     StartPageViewCatalog.RecentUnlocksGridViewId,
                     StartPageViewCatalog.GameSummariesGridViewId,
-                    StartPageViewCatalog.ShowcaseActivityCalendarViewId
+                    StartPageViewCatalog.ShowcaseActivityCalendarViewId,
+                    StartPageViewCatalog.ShowcaseImageViewId,
+                    StartPageViewCatalog.ShowcaseTextViewId
                 },
                 StartPageViewCatalog.Views.Where(view => !view.Hidden).Select(view => view.ViewId).ToArray());
         }
@@ -75,6 +77,8 @@ namespace PlayniteAchievements.Tests.StartPage
         [DataRow(StartPageViewCatalog.ShowcaseIconMosaicViewId, StartPageWidgetKind.ShowcaseIconMosaic, ShowcaseWidgetKind.IconMosaic, false)]
         [DataRow(StartPageViewCatalog.ShowcaseScreenshotSlideshowViewId, StartPageWidgetKind.ShowcaseScreenshotSlideshow, ShowcaseWidgetKind.ScreenshotSlideshow, false)]
         [DataRow(StartPageViewCatalog.ShowcaseActivityCalendarViewId, StartPageWidgetKind.ShowcaseActivityCalendar, ShowcaseWidgetKind.ActivityCalendar, false)]
+        [DataRow(StartPageViewCatalog.ShowcaseImageViewId, StartPageWidgetKind.ShowcaseImage, ShowcaseWidgetKind.Image, false)]
+        [DataRow(StartPageViewCatalog.ShowcaseTextViewId, StartPageWidgetKind.ShowcaseText, ShowcaseWidgetKind.Text, false)]
         public void TryGetDefinition_ResolvesEveryPlacedViewId(
             string viewId,
             StartPageWidgetKind widgetKind,
@@ -94,7 +98,7 @@ namespace PlayniteAchievements.Tests.StartPage
         {
             var views = StartPageViewCatalog.Views;
 
-            Assert.AreEqual(16, views.Count);
+            Assert.AreEqual(18, views.Count);
             Assert.AreEqual(views.Count, views.Select(view => view.ViewId).Distinct().Count());
         }
 
