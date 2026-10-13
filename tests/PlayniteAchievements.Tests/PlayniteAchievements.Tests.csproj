@@ -291,6 +291,16 @@
     <Compile Include="..\..\source\Providers\Vita3K\Vita3KSettings.cs" Link="Source\Providers\Vita3K\Vita3KSettings.cs" />
     <Compile Include="..\..\source\Providers\Vita3K\Vita3KTitleIdResolver.cs" Link="Source\Providers\Vita3K\Vita3KTitleIdResolver.cs" />
     <Compile Include="..\..\source\Providers\Vita3K\Vita3KTropusrReader.cs" Link="Source\Providers\Vita3K\Vita3KTropusrReader.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftAccounts.cs" Link="Source\Providers\Minecraft\MinecraftAccounts.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftAdvancementCatalog.cs" Link="Source\Providers\Minecraft\MinecraftAdvancementCatalog.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftDataProvider.cs" Link="Source\Providers\Minecraft\MinecraftDataProvider.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftGameResolver.cs" Link="Source\Providers\Minecraft\MinecraftGameResolver.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftIconExtractor.cs" Link="Source\Providers\Minecraft\MinecraftIconExtractor.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftPaths.cs" Link="Source\Providers\Minecraft\MinecraftPaths.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftProgressReader.cs" Link="Source\Providers\Minecraft\MinecraftProgressReader.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftResourceSource.cs" Link="Source\Providers\Minecraft\MinecraftResourceSource.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftScanner.cs" Link="Source\Providers\Minecraft\MinecraftScanner.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftSettings.cs" Link="Source\Providers\Minecraft\MinecraftSettings.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseDataProvider.cs" Link="Source\Providers\Hoyoverse\HoyoverseDataProvider.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseGameCatalog.cs" Link="Source\Providers\Hoyoverse\HoyoverseGameCatalog.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseScanner.cs" Link="Source\Providers\Hoyoverse\HoyoverseScanner.cs" />
