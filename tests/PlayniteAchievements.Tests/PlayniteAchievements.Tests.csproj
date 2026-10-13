@@ -179,6 +179,7 @@
     <Compile Include="..\..\source\Services\Images\Webm\WebmStill.cs" Link="Source\Services\Images\Webm\WebmStill.cs" />
     <Compile Include="..\..\source\Services\Capture\MediaFoundationRuntime.cs" Link="Source\Services\Capture\MediaFoundationRuntime.cs" />
     <Compile Include="..\..\source\Services\Images\MemoryImageService.cs" Link="Source\Services\Images\MemoryImageService.cs" />
+    <Compile Include="..\..\source\Services\Images\ImagePixelSize.cs" Link="Source\Services\Images\ImagePixelSize.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrack.cs" Link="Source\Services\Images\RayTrack.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrackBuilder.cs" Link="Source\Services\Images\RayTrackBuilder.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrackService.cs" Link="Source\Services\Images\RayTrackService.cs" />
@@ -521,6 +522,9 @@
     <Compile Include="..\..\source\ViewModels\ManageAchievements\ManageOverviewSummaryBuilder.cs" Link="Source\ViewModels\ManageAchievements\ManageOverviewSummaryBuilder.cs" />
     <Compile Include="..\..\source\Models\Settings\CapstoneAssignment.cs" Link="Source\Models\Settings\CapstoneAssignment.cs" />
     <Compile Include="..\..\source\Models\Settings\GameCustomDataFile.cs" Link="Source\Models\Settings\GameCustomDataFile.cs" />
+    <Compile Include="..\..\source\Models\Settings\RuleClaim.cs" Link="Source\Models\Settings\RuleClaim.cs" />
+    <Compile Include="..\..\source\Services\Rules\RuleReconciler.cs" Link="Source\Services\Rules\RuleReconciler.cs" />
+    <Compile Include="..\..\source\Services\Rules\FilterExclusionRuleService.cs" Link="Source\Services\Rules\FilterExclusionRuleService.cs" />
     <Compile Include="..\..\source\Models\Settings\GameCustomDataPortableFile.cs" Link="Source\Models\Settings\GameCustomDataPortableFile.cs" />
     <Compile Include="..\..\source\Models\Settings\PortableGameKey.cs" Link="Source\Models\Settings\PortableGameKey.cs" />
     <Compile Include="..\..\source\Models\Settings\CustomAchievementDefinition.cs" Link="Source\Models\Settings\CustomAchievementDefinition.cs" />

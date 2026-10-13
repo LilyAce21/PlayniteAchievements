@@ -47,6 +47,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             normalized.PlayniteGameId = playniteGameId;
             normalized.ExcludedFromRefreshes = normalized.ExcludedFromRefreshes == true ? true : (bool?)null;
             normalized.ExcludedFromSummaries = normalized.ExcludedFromSummaries == true ? true : (bool?)null;
+            normalized.RuleClaims = NormalizeRuleClaims(normalized.RuleClaims);
+            normalized.UserPinnedFields = NormalizeRuleFieldList(normalized.UserPinnedFields);
             normalized.UseSeparateLockedIconsOverride = normalized.UseSeparateLockedIconsOverride == true ? true : (bool?)null;
             normalized.ForceUseExophase = normalized.ForceUseExophase == true ? true : (bool?)null;
             NormalizeCapstones(normalized);
@@ -169,6 +171,9 @@ namespace PlayniteAchievements.Services.GameCustomData
 
             return data.ExcludedFromRefreshes == true ||
                    data.ExcludedFromSummaries == true ||
+                   // A claim alone must survive: it holds the status to restore when the rule lets go.
+                   (data.RuleClaims != null && data.RuleClaims.Count > 0) ||
+                   (data.UserPinnedFields != null && data.UserPinnedFields.Count > 0) ||
                    data.UseSeparateLockedIconsOverride == true ||
                    !string.IsNullOrWhiteSpace(data.ManualCapstoneApiName) ||
                    data.CapstonesMaterialized ||
@@ -300,6 +305,12 @@ namespace PlayniteAchievements.Services.GameCustomData
                 PlayniteGameId = existing.PlayniteGameId != Guid.Empty ? existing.PlayniteGameId : legacy.PlayniteGameId,
                 ExcludedFromRefreshes = existing.ExcludedFromRefreshes ?? legacy.ExcludedFromRefreshes,
                 ExcludedFromSummaries = existing.ExcludedFromSummaries ?? legacy.ExcludedFromSummaries,
+                RuleClaims = GameCustomDataFile.CloneRuleClaims(existing.RuleClaims ?? legacy.RuleClaims),
+                UserPinnedFields = existing.UserPinnedFields != null
+                    ? new List<string>(existing.UserPinnedFields)
+                    : legacy.UserPinnedFields != null
+                        ? new List<string>(legacy.UserPinnedFields)
+                        : null,
                 UseSeparateLockedIconsOverride = existing.UseSeparateLockedIconsOverride ?? legacy.UseSeparateLockedIconsOverride,
                 ManualCapstoneApiName = !string.IsNullOrWhiteSpace(existing.ManualCapstoneApiName)
                     ? existing.ManualCapstoneApiName
@@ -391,6 +402,62 @@ namespace PlayniteAchievements.Services.GameCustomData
                     ? existing.CustomProviderId
                     : legacy.CustomProviderId
             };
+        }
+
+        /// <summary>
+        /// Keeps one claim per field, last one winning, and drops claims with no field.
+        /// </summary>
+        private static List<RuleClaim> NormalizeRuleClaims(IEnumerable<RuleClaim> claims)
+        {
+            if (claims == null)
+            {
+                return null;
+            }
+
+            var byField = new Dictionary<string, RuleClaim>(StringComparer.Ordinal);
+            var order = new List<string>();
+            foreach (var claim in claims)
+            {
+                var field = NormalizeString(claim?.Field);
+                if (field == null)
+                {
+                    continue;
+                }
+
+                if (!byField.ContainsKey(field))
+                {
+                    order.Add(field);
+                }
+
+                byField[field] = new RuleClaim
+                {
+                    Field = field,
+                    Written = NormalizeString(claim.Written),
+                    Prior = NormalizeString(claim.Prior)
+                };
+            }
+
+            return order.Count > 0 ? order.ConvertAll(field => byField[field]) : null;
+        }
+
+        private static List<string> NormalizeRuleFieldList(IEnumerable<string> fields)
+        {
+            if (fields == null)
+            {
+                return null;
+            }
+
+            var normalized = new List<string>();
+            foreach (var field in fields)
+            {
+                var value = NormalizeString(field);
+                if (value != null && !normalized.Contains(value))
+                {
+                    normalized.Add(value);
+                }
+            }
+
+            return normalized.Count > 0 ? normalized : null;
         }
 
         private static GameNotificationAppearanceOverride NormalizeNotificationAppearanceOverride(

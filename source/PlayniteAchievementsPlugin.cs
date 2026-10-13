@@ -38,6 +38,7 @@ using PlayniteAchievements.Services.Friends;
 using PlayniteAchievements.Services.ThemeIntegration;
 using PlayniteAchievements.Services.ThemeMigration;
 using PlayniteAchievements.Services.Tagging;
+using PlayniteAchievements.Services.Rules;
 using PlayniteAchievements.Services.UI;
 using System.Threading.Tasks;
 using System.Threading;
@@ -167,6 +168,9 @@ namespace PlayniteAchievements
         private readonly HashSet<Guid> _pendingCustomizationTagSyncIds = new HashSet<Guid>();
         private bool _tagSyncDrainRunning;
         private TagSyncService _tagSyncService;
+        private FilterExclusionRuleService _filterExclusionRules;
+
+        internal FilterExclusionRuleService FilterExclusionRules => _filterExclusionRules;
         private AutoCapstoneMaintainer _autoCapstoneMaintainer;
         private AutoCapstoneGenerator _autoCapstoneGenerator;
         private AutoCapstoneAuthoring _autoCapstoneAuthoring;
@@ -1203,6 +1207,12 @@ namespace PlayniteAchievements
                         GetPluginLocalizationDirectory());
                     _tagSyncService.InitializeAndSubscribeTaggingSettings();
 
+                    _filterExclusionRules = new FilterExclusionRuleService(
+                        PlayniteApi,
+                        _gameCustomDataStore,
+                        settings,
+                        _logger);
+
                     _fullscreenControllerNavigationService = new FullscreenControllerNavigationService(
                         PlayniteApi,
                         _logger);
@@ -1769,6 +1779,10 @@ namespace PlayniteAchievements
 
                 _fallbackIconStore?.PruneOrphans(_settingsViewModel?.Settings?.Persisted);
 
+                // Catch up on filter matches that moved while Playnite was closed. A steady
+                // library writes nothing here.
+                _filterExclusionRules?.QueueAll();
+
                 // Auto-migrate themes that have been updated since the last migration.
                 _themeAutoMigrationService?.ScheduleAutoMigration();
 
@@ -2124,6 +2138,12 @@ namespace PlayniteAchievements
                 InvalidateFriendDataCoordinators();
             }
 
+            if (e.PropertyName == nameof(PersistedSettings.RefreshExclusionFilterPresetIds) ||
+                e.PropertyName == nameof(PersistedSettings.SummaryExclusionFilterPresetIds))
+            {
+                _filterExclusionRules?.QueueAll();
+            }
+
             InvalidateStartPageData();
             _tagSyncService?.HandlePersistedSettingsPropertyChanged(e);
         }
@@ -2144,6 +2164,7 @@ namespace PlayniteAchievements
             InvalidateFriendDataCoordinators();
             InvalidateStartPageData();
             _tagSyncService?.InitializeAndSubscribeTaggingSettings();
+            _filterExclusionRules?.QueueAll();
         }
 
         private void FriendCacheManager_FriendCacheInvalidated(object sender, FriendCacheInvalidatedEventArgs e)
@@ -2254,6 +2275,7 @@ namespace PlayniteAchievements
 
             _backgroundUpdates.Stop();
             try { _workshopUpdateChecker?.Stop(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to stop the Workshop update checker"); }
+            try { _filterExclusionRules?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose filterExclusionRules"); }
             try { _inGameMonitor?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose inGameMonitor"); }
             try { _toastNotifications?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose toastNotifications"); }
             try { _unlockRecordings?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose unlockRecordings"); }
@@ -2356,6 +2378,29 @@ namespace PlayniteAchievements
             // against fresh values instead of serving a stale cached snapshot.
             PlayniteApi?.Database?.Games?.ItemUpdated += Games_ItemUpdated;
             _eventSubscriptions.Add(() => PlayniteApi?.Database?.Games?.ItemUpdated -= Games_ItemUpdated);
+
+            // A saved filter edited or deleted in Playnite changes which games the exclusion
+            // rules match.
+            PlayniteApi?.Database?.FilterPresets?.ItemUpdated += FilterPresets_ItemUpdated;
+            _eventSubscriptions.Add(() => PlayniteApi?.Database?.FilterPresets?.ItemUpdated -= FilterPresets_ItemUpdated);
+            PlayniteApi?.Database?.FilterPresets?.ItemCollectionChanged += FilterPresets_ItemCollectionChanged;
+            _eventSubscriptions.Add(() => PlayniteApi?.Database?.FilterPresets?.ItemCollectionChanged -= FilterPresets_ItemCollectionChanged);
+        }
+
+        private void FilterPresets_ItemUpdated(object sender, ItemUpdatedEventArgs<FilterPreset> e)
+        {
+            if (_filterExclusionRules?.HasRules == true)
+            {
+                _filterExclusionRules.QueueAll();
+            }
+        }
+
+        private void FilterPresets_ItemCollectionChanged(object sender, ItemCollectionChangedEventArgs<FilterPreset> e)
+        {
+            if (_filterExclusionRules?.HasRules == true)
+            {
+                _filterExclusionRules.QueueAll();
+            }
         }
 
         private void SubscribePluginEventHandlers()
@@ -2917,6 +2962,16 @@ namespace PlayniteAchievements
             // does not project. So every custom-data edit threw away a whole-library projection
             // a second time, on top of the one its own store event caused, and that projection
             // was measured at ~1.5s to rebuild for 500 games.
+            //
+            // The exclusion rules come first and look at every update: a saved filter can match
+            // on any field, tags and completion status included.
+            if (_filterExclusionRules?.HasRules == true && e?.UpdatedItems != null)
+            {
+                _filterExclusionRules.QueueGames(e.UpdatedItems
+                    .Where(update => update?.NewData != null)
+                    .Select(update => update.NewData.Id));
+            }
+
             if (!UpdateAffectsProjection(e))
             {
                 return;
@@ -3016,6 +3071,12 @@ namespace PlayniteAchievements
                         .Where(id => id != Guid.Empty)
                         .Distinct()
                         .ToList() ?? new List<Guid>();
+
+                    // Settled first, so a new game a saved filter excludes is never fetched.
+                    if (_filterExclusionRules?.HasRules == true)
+                    {
+                        _filterExclusionRules.ReconcileGamesNow(validGameIds);
+                    }
 
                     // The GameIds path bypasses user exclusions so a manual multi-select menu
                     // refresh can force excluded games; this auto-refresh of newly added games is

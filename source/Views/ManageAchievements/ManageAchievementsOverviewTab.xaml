@@ -244,15 +244,29 @@
                             <TextBlock Grid.Row="4" Grid.Column="0"
                                        Style="{StaticResource SettingLabelStyle}"
                                        Text="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ExclusionHeader}" />
-                            <ComboBox Grid.Row="4" Grid.Column="1"
-                                      ItemsSource="{Binding ExclusionModeOptions}"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectedValuePath="Mode"
-                                      SelectedValue="{Binding ExclusionMode, Mode=TwoWay}"
-                                      Width="200"
-                                      Padding="8,4"
-                                      HorizontalAlignment="Left"
-                                      Margin="0,2" />
+                            <WrapPanel Grid.Row="4" Grid.Column="1"
+                                       Orientation="Horizontal">
+                                <ComboBox ItemsSource="{Binding ExclusionModeOptions}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Mode"
+                                          SelectedValue="{Binding ExclusionMode, Mode=TwoWay}"
+                                          Width="200"
+                                          Padding="8,4"
+                                          HorizontalAlignment="Left"
+                                          Margin="0,2" />
+                                <!-- Which side owns the choice when saved filters are in play. -->
+                                <TextBlock Style="{StaticResource SettingStatusStyle}"
+                                           Text="{DynamicResource LOCPlayAch_ManageAchievements_Exclusion_SetByFilter}"
+                                           Visibility="{Binding IsExclusionSetByFilter, Converter={StaticResource BoolToVis}}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Left.Sm}" />
+                                <Button Content="{DynamicResource LOCPlayAch_ManageAchievements_Exclusion_FollowFilters}"
+                                        Command="{Binding FollowSavedFiltersCommand}"
+                                        Visibility="{Binding IsExclusionOverridingFilter, Converter={StaticResource BoolToVis}}"
+                                        Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
+                                        VerticalAlignment="Center"
+                                        Margin="{StaticResource PlayAch.Thickness.Left.Sm}" />
+                            </WrapPanel>
 
                             <!-- Points: which points card the game's points count toward. -->
                             <TextBlock Grid.Row="5" Grid.Column="0"

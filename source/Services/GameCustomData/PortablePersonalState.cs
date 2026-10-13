@@ -89,6 +89,12 @@ namespace PlayniteAchievements.Services.GameCustomData
             // The package never carries the game's sound pack, so the local one stays.
             imported.UnlockSounds = current.UnlockSounds?.Clone();
 
+            // Rule ownership belongs with the exclusion flags it describes, which stay local.
+            imported.RuleClaims = GameCustomDataFile.CloneRuleClaims(current.RuleClaims);
+            imported.UserPinnedFields = current.UserPinnedFields != null
+                ? new List<string>(current.UserPinnedFields)
+                : null;
+
             if (current.ManualLink != null && imported.ManualLink != null &&
                 string.Equals(current.ManualLink.SourceKey, imported.ManualLink.SourceKey, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(current.ManualLink.SourceGameId, imported.ManualLink.SourceGameId, StringComparison.OrdinalIgnoreCase))

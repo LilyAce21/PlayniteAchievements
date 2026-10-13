@@ -5,6 +5,7 @@ using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.Manual;
 using PlayniteAchievements.Services.Cache;
 using PlayniteAchievements.Services.GameCustomData;
+using PlayniteAchievements.Services.Rules;
 using Playnite.SDK;
 using System;
 using System.Collections.Generic;
@@ -1475,6 +1476,7 @@ namespace PlayniteAchievements.Services.Achievements
             _gameCustomDataStore.Update(playniteGameId, customData =>
             {
                 customData.ExcludedFromSummaries = excluded ? true : (bool?)null;
+                RuleReconciler.RecordUserWrite(customData, RuleFields.ExcludedFromSummaries);
             });
         }
 
@@ -1760,6 +1762,7 @@ namespace PlayniteAchievements.Services.Achievements
             _gameCustomDataStore.Update(playniteGameId, customData =>
             {
                 customData.ExcludedFromRefreshes = excluded ? true : (bool?)null;
+                RuleReconciler.RecordUserWrite(customData, RuleFields.ExcludedFromRefreshes);
             });
         }
 

@@ -24,6 +24,7 @@ using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.Refresh;
+using PlayniteAchievements.Services.Rules;
 using PlayniteAchievements.Services.Summaries;
 using PlayniteAchievements.ViewModels.Items;
 using AsyncCommand = PlayniteAchievements.Common.AsyncCommand;
@@ -92,6 +93,8 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         private string _currentCapstoneName;
         private bool _isExcluded;
         private bool _isExcludedFromSummaries;
+        private bool _isExclusionSetByFilter;
+        private bool _isExclusionOverridingFilter;
         private bool _hasManualTrackingLink;
         private string _manualTrackingSummary;
         private bool _hasAchievementData;
@@ -127,6 +130,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         public RelayCommand ClearProviderOverrideCommand { get; }
         public RelayCommand ApplyExophaseEnrichmentSlugCommand { get; }
         public RelayCommand ClearExophaseEnrichmentSlugCommand { get; }
+        public RelayCommand FollowSavedFiltersCommand { get; }
         public RelayCommand UnlinkManualTrackingCommand { get; }
         public RelayCommand RefreshStateCommand { get; }
         public AsyncCommand RefreshGameCommand { get; }
@@ -168,6 +172,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             ClearProviderOverrideCommand = new RelayCommand(_ => ClearProviderOverride(), _ => HasGame && HasProviderOverride);
             ApplyExophaseEnrichmentSlugCommand = new RelayCommand(_ => ApplyExophaseEnrichmentSlug(), _ => HasGame);
             ClearExophaseEnrichmentSlugCommand = new RelayCommand(_ => ClearExophaseEnrichmentSlug(), _ => HasGame && HasExophaseEnrichmentSlugOverride);
+            FollowSavedFiltersCommand = new RelayCommand(_ => FollowSavedFilters(), _ => HasGame && IsExclusionOverridingFilter);
             UnlinkManualTrackingCommand = new RelayCommand(_ => UnlinkManualTracking(), _ => HasGame && HasManualTrackingLink);
             RefreshStateCommand = new RelayCommand(_ => Reload());
             RefreshGameCommand = new AsyncCommand(_ => RefreshGameAsync(), _ => HasGame && !IsRefreshing && !(_refreshService?.IsRebuilding ?? false));
@@ -602,6 +607,23 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
         }
 
+        /// <summary>True when a saved filter, not the user, set the game's current exclusion.</summary>
+        public bool IsExclusionSetByFilter
+        {
+            get => _isExclusionSetByFilter;
+            private set => SetValue(ref _isExclusionSetByFilter, value);
+        }
+
+        /// <summary>
+        /// True when the user included the game although a saved filter would exclude it, so the
+        /// filters can be handed the choice back.
+        /// </summary>
+        public bool IsExclusionOverridingFilter
+        {
+            get => _isExclusionOverridingFilter;
+            private set => SetValue(ref _isExclusionOverridingFilter, value);
+        }
+
         public IReadOnlyList<GameExclusionOption> ExclusionModeOptions { get; } = new[]
         {
             new GameExclusionOption(GameExclusionMode.None, L("LOCNone")),
@@ -913,6 +935,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 _sidebarSourceAchievements = list;
                 IsExcluded = isExcluded;
                 IsExcludedFromSummaries = GameCustomDataLookup.IsExcludedFromSummaries(_gameId, _settings?.Persisted);
+                ReloadExclusionFilterState(currentCustomData);
                 SetValue(
                     ref _useSeparateLockedIconsOverride,
                     currentCustomData?.UseSeparateLockedIconsOverride == true);
@@ -1067,6 +1090,36 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 L("LOCPlayAch_Title_PluginName"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
+        }
+
+        private void ReloadExclusionFilterState(GameCustomDataFile customData)
+        {
+            IsExclusionSetByFilter =
+                RuleReconciler.FindClaim(customData, RuleFields.ExcludedFromRefreshes) != null ||
+                RuleReconciler.FindClaim(customData, RuleFields.ExcludedFromSummaries) != null;
+
+            var pinnedRefresh = RuleReconciler.IsPinned(customData, RuleFields.ExcludedFromRefreshes) && !IsExcluded;
+            var pinnedSummary = RuleReconciler.IsPinned(customData, RuleFields.ExcludedFromSummaries) && !IsExcludedFromSummaries;
+            var rules = _plugin?.FilterExclusionRules;
+            if (!(pinnedRefresh || pinnedSummary) || rules?.HasRules != true)
+            {
+                IsExclusionOverridingFilter = false;
+                return;
+            }
+
+            var matches = rules.GetMatches(_gameId);
+            IsExclusionOverridingFilter = (pinnedRefresh && matches.Refresh) || (pinnedSummary && matches.Summary);
+        }
+
+        private void FollowSavedFilters()
+        {
+            if (!HasGame)
+            {
+                return;
+            }
+
+            _plugin?.FilterExclusionRules?.FollowFilters(_gameId);
+            Reload();
         }
 
         private void ApplyExclusionMode(GameExclusionMode mode)
@@ -1771,6 +1824,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             ClearProviderOverrideCommand?.RaiseCanExecuteChanged();
             ApplyExophaseEnrichmentSlugCommand?.RaiseCanExecuteChanged();
             ClearExophaseEnrichmentSlugCommand?.RaiseCanExecuteChanged();
+            FollowSavedFiltersCommand?.RaiseCanExecuteChanged();
             UnlinkManualTrackingCommand?.RaiseCanExecuteChanged();
             RefreshStateCommand?.RaiseCanExecuteChanged();
             RefreshGameCommand?.RaiseCanExecuteChanged();

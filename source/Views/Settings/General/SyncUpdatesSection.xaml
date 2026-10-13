@@ -6,6 +6,7 @@
              xmlns:models="clr-namespace:PlayniteAchievements.Models"
              xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
              mc:Ignorable="d"
+             x:Name="SyncUpdatesSectionRoot"
              d:DesignHeight="600"
              d:DesignWidth="700">
     <UserControl.Resources>
@@ -111,6 +112,41 @@
                         <TextBox Text="{Binding Persisted.RecentRefreshGamesCount, UpdateSourceTrigger=PropertyChanged}"
                                  Width="{StaticResource PlayAch.Size.Input.NarrowWidth}"
                                  TextAlignment="Right"/>
+                    </controls:SettingRow>
+
+                    <!-- Automatic exclusions from Playnite saved filters -->
+                    <TextBlock Text="{DynamicResource LOCSettingsTopPanelFilterPresetsItem}"
+                               Style="{StaticResource SubSectionHeaderStyle}"
+                               Margin="{StaticResource PlayAch.Thickness.Top.Lg}"/>
+                    <TextBlock Text="{DynamicResource LOCPlayAch_Settings_ExclusionFilters_Description}"
+                               Style="{StaticResource MutedTextStyle}"
+                               TextWrapping="Wrap"
+                               Margin="{StaticResource PlayAch.Thickness.Bottom.Sm}"/>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Menu_ExcludeFromRefreshes}">
+                        <Button x:Name="RefreshExclusionFiltersButton"
+                                Style="{StaticResource AchievementSelectorButtonStyle}"
+                                Content="{Binding RefreshExclusionFiltersText, ElementName=SyncUpdatesSectionRoot}"
+                                Click="RefreshExclusionFiltersButton_Click"
+                                MinWidth="180"
+                                Height="{StaticResource PlayAch.Size.Control.Height}">
+                            <Button.ContextMenu>
+                                <ContextMenu Style="{StaticResource AchievementSelectorContextMenuStyle}"
+                                             ItemContainerStyle="{StaticResource AchievementMultiSelectMenuItemStyle}"/>
+                            </Button.ContextMenu>
+                        </Button>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Common_Action_ExcludeFromSummaries}">
+                        <Button x:Name="SummaryExclusionFiltersButton"
+                                Style="{StaticResource AchievementSelectorButtonStyle}"
+                                Content="{Binding SummaryExclusionFiltersText, ElementName=SyncUpdatesSectionRoot}"
+                                Click="SummaryExclusionFiltersButton_Click"
+                                MinWidth="180"
+                                Height="{StaticResource PlayAch.Size.Control.Height}">
+                            <Button.ContextMenu>
+                                <ContextMenu Style="{StaticResource AchievementSelectorContextMenuStyle}"
+                                             ItemContainerStyle="{StaticResource AchievementMultiSelectMenuItemStyle}"/>
+                            </Button.ContextMenu>
+                        </Button>
                     </controls:SettingRow>
 
                     <!-- Advanced -->

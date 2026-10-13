@@ -93,6 +93,18 @@ namespace PlayniteAchievements.Models.Settings
 
         public bool? ExcludedFromSummaries { get; set; }
 
+        /// <summary>
+        /// Values an automatic rule wrote and still owns, one per field. Local state: never
+        /// exported in a .pa package.
+        /// </summary>
+        public List<RuleClaim> RuleClaims { get; set; }
+
+        /// <summary>
+        /// Fields the user set against a rule. A rule leaves a pinned field alone until it stops
+        /// applying to the game, which clears the pin. Local state: never exported.
+        /// </summary>
+        public List<string> UserPinnedFields { get; set; }
+
         public bool? UseSeparateLockedIconsOverride { get; set; }
 
         public string ManualCapstoneApiName { get; set; }
@@ -219,6 +231,10 @@ namespace PlayniteAchievements.Models.Settings
                 PlayniteGameId = PlayniteGameId,
                 ExcludedFromRefreshes = ExcludedFromRefreshes,
                 ExcludedFromSummaries = ExcludedFromSummaries,
+                RuleClaims = CloneRuleClaims(RuleClaims),
+                UserPinnedFields = UserPinnedFields != null
+                    ? new List<string>(UserPinnedFields)
+                    : null,
                 UseSeparateLockedIconsOverride = UseSeparateLockedIconsOverride,
                 ManualCapstoneApiName = ManualCapstoneApiName,
                 CapstonesMaterialized = CapstonesMaterialized,
@@ -409,6 +425,25 @@ namespace PlayniteAchievements.Models.Settings
                     : null,
                 CustomProviderId = portable?.CustomProviderId
             };
+        }
+
+        internal static List<RuleClaim> CloneRuleClaims(IEnumerable<RuleClaim> source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            var clone = new List<RuleClaim>();
+            foreach (var claim in source)
+            {
+                if (claim != null)
+                {
+                    clone.Add(claim.Clone());
+                }
+            }
+
+            return clone;
         }
 
         internal static Dictionary<string, CategoryImageOverrideData> CloneCategoryImageOverrideMap(
