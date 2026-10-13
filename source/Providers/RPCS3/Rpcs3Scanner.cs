@@ -4,7 +4,7 @@ using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Providers.EmuLibrary;
 using PlayniteAchievements.Providers.Exophase;
 using PlayniteAchievements.Common.Disc;
-using PlayniteAchievements.Providers.RPCS3.Models;
+using PlayniteAchievements.Providers.PlayStationTrophies;
 using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.GameCustomData;
@@ -543,8 +543,8 @@ namespace PlayniteAchievements.Providers.RPCS3
 
                 try
                 {
-                    var ps3Locale = Rpcs3TrophyParser.MapGlobalLanguageToPs3Locale(_settings?.Persisted?.GlobalLanguage);
-                    var trophies = Rpcs3TrophyParser.ParseTrophyDefinitions(tropconfPath, ps3Locale, _logger);
+                    var ps3Locale = TrophyConfParser.MapGlobalLanguageToTrophyLocale(_settings?.Persisted?.GlobalLanguage);
+                    var trophies = TrophyConfParser.ParseTrophyDefinitions(tropconfPath, ps3Locale, _logger);
 
                     if (File.Exists(tropusrPath))
                     {
@@ -607,8 +607,8 @@ namespace PlayniteAchievements.Providers.RPCS3
 
             try
             {
-                var ps3Locale = Rpcs3TrophyParser.MapGlobalLanguageToPs3Locale(_settings?.Persisted?.GlobalLanguage);
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(source.TrpPath, ps3Locale, _logger);
+                var ps3Locale = TrophyConfParser.MapGlobalLanguageToTrophyLocale(_settings?.Persisted?.GlobalLanguage);
+                var trophies = TrophyConfParser.ParseTrophyDefinitionsFromTrp(source.TrpPath, ps3Locale, _logger);
 
                 if (trophies.Count == 0)
                 {
@@ -663,7 +663,7 @@ namespace PlayniteAchievements.Providers.RPCS3
                 }
 
                 var trpBytes = File.ReadAllBytes(trpPath);
-                var entries = Rpcs3TrpArchiveReader.ReadEntries(trpBytes, _logger);
+                var entries = TrpArchiveReader.ReadEntries(trpBytes, _logger);
                 if (entries == null)
                 {
                     return null;
@@ -680,7 +680,7 @@ namespace PlayniteAchievements.Providers.RPCS3
                 Directory.CreateDirectory(iconDirectory);
                 foreach (var entry in pngEntries)
                 {
-                    var data = Rpcs3TrpArchiveReader.ExtractEntry(trpBytes, entries, entry.Name);
+                    var data = TrpArchiveReader.ExtractEntry(trpBytes, entries, entry.Name);
                     if (data != null)
                     {
                         File.WriteAllBytes(Path.Combine(iconDirectory, entry.Name.ToUpperInvariant()), data);
@@ -706,7 +706,7 @@ namespace PlayniteAchievements.Providers.RPCS3
         /// trophies carry (see <see cref="BuildAchievementCategory"/>), first group per label.
         /// </summary>
         private static List<(string Label, string ArtPath)> BuildGroupArt(
-            List<Rpcs3Trophy> trophies,
+            List<NpTrophy> trophies,
             string directory,
             GameTrophySource source,
             string sourceTitle,
@@ -757,7 +757,7 @@ namespace PlayniteAchievements.Providers.RPCS3
         }
 
         private List<AchievementDetail> ConvertTrophiesToAchievements(
-            List<Rpcs3Trophy> trophies,
+            List<NpTrophy> trophies,
             GameTrophySource source,
             string trophyFolderPath,
             string sourceTitle,
@@ -796,7 +796,7 @@ namespace PlayniteAchievements.Providers.RPCS3
             return achievements;
         }
 
-        private static string BuildAchievementCategory(Rpcs3Trophy trophy, string sourceTitle, bool isCollection)
+        private static string BuildAchievementCategory(NpTrophy trophy, string sourceTitle, bool isCollection)
         {
             if (!isCollection)
             {
@@ -1099,7 +1099,7 @@ namespace PlayniteAchievements.Providers.RPCS3
                     continue;
                 }
 
-                var npCommId = Rpcs3TrophyParser.ExtractNpCommId(trpPath, _logger);
+                var npCommId = TrophyConfParser.ExtractNpCommId(trpPath, _logger);
                 if (string.IsNullOrWhiteSpace(npCommId))
                 {
                     try
@@ -1269,7 +1269,7 @@ namespace PlayniteAchievements.Providers.RPCS3
 
                         var trpBytes = disc.ReadAllBytesOrNull(trpImagePath);
                         if (trpBytes == null ||
-                            !Rpcs3TrophyParser.TryReadTrpIdentity(trpBytes, out var npCommId, out var titleName, _logger))
+                            !TrophyConfParser.TryReadTrpIdentity(trpBytes, out var npCommId, out var titleName, _logger))
                         {
                             // The TRP contents could not be read or parsed (e.g. an image
                             // whose file data the filesystem reader cannot surface). A
@@ -1757,7 +1757,7 @@ namespace PlayniteAchievements.Providers.RPCS3
         private string ReadParamSfoTitle(string subgameDirectory)
         {
             var paramSfoPath = Path.Combine(subgameDirectory, "PARAM.SFO");
-            return Rpcs3ParamSfoReader.ReadStringValue(paramSfoPath, "TITLE", _logger);
+            return ParamSfoReader.ReadStringValue(paramSfoPath, "TITLE", _logger);
         }
 
         private IReadOnlyList<GamePathCandidate> ResolveGamePathCandidates(Game game)
@@ -2297,7 +2297,7 @@ namespace PlayniteAchievements.Providers.RPCS3
                         continue;
                     }
 
-                    var titleId = Rpcs3ParamSfoReader.ReadStringValue(paramSfoPath, "TITLE_ID", _logger);
+                    var titleId = ParamSfoReader.ReadStringValue(paramSfoPath, "TITLE_ID", _logger);
                     if (Rpcs3SerialNpwrBridge.TryNormalizeSerial(titleId, out var serial) &&
                         seenSerials.Add(serial))
                     {
@@ -2619,7 +2619,7 @@ namespace PlayniteAchievements.Providers.RPCS3
             try
             {
                 var trpBytes = File.ReadAllBytes(trpPath);
-                Rpcs3TrophyParser.TryReadTrpIdentity(trpBytes, out npCommId, out titleName, _logger);
+                TrophyConfParser.TryReadTrpIdentity(trpBytes, out npCommId, out titleName, _logger);
             }
             catch (Exception ex)
             {
@@ -2654,7 +2654,7 @@ namespace PlayniteAchievements.Providers.RPCS3
         {
             // Container-aware extraction first (real binary TRPs), then a raw
             // byte scan for anything the container reader could not handle.
-            var npCommId = Rpcs3TrophyParser.ExtractNpCommId(trpPath, _logger);
+            var npCommId = TrophyConfParser.ExtractNpCommId(trpPath, _logger);
             if (!string.IsNullOrWhiteSpace(npCommId))
             {
                 return npCommId;

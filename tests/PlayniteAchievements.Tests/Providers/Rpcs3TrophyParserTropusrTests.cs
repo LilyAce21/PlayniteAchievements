@@ -1,7 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Playnite.SDK;
 using PlayniteAchievements.Providers.RPCS3;
-using PlayniteAchievements.Providers.RPCS3.Models;
+using PlayniteAchievements.Providers.PlayStationTrophies;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,10 +19,10 @@ namespace PlayniteAchievements.Providers.Tests
             var path = WriteTempTropusr(BuildTropusr(
                 (5u, 1u, (ulong)(unlockTime.Ticks / 10)),
                 (0u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy>
+            var trophies = new List<NpTrophy>
             {
-                new Rpcs3Trophy { Id = 0 },
-                new Rpcs3Trophy { Id = 5 }
+                new NpTrophy { Id = 0 },
+                new NpTrophy { Id = 5 }
             };
 
             try
@@ -42,7 +42,7 @@ namespace PlayniteAchievements.Providers.Tests
         public void TryParseTrophyUnlockData_ValidZeroProgress_IsAuthoritative()
         {
             var path = WriteTempTropusr(BuildTropusr((0u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy> { new Rpcs3Trophy { Id = 0, Unlocked = true } };
+            var trophies = new List<NpTrophy> { new NpTrophy { Id = 0, Unlocked = true } };
 
             try
             {
@@ -61,7 +61,7 @@ namespace PlayniteAchievements.Providers.Tests
             var path = WriteTempTropusr(BuildTropusr(
                 (0u, 1u, 0ul),
                 (99u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy> { new Rpcs3Trophy { Id = 0 } };
+            var trophies = new List<NpTrophy> { new NpTrophy { Id = 0 } };
             var logger = new CapturingLogger();
 
             try
@@ -81,7 +81,7 @@ namespace PlayniteAchievements.Providers.Tests
             var path = WriteTempTropusr(BuildTropusr(
                 (0u, 1u, 0ul),
                 (0u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy> { new Rpcs3Trophy { Id = 0, Unlocked = true } };
+            var trophies = new List<NpTrophy> { new NpTrophy { Id = 0, Unlocked = true } };
 
             try
             {
