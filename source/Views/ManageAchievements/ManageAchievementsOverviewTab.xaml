@@ -146,7 +146,6 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <Grid.Resources>
                                 <Style x:Key="SettingLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource FieldLabelStyle}">
@@ -268,26 +267,12 @@
                                         Margin="{StaticResource PlayAch.Thickness.Left.Sm}" />
                             </WrapPanel>
 
-                            <!-- Points: which points card the game's points count toward. -->
-                            <TextBlock Grid.Row="5" Grid.Column="0"
-                                       Style="{StaticResource SettingLabelStyle}"
-                                       Text="{DynamicResource LOCPlayAch_Column_Points}" />
-                            <ComboBox Grid.Row="5" Grid.Column="1"
-                                      ItemsSource="{Binding PointsFamilyOptions}"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectedValuePath="Value"
-                                      SelectedValue="{Binding PointsFamily, Mode=TwoWay}"
-                                      Width="200"
-                                      Padding="8,4"
-                                      HorizontalAlignment="Left"
-                                      Margin="0,2" />
-
                             <!-- Separate locked icons: per-game override of the global setting. -->
-                            <TextBlock Grid.Row="6" Grid.Column="0"
+                            <TextBlock Grid.Row="5" Grid.Column="0"
                                        Style="{StaticResource SettingLabelStyle}"
                                        Text="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_LockedIconsHeader}"
                                        ToolTip="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_LockedIconsHint}" />
-                            <StackPanel Grid.Row="6" Grid.Column="1"
+                            <StackPanel Grid.Row="5" Grid.Column="1"
                                         Orientation="Horizontal"
                                         Margin="0,4">
                                 <CheckBox IsChecked="{Binding UseSeparateLockedIconsOverride}"
@@ -300,10 +285,10 @@
                             </StackPanel>
 
                             <!-- Playnite's own id for the game, selectable for copying. -->
-                            <TextBlock Grid.Row="7" Grid.Column="0"
+                            <TextBlock Grid.Row="6" Grid.Column="0"
                                        Style="{StaticResource SettingLabelStyle}"
                                        Text="{DynamicResource LOCPlayAch_ManageAchievements_Overview_GameId}" />
-                            <TextBox Grid.Row="7" Grid.Column="1"
+                            <TextBox Grid.Row="6" Grid.Column="1"
                                      Text="{Binding GameIdText, Mode=OneWay}"
                                      IsReadOnly="True"
                                      BorderThickness="0"
