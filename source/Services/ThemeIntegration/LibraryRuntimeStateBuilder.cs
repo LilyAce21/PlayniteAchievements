@@ -103,7 +103,8 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 platformScores.Add(
                     providerKey,
                     customDataStore?.QueryGame(data.PlayniteGameId.Value, customData => customData.PointsFamily),
-                    stats.PlatformScorePoints);
+                    stats.PlatformScorePoints,
+                    stats.PlatformScorePointsTotal);
 
                 var summary = new GameAchievementSummary(
                     data.PlayniteGameId.Value,
@@ -243,7 +244,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
 
                 collectorScore = AddScore(collectorScore, game.CollectionScore);
                 prestigeScore = AddScore(prestigeScore, game.PrestigeScore);
-                platformScores.Add(providerKey, game.PointsFamilyOverride, game.PlatformScorePoints);
+                platformScores.Add(providerKey, game.PointsFamilyOverride, game.PlatformScorePoints, game.PlatformScorePointsTotal);
             }
 
             ApplySummaryListsAndTotals(state, allGames);
@@ -336,26 +337,12 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             state.PrestigeMastery = scoreSnapshot.PrestigeLevel?.Mastery ?? 0;
 
             platformScores ??= new PlatformScoreTotals();
-            var gamerscore = ScoreCardTypes.Calculate(ScoreCardType.Gamerscore, platformScores.Gamerscore);
             state.GamerscoreScore = platformScores.Gamerscore;
-            state.GamerscoreLevel = GetDisplayLevel(gamerscore);
-            state.GamerscoreLevelProgress = gamerscore.LevelProgress;
-            state.GamerscoreRank = gamerscore.Rank ?? "Bronze5";
-            state.GamerscoreMastery = gamerscore.Mastery;
-
-            var epicXp = ScoreCardTypes.Calculate(ScoreCardType.EpicXp, platformScores.EpicXp);
+            state.GamerscoreTotal = platformScores.GamerscoreTotal;
             state.EpicXpScore = platformScores.EpicXp;
-            state.EpicXpLevel = GetDisplayLevel(epicXp);
-            state.EpicXpLevelProgress = epicXp.LevelProgress;
-            state.EpicXpRank = epicXp.Rank ?? "Bronze5";
-            state.EpicXpMastery = epicXp.Mastery;
-
-            var retroPoints = ScoreCardTypes.Calculate(ScoreCardType.RetroPoints, platformScores.RetroPoints);
+            state.EpicXpTotal = platformScores.EpicXpTotal;
             state.RetroPointsScore = platformScores.RetroPoints;
-            state.RetroPointsLevel = GetDisplayLevel(retroPoints);
-            state.RetroPointsLevelProgress = retroPoints.LevelProgress;
-            state.RetroPointsRank = retroPoints.Rank ?? "Bronze5";
-            state.RetroPointsMastery = retroPoints.Mastery;
+            state.RetroPointsTotal = platformScores.RetroPointsTotal;
 
             state.PointsScores = BuildPointsScores(platformScores);
             ScoreCardChoices.PublishFamiliesWithPoints(platformScores);
@@ -364,18 +351,14 @@ namespace PlayniteAchievements.Services.ThemeIntegration
         private static List<PointsScoreItem> BuildPointsScores(PlatformScoreTotals platformScores)
         {
             var items = new List<PointsScoreItem>();
-            foreach (var pair in platformScores.Families)
+            foreach (var family in platformScores.Families)
             {
-                var level = ScoreCardTypes.Calculate(ScoreCardType.Points(pair.Key), pair.Value);
                 items.Add(new PointsScoreItem
                 {
-                    FamilyKey = pair.Key,
-                    Name = PointsFamilyNames.GetLabel(pair.Key),
-                    Score = pair.Value,
-                    Level = GetDisplayLevel(level),
-                    LevelProgress = level.LevelProgress,
-                    Rank = level.Rank ?? "Bronze5",
-                    Mastery = level.Mastery
+                    FamilyKey = family,
+                    Name = PointsFamilyNames.GetLabel(family),
+                    Score = platformScores.Get(family),
+                    Total = platformScores.GetPossible(family)
                 });
             }
 

@@ -108,8 +108,7 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
                 settings.BaseLevelGrowth,
                 settings.TopEndEaseStartLevel,
                 settings.TopEndGrowthMultiplier,
-                settings.MaxDisplayLevel,
-                settings.Ladder);
+                settings.MaxDisplayLevel);
             var cached = _cycleCache;
             if (cached != null && cached.Key.Equals(key))
             {
@@ -128,22 +127,14 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
             private readonly int _easeStart;
             private readonly double _multiplier;
             private readonly int _maxLevel;
-            private readonly AchievementMilestoneLadder _ladder;
 
-            public CycleKey(
-                int initial,
-                int growth,
-                int easeStart,
-                double multiplier,
-                int maxLevel,
-                AchievementMilestoneLadder ladder)
+            public CycleKey(int initial, int growth, int easeStart, double multiplier, int maxLevel)
             {
                 _initial = initial;
                 _growth = growth;
                 _easeStart = easeStart;
                 _multiplier = multiplier;
                 _maxLevel = maxLevel;
-                _ladder = ladder;
             }
 
             public bool Equals(CycleKey other)
@@ -152,8 +143,7 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
                     _growth == other._growth &&
                     _easeStart == other._easeStart &&
                     _multiplier.Equals(other._multiplier) &&
-                    _maxLevel == other._maxLevel &&
-                    ReferenceEquals(_ladder, other._ladder);
+                    _maxLevel == other._maxLevel;
             }
         }
 
@@ -288,13 +278,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
             int score,
             AchievementLevelCurveSettings settings)
         {
-            if (settings.Ladder != null)
-            {
-                return GetLadderLevelRange(
-                    settings.Ladder.FindLevel(score, GetMaxInternalLevel(settings)),
-                    settings);
-            }
-
             var range = GetInitialLevelRange(settings);
             var maxInternalLevel = GetMaxInternalLevel(settings);
             while (score > range.EndScore &&
@@ -311,13 +294,8 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
             int level,
             AchievementLevelCurveSettings settings)
         {
-            var targetLevel = Math.Min(GetMaxInternalLevel(settings), Math.Max(0, level));
-            if (settings.Ladder != null)
-            {
-                return GetLadderLevelRange(targetLevel, settings);
-            }
-
             var range = GetInitialLevelRange(settings);
+            var targetLevel = Math.Min(GetMaxInternalLevel(settings), Math.Max(0, level));
             while (range.Level < targetLevel && range.EndScore < int.MaxValue)
             {
                 range = GetNextLevelRange(range, settings);
@@ -326,31 +304,9 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
             return range;
         }
 
-        private static AchievementLevelRange GetLadderLevelRange(
-            int level,
-            AchievementLevelCurveSettings settings)
-        {
-            var ladder = settings.Ladder;
-            var start = ladder.GetLevelStart(level);
-            var next = ladder.GetLevelStart(AddClamped(level, 1));
-            var end = next == int.MaxValue ? int.MaxValue : Math.Max(start, next - 1);
-            return new AchievementLevelRange
-            {
-                Level = level,
-                StartScore = start,
-                EndScore = end,
-                Size = AddClamped(end - start, 1)
-            };
-        }
-
         private static AchievementLevelRange GetInitialLevelRange(
             AchievementLevelCurveSettings settings)
         {
-            if (settings.Ladder != null)
-            {
-                return GetLadderLevelRange(0, settings);
-            }
-
             return new AchievementLevelRange
             {
                 Level = 0,
@@ -364,11 +320,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
             AchievementLevelRange current,
             AchievementLevelCurveSettings settings)
         {
-            if (settings.Ladder != null)
-            {
-                return GetLadderLevelRange(AddClamped(current.Level, 1), settings);
-            }
-
             var nextSize = AddClamped(current.Size, GetGrowthForNextLevel(current.Level, settings));
             var nextStart = current.EndScore == int.MaxValue
                 ? int.MaxValue

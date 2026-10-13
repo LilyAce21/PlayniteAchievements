@@ -138,7 +138,8 @@ namespace PlayniteAchievements.Views.Controls
 
         /// <summary>
         /// Shows only the badge (and mastery line), with the tier and points moved into the
-        /// tooltip, for hosts too narrow for the text.
+        /// tooltip, for hosts too narrow for the text. A points card has no badge, so it keeps
+        /// its compact text line.
         /// </summary>
         public bool BadgeOnly
         {

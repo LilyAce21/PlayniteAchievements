@@ -397,7 +397,7 @@ namespace PlayniteAchievements.Services.Tests
                     CustomAchievements = new List<CustomAchievementDefinition>
                     {
                         new CustomAchievementDefinition { Id = "a", DisplayName = "A", Unlocked = true, UnlockTimeUtc = unlockTime, Rarity = "Rare", Points = 10, TrophyType = "gold" },
-                        new CustomAchievementDefinition { Id = "b", DisplayName = "B" },
+                        new CustomAchievementDefinition { Id = "b", DisplayName = "B", Points = 5 },
                         new CustomAchievementDefinition { Id = "c", DisplayName = "C", Unlocked = true }
                     },
                     SummaryFilteredAchievementApiNames = new List<string> { CustomAchievementProjectionService.BuildApiName("c") }
@@ -435,6 +435,8 @@ namespace PlayniteAchievements.Services.Tests
             Assert.AreEqual(1, existing.RareCount);
             Assert.AreEqual(3, existing.TotalCommonPossible);
             Assert.AreEqual(1, existing.TrophyGoldTotal);
+            Assert.AreEqual(10, existing.PlatformScorePoints, "only the unlocked a earns");
+            Assert.AreEqual(15, existing.PlatformScorePointsTotal, "a and b are both possible");
             Assert.AreEqual(1, existing.TrophyGoldCount);
             Assert.AreEqual(10, existing.Points);
             Assert.AreEqual(unlockTime, existing.LastUnlockUtc);

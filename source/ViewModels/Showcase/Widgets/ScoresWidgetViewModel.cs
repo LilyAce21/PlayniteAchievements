@@ -45,11 +45,12 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
             HistoryStartText = historyStartText;
             HistoryEndText = historyEndText;
             var hasHistory = historyValues != null && historyValues.Count > 0;
-            var frame = ScoreHistoryAxis.Frame(
-                currentScore,
-                hasHistory ? historyValues.Min() : currentScore,
-                hasHistory ? historyValues.Max() : currentScore,
-                ScoreCardTypes.GetCurve(card?.ScoreType ?? ScoreCardType.Collection));
+            var windowMin = hasHistory ? historyValues.Min() : currentScore;
+            var windowMax = hasHistory ? historyValues.Max() : currentScore;
+            // Points cards have no tiers, so their chart has no tier lines.
+            var frame = card?.ScoreType.IsPoints == true
+                ? ScoreHistoryAxis.FrameWithoutTiers(currentScore, windowMin, windowMax)
+                : ScoreHistoryAxis.Frame(currentScore, windowMin, windowMax);
             HistoryMinValue = frame.Min;
             HistoryAxisMax = frame.Max;
             TierSections = BuildSections(frame, card?.AccentBrush, card?.NextTierAccentBrush);

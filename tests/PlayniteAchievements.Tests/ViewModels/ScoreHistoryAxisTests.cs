@@ -32,6 +32,25 @@ namespace PlayniteAchievements.Tests.ViewModels
         }
 
         [TestMethod]
+        public void FrameWithoutTiers_NeverDrawsTierLines()
+        {
+            // A gain that crosses a Modern tier boundary still draws no line on a points card.
+            var crossing = ScoreHistoryAxis.FrameWithoutTiers(LevelStart(NextTierStartLevel) + 100, LevelStart(MidTierLevel), LevelStart(NextTierStartLevel) + 100);
+            Assert.AreEqual(LevelStart(MidTierLevel), crossing.Min);
+            Assert.IsNull(crossing.CurrentTierLine);
+            Assert.IsNull(crossing.NextTierLine);
+
+            // Nothing earned in the window: zero up to the score, with headroom.
+            var flat = ScoreHistoryAxis.FrameWithoutTiers(1000, 1000, 1000);
+            Assert.AreEqual(0, flat.Min);
+            Assert.AreEqual(1000 * (1 + ScoreHistoryAxis.Headroom), flat.Max, 0.001);
+            Assert.IsNull(flat.CurrentTierLine);
+            Assert.IsNull(flat.NextTierLine);
+
+            Assert.IsTrue(double.IsNaN(ScoreHistoryAxis.FrameWithoutTiers(0, 0, 0).Max));
+        }
+
+        [TestMethod]
         public void LevelCrossedInsideTier_DrawsNoLines()
         {
             var levelStart = LevelStart(MidTierLevel);

@@ -123,8 +123,8 @@ namespace PlayniteAchievements.Services.Overview
         public double PrestigeLevelProgress { get; set; }
         public string PrestigeRank { get; set; } = "Bronze5";
 
-        // Points totals: unlocked provider points summed per points family (see PointsFamilies),
-        // each family on its own milestone ladder (see ScoreCardTypes).
+        // Points totals per points family (see PointsFamilies): unlocked provider points earned,
+        // and the points of every achievement in the family's games.
         public PlatformScoreTotals PointsTotals { get; private set; } = new PlatformScoreTotals();
 
         public int GamerscoreScore => PointsTotals.Gamerscore;
@@ -143,6 +143,9 @@ namespace PlayniteAchievements.Services.Overview
 
             return type.IsPoints ? PointsTotals.Get(type) : CollectorScore;
         }
+
+        /// <summary>A points card's possible points: every achievement in its games. 0 for Collection and Prestige.</summary>
+        public int GetPossibleScore(ScoreCardType type) => PointsTotals.GetPossible(type);
 
         /// <summary>Sets the points totals per family.</summary>
         public void ApplyPlatformScores(PlatformScoreTotals totals)
@@ -345,7 +348,7 @@ namespace PlayniteAchievements.Services.Overview
                 {
                     CollectorScore = addClamped(CollectorScore, game.CollectionScore);
                     PrestigeScore = addClamped(PrestigeScore, game.PrestigeScore);
-                    platformScores.AddToFamily(game.PointsFamily, game.PlatformScorePoints);
+                    platformScores.AddToFamily(game.PointsFamily, game.PlatformScorePoints, game.PlatformScorePointsTotal);
                 }
             }
 

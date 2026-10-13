@@ -95,22 +95,10 @@ namespace PlayniteAchievements.Tests.Models
         }
 
         [TestMethod]
-        public void Curves_KeepPlatformScalesAndDefaultOthersToGamerscore()
-        {
-            var gamerscore = AchievementLevelCurveSettings.Gamerscore;
-            var steam = ScoreCardTypes.Calculate(ScoreCardType.Points("Steam"), 5000);
-
-            Assert.AreEqual(AchievementLevelCalculator.Calculate(5000, gamerscore).Rank, steam.Rank);
-            Assert.AreEqual(
-                AchievementLevelCalculator.Calculate(400, AchievementLevelCurveSettings.RetroAchievementsPoints).Rank,
-                ScoreCardTypes.Calculate(ScoreCardType.RetroPoints, 400).Rank);
-        }
-
-        [TestMethod]
         public void Choices_ListPlatformFamiliesPublishedFamiliesAndTheCurrentCard()
         {
             var totals = new PlatformScoreTotals();
-            totals.Add("PSN", null, 90);
+            totals.Add("PSN", null, 90, 300);
             ScoreCardChoices.PublishFamiliesWithPoints(totals);
             try
             {

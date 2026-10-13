@@ -181,18 +181,6 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
         public override string ToString() => Key;
     }
 
-    public static class ScoreCardTypes
-    {
-        /// <summary>The level curve each card type climbs.</summary>
-        public static AchievementLevelCurveSettings GetCurve(ScoreCardType type) =>
-            type.IsPoints
-                ? PointsFamilies.GetCurve(type.PointsFamily)
-                : AchievementLevelCurveSettings.ModernDefault;
-
-        public static AchievementLevelSnapshot Calculate(ScoreCardType type, int score) =>
-            AchievementLevelCalculator.Calculate(score, GetCurve(type));
-    }
-
     /// <summary>
     /// A score card slot: a <see cref="ScoreCardType"/>, or no card. Persisted as the card's
     /// <see cref="ScoreCardType.Key"/> or <see cref="NoneKey"/>.

@@ -38,21 +38,7 @@ namespace PlayniteAchievements.Tests.ViewModels
         }
 
         [TestMethod]
-        public void ApplyFromScore_UsesTheCardTypesLadder()
-        {
-            var gamerscore = new ScoreCardViewModel(ScoreCardType.Gamerscore);
-            var collection = new ScoreCardViewModel(ScoreCardType.Collection);
-
-            gamerscore.ApplyFromScore(10000, useUniformRarityBadges: false);
-            collection.ApplyFromScore(10000, useUniformRarityBadges: false);
-
-            Assert.AreEqual("Silver4", gamerscore.Rank);
-            Assert.AreEqual(60, gamerscore.Level);
-            Assert.AreEqual(AchievementLevelCalculator.CalculateModern(10000).Rank, collection.Rank);
-        }
-
-        [TestMethod]
-        public void ApplyFor_SwitchesTypeAndReadsThatScore()
+        public void ApplyFor_PointsCardShowsEarnedOutOfTotalAndNoRank()
         {
             var card = new ScoreCardViewModel(ScoreCardType.Collection);
             var snapshot = new PlayniteAchievements.Services.Overview.OverviewDataSnapshot
@@ -60,24 +46,34 @@ namespace PlayniteAchievements.Tests.ViewModels
                 CollectorScore = 10000
             };
             var totals = new PlatformScoreTotals();
-            totals.Add("Xbox", null, 10000);
-            totals.Add("RetroAchievements", null, 400);
+            totals.Add("Xbox", null, 10000, 40000);
+            totals.Add("RetroAchievements", null, 400, 1200);
             snapshot.ApplyPlatformScores(totals);
 
             card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
             Assert.AreEqual(ScoreCardType.Collection, card.ScoreType);
-            var collectionRank = card.Rank;
+            Assert.IsFalse(card.IsPoints);
+            Assert.AreEqual(AchievementLevelCalculator.CalculateModern(10000).Rank, card.Rank);
 
             card.ApplyFor(ScoreCardType.Gamerscore, snapshot, useUniformRarityBadges: false);
             Assert.AreEqual(ScoreCardType.Gamerscore, card.ScoreType);
+            Assert.IsTrue(card.IsPoints);
             Assert.AreEqual("Gamerscore", card.Label);
             Assert.AreEqual(10000, card.Score);
-            Assert.AreEqual("Silver4", card.Rank);
-            Assert.AreNotEqual(collectionRank, card.Rank);
+            Assert.AreEqual(40000, card.Total);
+            Assert.AreEqual("10,000/40,000", card.TierText);
+            Assert.AreEqual("Gamerscore", card.TooltipTitleText);
+            Assert.AreEqual(0, card.Level);
+            Assert.IsFalse(card.HasMastery);
 
             card.ApplyFor(ScoreCardType.RetroPoints, snapshot, useUniformRarityBadges: false);
             Assert.AreEqual(400, card.Score);
-            Assert.AreEqual("Bronze4", card.Rank);
+            Assert.AreEqual(1200, card.Total);
+
+            card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
+            Assert.IsFalse(card.IsPoints);
+            Assert.AreEqual(0, card.Total);
+            Assert.AreEqual(AchievementLevelCalculator.CalculateModern(10000).Rank, card.Rank);
         }
 
         [TestMethod]

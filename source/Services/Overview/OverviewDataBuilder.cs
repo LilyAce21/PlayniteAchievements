@@ -221,6 +221,7 @@ namespace PlayniteAchievements.Services.Overview
                     PrestigeScoreTotal = game.PrestigeScoreTotal,
                     Points = game.Points,
                     PlatformScorePoints = game.PlatformScorePoints,
+                    PlatformScorePointsTotal = game.PlatformScorePointsTotal,
                     PointsFamily = pointsFamily,
                     TotalCommonPossible = game.TotalCommonPossible,
                     TotalUncommonPossible = game.TotalUncommonPossible,
@@ -254,7 +255,7 @@ namespace PlayniteAchievements.Services.Overview
                 snapshot.TotalUltraRare += game.UltraRareCount;
                 snapshot.CollectorScore = AddClamped(snapshot.CollectorScore, game.CollectionScore);
                 snapshot.PrestigeScore = AddClamped(snapshot.PrestigeScore, game.PrestigeScore);
-                platformScores.AddToFamily(pointsFamily, game.PlatformScorePoints);
+                platformScores.AddToFamily(pointsFamily, game.PlatformScorePoints, game.PlatformScorePointsTotal);
                 snapshot.TotalCommonPossible += game.TotalCommonPossible;
                 snapshot.TotalUncommonPossible += game.TotalUncommonPossible;
                 snapshot.TotalRarePossible += game.TotalRarePossible;
