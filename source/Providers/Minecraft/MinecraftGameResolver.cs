@@ -12,17 +12,35 @@ using System.Text;
 namespace PlayniteAchievements.Providers.Minecraft
 {
     /// <summary>
-    /// The folders a Playnite game's advancements come from.
+    /// One .minecraft folder or launcher instance whose worlds are merged into one set of rows.
     /// </summary>
-    internal sealed class MinecraftGameSource
+    internal sealed class MinecraftInstance
     {
-        /// <summary>Game folders (holding saves/ and mods/), used to find the game jar and mods.</summary>
-        public List<string> GameFolders { get; set; } = new List<string>();
+        /// <summary>Stable key that prefixes every row id: the instance folder name.</summary>
+        public string Key { get; set; }
+
+        /// <summary>Display name, used as the top-level category.</summary>
+        public string Name { get; set; }
+
+        /// <summary>The folder holding saves/ and mods/, used to find the game jar and mods.</summary>
+        public string GameFolder { get; set; }
 
         /// <summary>World folders whose advancement progress is merged.</summary>
         public List<string> Worlds { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// The instances a Playnite game's advancements come from; each keeps its own rows.
+    /// </summary>
+    internal sealed class MinecraftGameSource
+    {
+        public List<MinecraftInstance> Instances { get; set; } = new List<MinecraftInstance>();
 
         public string ResolvedBy { get; set; }
+
+        public IEnumerable<string> GameFolders => Instances.Select(instance => instance.GameFolder);
+
+        public bool HasWorlds => Instances.Any(instance => instance.Worlds.Count > 0);
     }
 
     /// <summary>
@@ -106,15 +124,17 @@ namespace PlayniteAchievements.Providers.Minecraft
 
             if (MinecraftPaths.IsWorldFolder(folder))
             {
+                // A single world keeps its instance's identity, so its rows match that instance's.
                 var world = Path.GetFullPath(folder).TrimEnd('\\', '/');
                 var saves = Path.GetDirectoryName(world);
                 var gameFolder = string.Equals(Path.GetFileName(saves), "saves", StringComparison.OrdinalIgnoreCase)
                     ? Path.GetDirectoryName(saves)
                     : world;
+                var instance = CreateInstance(gameFolder);
+                instance.Worlds = new List<string> { world };
                 return new MinecraftGameSource
                 {
-                    GameFolders = new List<string> { gameFolder },
-                    Worlds = new List<string> { world },
+                    Instances = new List<MinecraftInstance> { instance },
                     ResolvedBy = resolvedBy
                 };
             }
@@ -123,14 +143,45 @@ namespace PlayniteAchievements.Providers.Minecraft
             return resolved.Count == 0 ? null : FromGameFolders(resolved, resolvedBy);
         }
 
+        /// <summary>
+        /// One instance per game folder with a world that has advancement data (worlds from versions
+        /// before advancements, such as 1.7.10 packs, have none); a folder name shared by two
+        /// launchers gets a numeric suffix, in folder order, so keys stay unique and stable.
+        /// </summary>
         private static MinecraftGameSource FromGameFolders(IEnumerable<string> gameFolders, string resolvedBy)
         {
-            var folders = gameFolders.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            return new MinecraftGameSource
+            var instances = new List<MinecraftInstance>();
+            var usedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var gameFolder in gameFolders.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                GameFolders = folders,
-                Worlds = folders.SelectMany(MinecraftPaths.EnumerateWorlds).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-                ResolvedBy = resolvedBy
+                var instance = CreateInstance(gameFolder);
+                instance.Worlds = MinecraftPaths.EnumerateWorlds(gameFolder);
+                if (!MinecraftPaths.HasAdvancementWorld(gameFolder))
+                {
+                    continue;
+                }
+
+                var baseKey = instance.Key;
+                for (var suffix = 2; !usedKeys.Add(instance.Key); suffix++)
+                {
+                    instance.Key = $"{baseKey} ({suffix})";
+                    instance.Name = $"{MinecraftPaths.ReadInstanceName(gameFolder) ?? baseKey} ({suffix})";
+                }
+
+                instances.Add(instance);
+            }
+
+            return new MinecraftGameSource { Instances = instances, ResolvedBy = resolvedBy };
+        }
+
+        private static MinecraftInstance CreateInstance(string gameFolder)
+        {
+            var key = MinecraftPaths.GetInstanceKey(gameFolder);
+            return new MinecraftInstance
+            {
+                Key = key,
+                Name = MinecraftPaths.ReadInstanceName(gameFolder) ?? key,
+                GameFolder = gameFolder
             };
         }
 
