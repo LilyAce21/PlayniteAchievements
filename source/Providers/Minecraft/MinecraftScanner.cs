@@ -124,17 +124,13 @@ namespace PlayniteAchievements.Providers.Minecraft
                 achievements.AddRange(rows);
             }
 
+            // Each instance without definitions has already logged why.
             if (achievements.Count == 0)
             {
-                _logger?.Info($"[Minecraft] '{game.Name}': no advancement definitions found in [{string.Join(", ", source.GameFolders)}]; cached achievements preserved.");
                 return null;
             }
 
             ApplyDefaultCategoryArt(game, tabArt);
-
-            _logger?.Info(
-                $"[Minecraft] '{game.Name}': {achievements.Count} advancements ({achievements.Count(a => a.Unlocked)} unlocked) " +
-                $"from {source.Instances.Count} instance(s) (resolved by {source.ResolvedBy}).");
 
             return new GameAchievementData
             {
@@ -231,9 +227,6 @@ namespace PlayniteAchievements.Providers.Minecraft
                 rows.Add(detail);
             }
 
-            _logger?.Info(
-                $"[Minecraft] '{game.Name}': instance '{instance.Name}': {rows.Count} advancements ({rows.Count(a => a.Unlocked)} unlocked) " +
-                $"from {worldsRead}/{instance.Worlds.Count} world(s) and {sources.Count} definition source(s) in '{instance.GameFolder}'.");
             return rows;
         }
 
