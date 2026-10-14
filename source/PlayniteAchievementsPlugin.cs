@@ -1176,7 +1176,9 @@ namespace PlayniteAchievements
                         // captures, and its measured onsets, so composited chimes land where the
                         // live ones were heard.
                         () => _unlockSounds?.HostProcessId,
-                        id => _unlockSounds?.TryGetAudibleOnsetUtc(id));
+                        id => _unlockSounds?.TryGetAudibleOnsetUtc(id),
+                        // Each game's own capture settings, read per session and per unlock.
+                        gameId => _gameCustomDataStore != null && _gameCustomDataStore.TryLoad(gameId, out var data) ? data : null);
                     _captureLibraryService = new Services.Captures.CaptureLibraryService(
                         () => _settingsViewModel?.Settings?.Persisted,
                         _logger);
