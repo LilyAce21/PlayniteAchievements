@@ -75,6 +75,12 @@ namespace PlayniteAchievements.Providers.Minecraft
                 return null;
             }
 
+            var rendered = TryRenderBlock(ns, name, customModelData, sources);
+            if (rendered != null)
+            {
+                return rendered;
+            }
+
             var entries = MinecraftModelResolver.ResolveTextureEntries(ns, name, customModelData, sources)
                 .Concat(CandidateEntries(ns, name))
                 .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -107,6 +113,70 @@ namespace PlayniteAchievements.Providers.Minecraft
             return null;
         }
 
+        /// <summary>
+        /// The item drawn as an inventory block (see <see cref="MinecraftBlockRenderer"/>) when its
+        /// model has element boxes, cached by model id; null for flat items or when no face could be
+        /// textured, so the flat lookup runs instead.
+        /// </summary>
+        private string TryRenderBlock(string ns, string name, float? customModelData, IReadOnlyList<MinecraftResourceSource> sources)
+        {
+            var model = MinecraftModelResolver.ResolveBlockModel(ns, name, customModelData, sources);
+            if (model?.ModelId == null)
+            {
+                return null;
+            }
+
+            var relative = model.ModelId.Replace(':', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar) + ".png";
+            var target = Path.Combine(_cacheFolder, "rendered", relative);
+            var newestSource = sources.Count == 0 ? DateTime.MinValue : sources.Max(source => source.StampUtc);
+            if (File.Exists(target) && File.GetLastWriteTimeUtc(target) >= newestSource)
+            {
+                return target;
+            }
+
+            var decoded = new Dictionary<string, MinecraftTexture>(StringComparer.OrdinalIgnoreCase);
+            var pixels = MinecraftBlockRenderer.Render(
+                model.Elements,
+                reference =>
+                {
+                    var entry = MinecraftModelResolver.ResolveFaceTexture(model, reference);
+                    if (entry == null)
+                    {
+                        return null;
+                    }
+
+                    if (!decoded.TryGetValue(entry, out var texture))
+                    {
+                        var source = sources.LastOrDefault(candidate => candidate.Textures.Contains(entry));
+                        var bytes = source?.ReadBytes(entry);
+                        texture = bytes == null ? null : DecodeFirstFrame(bytes);
+                        decoded[entry] = texture;
+                    }
+
+                    var foliage = entry.Contains("leaves") || entry.Contains("vine") || entry.Contains("lily_pad");
+                    return texture == null ? ((MinecraftTexture, bool)?)null : (texture, foliage);
+                },
+                model.RotationX,
+                model.RotationY,
+                IconSize);
+            if (pixels == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                var bitmap = BitmapSource.Create(IconSize, IconSize, 96, 96, PixelFormats.Bgra32, null, pixels, IconSize * 4);
+                bitmap.Freeze();
+                return TryWritePng(bitmap, target) ? target : null;
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException)
+            {
+                _logger?.Debug(ex, $"[Minecraft] Could not render block icon '{model.ModelId}'.");
+                return null;
+            }
+        }
+
         /// <summary>Texture names guessed from the item id, for items without a resolvable model.</summary>
         private static IEnumerable<string> CandidateEntries(string ns, string name)
         {
@@ -121,20 +191,30 @@ namespace PlayniteAchievements.Providers.Minecraft
 
         private bool TryWriteIcon(byte[] png, string target)
         {
+            BitmapSource scaled;
             try
             {
-                var scaled = ScaleNearest(png, IconSize);
-                if (scaled == null)
-                {
-                    return false;
-                }
+                scaled = ScaleNearest(png, IconSize);
+            }
+            catch (Exception ex) when (ex is IOException || ex is NotSupportedException || ex is ArgumentException || ex is InvalidOperationException)
+            {
+                _logger?.Debug(ex, $"[Minecraft] Could not decode texture for '{target}'.");
+                return false;
+            }
 
+            return scaled != null && TryWritePng(scaled, target);
+        }
+
+        private bool TryWritePng(BitmapSource image, string target)
+        {
+            try
+            {
                 Directory.CreateDirectory(Path.GetDirectoryName(target));
                 var temp = target + ".tmp";
                 using (var stream = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     var encoder = new PngBitmapEncoder();
-                    encoder.Frames.Add(BitmapFrame.Create(scaled));
+                    encoder.Frames.Add(BitmapFrame.Create(image));
                     encoder.Save(stream);
                 }
 
@@ -159,25 +239,16 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// </summary>
         internal static BitmapSource ScaleNearest(byte[] png, int size)
         {
-            BitmapSource decoded;
-            using (var input = new MemoryStream(png))
-            {
-                var decoder = BitmapDecoder.Create(input, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
-                decoded = decoder.Frames.FirstOrDefault();
-            }
-
-            if (decoded == null || decoded.PixelWidth <= 0 || decoded.PixelHeight <= 0)
+            var frame = DecodeFirstFrame(png);
+            if (frame == null)
             {
                 return null;
             }
 
-            var converted = new FormatConvertedBitmap(decoded, PixelFormats.Bgra32, null, 0);
-            var width = converted.PixelWidth;
-            var height = Math.Min(converted.PixelHeight, width);
+            var width = frame.Width;
+            var height = frame.Height;
             var sourceStride = width * 4;
-            var sourcePixels = new byte[sourceStride * height];
-            converted.CopyPixels(new System.Windows.Int32Rect(0, 0, width, height), sourcePixels, sourceStride, 0);
-
+            var sourcePixels = frame.Pixels;
             var targetStride = size * 4;
             var targetPixels = new byte[targetStride * size];
             for (var y = 0; y < size; y++)
@@ -193,6 +264,39 @@ namespace PlayniteAchievements.Providers.Minecraft
             var result = BitmapSource.Create(size, size, 96, 96, PixelFormats.Bgra32, null, targetPixels, targetStride);
             result.Freeze();
             return result;
+        }
+
+        /// <summary>
+        /// A texture's top square as BGRA pixels (animated textures stack frames vertically); null
+        /// when the bytes are not a readable image.
+        /// </summary>
+        internal static MinecraftTexture DecodeFirstFrame(byte[] png)
+        {
+            try
+            {
+                BitmapSource decoded;
+                using (var input = new MemoryStream(png))
+                {
+                    var decoder = BitmapDecoder.Create(input, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                    decoded = decoder.Frames.FirstOrDefault();
+                }
+
+                if (decoded == null || decoded.PixelWidth <= 0 || decoded.PixelHeight <= 0)
+                {
+                    return null;
+                }
+
+                var converted = new FormatConvertedBitmap(decoded, PixelFormats.Bgra32, null, 0);
+                var width = converted.PixelWidth;
+                var height = Math.Min(converted.PixelHeight, width);
+                var pixels = new byte[width * 4 * height];
+                converted.CopyPixels(new System.Windows.Int32Rect(0, 0, width, height), pixels, width * 4, 0);
+                return new MinecraftTexture { Pixels = pixels, Width = width, Height = height };
+            }
+            catch (Exception ex) when (ex is IOException || ex is NotSupportedException || ex is ArgumentException || ex is InvalidOperationException || ex is FileFormatException)
+            {
+                return null;
+            }
         }
     }
 }
