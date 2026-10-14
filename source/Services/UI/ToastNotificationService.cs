@@ -99,9 +99,8 @@ namespace PlayniteAchievements.Services.UI
         // toast placement key window resolution off this game so a wave from one running game
         // never anchors to another running game's window.
         private Guid? _activeWaveGameId;
-        // The current wave's game's own behavior and capture snapshots, resolved once per wave
-        // alongside _activeWaveGameId; null when the game follows its provider and the globals.
-        private GameNotificationBehaviorOverride _activeWaveBehavior;
+        // The current wave's game's own capture settings, resolved once per wave alongside
+        // _activeWaveGameId; null when the game follows its provider and the globals.
         private GameCaptureOverride _activeWaveCaptures;
         // The anchor the toast is placed against, resolved once per wave: the running game's window
         // when a game is running, otherwise the current Playnite window. The toast is always realized
@@ -2320,10 +2319,8 @@ namespace PlayniteAchievements.Services.UI
 
             var waveIsTestFire = wave[0].IsTestFire;
             _activeToastThemeStylingEnabled = wave[0].ToastUseThemeStyling;
-            // A wave never mixes games, so its first item's game owns the wave's behavior.
-            var waveGameData = LoadGameData(wave[0].PlayniteGameId);
-            _activeWaveBehavior = waveGameData?.NotificationBehaviorOverride;
-            _activeWaveCaptures = waveGameData?.CaptureOverride;
+            // A wave never mixes games, so its first item's game owns the wave's capture settings.
+            _activeWaveCaptures = LoadGameData(wave[0].PlayniteGameId)?.CaptureOverride;
             // Resolve the corner once for this wave: the style's position, else a theme override,
             // else the plugin setting. Positioning (including the per-frame game-window follow) and
             // slide direction both read the resolved value.
@@ -5510,10 +5507,9 @@ namespace PlayniteAchievements.Services.UI
         }
 
         /// <summary>
-        /// The corner the toast uses: the scope style's position when set, then the wave's game's
-        /// own behavior position, then a theme override (string resource
-        /// <see cref="AchievementToastTemplateResolver.PositionResourceKey"/>, e.g. "TopRight") when
-        /// present and valid, otherwise the plugin's ToastPosition setting.
+        /// The corner the toast uses: the scope style's position when set, then a theme override
+        /// (string resource <see cref="AchievementToastTemplateResolver.PositionResourceKey"/>, e.g.
+        /// "TopRight") when present and valid, otherwise the plugin's ToastPosition setting.
         /// </summary>
         private ToastScreenCorner EffectivePosition(NotificationSurfaceStyle scopeToast)
         {
@@ -5521,12 +5517,6 @@ namespace PlayniteAchievements.Services.UI
             if (styled.HasValue && Enum.IsDefined(typeof(ToastScreenCorner), styled.Value))
             {
                 return styled.Value;
-            }
-
-            var gamePosition = _activeWaveBehavior?.ToastPosition;
-            if (gamePosition.HasValue && Enum.IsDefined(typeof(ToastScreenCorner), gamePosition.Value))
-            {
-                return gamePosition.Value;
             }
 
             var setting = _settings?.Persisted?.ToastPosition ?? ToastScreenCorner.BottomRight;
