@@ -59,10 +59,15 @@ namespace PlayniteAchievements.Providers.Minecraft
             "pocket edition", "earth", "windows 10"
         };
 
+        /// <summary>
+        /// A Minecraft title that is Java Edition: one naming Java (the Microsoft Store's "Minecraft:
+        /// Java &amp; Bedrock Edition for PC" bundles both), or one without another edition's marker.
+        /// </summary>
         public static bool IsJavaTitle(string name)
         {
             var value = (name ?? string.Empty).ToLowerInvariant();
-            return value.Contains("minecraft") && !NonJavaTitleTokens.Any(value.Contains);
+            return value.Contains("minecraft") &&
+                   (value.Contains("java") || !NonJavaTitleTokens.Any(value.Contains));
         }
 
         public static MinecraftGameSource Resolve(Game game, MinecraftSettings settings, IPlayniteAPI playniteApi)
