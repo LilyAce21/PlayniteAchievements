@@ -62,12 +62,11 @@ namespace PlayniteAchievements.Providers.Minecraft
         public PlayniteAchievements.Models.Friends.IFriendsProvider Friends => null;
 
         /// <summary>
-        /// True once a configured game folder or a default launcher folder exists. Instances only
-        /// reachable through a game's own folder are still found during refresh.
+        /// Always true: there is no sign-in, and a game's folders (override, launch action, install
+        /// folder) can live anywhere, such as a portable launcher, so no global folder check decides
+        /// availability. <see cref="IsCapable"/> filters the games.
         /// </summary>
-        public bool IsAuthenticated =>
-            ProviderPathList.Normalize(ProviderSettings?.GameFolders).Any(Directory.Exists) ||
-            MinecraftPaths.DefaultLauncherDataFolders().Any(Directory.Exists);
+        public bool IsAuthenticated => true;
 
         public bool IsCapable(Game game)
         {
