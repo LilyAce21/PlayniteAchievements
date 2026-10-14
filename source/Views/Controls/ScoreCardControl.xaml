@@ -145,16 +145,15 @@
                 </Style.Triggers>
             </Style>
 
-            <!-- A points card's platform icon, on the badge side and as tall as the text column:
-                 its size is bound to the text column's height, so the icon never sets the card's
-                 height itself. -->
+            <!-- A points card's platform icon, on the badge side and sized like the tier badge, so a
+                 points card and a rank card side by side line up. -->
             <Style x:Key="ScoreCardPlatformIconStyle" TargetType="Image">
                 <Setter Property="DockPanel.Dock" Value="Left"/>
                 <Setter Property="Stretch" Value="Uniform"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="HorizontalAlignment" Value="Center"/>
-                <Setter Property="Width" Value="{Binding ActualHeight, ElementName=TextColumn}"/>
-                <Setter Property="Height" Value="{Binding ActualHeight, ElementName=TextColumn}"/>
+                <Setter Property="Width" Value="38"/>
+                <Setter Property="Height" Value="43"/>
                 <Setter Property="Margin" Value="0,0,10,0"/>
                 <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality"/>
                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -163,7 +162,13 @@
                         <Setter Property="Visibility" Value="Visible"/>
                     </DataTrigger>
                     <DataTrigger Binding="{Binding IsFeatured, ElementName=Root}" Value="True">
+                        <Setter Property="Width" Value="54"/>
+                        <Setter Property="Height" Value="61"/>
                         <Setter Property="Margin" Value="0,0,14,0"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Compact, ElementName=Root}" Value="True">
+                        <Setter Property="Width" Value="28"/>
+                        <Setter Property="Height" Value="32"/>
                     </DataTrigger>
                     <DataTrigger Binding="{Binding BadgePosition, ElementName=Root}" Value="{x:Static settings:ScoreCardBadgePosition.Right}">
                         <Setter Property="DockPanel.Dock" Value="Right"/>
@@ -278,10 +283,13 @@
                     <DataTrigger Binding="{Binding BadgePosition, ElementName=Root}" Value="{x:Static settings:ScoreCardBadgePosition.Right}">
                         <Setter Property="HorizontalAlignment" Value="Right"/>
                     </DataTrigger>
-                    <DataTrigger Binding="{Binding Compact, ElementName=Root}" Value="True">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                    </DataTrigger>
+                    <!-- A points card has no level to caption, but keeps the line's height so its
+                     text and bar sit level with a rank card beside it. Compact cards have no
+                     caption line at all; that trigger comes later so it wins. -->
                     <DataTrigger Binding="{Binding IsPoints}" Value="True">
+                        <Setter Property="Visibility" Value="Hidden"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Compact, ElementName=Root}" Value="True">
                         <Setter Property="Visibility" Value="Collapsed"/>
                     </DataTrigger>
                 </Style.Triggers>
