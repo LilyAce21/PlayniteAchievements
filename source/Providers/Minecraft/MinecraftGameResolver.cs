@@ -36,6 +36,9 @@ namespace PlayniteAchievements.Providers.Minecraft
     {
         public List<MinecraftInstance> Instances { get; set; } = new List<MinecraftInstance>();
 
+        /// <summary>Game folders left out, each with the reason, for the refresh log.</summary>
+        public List<string> SkippedFolders { get; set; } = new List<string>();
+
         public string ResolvedBy { get; set; }
 
         public IEnumerable<string> GameFolders => Instances.Select(instance => instance.GameFolder);
@@ -156,13 +159,21 @@ namespace PlayniteAchievements.Providers.Minecraft
         private static MinecraftGameSource FromGameFolders(IEnumerable<string> gameFolders, string resolvedBy)
         {
             var instances = new List<MinecraftInstance>();
+            var skipped = new List<string>();
             var usedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var gameFolder in gameFolders.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var instance = CreateInstance(gameFolder);
                 instance.Worlds = MinecraftPaths.EnumerateWorlds(gameFolder);
+                if (instance.Worlds.Count == 0)
+                {
+                    skipped.Add($"'{gameFolder}' (no worlds in saves)");
+                    continue;
+                }
+
                 if (!MinecraftPaths.HasAdvancementWorld(gameFolder))
                 {
+                    skipped.Add($"'{gameFolder}' ({instance.Worlds.Count} world(s), none with an advancements folder)");
                     continue;
                 }
 
@@ -176,7 +187,7 @@ namespace PlayniteAchievements.Providers.Minecraft
                 instances.Add(instance);
             }
 
-            return new MinecraftGameSource { Instances = instances, ResolvedBy = resolvedBy };
+            return new MinecraftGameSource { Instances = instances, SkippedFolders = skipped, ResolvedBy = resolvedBy };
         }
 
         private static MinecraftInstance CreateInstance(string gameFolder)
