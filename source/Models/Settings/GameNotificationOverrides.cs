@@ -6,6 +6,25 @@ using ObservableObject = PlayniteAchievements.Common.ObservableObject;
 namespace PlayniteAchievements.Models.Settings
 {
     /// <summary>
+    /// The six capture rarity filters, shared by the global settings and a game's own capture
+    /// settings so one editor serves both.
+    /// </summary>
+    public interface IUnlockCaptureRarities
+    {
+        RaritySelection UnlockScreenshotCleanRarities { get; set; }
+
+        RaritySelection UnlockScreenshotWithToastRarities { get; set; }
+
+        RaritySelection UnlockScreenshotFramedRarities { get; set; }
+
+        RaritySelection UnlockRecordingCleanRarities { get; set; }
+
+        RaritySelection UnlockRecordingRarities { get; set; }
+
+        RaritySelection UnlockRecordingFramedRarities { get; set; }
+    }
+
+    /// <summary>
     /// A game's complete notification behavior snapshot. A null instance on
     /// <see cref="GameCustomDataFile"/> means the game follows its provider and the globals live;
     /// a set instance replaces them outright, master switch included. Property names match
@@ -105,7 +124,7 @@ namespace PlayniteAchievements.Models.Settings
     /// outright, master switches included. Directories, file naming and recording quality stay
     /// global. Property names match <see cref="PersistedSettings"/>.
     /// </summary>
-    public sealed class GameCaptureOverride : ObservableObject
+    public sealed class GameCaptureOverride : ObservableObject, IUnlockCaptureRarities
     {
         private double _captureDelaySeconds;
         private bool _enableUnlockScreenshots;
