@@ -716,8 +716,14 @@ namespace PlayniteAchievements.Models.Tests
         {
             var settings = new PersistedSettings();
 
-            Assert.AreEqual("Collection", settings.OverviewScoreCardSlot1);
-            Assert.AreEqual("Prestige", settings.OverviewScoreCardSlot2);
+            Assert.IsTrue(settings.ShowOverviewScoreCard1);
+            Assert.IsTrue(settings.ShowOverviewScoreCard2);
+            Assert.AreEqual(ShowcaseWidgetKind.Scores, settings.OverviewScoreCard1.Kind);
+            Assert.AreEqual(ScoreCardType.Collection, ShowcaseWidgetOptions.GetScoreCardType(settings.OverviewScoreCard1));
+            Assert.AreEqual(ScoreCardType.Prestige, ShowcaseWidgetOptions.GetScoreCardType(settings.OverviewScoreCard2));
+            Assert.AreEqual(ScoreCardBadgePosition.Left, ShowcaseWidgetOptions.GetScoreCardBadgePosition(settings.OverviewScoreCard1));
+            Assert.IsTrue(ShowcaseWidgetOptions.GetScoreCardShowTotal(settings.OverviewScoreCard1));
+            Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(settings.OverviewScoreCard2));
         }
 
         [TestMethod]
@@ -1186,24 +1192,30 @@ namespace PlayniteAchievements.Models.Tests
         [TestMethod]
         public void CloneAndCopyFrom_PreserveOverviewScoreCardVisibility()
         {
-            var source = new PersistedSettings
-            {
-                OverviewScoreCardSlot1 = "Points:Xbox",
-                OverviewScoreCardSlot2 = "None",
-                OverviewScoreCardsUseCustomColors = true
-            };
+            var source = new PersistedSettings { ShowOverviewScoreCard2 = false };
+            ShowcaseWidgetOptions.SetScoreCardType(source.OverviewScoreCard1, ScoreCardType.Points("Xbox"));
+            ShowcaseWidgetOptions.SetScoreCardShowTotal(source.OverviewScoreCard1, false);
+            ShowcaseWidgetOptions.SetScoreCardBadgePosition(source.OverviewScoreCard1, ScoreCardBadgePosition.Right);
+            ShowcaseWidgetOptions.SetScoreCardUseCustomColors(source.OverviewScoreCard2, true);
 
             var clone = source.Clone();
             var target = new PersistedSettings();
             target.CopyFrom(source);
 
-            Assert.IsFalse(new PersistedSettings().OverviewScoreCardsUseCustomColors);
-            Assert.AreEqual("Points:Xbox", clone.OverviewScoreCardSlot1);
-            Assert.AreEqual("None", clone.OverviewScoreCardSlot2);
-            Assert.IsTrue(clone.OverviewScoreCardsUseCustomColors);
-            Assert.AreEqual("Points:Xbox", target.OverviewScoreCardSlot1);
-            Assert.AreEqual("None", target.OverviewScoreCardSlot2);
-            Assert.IsTrue(target.OverviewScoreCardsUseCustomColors);
+            foreach (var copy in new[] { clone, target })
+            {
+                Assert.AreEqual("Points:Xbox", ShowcaseWidgetOptions.GetScoreCardType(copy.OverviewScoreCard1).Key);
+                Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardShowTotal(copy.OverviewScoreCard1));
+                Assert.AreEqual(ScoreCardBadgePosition.Right, ShowcaseWidgetOptions.GetScoreCardBadgePosition(copy.OverviewScoreCard1));
+                Assert.IsTrue(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(copy.OverviewScoreCard2));
+                Assert.IsTrue(copy.ShowOverviewScoreCard1);
+                Assert.IsFalse(copy.ShowOverviewScoreCard2);
+                Assert.AreNotSame(source.OverviewScoreCard1, copy.OverviewScoreCard1);
+            }
+
+            // The copies are deep: editing one leaves the source alone.
+            ShowcaseWidgetOptions.SetScoreCardShowTotal(clone.OverviewScoreCard1, true);
+            Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardShowTotal(source.OverviewScoreCard1));
         }
 
         [TestMethod]
@@ -1712,8 +1724,8 @@ namespace PlayniteAchievements.Models.Tests
                 RoundRarityPercentages = true,
                 OverviewGameSummariesUseCoverImages = false,
                 OverviewRecentAchievementsUseCoverImages = false,
-                OverviewScoreCardSlot1 = "Points:RetroAchievements",
-                OverviewScoreCardSlot2 = "None",
+                OverviewScoreCard1 = PersistedSettings.CreateOverviewScoreCard(ScoreCardType.Points("RetroAchievements")),
+                ShowOverviewScoreCard2 = false,
                 ShowOverviewMiniShowcase = false,
                 OverviewMiniShowcaseHeight = 400d,
                 ShowOverviewGameMetadataPlatform = false,
@@ -1821,8 +1833,10 @@ namespace PlayniteAchievements.Models.Tests
             Assert.AreEqual(defaults.RoundRarityPercentages, settings.RoundRarityPercentages);
             Assert.AreEqual(defaults.OverviewGameSummariesUseCoverImages, settings.OverviewGameSummariesUseCoverImages);
             Assert.AreEqual(defaults.OverviewRecentAchievementsUseCoverImages, settings.OverviewRecentAchievementsUseCoverImages);
-            Assert.AreEqual(defaults.OverviewScoreCardSlot1, settings.OverviewScoreCardSlot1);
-            Assert.AreEqual(defaults.OverviewScoreCardSlot2, settings.OverviewScoreCardSlot2);
+            Assert.AreEqual(
+                ShowcaseWidgetOptions.GetScoreCardType(defaults.OverviewScoreCard1),
+                ShowcaseWidgetOptions.GetScoreCardType(settings.OverviewScoreCard1));
+            Assert.AreEqual(defaults.ShowOverviewScoreCard2, settings.ShowOverviewScoreCard2);
             Assert.AreEqual(defaults.ShowOverviewMiniShowcase, settings.ShowOverviewMiniShowcase);
             Assert.AreEqual(defaults.OverviewMiniShowcaseHeight, settings.OverviewMiniShowcaseHeight);
             Assert.AreEqual(defaults.ShowOverviewGameMetadataPlatform, settings.ShowOverviewGameMetadataPlatform);
