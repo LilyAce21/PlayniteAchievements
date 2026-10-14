@@ -24,16 +24,23 @@ namespace PlayniteAchievements.Views.Showcase
         private readonly ShowcaseWidgetInstanceSettings _settings;
         private readonly Action _persist;
         private readonly bool _publishChanges;
+        private readonly bool _includeScoreHistory;
         private DebouncedSettingsPersist _gridOptionsPersist;
 
+        /// <param name="includeScoreHistory">
+        /// False for a score card with no history chart (the Overview header's cards), which drops
+        /// the history toggle and range.
+        /// </param>
         public ShowcaseWidgetOptionsControl(
             ShowcaseWidgetInstanceSettings settings,
             Action persist = null,
             bool publishChanges = true,
             Thickness? margin = null,
-            bool loadStyles = true)
+            bool loadStyles = true,
+            bool includeScoreHistory = true)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _includeScoreHistory = includeScoreHistory;
             _persist = persist;
             _publishChanges = publishChanges;
             if (loadStyles)
@@ -110,33 +117,9 @@ namespace PlayniteAchievements.Views.Showcase
                     AddProfileStatSlots(panel);
                     break;
                 case ShowcaseWidgetKind.Scores:
-                    AddChoice(
-                        panel,
-                        Localize("LOCTypeLabel"),
-                        ScoreCardChoices.Build(ShowcaseWidgetOptions.GetScoreCardType(_settings)).ToArray(),
-                        ShowcaseWidgetOptions.GetScoreCardType(_settings),
-                        value => ShowcaseWidgetOptions.SetScoreCardType(_settings, value),
-                        ScoreCardTypeName);
-                    AddChoice(
-                        panel,
-                        Localize("LOCPlayAch_Settings_ScoreCardBadgePosition"),
-                        new[] { ScoreCardBadgePosition.Left, ScoreCardBadgePosition.Right },
-                        ShowcaseWidgetOptions.GetScoreCardBadgePosition(_settings),
-                        value => ShowcaseWidgetOptions.SetScoreCardBadgePosition(_settings, value),
-                        ScoreBadgePositionName);
-                    AddToggle(
-                        panel,
-                        Localize("LOCPlayAch_Settings_ScoreCardUseCustomColors"),
-                        ShowcaseWidgetOptions.GetScoreCardUseCustomColors(_settings),
-                        value => ShowcaseWidgetOptions.SetScoreCardUseCustomColors(_settings, value));
-                    AddToggle(
-                        panel,
-                        Localize("LOCPlayAch_Showcase_ScoreHistory"),
-                        ShowcaseWidgetOptions.GetScoreHistoryShown(_settings),
-                        value => ShowcaseWidgetOptions.SetScoreHistoryShown(_settings, value));
-                    AddRangeChoice(panel);
-
-                    break;                case ShowcaseWidgetKind.Pie:
+                    AddScoreCardOptions(panel);
+                    break;
+                case ShowcaseWidgetKind.Pie:
                     AddChoice(
                         panel,
                         Localize("LOCPlayAch_Showcase_Mode"),
@@ -1494,6 +1477,70 @@ namespace PlayniteAchievements.Views.Showcase
             text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding(nameof(FontFamilyOption.DisplayName)));
             text.SetBinding(TextBlock.FontFamilyProperty, new System.Windows.Data.Binding(nameof(FontFamilyOption.PreviewFamily)));
             return new DataTemplate { VisualTree = text };
+        }
+
+        /// <summary>
+        /// The score card's options. Show-total applies to points cards and the rarity colors to
+        /// Collection and Prestige, so each row shows only for the card type it affects.
+        /// </summary>
+        private void AddScoreCardOptions(Panel panel)
+        {
+            Grid showTotalRow = null;
+            Grid customColorsRow = null;
+            void SyncTypeRows(ScoreCardType type)
+            {
+                if (showTotalRow != null)
+                {
+                    showTotalRow.Visibility = type.IsPoints ? Visibility.Visible : Visibility.Collapsed;
+                }
+
+                if (customColorsRow != null)
+                {
+                    customColorsRow.Visibility = type.IsPoints ? Visibility.Collapsed : Visibility.Visible;
+                }
+            }
+
+            AddChoice(
+                panel,
+                Localize("LOCTypeLabel"),
+                ScoreCardChoices.Build(ShowcaseWidgetOptions.GetScoreCardType(_settings)).ToArray(),
+                ShowcaseWidgetOptions.GetScoreCardType(_settings),
+                value =>
+                {
+                    ShowcaseWidgetOptions.SetScoreCardType(_settings, value);
+                    SyncTypeRows(value);
+                },
+                ScoreCardTypeName);
+            AddChoice(
+                panel,
+                Localize("LOCPlayAch_Settings_ScoreCardBadgePosition"),
+                new[] { ScoreCardBadgePosition.Left, ScoreCardBadgePosition.Right },
+                ShowcaseWidgetOptions.GetScoreCardBadgePosition(_settings),
+                value => ShowcaseWidgetOptions.SetScoreCardBadgePosition(_settings, value),
+                ScoreBadgePositionName);
+            showTotalRow = AddToggle(
+                panel,
+                Localize("LOCPlayAch_Settings_ScoreCardShowTotal"),
+                ShowcaseWidgetOptions.GetScoreCardShowTotal(_settings),
+                value => ShowcaseWidgetOptions.SetScoreCardShowTotal(_settings, value));
+            customColorsRow = AddToggle(
+                panel,
+                Localize("LOCPlayAch_Settings_ScoreCardUseCustomColors"),
+                ShowcaseWidgetOptions.GetScoreCardUseCustomColors(_settings),
+                value => ShowcaseWidgetOptions.SetScoreCardUseCustomColors(_settings, value));
+            SyncTypeRows(ShowcaseWidgetOptions.GetScoreCardType(_settings));
+
+            if (!_includeScoreHistory)
+            {
+                return;
+            }
+
+            AddToggle(
+                panel,
+                Localize("LOCPlayAch_Showcase_ScoreHistory"),
+                ShowcaseWidgetOptions.GetScoreHistoryShown(_settings),
+                value => ShowcaseWidgetOptions.SetScoreHistoryShown(_settings, value));
+            AddRangeChoice(panel);
         }
 
         private Grid AddChoice<T>(
