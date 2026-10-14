@@ -32,6 +32,7 @@ namespace PlayniteAchievements.Services.Database
             public string LastUpdatedUtc { get; set; }
             public string ProviderKey { get; set; }
             public string ProviderPlatformKey { get; set; }
+            public string RaritySource { get; set; }
             public long? ProviderGameId { get; set; }
             public string ProviderGameKey { get; set; }
             public string PlayniteGameId { get; set; }
@@ -347,6 +348,7 @@ namespace PlayniteAchievements.Services.Database
                         PlayniteGameId = playniteGameId,
                         ProviderKey = row.ProviderKey,
                         ProviderPlatformKey = row.ProviderPlatformKey,
+                        RaritySource = SqlNadoCacheBehavior.ParseRaritySource(row.RaritySource),
                         AppId = (int)Math.Max(0, row.ProviderGameId ?? 0),
                         ProviderGameKey = NormalizeProviderGameKey(row.ProviderGameKey),
                         GameName = row.GameName,
@@ -481,6 +483,7 @@ namespace PlayniteAchievements.Services.Database
                         g.ProviderGameKey AS ProviderGameKey,
                         g.PlayniteGameId AS PlayniteGameId,
                         g.GameName AS GameName,
+                        g.RaritySource AS RaritySource,
                         ROW_NUMBER() OVER (
                             PARTITION BY ugp.CacheKey
                             ORDER BY ugp.LastUpdatedUtc DESC, ugp.Id DESC
@@ -505,6 +508,7 @@ namespace PlayniteAchievements.Services.Database
                     lp.ProviderGameKey AS ProviderGameKey,
                     lp.PlayniteGameId AS PlayniteGameId,
                     lp.GameName AS GameName,
+                    lp.RaritySource AS RaritySource,
                     SUM(CASE WHEN LOWER(COALESCE(ad.Rarity, '')) = 'common' AND ua.Unlocked = 1 THEN 1 ELSE 0 END) AS CommonCount,
                     SUM(CASE WHEN LOWER(COALESCE(ad.Rarity, '')) = 'uncommon' AND ua.Unlocked = 1 THEN 1 ELSE 0 END) AS UncommonCount,
                     SUM(CASE WHEN LOWER(COALESCE(ad.Rarity, '')) = 'rare' AND ua.Unlocked = 1 THEN 1 ELSE 0 END) AS RareCount,
@@ -560,7 +564,8 @@ namespace PlayniteAchievements.Services.Database
                     lp.ProviderGameId,
                     lp.ProviderGameKey,
                     lp.PlayniteGameId,
-                    lp.GameName
+                    lp.GameName,
+                    lp.RaritySource
                 ORDER BY lp.LastUpdatedUtc DESC, lp.CacheKey;", ScopeArgs(scopeGameId)).ToList();
         }
 
