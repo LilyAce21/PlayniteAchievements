@@ -2080,6 +2080,23 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         }
 
         /// <summary>
+        /// Brings the rows up to date after a move changed what an auto capstone stands for. The
+        /// save writes the scope back from the row, so a row left with the old one would undo the
+        /// move's re-scoping, and the capstone's unlock is worked out again for its new scope.
+        /// </summary>
+        private void RederiveRescopedAutoCapstones()
+        {
+            ApplyAutoCapstoneMarker(_gameCustomDataStore.LoadOrDefault(_gameId));
+            foreach (var row in AchievementRows.Where(row => row?.IsAutoCapstone == true).ToList())
+            {
+                ApplyAutoCapstoneDerivation(row);
+            }
+
+            RefreshComputedState();
+            _ = SaveAsync();
+        }
+
+        /// <summary>
         /// Stamps each row with the provider's own values and the managed-cache file stem, read
         /// from the raw snapshot because the rows themselves show the overridden values. This is
         /// what lets a row tell an edited field from one the provider supplied, for the icon
@@ -4104,24 +4121,32 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             {
                 var pendingOrder = _pendingCategoryOrderWrite;
                 _pendingCategoryOrderWrite = null;
+                bool rescoped;
                 if (pendingOrder != null)
                 {
                     // One update for the assignment and the order together. Creating a category
                     // and assigning it used to be two writes -- each a deep clone of the game's
                     // record, three normalizations, a serialize and a SQLite open and close.
-                    _achievementOverridesService.SetAchievementCategoryAssignmentAndMetadata(
+                    rescoped = _achievementOverridesService.SetAchievementCategoryAssignmentAndMetadata(
                         _gameId,
                         categoryOverrides,
                         categoryTypeOverrides,
                         pendingOrder,
                         GameCustomDataLookup.GetAchievementCategoryImageOverrides(_gameId, _settings?.Persisted),
                         GameCustomDataLookup.GetGameSummaryCategory(_gameId, _settings?.Persisted),
-                        affectsSummaryData: false);
+                        affectsSummaryData: false,
+                        rescopeAutoCapstones: true);
                 }
                 else
                 {
-                    _achievementOverridesService.SetAchievementCategoryOverrides(_gameId, categoryOverrides, categoryTypeOverrides);
+                    rescoped = _achievementOverridesService.SetAchievementCategoryOverrides(_gameId, categoryOverrides, categoryTypeOverrides);
                 }
+
+                if (rescoped)
+                {
+                    RederiveRescopedAutoCapstones();
+                }
+
                 RefreshAssignmentState();
 
                 // Through the debounce, not raised directly: only its flush marks the notification
