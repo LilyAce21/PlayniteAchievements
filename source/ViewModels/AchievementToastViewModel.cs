@@ -1192,8 +1192,46 @@ namespace PlayniteAchievements.ViewModels
         // A frame slot image: an animated file's frame at the frame keyframe, else the still.
         private ImageSource LoadFrameImage(string path)
         {
+            if (FrameAnimationTimeMs is long timeMs)
+            {
+                var duration = AnimatedImageKeyframe.DurationMs(path);
+                return (duration > 0 ? AnimatedImageKeyframe.TryDecodeAt(path, (int)(timeMs % duration)) : null)
+                       ?? LoadSyncImage(path);
+            }
+
             return (FrameKeyframeMs > 0 ? AnimatedImageKeyframe.TryDecodeAt(path, FrameKeyframeMs) : null)
                    ?? LoadSyncImage(path);
+        }
+
+        /// <summary>
+        /// Time into the framed video, in milliseconds, at which the frame is drawn: each
+        /// animated slot image shows its frame at that time, looping from its first frame, in
+        /// place of the keyframe (which is for screenshots). Null draws the screenshot frame.
+        /// Set around one chrome render on the UI thread.
+        /// </summary>
+        internal long? FrameAnimationTimeMs { get; set; }
+
+        /// <summary>
+        /// The frame timelines (delays in ms) of the frame surface's animated slot images: the
+        /// background while the vignette shows it, the badge for this unlock, and the completion
+        /// badge. Empty when none is animated, so the framed video's frame is one still.
+        /// </summary>
+        internal IReadOnlyList<IReadOnlyList<int>> FrameAnimationTimelines()
+        {
+            var badges = _style.Frame.BadgeImages;
+            var paths = new[]
+            {
+                _style.Frame.FrameVignette == FrameVignetteStyle.Image ? _style.FrameBackgroundImagePath : null,
+                ResolveCustomBadgePath(badges),
+                NullIfBlank(badges.CompletionPath)
+            };
+
+            return paths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(AnimatedImageKeyframe.TryReadFrameDelays)
+                .Where(delays => delays != null)
+                .ToList();
         }
 
         /// <summary>
