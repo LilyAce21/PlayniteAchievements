@@ -86,19 +86,40 @@ namespace PlayniteAchievements.Views.Showcase
             set => SetValue(RayGlowTiersProperty, value);
         }
 
-        // False drops the card's surface fill and outline so the host's background shows
-        // through (start page widgets sit directly on the start page).
+        // The host's default for the card's surface fill and outline: false lets the host's
+        // background show through (start page widgets sit directly on the start page). A
+        // widget's own Show Background option overrides it; see DrawsBackground.
         public static readonly DependencyProperty ShowCardChromeProperty =
             DependencyProperty.Register(
                 nameof(ShowCardChrome),
                 typeof(bool),
                 typeof(ShowcaseWidgetControl),
-                new PropertyMetadata(true));
+                new PropertyMetadata(true, (sender, _) => (sender as ShowcaseWidgetControl)?.UpdateBackground()));
 
         public bool ShowCardChrome
         {
             get => (bool)GetValue(ShowCardChromeProperty);
             set => SetValue(ShowCardChromeProperty, value);
+        }
+
+        // Whether the card draws its surface and outline: the widget's option, else the host's
+        // ShowCardChrome. The root border's style reads this.
+        public static readonly DependencyProperty DrawsBackgroundProperty =
+            DependencyProperty.Register(
+                nameof(DrawsBackground),
+                typeof(bool),
+                typeof(ShowcaseWidgetControl),
+                new PropertyMetadata(true));
+
+        public bool DrawsBackground
+        {
+            get => (bool)GetValue(DrawsBackgroundProperty);
+            private set => SetValue(DrawsBackgroundProperty, value);
+        }
+
+        private void UpdateBackground()
+        {
+            DrawsBackground = ShowcaseWidgetOptions.GetShowBackground(_projection?.Instance, ShowCardChrome);
         }
 
         /// <summary>A click on a linked widget's chart, in the terms the overview filters by.</summary>
@@ -210,6 +231,7 @@ namespace PlayniteAchievements.Views.Showcase
             }
 
             control._projection = e.NewValue as ShowcaseWidgetProjection;
+            control.UpdateBackground();
             control.UpdateTitle();
             control.RebuildBody();
         }
@@ -295,6 +317,10 @@ namespace PlayniteAchievements.Views.Showcase
                 ? _projection.ContextLabel?.Trim()
                 : _projection?.Instance?.CustomTitle?.Trim();
             ApplyHeaderPlacement(overlay: linked);
+            // A linked widget's caption stays in its corner; a custom title takes its option.
+            TitleText.HorizontalAlignment = linked
+                ? HorizontalAlignment.Left
+                : ToHorizontalAlignment(ShowcaseWidgetOptions.GetTitleAlignment(_projection?.Instance));
             if (string.IsNullOrWhiteSpace(title))
             {
                 TitleText.Text = string.Empty;
@@ -304,6 +330,19 @@ namespace PlayniteAchievements.Views.Showcase
 
             TitleText.Text = title;
             HeaderBorder.Visibility = Visibility.Visible;
+        }
+
+        private static HorizontalAlignment ToHorizontalAlignment(ShowcaseHorizontalAlignment value)
+        {
+            switch (value)
+            {
+                case ShowcaseHorizontalAlignment.Center:
+                    return HorizontalAlignment.Center;
+                case ShowcaseHorizontalAlignment.Right:
+                    return HorizontalAlignment.Right;
+                default:
+                    return HorizontalAlignment.Left;
+            }
         }
 
         /// <summary>The height a linked timeline gives up so its title clears the bars.</summary>
