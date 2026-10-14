@@ -135,7 +135,8 @@ namespace PlayniteAchievements
                 settings,
                 PersistSettingsForUi,
                 margin: new Thickness(0),
-                loadStyles: false));
+                loadStyles: false,
+                backgroundDefault: false));
             var host = new UserControl { Content = panel };
             host.Resources.MergedDictionaries.Add(new ResourceDictionary
             {
