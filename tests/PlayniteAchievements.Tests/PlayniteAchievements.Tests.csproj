@@ -301,6 +301,7 @@
     <Compile Include="..\..\source\Providers\Minecraft\MinecraftModelResolver.cs" Link="Source\Providers\Minecraft\MinecraftModelResolver.cs" />
     <Compile Include="..\..\source\Providers\Minecraft\MinecraftLogWatcher.cs" Link="Source\Providers\Minecraft\MinecraftLogWatcher.cs" />
     <Compile Include="..\..\source\Providers\Minecraft\MinecraftLiveLanguage.cs" Link="Source\Providers\Minecraft\MinecraftLiveLanguage.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftBlockRenderer.cs" Link="Source\Providers\Minecraft\MinecraftBlockRenderer.cs" />
     <Compile Include="..\..\source\Providers\Minecraft\MinecraftPaths.cs" Link="Source\Providers\Minecraft\MinecraftPaths.cs" />
     <Compile Include="..\..\source\Providers\Minecraft\MinecraftProgressReader.cs" Link="Source\Providers\Minecraft\MinecraftProgressReader.cs" />
     <Compile Include="..\..\source\Providers\Minecraft\MinecraftResourceSource.cs" Link="Source\Providers\Minecraft\MinecraftResourceSource.cs" />
