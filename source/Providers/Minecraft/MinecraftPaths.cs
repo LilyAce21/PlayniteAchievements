@@ -261,6 +261,75 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
+        /// The game's language from options.txt (<c>lang:de_de</c>), lowercase; en_us when unset.
+        /// </summary>
+        public static string ReadGameLanguage(string gameFolder)
+        {
+            var value = ReadOption(gameFolder, "lang");
+            return string.IsNullOrWhiteSpace(value) ? MinecraftAdvancementCatalog.DefaultLocale : value.Trim().ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// The enabled resource packs from options.txt that are files or folders in resourcepacks/,
+        /// lowest priority first as the game stacks them. Built-in and mod-provided packs are skipped.
+        /// </summary>
+        public static List<string> ReadEnabledResourcePacks(string gameFolder)
+        {
+            var result = new List<string>();
+            var raw = ReadOption(gameFolder, "resourcePacks");
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return result;
+            }
+
+            JArray packs;
+            try
+            {
+                packs = JToken.Parse(raw) as JArray;
+            }
+            catch (JsonException)
+            {
+                return result;
+            }
+
+            foreach (var pack in packs?.Select(token => token?.ToString()) ?? Enumerable.Empty<string>())
+            {
+                if (pack == null || !pack.StartsWith("file/", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var path = Path.Combine(gameFolder, "resourcepacks", pack.Substring("file/".Length));
+                if (File.Exists(path) || Directory.Exists(path))
+                {
+                    result.Add(path);
+                }
+            }
+
+            return result;
+        }
+
+        private static string ReadOption(string gameFolder, string key)
+        {
+            try
+            {
+                var options = Path.Combine(gameFolder ?? string.Empty, "options.txt");
+                if (!File.Exists(options))
+                {
+                    return null;
+                }
+
+                var prefix = key + ":";
+                var line = File.ReadLines(options).FirstOrDefault(text => text.StartsWith(prefix, StringComparison.Ordinal));
+                return line?.Substring(prefix.Length);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// The world the game has open in this game folder: the one whose session.lock it wrote
         /// most recently (the game writes it when a world loads). Null when no world has one.
         /// </summary>
