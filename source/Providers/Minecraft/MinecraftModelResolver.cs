@@ -6,12 +6,21 @@ using System.Linq;
 
 namespace PlayniteAchievements.Providers.Minecraft
 {
-    /// <summary>A block model ready to draw: its element boxes, texture map and gui view rotation.</summary>
+    /// <summary>One model of a block drawing: its element boxes, texture map and placement.</summary>
+    internal sealed class MinecraftBlockModelPart
+    {
+        public JArray Elements { get; set; }
+        public Dictionary<string, string> Textures { get; set; }
+
+        /// <summary>A composite part's transformation, in block units; null for none.</summary>
+        public JObject Transformation { get; set; }
+    }
+
+    /// <summary>A block drawing: its parts and gui view rotation, keyed by the model (or composite) id.</summary>
     internal sealed class MinecraftBlockModel
     {
         public string ModelId { get; set; }
-        public JArray Elements { get; set; }
-        public Dictionary<string, string> Textures { get; set; }
+        public List<MinecraftBlockModelPart> Parts { get; set; } = new List<MinecraftBlockModelPart>();
         public double RotationX { get; set; }
         public double RotationY { get; set; }
     }
@@ -112,8 +121,9 @@ namespace PlayniteAchievements.Providers.Minecraft
 
         /// <summary>
         /// The item's block model when it is drawn as one: the first model in the chain that has
-        /// element boxes, with the merged texture map and the gui display rotation. Null for items
-        /// drawn as a flat sprite (a layer0 texture), models built in code, or no model at all.
+        /// element boxes, with the merged texture map and the gui display rotation, or every part of
+        /// a 1.21.4+ composite definition (a bed's head and foot). Null for items drawn as a flat
+        /// sprite (a layer0 texture), models built in code, or no model at all.
         /// </summary>
         public static MinecraftBlockModel ResolveBlockModel(
             string ns,
@@ -121,70 +131,149 @@ namespace PlayniteAchievements.Providers.Minecraft
             float? customModelData,
             IReadOnlyList<MinecraftResourceSource> sources)
         {
+            var definition = Parse(Find(sources, source => source.ItemDefinitions, $"{ns}:{name}".ToLowerInvariant()));
+            if (definition?["model"] is JObject root &&
+                string.Equals((string)(root["type"] as JValue), "minecraft:composite", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResolveComposite(ns, name, root, sources);
+            }
+
             foreach (var modelId in CandidateModelIds(ns, name, customModelData, sources))
             {
-                var textures = new Dictionary<string, string>(StringComparer.Ordinal);
-                JArray elements = null;
-                double[] guiRotation = null;
-                var found = false;
-                var current = NormalizeModelId(modelId);
-                var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                for (var depth = 0; current != null && depth < MaxParentDepth && visited.Add(current); depth++)
-                {
-                    var model = Parse(Find(sources, source => source.Models, current));
-                    if (model == null)
-                    {
-                        break;
-                    }
-
-                    found = true;
-                    if (model["textures"] is JObject slots)
-                    {
-                        foreach (var slot in slots.Properties().Where(slot => !textures.ContainsKey(slot.Name)))
-                        {
-                            var value = ReadTextureSlot(slot.Value);
-                            if (value != null)
-                            {
-                                textures[slot.Name] = value;
-                            }
-                        }
-                    }
-
-                    if (elements == null && model["elements"] is JArray modelElements && modelElements.Count > 0)
-                    {
-                        elements = modelElements;
-                    }
-
-                    if (guiRotation == null && model["display"]?["gui"]?["rotation"] is JArray rotation && rotation.Count == 3)
-                    {
-                        guiRotation = rotation.Select(value => value.Type == JTokenType.Integer || value.Type == JTokenType.Float ? (double)value : 0).ToArray();
-                    }
-
-                    current = NormalizeModelId((string)(model["parent"] as JValue));
-                }
-
-                if (!found)
+                var chain = ReadChain(modelId, sources);
+                if (chain == null)
                 {
                     continue;
                 }
 
                 // A flat sprite, even one whose chain also has boxes, stays flat.
-                if (elements == null || textures.ContainsKey("layer0"))
+                if (chain.Elements == null || chain.Textures.ContainsKey("layer0"))
                 {
                     return null;
                 }
 
+                chain.Part.Transformation = null;
                 return new MinecraftBlockModel
                 {
                     ModelId = NormalizeModelId(modelId),
-                    Elements = elements,
-                    Textures = textures,
-                    RotationX = guiRotation?[0] ?? 30,
-                    RotationY = guiRotation?[1] ?? 225
+                    Parts = new List<MinecraftBlockModelPart> { chain.Part },
+                    RotationX = chain.GuiRotation?[0] ?? 30,
+                    RotationY = chain.GuiRotation?[1] ?? 225
                 };
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Every model part of a composite definition with its transformation. Null when any part is
+        /// a flat sprite (a bundle's layers) or none has boxes.
+        /// </summary>
+        private static MinecraftBlockModel ResolveComposite(string ns, string name, JObject composite, IReadOnlyList<MinecraftResourceSource> sources)
+        {
+            var parts = new List<MinecraftBlockModelPart>();
+            double[] guiRotation = null;
+            foreach (var entry in (composite["models"] as JArray)?.OfType<JObject>() ?? Enumerable.Empty<JObject>())
+            {
+                if (!string.Equals((string)(entry["type"] as JValue), "minecraft:model", StringComparison.OrdinalIgnoreCase) ||
+                    entry["model"]?.Type != JTokenType.String)
+                {
+                    continue;
+                }
+
+                var chain = ReadChain((string)entry["model"], sources);
+                if (chain == null)
+                {
+                    continue;
+                }
+
+                if (chain.Textures.ContainsKey("layer0"))
+                {
+                    return null;
+                }
+
+                if (chain.Elements == null)
+                {
+                    continue;
+                }
+
+                chain.Part.Transformation = entry["transformation"] as JObject;
+                parts.Add(chain.Part);
+                guiRotation = guiRotation ?? chain.GuiRotation;
+            }
+
+            return parts.Count == 0
+                ? null
+                : new MinecraftBlockModel
+                {
+                    ModelId = $"{ns}:composite/{name}".ToLowerInvariant(),
+                    Parts = parts,
+                    RotationX = guiRotation?[0] ?? 30,
+                    RotationY = guiRotation?[1] ?? 225
+                };
+        }
+
+        private sealed class ModelChain
+        {
+            public MinecraftBlockModelPart Part { get; set; }
+            public Dictionary<string, string> Textures => Part.Textures;
+            public JArray Elements => Part.Elements;
+            public double[] GuiRotation { get; set; }
+        }
+
+        /// <summary>
+        /// A model and its parents: the merged texture map (child slots win), the first element
+        /// boxes, and the first gui rotation. Null when the model is not in any source.
+        /// </summary>
+        private static ModelChain ReadChain(string modelId, IReadOnlyList<MinecraftResourceSource> sources)
+        {
+            var textures = new Dictionary<string, string>(StringComparer.Ordinal);
+            JArray elements = null;
+            double[] guiRotation = null;
+            var found = false;
+            var current = NormalizeModelId(modelId);
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var depth = 0; current != null && depth < MaxParentDepth && visited.Add(current); depth++)
+            {
+                var model = Parse(Find(sources, source => source.Models, current));
+                if (model == null)
+                {
+                    break;
+                }
+
+                found = true;
+                if (model["textures"] is JObject slots)
+                {
+                    foreach (var slot in slots.Properties().Where(slot => !textures.ContainsKey(slot.Name)))
+                    {
+                        var value = ReadTextureSlot(slot.Value);
+                        if (value != null)
+                        {
+                            textures[slot.Name] = value;
+                        }
+                    }
+                }
+
+                if (elements == null && model["elements"] is JArray modelElements && modelElements.Count > 0)
+                {
+                    elements = modelElements;
+                }
+
+                if (guiRotation == null && model["display"]?["gui"]?["rotation"] is JArray rotation && rotation.Count == 3)
+                {
+                    guiRotation = rotation.Select(value => value.Type == JTokenType.Integer || value.Type == JTokenType.Float ? (double)value : 0).ToArray();
+                }
+
+                current = NormalizeModelId((string)(model["parent"] as JValue));
+            }
+
+            return found
+                ? new ModelChain
+                {
+                    Part = new MinecraftBlockModelPart { Elements = elements, Textures = textures },
+                    GuiRotation = guiRotation
+                }
+                : null;
         }
 
         /// <summary>
@@ -202,10 +291,10 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>The texture entry a face's texture reference (such as #side) names, or null.</summary>
-        internal static string ResolveFaceTexture(MinecraftBlockModel model, string reference)
+        internal static string ResolveFaceTexture(MinecraftBlockModelPart part, string reference)
         {
             var value = reference != null && reference.StartsWith("#", StringComparison.Ordinal)
-                ? Dereference(model.Textures, reference)
+                ? Dereference(part.Textures, reference)
                 : reference;
             return ToTextureEntry(value);
         }
