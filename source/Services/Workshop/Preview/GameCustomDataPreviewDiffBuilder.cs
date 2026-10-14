@@ -245,6 +245,7 @@ namespace PlayniteAchievements.Services.Workshop.Preview
                 ProviderKey = raw?.ProviderKey ?? CustomAchievementProjectionService.ProviderKey,
                 ProviderPlatformKey = raw?.ProviderPlatformKey,
                 LibrarySourceName = raw?.LibrarySourceName,
+                RaritySource = raw?.RaritySource,
                 HasAchievements = raw?.HasAchievements ?? true,
                 Achievements = (raw?.Achievements ?? new List<AchievementDetail>())
                     .Where(achievement => achievement != null)

@@ -387,6 +387,7 @@ namespace PlayniteAchievements.Providers.RPCS3
             {
                 ProviderKey = "RPCS3",
                 ProviderGameKey = providerGameKey,
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game?.Source?.Name,
                 GameName = game?.Name,
                 PlayniteGameId = game?.Id,

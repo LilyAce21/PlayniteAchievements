@@ -442,6 +442,7 @@ namespace PlayniteAchievements.Providers.ShadPS4
                 return Task.FromResult(new GameAchievementData
                 {
                     ProviderKey = "ShadPS4",
+                    RaritySource = RaritySource.Tier,
                     LibrarySourceName = game?.Source?.Name,
                     GameName = game?.Name,
                     PlayniteGameId = game?.Id,

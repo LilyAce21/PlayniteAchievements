@@ -497,8 +497,20 @@ namespace PlayniteAchievements.Providers.Exophase
                 GameName = game.Name,
                 ProviderGameKey = string.IsNullOrWhiteSpace(slug) ? null : slug.Trim(),
                 PlayniteGameId = game.Id,
+                RaritySource = GetProviderOwnedRaritySource(providerPlatformKey),
                 Achievements = achievements ?? new List<AchievementDetail>()
             };
+        }
+
+        // Xbox gamerscore, PSN trophy type and Epic XP are the platforms' own tiers. Other
+        // platforms have no tier, so their rarity is only whatever percent comes back.
+        internal static RaritySource? GetProviderOwnedRaritySource(string providerPlatformKey)
+        {
+            return string.Equals(providerPlatformKey, "Xbox", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(providerPlatformKey, "PSN", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(providerPlatformKey, "Epic", StringComparison.OrdinalIgnoreCase)
+                ? RaritySource.Tier
+                : (RaritySource?)null;
         }
 
         internal static void ApplyProviderOwnedRarity(IEnumerable<AchievementDetail> achievements, string providerPlatformKey)
@@ -521,21 +533,20 @@ namespace PlayniteAchievements.Providers.Exophase
                     providerPlatformKey,
                     normalizedPercent,
                     achievement.Points,
-                    achievement.TrophyType,
-                    achievement.Hidden,
-                    achievement.ProgressNum,
-                    achievement.ProgressDenom);
+                    achievement.TrophyType);
             }
         }
 
-        internal static void ApplyManualSourceRarity(ManualAchievementLink link, IList<AchievementDetail> achievements)
+        internal static RaritySource? ApplyManualSourceRarity(ManualAchievementLink link, IList<AchievementDetail> achievements)
         {
             if (link == null || achievements == null || achievements.Count == 0)
             {
-                return;
+                return null;
             }
 
-            ApplyProviderOwnedRarity(achievements, ResolveManualPlatformKey(link.SourceGameId));
+            var platformKey = ResolveManualPlatformKey(link.SourceGameId);
+            ApplyProviderOwnedRarity(achievements, platformKey);
+            return GetProviderOwnedRaritySource(platformKey);
         }
 
         internal static void GetManageAchievementsState(
@@ -709,10 +720,7 @@ namespace PlayniteAchievements.Providers.Exophase
             string providerPlatformKey,
             double? normalizedPercent,
             int? points,
-            string trophyType,
-            bool hidden,
-            int? progressNum,
-            int? progressDenom)
+            string trophyType)
         {
             if (normalizedPercent.HasValue)
             {
@@ -734,7 +742,7 @@ namespace PlayniteAchievements.Providers.Exophase
                 return GetRarityFromEpicXp(points);
             }
 
-            return GetFallbackRarity(hidden, progressNum, progressDenom);
+            return RarityTier.Common;
         }
 
         private static double? NormalizePercent(double? rawPercent)
@@ -821,23 +829,6 @@ namespace PlayniteAchievements.Providers.Exophase
                 default:
                     return RarityTier.Common;
             }
-        }
-
-        private static RarityTier GetFallbackRarity(bool hidden, int? progressNum, int? progressDenom)
-        {
-            if ((progressNum.HasValue || progressDenom.HasValue) &&
-                progressDenom.HasValue &&
-                progressDenom.Value > 0)
-            {
-                return RarityTier.Uncommon;
-            }
-
-            if (hidden)
-            {
-                return RarityTier.Rare;
-            }
-
-            return RarityTier.Common;
         }
 
         private static string ResolveManualPlatformKey(string sourceGameId)

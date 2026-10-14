@@ -215,6 +215,7 @@ namespace PlayniteAchievements.Services.Overview
                     UncommonCount = game.UncommonCount,
                     RareCount = game.RareCount,
                     UltraRareCount = game.UltraRareCount,
+                    ShowsRarity = game.RaritySource != RaritySource.None,
                     CollectionScore = game.CollectionScore,
                     PrestigeScore = game.PrestigeScore,
                     CollectionScoreTotal = game.CollectionScoreTotal,

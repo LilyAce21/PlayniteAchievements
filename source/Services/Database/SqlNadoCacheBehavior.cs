@@ -44,6 +44,37 @@ namespace PlayniteAchievements.Services.Database
             return storedHasRarity;
         }
 
+        // Game-level companion to ShouldKeepStoredRarity. A write without a source (a re-save of
+        // loaded data, a legacy import) keeps the stored one, and an incoming None does not
+        // overwrite a stored Tier or Percent: the definition upsert keeps those achievements'
+        // stored rarity in that case, so the game must keep saying it has some.
+        public static RaritySource? ResolveRaritySourceToWrite(RaritySource? incoming, string stored)
+        {
+            var storedSource = ParseRaritySource(stored);
+            if (!incoming.HasValue)
+            {
+                return storedSource;
+            }
+
+            if (incoming.Value == RaritySource.None &&
+                storedSource.HasValue &&
+                storedSource.Value != RaritySource.None)
+            {
+                return storedSource;
+            }
+
+            return incoming;
+        }
+
+        public static RaritySource? ParseRaritySource(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value) &&
+                   Enum.TryParse(value.Trim(), ignoreCase: true, out RaritySource parsed) &&
+                   Enum.IsDefined(typeof(RaritySource), parsed)
+                ? parsed
+                : (RaritySource?)null;
+        }
+
         // Computes category backfills for a mapped friend proxy row: a fetched definition's
         // Category/CategoryType only fills existing rows still holding the Default placeholder
         // (or blank), matched by ApiName. Rows a user scan already categorized are never changed,

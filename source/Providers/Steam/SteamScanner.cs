@@ -389,11 +389,7 @@ namespace PlayniteAchievements.Providers.Steam
                         UnlockTimeUtc = unlockTime,
                         Unlocked = isUnlocked,
                         ProgressNum = progressNum,
-                        ProgressDenom = progressDenom,
-                        Rarity = GetFallbackRarity(
-                            schemaAch.Hidden == 1,
-                            progressNum,
-                            progressDenom)
+                        ProgressDenom = progressDenom
                     };
 
                     var normalizedPercent = NormalizePercent(globalPercent);
@@ -1090,23 +1086,6 @@ namespace PlayniteAchievements.Providers.Steam
             }
 
             return value;
-        }
-
-        private static RarityTier GetFallbackRarity(bool hidden, int? progressNum, int? progressDenom)
-        {
-            if ((progressNum.HasValue || progressDenom.HasValue) &&
-                progressDenom.HasValue &&
-                progressDenom.Value > 0)
-            {
-                return RarityTier.Uncommon;
-            }
-
-            if (hidden)
-            {
-                return RarityTier.Rare;
-            }
-
-            return RarityTier.Common;
         }
     }
 }

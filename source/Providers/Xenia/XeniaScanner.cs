@@ -206,6 +206,7 @@ namespace PlayniteAchievements.Providers.Xenia
                     LibrarySourceName = game?.Source?.Name,
                     LastUpdatedUtc = DateTime.UtcNow,
                     HasAchievements = achievements.Count > 0,
+                    RaritySource = RaritySource.Tier,
                     PlayniteGameId = game?.Id,
                     Achievements = achievements
                 };

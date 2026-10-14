@@ -261,6 +261,10 @@ namespace PlayniteAchievements.Models.Achievements
 
         public string LibrarySourceName { get; set; }
 
+        public RaritySource? RaritySource { get; set; }
+
+        public bool ShowsRarity => RaritySource != PlayniteAchievements.Models.Achievements.RaritySource.None;
+
         public bool HasAchievements { get; set; } = true;
 
         public bool ExcludedFromSummaries { get; set; }

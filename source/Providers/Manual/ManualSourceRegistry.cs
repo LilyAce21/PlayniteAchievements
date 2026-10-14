@@ -88,7 +88,9 @@ namespace PlayniteAchievements.Providers.Manual
             return GetSourceByKey("Steam") ?? _sources.FirstOrDefault();
         }
 
-        public Action<ManualAchievementLink, IList<AchievementDetail>> GetPostProcessorByKey(string sourceKey)
+        // A post-processor rewrites the source's rarity and returns the rarity source it
+        // establishes, or null when it leaves only percents.
+        public Func<ManualAchievementLink, IList<AchievementDetail>, RaritySource?> GetPostProcessorByKey(string sourceKey)
         {
             if (string.Equals(sourceKey, "Exophase", StringComparison.OrdinalIgnoreCase))
             {

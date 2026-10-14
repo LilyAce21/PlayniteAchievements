@@ -95,6 +95,9 @@ namespace PlayniteAchievements.Services.Hydration
 
             data.HasAchievements = true;
             data.Achievements.AddRange(projected);
+            data.RaritySource = CustomAchievementProjectionService.CombineRaritySource(
+                data.RaritySource,
+                CustomAchievementProjectionService.ResolveRaritySource(definitions));
         }
     }
 }

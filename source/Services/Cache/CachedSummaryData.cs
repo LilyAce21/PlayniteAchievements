@@ -36,6 +36,9 @@ namespace PlayniteAchievements.Services.Cache
 
         public string ProviderPlatformKey { get; set; }
 
+        /// <summary>Where the game's rarity came from; null until a refresh records it.</summary>
+        public RaritySource? RaritySource { get; set; }
+
         public int AppId { get; set; }
 
         public string ProviderGameKey { get; set; }

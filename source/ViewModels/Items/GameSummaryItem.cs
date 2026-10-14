@@ -177,6 +177,14 @@ namespace PlayniteAchievements.ViewModels.Items
         private int _ultraRareCount;
         public int UltraRareCount { get => _ultraRareCount; set => SetValue(ref _ultraRareCount, value); }
 
+        private bool _showsRarity = true;
+
+        /// <summary>
+        /// False when the game's provider supplied no rarity, so its Common counts are defaults
+        /// and the rarity badges stay hidden.
+        /// </summary>
+        public bool ShowsRarity { get => _showsRarity; set => SetValue(ref _showsRarity, value); }
+
         private int _capstoneTotal;
 
         /// <summary>How many capstones this row has, and how many are earned.</summary>

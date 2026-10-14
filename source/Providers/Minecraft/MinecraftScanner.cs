@@ -132,6 +132,7 @@ namespace PlayniteAchievements.Providers.Minecraft
             {
                 ProviderKey = MinecraftDataProvider.Key,
                 ProviderGameKey = "java",
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game.Source?.Name,
                 GameName = game.Name,
                 PlayniteGameId = game.Id,

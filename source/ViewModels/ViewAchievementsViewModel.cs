@@ -403,6 +403,15 @@ namespace PlayniteAchievements.ViewModels
 
         public bool HideCategorySummaryRow => _settings?.Persisted?.ViewAchievementsAchievementGridHideCategorySummaryRow ?? false;
 
+        private bool _showsRarity = true;
+
+        /// <summary>False when the game's provider supplied no rarity; the grid hides its rarity columns.</summary>
+        public bool ShowsRarity
+        {
+            get => _showsRarity;
+            private set => SetValue(ref _showsRarity, value);
+        }
+
         public bool CategorySummariesShowColumnHeaders => _settings?.Persisted?.ShowViewAchievementsCategorySummariesGridColumnHeaders ?? true;
 
         public double? CategorySummariesGridRowHeight => _settings?.Persisted?.ViewAchievementsCategorySummariesGridRowHeight;
@@ -716,6 +725,7 @@ namespace PlayniteAchievements.ViewModels
         private void UpdateSummaryItem(Playnite.SDK.Models.Game game, GameAchievementData gameData)
         {
             GameSummaryItem item = null;
+            ShowsRarity = gameData?.ShowsRarity ?? true;
 
             if (gameData != null)
             {
