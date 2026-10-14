@@ -98,6 +98,14 @@ namespace PlayniteAchievements.Providers.Minecraft
             MinecraftIconExtractor iconExtractor,
             CancellationToken cancel)
         {
+            if (source.Instances.Count == 0)
+            {
+                _logger?.Info(
+                    $"[Minecraft] '{game.Name}': no instance with advancement data (resolved by {source.ResolvedBy}; skipped " +
+                    $"{(source.SkippedFolders.Count == 0 ? "nothing" : string.Join(", ", source.SkippedFolders))}); cached achievements preserved.");
+                return null;
+            }
+
             var locale = MinecraftPaths.MapGlobalLanguageToLocale(_settings?.Persisted?.GlobalLanguage);
             var locales = new[] { MinecraftAdvancementCatalog.DefaultLocale, locale }.Distinct().ToList();
             var uuids = MinecraftAccounts.Resolve(_providerSettings.PlayerUuid, source.GameFolders);
