@@ -113,27 +113,44 @@ namespace PlayniteAchievements.Models.Achievements.Scoring
                 : GetBadgeIconKey(AchievementRank.Bronze5, useUniformRarityBadges);
         }
 
+        /// <param name="useCustomColors">
+        /// True for the badges in the configured rarity colors ("Score" keys), false for the shipped
+        /// badges ("ScoreDefault" keys).
+        /// </param>
         public static string GetScoreCardBadgeIconKey(
             AchievementRank rank,
-            bool useUniformRarityBadges = false)
+            bool useUniformRarityBadges = false,
+            bool useCustomColors = true)
         {
             if (IsMasterRank(rank))
             {
-                return "ScoreBadgeCompletedGame";
+                return GetScoreCardMasteryIconKey(useCustomColors);
             }
 
             // Same shape table, resolved once in ToIconKey; the score card's own resources use the
-            // "Score" prefix for the identically named keys.
-            return "Score" + GetRarityTier(rank).ToIconKey(useUniformRarityBadges);
+            // "Score" or "ScoreDefault" prefix for the identically named keys.
+            return GetScoreCardBadgePrefix(useCustomColors) + GetRarityTier(rank).ToIconKey(useUniformRarityBadges);
         }
 
         public static string GetScoreCardBadgeIconKey(
             string rank,
-            bool useUniformRarityBadges = false)
+            bool useUniformRarityBadges = false,
+            bool useCustomColors = true)
         {
             return TryParseRank(rank, out var parsed)
-                ? GetScoreCardBadgeIconKey(parsed, useUniformRarityBadges)
-                : GetScoreCardBadgeIconKey(AchievementRank.Bronze5, useUniformRarityBadges);
+                ? GetScoreCardBadgeIconKey(parsed, useUniformRarityBadges, useCustomColors)
+                : GetScoreCardBadgeIconKey(AchievementRank.Bronze5, useUniformRarityBadges, useCustomColors);
+        }
+
+        /// <summary>The completed-game badge a score card marks Master ranks and mastery with.</summary>
+        public static string GetScoreCardMasteryIconKey(bool useCustomColors = true)
+        {
+            return GetScoreCardBadgePrefix(useCustomColors) + "BadgeCompletedGame";
+        }
+
+        private static string GetScoreCardBadgePrefix(bool useCustomColors)
+        {
+            return useCustomColors ? "Score" : "ScoreDefault";
         }
 
         public static RarityTier GetRarityTier(AchievementRank rank)
