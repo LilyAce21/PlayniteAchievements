@@ -282,6 +282,66 @@ namespace PlayniteAchievements.Providers.Tests
         }
 
         [TestMethod]
+        public void LogParseLine_MatchesAnnouncementsForThePlayer()
+        {
+            var titles = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Stone Age"] = new List<string> { "pack|minecraft:story/mine_stone" },
+                ["Shared"] = new List<string> { "pack|a:x", "pack|b:y" }
+            };
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Steve" };
+            var now = new DateTime(2026, 10, 14, 21, 0, 0, DateTimeKind.Local);
+
+            var vanilla = MinecraftLogWatcher.ParseLine("[20:33:08] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]", names, titles, now);
+            Assert.AreEqual("pack|minecraft:story/mine_stone", vanilla.Value.ApiName);
+            Assert.AreEqual(new DateTime(2026, 10, 14, 20, 33, 8, DateTimeKind.Local).ToUniversalTime(), vanilla.Value.UnlockTimeUtc);
+
+            var forge = MinecraftLogWatcher.ParseLine("[14Oct2026 20:40:01.067] [Server thread/INFO] [minecraft/MinecraftServer]: Steve has reached the goal [Stone Age]", names, titles, now);
+            Assert.IsNotNull(forge);
+
+            Assert.IsNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] Alex has made the advancement [Stone Age]", names, titles, now));
+            Assert.IsNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] Steve has completed the challenge [Shared]", names, titles, now));
+            Assert.IsNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] <Steve> has made the advancement [Stone Age] lol", names, titles, now));
+
+            // No known names (offline account): every player's announcement counts.
+            Assert.IsNotNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] Alex has made the advancement [Stone Age]", new HashSet<string>(), titles, now));
+
+            // A time later than now belongs to the previous day.
+            var lateNight = MinecraftLogWatcher.ParseLine("[23:59:50] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]", names, titles, new DateTime(2026, 10, 15, 0, 0, 30, DateTimeKind.Local));
+            Assert.AreEqual(new DateTime(2026, 10, 14, 23, 59, 50, DateTimeKind.Local).ToUniversalTime(), lateNight.Value.UnlockTimeUtc);
+        }
+
+        [TestMethod]
+        public void LogReadUnlocks_ReadsOnlyNewLinesAndRestartsAfterRotation()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var log = Path.Combine(root, "logs", "latest.log");
+                WriteText(log, "[10:00:00] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]\n");
+                var target = MinecraftLogWatcher.CreateTarget(root, new[] { ("pack|minecraft:story/mine_stone", "Stone Age"), ("pack|minecraft:story/smelt_iron", "Acquire Hardware") });
+                var state = new MinecraftLogState { Targets = { target } };
+                var now = DateTime.Now;
+
+                // The previous session's line is not replayed.
+                Assert.AreEqual(0, MinecraftLogWatcher.ReadUnlocks(state, now).Count);
+
+                File.AppendAllText(log, "[10:01:00] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Acquire Hardware]\n[10:01:01] [Render thread/INFO]: partial");
+                var unlocks = MinecraftLogWatcher.ReadUnlocks(state, now);
+                Assert.AreEqual("pack|minecraft:story/smelt_iron", unlocks.Single().ApiName);
+                Assert.AreEqual(0, MinecraftLogWatcher.ReadUnlocks(state, now).Count);
+
+                // The game rotates latest.log at launch: a shorter file is read from its start.
+                File.WriteAllText(log, "[11:00:00] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]\n");
+                Assert.AreEqual("pack|minecraft:story/mine_stone", MinecraftLogWatcher.ReadUnlocks(state, now).Single().ApiName);
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [TestMethod]
         public void ParseTimestamp_ConvertsCompactOffsetToUtc()
         {
             Assert.AreEqual(
