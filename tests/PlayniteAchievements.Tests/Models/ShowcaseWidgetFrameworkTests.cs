@@ -231,6 +231,9 @@ namespace PlayniteAchievements.Tests.Models
             Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(scores));
             ShowcaseWidgetOptions.SetScoreCardUseCustomColors(scores, true);
             Assert.IsTrue(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(scores));
+            Assert.IsTrue(ShowcaseWidgetOptions.GetScoreCardShowTotal(scores));
+            ShowcaseWidgetOptions.SetScoreCardShowTotal(scores, false);
+            Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardShowTotal(scores));
             Assert.IsFalse(ShowcaseWidgetOptions.IsLegacyDualScores(scores));
             Assert.IsTrue(ShowcaseWidgetCatalog.Get(ShowcaseWidgetKind.Scores).AllowMultipleInstances);
             Assert.AreEqual(TimeWindow.FromPreset(TimelineRange.ThreeMonths), ShowcaseTimelineOptions.GetWindow(scores));
