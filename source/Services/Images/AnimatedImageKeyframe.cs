@@ -24,9 +24,13 @@ namespace PlayniteAchievements.Services.Images
         private static readonly Dictionary<string, LinkedListNode<KeyValuePair<string, BitmapSource>>> CacheIndex =
             new Dictionary<string, LinkedListNode<KeyValuePair<string, BitmapSource>>>(StringComparer.OrdinalIgnoreCase);
 
+        // Timelines by file identity, so scrubbing reads each file's delays once.
+        private static readonly Dictionary<string, IReadOnlyList<int>> TimelineCache =
+            new Dictionary<string, IReadOnlyList<int>>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
         /// The image's frame delays in milliseconds, or null when it is a still image, a single
-        /// frame, missing, or unreadable.
+        /// frame, missing, or unreadable. Cached by file identity (path, write time, length).
         /// </summary>
         internal static IReadOnlyList<int> TryReadFrameDelays(string path)
         {
@@ -37,6 +41,38 @@ namespace PlayniteAchievements.Services.Images
                     return null;
                 }
 
+                var identity = FileIdentity(new FileInfo(path));
+                lock (CacheSync)
+                {
+                    if (TimelineCache.TryGetValue(identity, out var cached))
+                    {
+                        return cached;
+                    }
+                }
+
+                var delays = ReadFrameDelays(path);
+                lock (CacheSync)
+                {
+                    if (TimelineCache.Count >= CacheCapacity)
+                    {
+                        TimelineCache.Clear();
+                    }
+
+                    TimelineCache[identity] = delays;
+                }
+
+                return delays;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static IReadOnlyList<int> ReadFrameDelays(string path)
+        {
+            try
+            {
                 var extension = ImageFormats.GetExtension(path);
                 IReadOnlyList<int> delays = null;
                 if (ImageFormats.IsGifExtension(extension))
@@ -109,27 +145,27 @@ namespace PlayniteAchievements.Services.Images
         /// The frozen frame of the animated image at <paramref name="path"/> showing
         /// <paramref name="timeMs"/> into its timeline, at full size. Null when the image has no
         /// timeline or cannot be decoded, so callers keep their still-image path. Results are
-        /// cached by file identity and time, so repeated reads of an unchanged file cost nothing.
+        /// cached by file identity and frame, so every time within one frame, and repeated reads
+        /// of an unchanged file, cost nothing.
         /// </summary>
         internal static BitmapSource TryDecodeAt(string path, int timeMs)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                var delays = TryReadFrameDelays(path);
+                if (delays == null)
                 {
                     return null;
                 }
 
-                var info = new FileInfo(path);
-                var key = string.Concat(
-                    info.FullName, "|", info.LastWriteTimeUtc.Ticks.ToString(), "|",
-                    info.Length.ToString(), "|", Math.Max(0, timeMs).ToString());
+                var index = FrameIndexAt(delays, Math.Max(0, timeMs));
+                var key = FileIdentity(new FileInfo(path)) + "|" + index.ToString();
                 if (TryGetCached(key, out var cached))
                 {
                     return cached;
                 }
 
-                var decoded = Decode(path, Math.Max(0, timeMs));
+                var decoded = Decode(path, index);
                 if (decoded != null)
                 {
                     AddCached(key, decoded);
@@ -143,44 +179,39 @@ namespace PlayniteAchievements.Services.Images
             }
         }
 
-        private static BitmapSource Decode(string path, int timeMs)
+        private static string FileIdentity(FileInfo info)
+        {
+            return string.Concat(
+                info.FullName, "|", info.LastWriteTimeUtc.Ticks.ToString(), "|", info.Length.ToString());
+        }
+
+        private static BitmapSource Decode(string path, int index)
         {
             var extension = ImageFormats.GetExtension(path);
             if (ImageFormats.IsGifExtension(extension))
             {
-                return DecodeGif(GifImage.Parse(File.ReadAllBytes(path)), timeMs);
+                return DecodeGif(GifImage.Parse(File.ReadAllBytes(path)), index);
             }
 
             if (ImageFormats.IsWebmExtension(extension))
             {
                 var image = WebmContainer.Parse(File.ReadAllBytes(path));
-                if (image.Frames.Length < 2)
-                {
-                    return null;
-                }
-
-                var index = FrameIndexAt(Array.ConvertAll(image.Frames, frame => frame.DelayMs), timeMs);
-                return WebmStill.DecodeFrame(image, index, 0);
+                return WebmStill.DecodeFrame(image, Math.Min(index, image.Frames.Length - 1), 0);
             }
 
             if (ImageFormats.IsWebpExtension(extension))
             {
-                return DecodeWebp(path, timeMs);
+                return DecodeWebp(path, index);
             }
 
             return null;
         }
 
-        private static BitmapSource DecodeGif(GifImage image, int timeMs)
+        private static BitmapSource DecodeGif(GifImage image, int index)
         {
-            if (image.Frames.Length < 2)
-            {
-                return null;
-            }
-
             // Frames composite in order (disposal depends on the previous frame), so every frame
             // up to the target is drawn on the way.
-            var index = FrameIndexAt(Array.ConvertAll(image.Frames, frame => frame.DelayMs), timeMs);
+            index = Math.Min(index, image.Frames.Length - 1);
             var canvas = new GifCanvas(image);
             for (var frame = 0; frame <= index; frame++)
             {
@@ -193,10 +224,9 @@ namespace PlayniteAchievements.Services.Images
             return bitmap;
         }
 
-        private static BitmapSource DecodeWebp(string path, int timeMs)
+        private static BitmapSource DecodeWebp(string path, int index)
         {
-            if (!WebpCodecProbe.IsSupported || !WebpAnimationInfo.TryReadFrameDurations(path, out var durations) ||
-                durations.Count < 2)
+            if (!WebpCodecProbe.IsSupported)
             {
                 return null;
             }
@@ -211,8 +241,7 @@ namespace PlayniteAchievements.Services.Images
                 return null;
             }
 
-            var index = Math.Min(FrameIndexAt(durations, timeMs), decoder.Frames.Count - 1);
-            var frame = decoder.Frames[index];
+            var frame = decoder.Frames[Math.Min(index, decoder.Frames.Count - 1)];
             frame.Freeze();
             return frame;
         }
