@@ -125,6 +125,8 @@ namespace PlayniteAchievements.Services.Recording
         // Resolves the started process id for a game (null game id: most recently started game).
         private readonly Func<Guid?, int?> _getGameProcessId;
         private readonly Func<string, bool> _isProviderRecordingEnabled;
+        // A game's custom data, for its own capture settings; null when not wired in.
+        private readonly Func<Guid, GameCustomDataFile> _loadGameData;
         // Whether any enabled provider can service a game. A delegate, since the plugin owns the
         // registry, so capture is never started for a game that can never report an unlock.
         private readonly Func<Playnite.SDK.Models.Game, bool> _isAnyProviderCapable;
@@ -192,9 +194,11 @@ namespace PlayniteAchievements.Services.Recording
             ActiveGameWindowTracker windowTracker = null,
             Func<Playnite.SDK.Models.Game, bool> isAnyProviderCapable = null,
             Func<int?> getSoundHostProcessId = null,
-            Func<int, DateTime?> getSoundAudibleOnsetUtc = null)
+            Func<int, DateTime?> getSoundAudibleOnsetUtc = null,
+            Func<Guid, GameCustomDataFile> loadGameData = null)
         {
             _api = api;
+            _loadGameData = loadGameData;
             _settings = settings;
             _logger = logger;
             _pluginUserDataPath = pluginUserDataPath;
@@ -348,6 +352,9 @@ namespace PlayniteAchievements.Services.Recording
             public TaskCompletionSource<ToastOverlayTrack> TrackTcs;
         }
 
+        private GameCustomDataFile LoadGameData(Guid gameId) =>
+            gameId != Guid.Empty ? _loadGameData?.Invoke(gameId) : null;
+
         // === Session lifecycle ===
 
         public void OnGameStarted(Playnite.SDK.Models.Game game)
@@ -361,8 +368,9 @@ namespace PlayniteAchievements.Services.Recording
             // A single capture session exists at a time; the most recently started game owns it.
             StopCurrentSession();
 
+            // The game's own recordings switch when it has capture settings, else the global one.
             var persisted = _settings?.Persisted;
-            if (persisted?.EnableUnlockRecordings != true)
+            if (!ProviderNotificationPolicy.Resolve(persisted, null, LoadGameData(game?.Id ?? Guid.Empty)).RecordingsEnabled)
             {
                 return;
             }
@@ -654,7 +662,10 @@ namespace PlayniteAchievements.Services.Recording
                     return;
                 }
 
-                if (persisted.RecordingIncludeAudio)
+                // The owner game's own record-sound choice when it has capture settings.
+                var includeAudio = LoadGameData(session.OwnerGameId)?.CaptureOverride?.RecordingIncludeAudio
+                    ?? persisted.RecordingIncludeAudio;
+                if (includeAudio)
                 {
                     var recorder = new AudioLoopbackRecorder(
                         session.BufferDirectory,
@@ -847,7 +858,8 @@ namespace PlayniteAchievements.Services.Recording
                 return ClipEligibility.NotRecordable;
             }
 
-            if (_settings?.Persisted?.EnableUnlockRecordings != true)
+            var gameData = LoadGameData(e.PlayniteGameId);
+            if (!ProviderNotificationPolicy.Resolve(_settings?.Persisted, e.ProviderKey, gameData).RecordingsEnabled)
             {
                 return ClipEligibility.NotRecordable;
             }
@@ -863,14 +875,17 @@ namespace PlayniteAchievements.Services.Recording
                 return ClipEligibility.CaptureInactive;
             }
 
-            if (_isProviderRecordingEnabled?.Invoke(e.ProviderKey) == false)
+            // A game's own capture settings carry every clip variant, so the provider's all-clips
+            // switch applies only to games that follow it.
+            if (gameData?.CaptureOverride == null &&
+                _isProviderRecordingEnabled?.Invoke(e.ProviderKey) == false)
             {
                 return ClipEligibility.ProviderDisabled;
             }
 
             // Each variant has its own rarity threshold and per-platform switch; no variant left
             // means no clip.
-            var resolved = UnlockClipVariantPolicy.Resolve(e, _settings.Persisted);
+            var resolved = UnlockClipVariantPolicy.Resolve(e, _settings.Persisted, gameData);
             if (resolved == ScreenshotVariants.None)
             {
                 return ClipEligibility.BelowRarity;
@@ -1120,12 +1135,16 @@ namespace PlayniteAchievements.Services.Recording
 
             // A retrigger is never delayed, so it never waits on a display instant — its clip
             // anchors on the retrigger moment, which observation already is.
+            // Timing follows the game's own behavior and capture settings when it has them, so the
+            // clip agrees with the wave the toast service shows for the same game.
+            var gameData = LoadGameData(e.PlayniteGameId);
+            var effective = ProviderNotificationPolicy.Resolve(persisted, e.ProviderKey, gameData);
             var notificationDelaySeconds = e.IsTestFire
                 ? 0
-                : Math.Max(0, persisted.NotificationDelaySeconds);
+                : Math.Max(0, effective.Behavior.NotificationDelaySeconds);
             var captureDelaySeconds = e.IsTestFire
                 ? 0
-                : Math.Max(0, persisted.CaptureDelaySeconds);
+                : Math.Max(0, effective.Captures.CaptureDelaySeconds);
 
             var request = new ClipRequest
             {
@@ -1149,7 +1168,7 @@ namespace PlayniteAchievements.Services.Recording
                 NotificationDelaySeconds = notificationDelaySeconds,
                 CaptureDelaySeconds = captureDelaySeconds,
                 Variants = variants,
-                FramedSeconds = persisted.UnlockRecordingFramedSeconds,
+                FramedSeconds = effective.Captures.UnlockRecordingFramedSeconds,
                 TrackTcs = new TaskCompletionSource<ToastOverlayTrack>(
                     TaskCreationOptions.RunContinuationsAsynchronously),
                 DisplayTcs = notificationDelaySeconds + captureDelaySeconds > 0
