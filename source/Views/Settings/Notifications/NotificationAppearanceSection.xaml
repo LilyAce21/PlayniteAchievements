@@ -78,15 +78,25 @@
                                     Padding="0"
                                     VerticalAlignment="Top"
                                     SelectionChanged="SurfaceTabs_SelectionChanged">
+                            <!-- Game mode only: the game's own behavior and capture settings,
+                                 hosted below in place of the preview, presets and editors. -->
+                            <TabItem x:Name="BehaviorTabItem"
+                                     Header="{DynamicResource LOCPlayAch_Settings_ToastBehavior}"
+                                     Visibility="Collapsed"/>
+                            <TabItem x:Name="CapturesTabItem"
+                                     Header="{DynamicResource LOCPlayAch_Column_Captures}"
+                                     Visibility="Collapsed"/>
                             <TabItem x:Name="ToastTabItem"
-                                     Header="{DynamicResource LOCPlayAch_Settings_Style_ToastTab}"/>
+                                     Header="{DynamicResource LOCPlayAch_Settings_Style_ToastTab}"
+                                     IsSelected="True"/>
                             <TabItem x:Name="FrameTabItem"
                                      Header="{DynamicResource LOCPlayAch_Settings_FrameHeader}"/>
                             <TabItem x:Name="SoundsTabItem"
                                      Header="{DynamicResource LOCPlayAch_Workshop_Share_Sounds}"/>
                         </TabControl>
 
-                        <WrapPanel Grid.Column="1"
+                        <WrapPanel x:Name="SurfaceToolbar"
+                                   Grid.Column="1"
                                    HorizontalAlignment="Right"
                                    VerticalAlignment="Center"
                                    Margin="16,0,0,0">
@@ -199,7 +209,7 @@
                     <!-- Column widths follow the tab (ApplyPreviewColumns): the toast card keeps its
                          own width and the scope column takes the rest; the frame strip takes the
                          rest and the scope column sizes to its content. -->
-                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                    <Grid x:Name="PreviewScopeGrid" Grid.Row="1" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition x:Name="PreviewColumn" Width="Auto"/>
                             <ColumnDefinition x:Name="ScopeColumn" Width="*" MinWidth="240"/>
@@ -319,7 +329,14 @@
             </Border>
 
             <!-- ========================= SCROLL: presets / share / editor ========================= -->
-            <ScrollViewer Grid.Row="1"
+            <!-- Game mode: the Behavior or Captures section for the selected tab, which scrolls
+                 itself; it replaces the style scroller below while one of those tabs is active. -->
+            <ContentControl x:Name="GameSettingsHost"
+                            Grid.Row="1"
+                            Visibility="Collapsed"/>
+
+            <ScrollViewer x:Name="StyleScroller"
+                          Grid.Row="1"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
