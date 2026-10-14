@@ -319,6 +319,9 @@ namespace PlayniteAchievements.Providers.Tests
         {
             Assert.IsTrue(MinecraftGameResolver.IsJavaTitle("Minecraft"));
             Assert.IsTrue(MinecraftGameResolver.IsJavaTitle("Minecraft: Java Edition"));
+            Assert.IsTrue(MinecraftGameResolver.IsJavaTitle("Minecraft: Java & Bedrock Edition for PC"));
+            Assert.IsTrue(MinecraftGameResolver.IsJavaTitle("Minecraft Launcher"));
+            Assert.IsFalse(MinecraftGameResolver.IsJavaTitle("Minecraft: Bedrock Edition"));
             Assert.IsFalse(MinecraftGameResolver.IsJavaTitle("Minecraft: Hypixel"));
             Assert.IsFalse(MinecraftGameResolver.IsJavaTitle("Minecraft Dungeons"));
             Assert.IsFalse(MinecraftGameResolver.IsJavaTitle("Minecraft Legends"));
