@@ -863,6 +863,7 @@
                                                                  ShowRarityGlow="{Binding ShowRarityGlowSelectedGame}"
                                                                  ColorNamesByRarity="{Binding ColorNamesByRaritySelectedGame}"
                                                                  ColorRarityColumnsByRarity="{Binding ColorRarityColumnsByRaritySelectedGame}"
+                                                                 ShowsRarity="{Binding DisplayedSelectedGame.ShowsRarity, FallbackValue=True}"
                                                                  ShowColumnHeaders="{Binding ShowOverviewSelectedGameGridColumnHeaders}"
                                                                  FixedRowHeight="{Binding OverviewSelectedGameGridRowHeight}"
                                                                  DelayInitialRenderUntilNormalized="True"
