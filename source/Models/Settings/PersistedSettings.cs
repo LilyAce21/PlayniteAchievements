@@ -198,9 +198,10 @@ namespace PlayniteAchievements.Models.Settings
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
-        private string _overviewScoreCardSlot1 = ScoreCardSlots.Collection;
-        private string _overviewScoreCardSlot2 = ScoreCardSlots.Prestige;
-        private bool _overviewScoreCardsUseCustomColors;
+        private ShowcaseWidgetInstanceSettings _overviewScoreCard1 = CreateOverviewScoreCard(ScoreCardType.Collection);
+        private ShowcaseWidgetInstanceSettings _overviewScoreCard2 = CreateOverviewScoreCard(ScoreCardType.Prestige);
+        private bool _showOverviewScoreCard1 = true;
+        private bool _showOverviewScoreCard2 = true;
         private bool _showFriendSpoilers;
         private int _friendsOverviewRecentUnlockLimit = 200;
         private bool _showTopMenuBarButton = true;
@@ -2309,31 +2310,74 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
-        /// The first score card in the overview header, or None. Stored as a card key
-        /// (Collection, Prestige or Points:&lt;family&gt;) or None; see ScoreCardSlots. Profiles saved with the old
-        /// per-card visibility toggles are converted by OverviewSettingsMigration.
+        /// The overview header's first score card: its type, badge side, show-total and color
+        /// options, stored as a Scores widget's options and edited from the card's right-click
+        /// menu. Replaced on load so the seeded default is not populated. Profiles saved with the
+        /// old card slots are converted by OverviewSettingsMigration.
         /// </summary>
-        public string OverviewScoreCardSlot1
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+        public ShowcaseWidgetInstanceSettings OverviewScoreCard1
         {
-            get => _overviewScoreCardSlot1;
-            set => SetValue(ref _overviewScoreCardSlot1, ScoreCardSlots.Normalize(value));
+            get => _overviewScoreCard1;
+            set => SetValue(ref _overviewScoreCard1, NormalizeOverviewScoreCard(value, ScoreCardType.Collection));
         }
 
-        /// <summary>The second score card in the overview header, or None.</summary>
-        public string OverviewScoreCardSlot2
+        /// <summary>The overview header's second score card; see <see cref="OverviewScoreCard1"/>.</summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+        public ShowcaseWidgetInstanceSettings OverviewScoreCard2
         {
-            get => _overviewScoreCardSlot2;
-            set => SetValue(ref _overviewScoreCardSlot2, ScoreCardSlots.Normalize(value));
+            get => _overviewScoreCard2;
+            set => SetValue(ref _overviewScoreCard2, NormalizeOverviewScoreCard(value, ScoreCardType.Prestige));
         }
 
-        /// <summary>
-        /// When true, the overview header's score cards use the configured rarity colors; when
-        /// false, the shipped ones.
-        /// </summary>
-        public bool OverviewScoreCardsUseCustomColors
+        /// <summary>When true, the overview header shows its first score card.</summary>
+        public bool ShowOverviewScoreCard1
         {
-            get => _overviewScoreCardsUseCustomColors;
-            set => SetValue(ref _overviewScoreCardsUseCustomColors, value);
+            get => _showOverviewScoreCard1;
+            set => SetValue(ref _showOverviewScoreCard1, value);
+        }
+
+        /// <summary>When true, the overview header shows its second score card.</summary>
+        public bool ShowOverviewScoreCard2
+        {
+            get => _showOverviewScoreCard2;
+            set => SetValue(ref _showOverviewScoreCard2, value);
+        }
+
+        /// <summary>The first card's slot key for seeding the default showcase: its card key, or None when hidden.</summary>
+        [JsonIgnore]
+        internal string OverviewScoreCard1SeedKey => GetOverviewScoreCardSeedKey(OverviewScoreCard1, ShowOverviewScoreCard1);
+
+        /// <summary>The second card's slot key for seeding the default showcase.</summary>
+        [JsonIgnore]
+        internal string OverviewScoreCard2SeedKey => GetOverviewScoreCardSeedKey(OverviewScoreCard2, ShowOverviewScoreCard2);
+
+        internal static ShowcaseWidgetInstanceSettings CreateOverviewScoreCard(ScoreCardType type)
+        {
+            var card = new ShowcaseWidgetInstanceSettings { Kind = ShowcaseWidgetKind.Scores };
+            ShowcaseWidgetOptions.SetScoreCardType(card, type);
+            ShowcaseWidgetOptions.SetScoreCardBadgePosition(card, ScoreCardBadgePosition.Left);
+            return card;
+        }
+
+        private static ShowcaseWidgetInstanceSettings NormalizeOverviewScoreCard(
+            ShowcaseWidgetInstanceSettings value,
+            ScoreCardType fallbackType)
+        {
+            if (value == null)
+            {
+                return CreateOverviewScoreCard(fallbackType);
+            }
+
+            value.Kind = ShowcaseWidgetKind.Scores;
+            return value;
+        }
+
+        private static string GetOverviewScoreCardSeedKey(ShowcaseWidgetInstanceSettings card, bool shown)
+        {
+            return shown && card != null
+                ? ShowcaseWidgetOptions.GetScoreCardType(card).Key
+                : ScoreCardSlots.NoneKey;
         }
 
         /// <summary>
@@ -2691,8 +2735,8 @@ namespace PlayniteAchievements.Models.Settings
                 if (_showcase == null)
                 {
                     _showcase = ShowcaseLayoutService.CreateDefault(
-                    OverviewScoreCardSlot1,
-                    OverviewScoreCardSlot2);
+                    OverviewScoreCard1SeedKey,
+                    OverviewScoreCard2SeedKey);
                     ShowcaseLayoutService.Normalize(_showcase);
                 }
 
@@ -2701,8 +2745,8 @@ namespace PlayniteAchievements.Models.Settings
             set
             {
                 var normalized = value?.Clone() ?? ShowcaseLayoutService.CreateDefault(
-                    OverviewScoreCardSlot1,
-                    OverviewScoreCardSlot2);
+                    OverviewScoreCard1SeedKey,
+                    OverviewScoreCard2SeedKey);
                 ShowcaseLayoutService.Normalize(normalized);
                 SetValue(ref _showcase, normalized);
             }
@@ -3358,9 +3402,10 @@ namespace PlayniteAchievements.Models.Settings
                         StringComparer.OrdinalIgnoreCase)
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
                 IncludeUnplayedGames = this.IncludeUnplayedGames,
-                OverviewScoreCardSlot1 = this.OverviewScoreCardSlot1,
-                OverviewScoreCardSlot2 = this.OverviewScoreCardSlot2,
-                OverviewScoreCardsUseCustomColors = this.OverviewScoreCardsUseCustomColors,
+                OverviewScoreCard1 = this.OverviewScoreCard1?.Clone(),
+                OverviewScoreCard2 = this.OverviewScoreCard2?.Clone(),
+                ShowOverviewScoreCard1 = this.ShowOverviewScoreCard1,
+                ShowOverviewScoreCard2 = this.ShowOverviewScoreCard2,
                 ShowTopMenuBarButton = this.ShowTopMenuBarButton,
                 ShowCompletedProgressColoring = this.ShowCompletedProgressColoring,
                 TintMissableLocks = this.TintMissableLocks,
@@ -3396,8 +3441,8 @@ namespace PlayniteAchievements.Models.Settings
                 CompactLockedListSortMode = this.CompactLockedListSortMode,
                 CompactLockedListSortDescending = this.CompactLockedListSortDescending,
                 Showcase = this.Showcase?.Clone() ?? ShowcaseLayoutService.CreateDefault(
-                    this.OverviewScoreCardSlot1,
-                    this.OverviewScoreCardSlot2),
+                    this.OverviewScoreCard1SeedKey,
+                    this.OverviewScoreCard2SeedKey),
                 OverviewMiniShowcase = this.OverviewMiniShowcase?.Clone() ?? OverviewMiniShowcaseLayout.CreateDefault(),
                 OverviewMiniShowcaseHeight = this.OverviewMiniShowcaseHeight,
                 ShowOverviewMiniShowcase = this.ShowOverviewMiniShowcase,
@@ -3525,9 +3570,10 @@ namespace PlayniteAchievements.Models.Settings
             // The colors are the defaults now, not the library item they followed.
             SetLibraryLink(Services.Library.LibraryTargetKeys.Colors, null);
 
-            OverviewScoreCardSlot1 = defaults.OverviewScoreCardSlot1;
-            OverviewScoreCardSlot2 = defaults.OverviewScoreCardSlot2;
-            OverviewScoreCardsUseCustomColors = defaults.OverviewScoreCardsUseCustomColors;
+            OverviewScoreCard1 = defaults.OverviewScoreCard1;
+            OverviewScoreCard2 = defaults.OverviewScoreCard2;
+            ShowOverviewScoreCard1 = defaults.ShowOverviewScoreCard1;
+            ShowOverviewScoreCard2 = defaults.ShowOverviewScoreCard2;
             ShowTopMenuBarButton = defaults.ShowTopMenuBarButton;
             ShowCompletedProgressColoring = defaults.ShowCompletedProgressColoring;
             TintMissableLocks = defaults.TintMissableLocks;
@@ -3562,8 +3608,8 @@ namespace PlayniteAchievements.Models.Settings
 
 
             Showcase = ShowcaseLayoutService.CreateDefault(
-                    defaults.OverviewScoreCardSlot1,
-                    defaults.OverviewScoreCardSlot2);
+                    defaults.OverviewScoreCard1SeedKey,
+                    defaults.OverviewScoreCard2SeedKey);
             OverviewMiniShowcase = OverviewMiniShowcaseLayout.CreateDefault();
             OverviewMiniShowcaseHeight = defaults.OverviewMiniShowcaseHeight;
             ShowOverviewMiniShowcase = defaults.ShowOverviewMiniShowcase;
