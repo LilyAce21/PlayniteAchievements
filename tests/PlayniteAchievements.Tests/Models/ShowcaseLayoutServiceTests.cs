@@ -702,9 +702,11 @@ namespace PlayniteAchievements.Tests.Models
         {
             var persisted = new PersistedSettings
             {
-                OverviewScoreCardSlot1 = slot1,
-                OverviewScoreCardSlot2 = slot2
+                ShowOverviewScoreCard1 = ScoreCardSlots.TryGetCardType(slot1, out var card1),
+                ShowOverviewScoreCard2 = ScoreCardSlots.TryGetCardType(slot2, out var card2)
             };
+            ShowcaseWidgetOptions.SetScoreCardType(persisted.OverviewScoreCard1, card1);
+            ShowcaseWidgetOptions.SetScoreCardType(persisted.OverviewScoreCard2, card2);
 
             var first = persisted.Showcase;
             var pageId = first.Pages.Single().PageId;
