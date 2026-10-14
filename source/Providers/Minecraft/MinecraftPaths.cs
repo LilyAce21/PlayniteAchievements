@@ -248,6 +248,46 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
+        /// The instance's own game jar: the version its metadata names, found on disk. Null when the
+        /// instance names no version or its jar is not found, where <see cref="FindGameJar"/> would
+        /// fall back to another version's jar.
+        /// </summary>
+        public static string FindOwnGameJar(string gameFolder)
+        {
+            var hint = ReadVersionHint(gameFolder);
+            return hint == null
+                ? null
+                : EnumerateGameJars(gameFolder).FirstOrDefault(candidate => string.Equals(candidate.Version, hint, StringComparison.OrdinalIgnoreCase)).Path;
+        }
+
+        /// <summary>
+        /// The world the game has open in this game folder: the one whose session.lock it wrote
+        /// most recently (the game writes it when a world loads). Null when no world has one.
+        /// </summary>
+        public static string FindActiveWorld(string gameFolder)
+        {
+            string active = null;
+            var newest = DateTime.MinValue;
+            foreach (var world in EnumerateWorlds(gameFolder))
+            {
+                try
+                {
+                    var lockFile = Path.Combine(world, "session.lock");
+                    if (File.Exists(lockFile) && File.GetLastWriteTimeUtc(lockFile) > newest)
+                    {
+                        newest = File.GetLastWriteTimeUtc(lockFile);
+                        active = world;
+                    }
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                }
+            }
+
+            return active;
+        }
+
+        /// <summary>
         /// The game jar for a game folder: the version named by the instance metadata when its jar
         /// is found, otherwise the most recently written game jar near the folder or in
         /// %AppData%\.minecraft. Null when there is none.
