@@ -124,14 +124,17 @@ namespace PlayniteAchievements.Views.Showcase
                 panel.Children.Add(_profileEditor);
             }
 
-            if (ShowcaseWidgetOptionsControl.HasOptions(_workingWidget.Kind))
+            // An unlinked widget always has its title alignment and background rows; a linked one
+            // (titled by the overview, or an Overview header card) has only its kind's options.
+            if (!_linked || ShowcaseWidgetOptionsControl.HasOptions(_workingWidget.Kind))
             {
                 panel.Children.Add(new ShowcaseWidgetOptionsControl(
                     _workingWidget,
                     publishChanges: false,
                     margin: new Thickness(0),
                     loadStyles: false,
-                    includeScoreHistory: _includeScoreHistory));
+                    includeScoreHistory: _includeScoreHistory,
+                    backgroundDefault: _linked ? (bool?)null : true));
             }
 
             var buttons = new StackPanel
