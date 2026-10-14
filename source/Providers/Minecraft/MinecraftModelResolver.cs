@@ -6,6 +6,16 @@ using System.Linq;
 
 namespace PlayniteAchievements.Providers.Minecraft
 {
+    /// <summary>A block model ready to draw: its element boxes, texture map and gui view rotation.</summary>
+    internal sealed class MinecraftBlockModel
+    {
+        public string ModelId { get; set; }
+        public JArray Elements { get; set; }
+        public Dictionary<string, string> Textures { get; set; }
+        public double RotationX { get; set; }
+        public double RotationY { get; set; }
+    }
+
     /// <summary>
     /// Follows an item to the texture it is drawn with: the 1.21.4+ item definition names a model,
     /// otherwise the model is <c>item/&lt;name&gt;</c>; the model and its parents (block models
@@ -32,27 +42,7 @@ namespace PlayniteAchievements.Providers.Minecraft
             float? customModelData,
             IReadOnlyList<MinecraftResourceSource> sources)
         {
-            var itemId = $"{ns}:{name}".ToLowerInvariant();
-            var itemModelId = $"{ns}:item/{name}".ToLowerInvariant();
-            var modelIds = new List<string>();
-            var overrideModel = customModelData.HasValue
-                ? SelectOverride(Parse(Find(sources, source => source.Models, itemModelId)), customModelData.Value)
-                : null;
-            if (overrideModel != null)
-            {
-                modelIds.Add(overrideModel);
-            }
-
-            var definitionModel = ReadDefinitionModel(Find(sources, source => source.ItemDefinitions, itemId));
-            if (definitionModel != null)
-            {
-                modelIds.Add(definitionModel);
-            }
-
-            modelIds.Add(itemModelId);
-            modelIds.Add($"{ns}:block/{name}".ToLowerInvariant());
-
-            foreach (var modelId in modelIds.Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var modelId in CandidateModelIds(ns, name, customModelData, sources))
             {
                 var textures = CollectTextures(modelId, sources, out var isFluidContainer);
                 if (textures == null)
@@ -83,6 +73,138 @@ namespace PlayniteAchievements.Providers.Minecraft
 
                 yield break;
             }
+        }
+
+        /// <summary>
+        /// The item's model ids in the order the game would pick them: a custom-model-data override,
+        /// the 1.21.4+ item definition's model, item/&lt;name&gt;, then block/&lt;name&gt;.
+        /// </summary>
+        private static IEnumerable<string> CandidateModelIds(
+            string ns,
+            string name,
+            float? customModelData,
+            IReadOnlyList<MinecraftResourceSource> sources)
+        {
+            var itemId = $"{ns}:{name}".ToLowerInvariant();
+            var itemModelId = $"{ns}:item/{name}".ToLowerInvariant();
+            var modelIds = new List<string>();
+            var overrideModel = customModelData.HasValue
+                ? SelectOverride(Parse(Find(sources, source => source.Models, itemModelId)), customModelData.Value)
+                : null;
+            if (overrideModel != null)
+            {
+                modelIds.Add(overrideModel);
+            }
+
+            var definitionModel = ReadDefinitionModel(Find(sources, source => source.ItemDefinitions, itemId));
+            if (definitionModel != null)
+            {
+                modelIds.Add(definitionModel);
+            }
+
+            modelIds.Add(itemModelId);
+            modelIds.Add($"{ns}:block/{name}".ToLowerInvariant());
+            return modelIds.Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// The item's block model when it is drawn as one: the first model in the chain that has
+        /// element boxes, with the merged texture map and the gui display rotation. Null for items
+        /// drawn as a flat sprite (a layer0 texture), models built in code, or no model at all.
+        /// </summary>
+        public static MinecraftBlockModel ResolveBlockModel(
+            string ns,
+            string name,
+            float? customModelData,
+            IReadOnlyList<MinecraftResourceSource> sources)
+        {
+            foreach (var modelId in CandidateModelIds(ns, name, customModelData, sources))
+            {
+                var textures = new Dictionary<string, string>(StringComparer.Ordinal);
+                JArray elements = null;
+                double[] guiRotation = null;
+                var found = false;
+                var current = NormalizeModelId(modelId);
+                var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (var depth = 0; current != null && depth < MaxParentDepth && visited.Add(current); depth++)
+                {
+                    var model = Parse(Find(sources, source => source.Models, current));
+                    if (model == null)
+                    {
+                        break;
+                    }
+
+                    found = true;
+                    if (model["textures"] is JObject slots)
+                    {
+                        foreach (var slot in slots.Properties().Where(slot => !textures.ContainsKey(slot.Name)))
+                        {
+                            var value = ReadTextureSlot(slot.Value);
+                            if (value != null)
+                            {
+                                textures[slot.Name] = value;
+                            }
+                        }
+                    }
+
+                    if (elements == null && model["elements"] is JArray modelElements && modelElements.Count > 0)
+                    {
+                        elements = modelElements;
+                    }
+
+                    if (guiRotation == null && model["display"]?["gui"]?["rotation"] is JArray rotation && rotation.Count == 3)
+                    {
+                        guiRotation = rotation.Select(value => value.Type == JTokenType.Integer || value.Type == JTokenType.Float ? (double)value : 0).ToArray();
+                    }
+
+                    current = NormalizeModelId((string)(model["parent"] as JValue));
+                }
+
+                if (!found)
+                {
+                    continue;
+                }
+
+                // A flat sprite, even one whose chain also has boxes, stays flat.
+                if (elements == null || textures.ContainsKey("layer0"))
+                {
+                    return null;
+                }
+
+                return new MinecraftBlockModel
+                {
+                    ModelId = NormalizeModelId(modelId),
+                    Elements = elements,
+                    Textures = textures,
+                    RotationX = guiRotation?[0] ?? 30,
+                    RotationY = guiRotation?[1] ?? 225
+                };
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// A texture slot's value: a texture id or <c>#reference</c> string, or from 26.x an object
+        /// whose <c>sprite</c> holds it (with options such as force_translucent). Null otherwise.
+        /// </summary>
+        private static string ReadTextureSlot(JToken value)
+        {
+            if (value?.Type == JTokenType.String)
+            {
+                return (string)value;
+            }
+
+            return value is JObject slot && slot["sprite"]?.Type == JTokenType.String ? (string)slot["sprite"] : null;
+        }
+
+        /// <summary>The texture entry a face's texture reference (such as #side) names, or null.</summary>
+        internal static string ResolveFaceTexture(MinecraftBlockModel model, string reference)
+        {
+            var value = reference != null && reference.StartsWith("#", StringComparison.Ordinal)
+                ? Dereference(model.Textures, reference)
+                : reference;
+            return ToTextureEntry(value);
         }
 
         /// <summary>
@@ -120,9 +242,10 @@ namespace PlayniteAchievements.Providers.Minecraft
                 {
                     foreach (var slot in slots.Properties())
                     {
-                        if (slot.Value.Type == JTokenType.String && !textures.ContainsKey(slot.Name))
+                        var value = ReadTextureSlot(slot.Value);
+                        if (value != null && !textures.ContainsKey(slot.Name))
                         {
-                            textures[slot.Name] = (string)slot.Value;
+                            textures[slot.Name] = value;
                         }
                     }
                 }
