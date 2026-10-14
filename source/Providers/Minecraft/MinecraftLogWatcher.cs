@@ -32,10 +32,10 @@ namespace PlayniteAchievements.Providers.Minecraft
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// Advancement ids by title from the instance's own definitions, built on first need when a
-        /// title has no cached row (an instance or world the cache has not seen yet).
+        /// The game's announcement patterns and titles in the language it runs in, built from the
+        /// instance's definitions on the first line that could be an announcement.
         /// </summary>
-        public Lazy<Dictionary<string, List<string>>> DefinitionTitles { get; set; }
+        public Lazy<MinecraftLiveLanguage> Language { get; set; }
 
         /// <summary>The only world whose unlocks count (a single-world override); null for every world.</summary>
         public string WorldFilter { get; set; }
@@ -71,20 +71,21 @@ namespace PlayniteAchievements.Providers.Minecraft
     /// It is written only when the world runs on this PC (single player, or hosting LAN), whose
     /// saves the plugin reads. Joining a LAN world or a server logs only the client's
     /// <c>[Render thread/INFO]: [System] [CHAT]</c> line, so those unlocks, kept on the host, never
-    /// count. Only English announcements are recognized; advancements a mod or the
-    /// announceAdvancements game rule keep out of chat wait for the next save.
+    /// count. Announcements are matched through the game's own chat templates in the language it runs
+    /// in (see <see cref="MinecraftLiveLanguage"/>), with English wording as a fallback; advancements
+    /// a mod or the announceAdvancements game rule keep out of chat wait for the next save.
     /// </para>
     /// </summary>
     internal static class MinecraftLogWatcher
     {
         private const int MaxReadBytes = 4 * 1024 * 1024;
 
-        // Vanilla says "has made the advancement", "has reached the goal" and "has completed the
-        // challenge"; mods reword it, e.g. Re-Console's "has just earned the achievement". The verb and
-        // noun must name an unlock: other bracketed chat, such as a death message's "[Diamond Sword]",
-        // never matches.
-        private static readonly Regex Announcement = new Regex(
-            @"(?<player>[A-Za-z0-9_]{1,16}) has (?:just )?(?:made|earned|reached|completed|unlocked|gained|got|gotten) (?:the |an |a )?(?:advancement|achievement|goal|challenge) \[(?<title>.+)\]\s*$",
+        // Fallback for an announcement worded in code rather than through the game's chat templates
+        // (see MinecraftLiveLanguage): English verbs and nouns that name an unlock, e.g. Legacy4J's
+        // "has just earned the achievement". Other bracketed chat, such as a death message's
+        // "[Diamond Sword]", never matches.
+        private static readonly Regex FallbackAnnouncement = new Regex(
+            @"(?<![\w<\[*])(?<player>[A-Za-z0-9_]{1,16}) has (?:just )?(?:made|earned|reached|completed|unlocked|gained|got|gotten) (?:the |an |a )?(?:advancement|achievement|goal|challenge) \[(?<title>.+)\]\s*$",
             RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         // [Server thread/INFO] in vanilla, Fabric and Forge/NeoForge logs alike.
@@ -99,7 +100,7 @@ namespace PlayniteAchievements.Providers.Minecraft
             string gameFolder,
             string instanceKey,
             IEnumerable<(string ApiName, string Title)> rows,
-            Func<Dictionary<string, List<string>>> buildDefinitionTitles,
+            Func<MinecraftLiveLanguage> buildLanguage,
             string worldFilter)
         {
             var target = new MinecraftLogTarget
@@ -108,8 +109,7 @@ namespace PlayniteAchievements.Providers.Minecraft
                 GameFolder = gameFolder,
                 InstanceKey = instanceKey,
                 WorldFilter = worldFilter,
-                DefinitionTitles = new Lazy<Dictionary<string, List<string>>>(
-                    () => buildDefinitionTitles?.Invoke() ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase))
+                Language = new Lazy<MinecraftLiveLanguage>(() => buildLanguage?.Invoke() ?? MinecraftLiveLanguage.Empty)
             };
 
             foreach (var row in rows ?? Enumerable.Empty<(string ApiName, string Title)>())
@@ -148,7 +148,13 @@ namespace PlayniteAchievements.Providers.Minecraft
             {
                 foreach (var line in ReadNewLines(target, sessionStartUtc))
                 {
-                    var announcement = ParseAnnouncement(line, state.PlayerNames, nowLocal);
+                    // The language is built only once a server line could carry a bracketed name.
+                    if (!IsServerLine(line) || line.IndexOf(']', line.IndexOf(ServerThreadMarker, StringComparison.Ordinal) + ServerThreadMarker.Length) < 0)
+                    {
+                        continue;
+                    }
+
+                    var announcement = ParseAnnouncement(line, state.PlayerNames, nowLocal, target.Language.Value.Announcements);
                     if (!announcement.HasValue)
                     {
                         continue;
@@ -175,15 +181,30 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// The title and time of an integrated-server announcement by a listed player; null for any
         /// other line, including the client's copy and a LAN guest's or server's lines.
         /// </summary>
-        internal static (string Title, DateTime? UnlockTimeUtc)? ParseAnnouncement(string line, ISet<string> playerNames, DateTime nowLocal)
+        internal static (string Title, DateTime? UnlockTimeUtc)? ParseAnnouncement(
+            string line,
+            ISet<string> playerNames,
+            DateTime nowLocal,
+            IReadOnlyList<Regex> templatePatterns = null)
         {
-            if (line == null || line.IndexOf(ServerThreadMarker, StringComparison.Ordinal) < 0)
+            if (!IsServerLine(line))
             {
                 return null;
             }
 
-            var match = Announcement.Match(line);
-            if (!match.Success)
+            // The message follows the line's "]: " header; patterns must not see the header's brackets.
+            var headerEnd = line.IndexOf("]: ", line.IndexOf(ServerThreadMarker, StringComparison.Ordinal), StringComparison.Ordinal);
+            var message = headerEnd < 0 ? line : line.Substring(headerEnd + 3);
+            if (message.StartsWith("System chat: ", StringComparison.Ordinal))
+            {
+                message = message.Substring("System chat: ".Length);
+            }
+
+            var match = (templatePatterns ?? Array.Empty<Regex>())
+                .Concat(new[] { FallbackAnnouncement })
+                .Select(pattern => pattern.Match(message))
+                .FirstOrDefault(candidate => candidate.Success);
+            if (match == null)
             {
                 return null;
             }
@@ -197,21 +218,26 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// The row for a title: the instance's cached row when exactly one has it, otherwise the
-        /// advancement its definitions give exactly one of. Null when the title is unknown or shared.
+        /// The row for a title: the advancement whose title in the game's language it is, when
+        /// exactly one has it; otherwise the instance's cached row with that display title, when
+        /// exactly one has it. Null when the title is unknown or shared.
         /// </summary>
         internal static string ResolveApiName(MinecraftLogTarget target, string title)
         {
-            if (target.ApiNamesByTitle.TryGetValue(title, out var cached))
+            var language = target.Language?.Value;
+            if (language != null && language.IdsByTitle.TryGetValue(title, out var defined))
             {
-                return cached.Count == 1 ? cached[0] : null;
+                return defined.Count == 1 ? target.InstanceKey + "|" + defined[0] : null;
             }
 
-            return target.DefinitionTitles != null &&
-                   target.DefinitionTitles.Value.TryGetValue(title, out var defined) &&
-                   defined.Count == 1
-                ? target.InstanceKey + "|" + defined[0]
+            return target.ApiNamesByTitle.TryGetValue(title, out var cached) && cached.Count == 1
+                ? cached[0]
                 : null;
+        }
+
+        private static bool IsServerLine(string line)
+        {
+            return line != null && line.IndexOf(ServerThreadMarker, StringComparison.Ordinal) >= 0;
         }
 
         /// <summary>
