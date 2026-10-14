@@ -373,7 +373,8 @@ namespace PlayniteAchievements.Providers.Minecraft
 
         private static bool HasAdvancementFiles(string world)
         {
-            return MinecraftPaths.SafeFiles(Path.Combine(world, "advancements"), "*.json").Any();
+            var folder = MinecraftPaths.GetAdvancementsFolder(world);
+            return folder != null && MinecraftPaths.SafeFiles(folder, "*.json").Any();
         }
 
         /// <summary>
