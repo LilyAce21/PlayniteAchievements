@@ -527,8 +527,19 @@
             IsFilled="{Binding Chart.IsFilled}"
             ShowLegend="{Binding Chart.ShowLegend}"
             LegendPosition="{Binding Chart.LegendPosition}"
-            PieMargin="23"
-            MinHeight="70"/>
+            MinHeight="70">
+            <!-- The margin holds the radial icons; without them only the hover push-out needs room. -->
+            <controls:PieChartWithRadialIcons.Style>
+                <Style TargetType="controls:PieChartWithRadialIcons">
+                    <Setter Property="PieMargin" Value="23"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Chart.ShowIcons}" Value="False">
+                            <Setter Property="PieMargin" Value="10"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </controls:PieChartWithRadialIcons.Style>
+        </controls:PieChartWithRadialIcons>
       </DockPanel>
     </DataTemplate>
 
