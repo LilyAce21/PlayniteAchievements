@@ -3131,7 +3131,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             try
             {
                 var name = API.Instance?.Database?.Games?.Get(_gameId)?.Name;
-                var query = "psprices game-trophies " + (name ?? string.Empty) + " trophies NPWR";
+                var query = "psprice " + (name ?? string.Empty);
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
                     "https://duckduckgo.com/?q=" + Uri.EscapeDataString(query))
                 {
