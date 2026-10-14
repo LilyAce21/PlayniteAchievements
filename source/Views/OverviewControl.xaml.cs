@@ -1878,6 +1878,61 @@ namespace PlayniteAchievements.Views
 
         #endregion
 
+        #region Score Card Context Menu
+
+        private void ScoreCard_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!(sender is FrameworkElement card))
+            {
+                return;
+            }
+
+            var second = ReferenceEquals(card, ScoreCard2Control);
+            var menu = new ContextMenu();
+            menu.Items.Add(GameRowContextMenuBuilder.CreateMenuItem(
+                this,
+                "LOCPlayAch_Showcase_WidgetSettings",
+                () => OpenScoreCardSettings(second)));
+            ContextMenuStyleHelper.ApplyAchievementContextMenuStyle(this, menu);
+            menu.PlacementTarget = card;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Edits one header card's options in the showcase widget settings dialog, without the
+        /// title and history rows the header has no use for. Saving replaces the stored card, which
+        /// raises the change the view model reapplies the cards from.
+        /// </summary>
+        private void OpenScoreCardSettings(bool second)
+        {
+            var persisted = _settings?.Persisted;
+            if (persisted == null)
+            {
+                return;
+            }
+
+            var working = (second ? persisted.OverviewScoreCard2 : persisted.OverviewScoreCard1)?.Clone();
+            if (working == null ||
+                !ShowcaseWidgetSettingsDialog.Show(working, linked: true, includeScoreHistory: false))
+            {
+                return;
+            }
+
+            if (second)
+            {
+                persisted.OverviewScoreCard2 = working;
+            }
+            else
+            {
+                persisted.OverviewScoreCard1 = working;
+            }
+
+            _persistSettingsForUi();
+        }
+
+        #endregion
+
         #region Row Context Menu
 
         private bool OpenContextMenuForRow(DataGridRow row, bool useControllerPlacement = false)
