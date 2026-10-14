@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -437,7 +438,7 @@ namespace PlayniteAchievements.ViewModels
         /// </summary>
         public ImageSource FrameBackgroundImage =>
             _style.Frame.FrameVignette == FrameVignetteStyle.Image
-                ? LoadSyncImage(_style.FrameBackgroundImagePath)
+                ? LoadFrameImage(_style.FrameBackgroundImagePath)
                 : null;
 
         public bool FrameShowBackgroundImage =>
@@ -1076,10 +1077,92 @@ namespace PlayniteAchievements.ViewModels
         /// </summary>
         internal IReadOnlyDictionary<string, ImageSource> PreloadedImages { get; set; }
 
-        // A toast image binding: the preloaded image for the path when there is one, else the
-        // cache-busted path for AsyncImage; null for a blank path.
+        /// <summary>
+        /// Shows the toast's slot images (background and badges) as their stills at the toast
+        /// surface's keyframe instead of animating; the first frame when no keyframe is set. Set
+        /// before the template is built: the appearance editor's paused preview.
+        /// </summary>
+        internal bool HoldToastImagesAtKeyframe { get; set; }
+
+        private int ToastKeyframeMs => Math.Max(0, _style.Toast.ImageKeyframeMs ?? 0);
+
+        private int FrameKeyframeMs => Math.Max(0, _style.Frame.ImageKeyframeMs ?? 0);
+
+        /// <summary>
+        /// The still the with-notification screenshot shows for the toast image at
+        /// <paramref name="path"/>: its frame at the toast surface's keyframe, when the path is
+        /// one of the toast's own slot images, animated, and a keyframe is set. Null otherwise,
+        /// which leaves that image as it is on screen.
+        /// </summary>
+        internal ImageSource ToastCaptureStill(string path)
+        {
+            return _style.Toast.ImageKeyframeMs.HasValue && IsToastSlotImage(path)
+                ? AnimatedImageKeyframe.TryDecodeAt(path, ToastKeyframeMs)
+                : null;
+        }
+
+        /// <summary>
+        /// Decodes the toast's animated slot images at its keyframe on a worker, so the
+        /// with-notification screenshot finds them cached. Nothing to do without a keyframe.
+        /// </summary>
+        internal void PrefetchToastCaptureStills()
+        {
+            if (!_style.Toast.ImageKeyframeMs.HasValue)
+            {
+                return;
+            }
+
+            var paths = ToastSlotImagePaths().ToList();
+            var timeMs = ToastKeyframeMs;
+            Task.Run(() =>
+            {
+                foreach (var path in paths)
+                {
+                    AnimatedImageKeyframe.TryDecodeAt(path, timeMs);
+                }
+            });
+        }
+
+        private IEnumerable<string> ToastSlotImagePaths()
+        {
+            var badges = _style.Toast.BadgeImages;
+            return new[]
+                {
+                    _style.ToastBackgroundImagePath,
+                    badges.CommonPath,
+                    badges.UncommonPath,
+                    badges.RarePath,
+                    badges.UltraRarePath,
+                    badges.CompletionPath
+                }
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private bool IsToastSlotImage(string path)
+        {
+            return !string.IsNullOrWhiteSpace(path) &&
+                   ToastSlotImagePaths().Any(slot => string.Equals(slot, path, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // The keyframe still for a toast image while the preview holds them, else null.
+        private ImageSource HeldToastImage(string path)
+        {
+            return HoldToastImagesAtKeyframe && !string.IsNullOrWhiteSpace(path)
+                ? AnimatedImageKeyframe.TryDecodeAt(path, ToastKeyframeMs)
+                : null;
+        }
+
+        // A toast image binding: the held keyframe still or the preloaded image for the path when
+        // there is one, else the cache-busted path for AsyncImage; null for a blank path.
         private object ToastImageSource(string path)
         {
+            var held = HeldToastImage(path);
+            if (held != null)
+            {
+                return held;
+            }
+
             if (TryGetPreloadedImage(path, out var image))
             {
                 return image;
@@ -1099,12 +1182,19 @@ namespace PlayniteAchievements.ViewModels
 
         // Frame equivalents read the frame surface's own badge set. The frame is rendered
         // offscreen, so images must be synchronously decoded (an async load renders blank);
-        // animated GIFs contribute their first frame.
+        // animated images contribute their frame at the frame surface's keyframe.
         public ImageSource FrameBadgeImage =>
-            LoadSyncImage(ResolveCustomBadgePath(_style.Frame.BadgeImages)) ?? BadgeImage;
+            LoadFrameImage(ResolveCustomBadgePath(_style.Frame.BadgeImages)) ?? BadgeImage;
 
         public ImageSource FrameCompletedBadgeImage =>
-            LoadSyncImage(NullIfBlank(_style.Frame.BadgeImages.CompletionPath)) ?? CompletedBadgeImage;
+            LoadFrameImage(NullIfBlank(_style.Frame.BadgeImages.CompletionPath)) ?? CompletedBadgeImage;
+
+        // A frame slot image: an animated file's frame at the frame keyframe, else the still.
+        private ImageSource LoadFrameImage(string path)
+        {
+            return (FrameKeyframeMs > 0 ? AnimatedImageKeyframe.TryDecodeAt(path, FrameKeyframeMs) : null)
+                   ?? LoadSyncImage(path);
+        }
 
         /// <summary>
         /// Provider icon geometry key for the toast/frame provider icon (rendered via
@@ -1161,11 +1251,13 @@ namespace PlayniteAchievements.ViewModels
         /// stable ImageSource owned by its persistent host so rebuilding the preview does not
         /// restart the GIF. ToastBackgroundImagePath remains available to existing templates.
         /// </summary>
-        public object ToastBackgroundRenderSource => _useToastBackgroundRenderSourceOverride
-            ? (object)_toastBackgroundRenderSourceOverride
-            : TryGetPreloadedImage(_style.ToastBackgroundImagePath, out var preloaded)
-                ? preloaded
-                : (object)ToastBackgroundImagePath;
+        public object ToastBackgroundRenderSource => HeldToastImage(_style.ToastBackgroundImagePath) is ImageSource held
+            ? held
+            : _useToastBackgroundRenderSourceOverride
+                ? (object)_toastBackgroundRenderSourceOverride
+                : TryGetPreloadedImage(_style.ToastBackgroundImagePath, out var preloaded)
+                    ? preloaded
+                    : (object)ToastBackgroundImagePath;
 
         /// <summary>
         /// Completes this notification's image loads. Surfaces that render synchronously have to
