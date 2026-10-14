@@ -87,8 +87,7 @@
                                      Header="{DynamicResource LOCPlayAch_Column_Captures}"
                                      Visibility="Collapsed"/>
                             <TabItem x:Name="ToastTabItem"
-                                     Header="{DynamicResource LOCPlayAch_Settings_Style_ToastTab}"
-                                     IsSelected="True"/>
+                                     Header="{DynamicResource LOCPlayAch_Settings_Style_ToastTab}"/>
                             <TabItem x:Name="FrameTabItem"
                                      Header="{DynamicResource LOCPlayAch_Settings_FrameHeader}"/>
                             <TabItem x:Name="SoundsTabItem"
