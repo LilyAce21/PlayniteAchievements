@@ -222,7 +222,29 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// </summary>
         public static bool HasAdvancementWorld(string gameFolder)
         {
-            return EnumerateWorlds(gameFolder).Any(world => Directory.Exists(Path.Combine(world, "advancements")));
+            return EnumerateWorlds(gameFolder).Any(world => GetAdvancementsFolder(world) != null);
+        }
+
+        /// <summary>
+        /// A world's player advancement folder: players/advancements from 26.x, advancements before.
+        /// Null when the world has neither.
+        /// </summary>
+        public static string GetAdvancementsFolder(string worldFolder)
+        {
+            if (string.IsNullOrWhiteSpace(worldFolder))
+            {
+                return null;
+            }
+
+            foreach (var candidate in new[] { Path.Combine(worldFolder, "players", "advancements"), Path.Combine(worldFolder, "advancements") })
+            {
+                if (Directory.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
