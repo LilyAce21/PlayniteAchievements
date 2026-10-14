@@ -147,6 +147,7 @@ namespace PlayniteAchievements.Providers.Epic
                 AppId = 0,
                 GameName = game?.Name,
                 ProviderKey = "Epic",
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game?.Source?.Name,
                 LastUpdatedUtc = DateTime.UtcNow,
                 HasAchievements = items != null && items.Count > 0,
