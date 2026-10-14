@@ -874,24 +874,24 @@ namespace PlayniteAchievements.ViewModels
 
         public bool ColorRarityColumnsByRaritySelectedGame => _settings?.Persisted?.OverviewSelectedGameColorRarityColumnsByRarity ?? false;
 
-        public string OverviewScoreCardSlot1 =>
-            ScoreCardSlots.Normalize(_settings?.Persisted?.OverviewScoreCardSlot1 ?? ScoreCardSlots.Collection);
+        public bool ShowOverviewScoreCard1 => _settings?.Persisted?.ShowOverviewScoreCard1 ?? true;
 
-        public string OverviewScoreCardSlot2 =>
-            ScoreCardSlots.Normalize(_settings?.Persisted?.OverviewScoreCardSlot2 ?? ScoreCardSlots.Prestige);
+        public bool ShowOverviewScoreCard2 => _settings?.Persisted?.ShowOverviewScoreCard2 ?? true;
 
-        public bool ShowOverviewScoreCard1 => ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot1, out _);
+        public ScoreCardBadgePosition ScoreCard1BadgePosition =>
+            ShowcaseWidgetOptions.GetScoreCardBadgePosition(_settings?.Persisted?.OverviewScoreCard1);
 
-        public bool ShowOverviewScoreCard2 => ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot2, out _);
+        public ScoreCardBadgePosition ScoreCard2BadgePosition =>
+            ShowcaseWidgetOptions.GetScoreCardBadgePosition(_settings?.Persisted?.OverviewScoreCard2);
 
         public bool ShowOverviewScoreCards => _hasAppliedSnapshot && (ShowOverviewScoreCard1 || ShowOverviewScoreCard2);
 
         public bool ShowOverviewScoreCardDivider => _hasAppliedSnapshot && ShowOverviewScoreCard1 && ShowOverviewScoreCard2;
 
-        /// <summary>The header's first score card; its type follows <see cref="OverviewScoreCardSlot1"/>.</summary>
+        /// <summary>The header's first score card; its options follow <see cref="PersistedSettings.OverviewScoreCard1"/>.</summary>
         public ScoreCardViewModel ScoreCard1 { get; } = new ScoreCardViewModel(ScoreCardType.Collection);
 
-        /// <summary>The header's second score card; its type follows <see cref="OverviewScoreCardSlot2"/>.</summary>
+        /// <summary>The header's second score card; its options follow <see cref="PersistedSettings.OverviewScoreCard2"/>.</summary>
         public ScoreCardViewModel ScoreCard2 { get; } = new ScoreCardViewModel(ScoreCardType.Prestige);
 
         public bool EnableFriendsFeatures => _settings?.Persisted?.EnableFriendsFeatures ?? true;
@@ -2196,23 +2196,29 @@ namespace PlayniteAchievements.ViewModels
         private void ApplyScoreCards()
         {
             var useUniformRarityBadges = UseUniformRarityBadges;
-            var useCustomColors = _settings?.Persisted?.OverviewScoreCardsUseCustomColors ?? false;
-            ScoreCard1.SetUseCustomColors(useCustomColors);
-            ScoreCard2.SetUseCustomColors(useCustomColors);
             var snapshot = _latestSnapshot ?? new OverviewDataSnapshot
             {
                 CollectorScore = CollectorScore,
                 PrestigeScore = PrestigeScore
             };
-            if (ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot1, out var first))
+            ApplyScoreCard(ScoreCard1, _settings?.Persisted?.OverviewScoreCard1, snapshot, useUniformRarityBadges);
+            ApplyScoreCard(ScoreCard2, _settings?.Persisted?.OverviewScoreCard2, snapshot, useUniformRarityBadges);
+        }
+
+        private static void ApplyScoreCard(
+            ScoreCardViewModel card,
+            ShowcaseWidgetInstanceSettings options,
+            OverviewDataSnapshot snapshot,
+            bool useUniformRarityBadges)
+        {
+            if (options == null)
             {
-                ScoreCard1.ApplyFor(first, snapshot, useUniformRarityBadges);
+                return;
             }
 
-            if (ScoreCardSlots.TryGetCardType(OverviewScoreCardSlot2, out var second))
-            {
-                ScoreCard2.ApplyFor(second, snapshot, useUniformRarityBadges);
-            }
+            card.SetUseCustomColors(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(options));
+            card.SetShowTotal(ShowcaseWidgetOptions.GetScoreCardShowTotal(options));
+            card.ApplyFor(ShowcaseWidgetOptions.GetScoreCardType(options), snapshot, useUniformRarityBadges);
         }
 
         private void NormalizeScoreSnapshot(OverviewDataSnapshot snapshot)
@@ -2539,14 +2545,16 @@ namespace PlayniteAchievements.ViewModels
             {
                 OnPropertyChanged(nameof(IncludeUnplayedGames));
             }
-            else if (propertyName == nameof(PersistedSettings.OverviewScoreCardSlot1)
-                || propertyName == nameof(PersistedSettings.OverviewScoreCardSlot2))
+            else if (propertyName == nameof(PersistedSettings.ShowOverviewScoreCard1)
+                || propertyName == nameof(PersistedSettings.ShowOverviewScoreCard2))
             {
                 RaiseOverviewScoreCardVisibilityChanged();
-                ApplyScoreCards();
             }
-            else if (propertyName == nameof(PersistedSettings.OverviewScoreCardsUseCustomColors))
+            else if (propertyName == nameof(PersistedSettings.OverviewScoreCard1)
+                || propertyName == nameof(PersistedSettings.OverviewScoreCard2))
             {
+                OnPropertyChanged(nameof(ScoreCard1BadgePosition));
+                OnPropertyChanged(nameof(ScoreCard2BadgePosition));
                 ApplyScoreCards();
             }
             else if (propertyName == nameof(PersistedSettings.EnableFriendsFeatures))
@@ -2644,6 +2652,9 @@ namespace PlayniteAchievements.ViewModels
                     item?.RefreshProviderAppearance();
                 }
 
+                ScoreCard1.RefreshProviderAppearance();
+                ScoreCard2.RefreshProviderAppearance();
+
                 // The mini-showcase's pies and timeline draw in platform colors.
                 InvalidateLinkedSnapshots(rebuild: true);
             }
@@ -2688,8 +2699,6 @@ namespace PlayniteAchievements.ViewModels
 
         private void RaiseOverviewScoreCardVisibilityChanged()
         {
-            OnPropertyChanged(nameof(OverviewScoreCardSlot1));
-            OnPropertyChanged(nameof(OverviewScoreCardSlot2));
             OnPropertyChanged(nameof(ShowOverviewScoreCard1));
             OnPropertyChanged(nameof(ShowOverviewScoreCard2));
             OnPropertyChanged(nameof(ShowOverviewScoreCards));
