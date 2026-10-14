@@ -14,6 +14,24 @@ namespace PlayniteAchievements.Providers.Minecraft
     }
 
     /// <summary>
+    /// One model to draw: its element boxes, how its face textures resolve, and where it sits (an
+    /// item definition's composite part transformation, in block units).
+    /// </summary>
+    internal sealed class MinecraftRenderPart
+    {
+        public JArray Elements { get; set; }
+
+        /// <summary>
+        /// Maps a face's texture reference (such as <c>#side</c>) to its decoded texture and whether
+        /// it takes the foliage tint.
+        /// </summary>
+        public Func<string, (MinecraftTexture Texture, bool Foliage)?> ResolveTexture { get; set; }
+
+        /// <summary>The part's transformation (translation, rotations, scale), or null for none.</summary>
+        public JObject Transformation { get; set; }
+    }
+
+    /// <summary>
     /// Draws a block model as the game shows it in the inventory: its element boxes seen through
     /// the model's gui display rotation (30°, 225° for ordinary blocks), visible faces textured with
     /// nearest-neighbour sampling, shaded like inventory lighting and drawn back to front. Pure pixel
@@ -56,9 +74,8 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// BGRA pixels of a <paramref name="size"/>-square icon, or null when no face could be
-        /// textured. <paramref name="resolveTexture"/> maps a face's texture reference (such as
-        /// <c>#side</c>) and returns its decoded texture and whether it should take the foliage tint.
+        /// BGRA pixels of a <paramref name="size"/>-square icon of one model, or null when no face
+        /// could be textured.
         /// </summary>
         public static byte[] Render(
             JArray elements,
@@ -67,32 +84,46 @@ namespace PlayniteAchievements.Providers.Minecraft
             double rotationY,
             int size)
         {
-            if (elements == null || resolveTexture == null || size <= 0)
+            return Render(new[] { new MinecraftRenderPart { Elements = elements, ResolveTexture = resolveTexture } }, rotationX, rotationY, size);
+        }
+
+        /// <summary>
+        /// BGRA pixels of a <paramref name="size"/>-square icon of every part drawn together (a bed's
+        /// head and foot), or null when no face could be textured. A drawing larger than one block
+        /// is scaled down and centred to fit; a smaller one keeps the full-block scale, as a slab
+        /// does in the inventory.
+        /// </summary>
+        public static byte[] Render(IReadOnlyList<MinecraftRenderPart> parts, double rotationX, double rotationY, int size)
+        {
+            if (parts == null || size <= 0)
             {
                 return null;
             }
 
             var faces = new List<ProjectedFace>();
-            foreach (var element in elements.OfType<JObject>())
+            foreach (var part in parts.Where(part => part?.Elements != null && part.ResolveTexture != null))
             {
-                var from = ReadVec(element["from"]);
-                var to = ReadVec(element["to"]);
-                if (!from.HasValue || !to.HasValue || !(element["faces"] is JObject elementFaces))
+                foreach (var element in part.Elements.OfType<JObject>())
                 {
-                    continue;
-                }
-
-                foreach (var faceName in FaceNames)
-                {
-                    if (!(elementFaces[faceName] is JObject face))
+                    var from = ReadVec(element["from"]);
+                    var to = ReadVec(element["to"]);
+                    if (!from.HasValue || !to.HasValue || !(element["faces"] is JObject elementFaces))
                     {
                         continue;
                     }
 
-                    var projected = ProjectFace(element, faceName, face, from.Value, to.Value, rotationX, rotationY, resolveTexture);
-                    if (projected != null)
+                    foreach (var faceName in FaceNames)
                     {
-                        faces.Add(projected);
+                        if (!(elementFaces[faceName] is JObject face))
+                        {
+                            continue;
+                        }
+
+                        var projected = ProjectFace(element, faceName, face, from.Value, to.Value, part.Transformation, rotationX, rotationY, part.ResolveTexture);
+                        if (projected != null)
+                        {
+                            faces.Add(projected);
+                        }
                     }
                 }
             }
@@ -102,12 +133,32 @@ namespace PlayniteAchievements.Providers.Minecraft
                 return null;
             }
 
-            var pixels = new byte[size * size * 4];
             var scale = size * 0.94 / CubeExtent;
-            var center = size / 2.0;
+            var centerX = 0.0;
+            var centerY = 0.0;
+            var corners = faces.SelectMany(face => new[]
+            {
+                face.Topleft,
+                face.TopRight,
+                face.BottomLeft,
+                new Vec(face.TopRight.X + face.BottomLeft.X - face.Topleft.X, face.TopRight.Y + face.BottomLeft.Y - face.Topleft.Y, 0)
+            }).ToList();
+            var minX = corners.Min(corner => corner.X);
+            var maxX = corners.Max(corner => corner.X);
+            var minY = corners.Min(corner => corner.Y);
+            var maxY = corners.Max(corner => corner.Y);
+            var limit = CubeExtent / 2 + 0.01;
+            if (minX < -limit || maxX > limit || minY < -limit || maxY > limit)
+            {
+                scale = size * 0.94 / Math.Max(maxX - minX, maxY - minY);
+                centerX = (minX + maxX) / 2;
+                centerY = (minY + maxY) / 2;
+            }
+
+            var pixels = new byte[size * size * 4];
             foreach (var face in faces.OrderBy(face => face.Depth))
             {
-                Rasterize(face, pixels, size, scale, center);
+                Rasterize(face, pixels, size, scale, centerX, centerY);
             }
 
             return pixels.Where((value, index) => index % 4 == 3).Any(alpha => alpha > 0) ? pixels : null;
@@ -119,16 +170,22 @@ namespace PlayniteAchievements.Providers.Minecraft
             JObject face,
             Vec from,
             Vec to,
+            JObject transformation,
             double rotationX,
             double rotationY,
             Func<string, (MinecraftTexture Texture, bool Foliage)?> resolveTexture)
         {
             var (topLeft, topRight, bottomLeft, normal) = FaceCorners(faceName, from, to);
             var elementRotation = element["rotation"] as JObject;
-            topLeft = View(RotateElement(topLeft, elementRotation), rotationX, rotationY);
-            topRight = View(RotateElement(topRight, elementRotation), rotationX, rotationY);
-            bottomLeft = View(RotateElement(bottomLeft, elementRotation), rotationX, rotationY);
-            var viewNormal = View(RotateElement(normal, elementRotation, aboutOrigin: false), rotationX, rotationY, centered: false);
+            Vec Place(Vec point) => View(Transform(RotateElement(point, elementRotation), transformation, isDirection: false), rotationX, rotationY);
+            topLeft = Place(topLeft);
+            topRight = Place(topRight);
+            bottomLeft = Place(bottomLeft);
+            var viewNormal = View(
+                Transform(RotateElement(normal, elementRotation, aboutOrigin: false), transformation, isDirection: true),
+                rotationX,
+                rotationY,
+                centered: false);
 
             // Faces turned away from the viewer are hidden.
             if (viewNormal.Z <= 1e-6)
@@ -218,6 +275,56 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
+        /// Applies an item definition's part transformation, in block units: right rotation, then
+        /// scale, then left rotation, then translation (rotations are quaternions x, y, z, w). A
+        /// direction skips scale and translation.
+        /// </summary>
+        private static Vec Transform(Vec point, JObject transformation, bool isDirection)
+        {
+            if (transformation == null)
+            {
+                return point;
+            }
+
+            var v = isDirection ? point : new Vec(point.X / 16, point.Y / 16, point.Z / 16);
+            v = Rotate(v, ReadQuaternion(transformation["right_rotation"]));
+            if (!isDirection)
+            {
+                var scale = ReadVec(transformation["scale"]) ?? new Vec(1, 1, 1);
+                v = new Vec(v.X * scale.X, v.Y * scale.Y, v.Z * scale.Z);
+            }
+
+            v = Rotate(v, ReadQuaternion(transformation["left_rotation"]));
+            if (isDirection)
+            {
+                return v;
+            }
+
+            var translation = ReadVec(transformation["translation"]) ?? new Vec(0, 0, 0);
+            return new Vec((v.X + translation.X) * 16, (v.Y + translation.Y) * 16, (v.Z + translation.Z) * 16);
+        }
+
+        private static (double X, double Y, double Z, double W) ReadQuaternion(JToken token)
+        {
+            var values = (token as JArray)?.Select(value => value.Type == JTokenType.Integer || value.Type == JTokenType.Float ? (double)value : double.NaN).ToList();
+            return values != null && values.Count == 4 && values.All(value => !double.IsNaN(value))
+                ? (values[0], values[1], values[2], values[3])
+                : (0, 0, 0, 1);
+        }
+
+        private static Vec Rotate(Vec v, (double X, double Y, double Z, double W) q)
+        {
+            // v' = q v q*, expanded.
+            var tx = 2 * (q.Y * v.Z - q.Z * v.Y);
+            var ty = 2 * (q.Z * v.X - q.X * v.Z);
+            var tz = 2 * (q.X * v.Y - q.Y * v.X);
+            return new Vec(
+                v.X + q.W * tx + (q.Y * tz - q.Z * ty),
+                v.Y + q.W * ty + (q.Z * tx - q.X * tz),
+                v.Z + q.W * tz + (q.X * ty - q.Y * tx));
+        }
+
+        /// <summary>
         /// The gui view: about the block centre, rotate around Y then X as the game's display
         /// transform does; X is screen right, Y screen up, Z toward the viewer.
         /// </summary>
@@ -235,11 +342,12 @@ namespace PlayniteAchievements.Providers.Minecraft
             return new Vec(x1, y2, z2);
         }
 
-        private static void Rasterize(ProjectedFace face, byte[] pixels, int size, double scale, double center)
+        private static void Rasterize(ProjectedFace face, byte[] pixels, int size, double scale, double centerX, double centerY)
         {
-            // Screen space: x right, y down.
-            double Sx(Vec v) => center + v.X * scale;
-            double Sy(Vec v) => center - v.Y * scale;
+            // Screen space: x right, y down; (centerX, centerY) in view units lands mid-icon.
+            var mid = size / 2.0;
+            double Sx(Vec v) => mid + (v.X - centerX) * scale;
+            double Sy(Vec v) => mid - (v.Y - centerY) * scale;
             var p0x = Sx(face.Topleft);
             var p0y = Sy(face.Topleft);
             var e1x = Sx(face.TopRight) - p0x;
