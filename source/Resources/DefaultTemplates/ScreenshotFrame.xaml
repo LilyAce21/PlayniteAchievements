@@ -37,6 +37,13 @@
     <DataTemplate x:Key="PlayAch.Template.ScreenshotFrame"
                   DataType="{x:Type vm:AchievementToastViewModel}">
         <Grid>
+            <!-- Custom frame background: when the vignette is set to Image, the style's image
+                 replaces both vignette layers, stretched to the shot in both directions. -->
+            <Image IsHitTestVisible="False"
+                   Stretch="Fill"
+                   Source="{Binding FrameBackgroundImage}"
+                   Visibility="{Binding FrameShowBackgroundImage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
             <!-- Frame chrome: a circular black vignette around the whole shot; no border lines
                  and no banner card. The view model supplies the gradient, shaped by the
                  surface's vignette strength setting. -->

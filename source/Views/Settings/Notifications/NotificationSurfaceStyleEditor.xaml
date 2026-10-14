@@ -258,15 +258,18 @@
 
                     <TextBlock Grid.Row="1" Grid.Column="0"
                                Text="{DynamicResource LOCPlayAch_Settings_Style_VignetteStrength}"
+                               Visibility="{Binding ShowFrameVignetteStrength, Converter={StaticResource BoolToVis}}"
                                Style="{StaticResource EditorRowLabelStyle}"
                                Margin="0,0,8,0"/>
                     <Slider Grid.Row="1" Grid.Column="1"
+                            Visibility="{Binding ShowFrameVignetteStrength, Converter={StaticResource BoolToVis}}"
                             Minimum="0" Maximum="100"
                             SmallChange="1" LargeChange="10" TickFrequency="1" IsSnapToTickEnabled="True"
                             Value="{Binding FrameVignetteStrengthSlider, Mode=TwoWay}"
                             VerticalAlignment="Center"
                             Margin="0,0,8,0"/>
                     <TextBox Grid.Row="1" Grid.Column="2"
+                             Visibility="{Binding ShowFrameVignetteStrength, Converter={StaticResource BoolToVis}}"
                              Text="{Binding FrameVignetteStrengthText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                              Width="70"
                              TextAlignment="Right"/>
@@ -1110,13 +1113,16 @@
             </StackPanel>
         </Border>
 
-        <!-- Background image (toast only; frames never get a background). -->
+        <!-- Background image: always on the toast; on the frame while its vignette is set to
+             the background image, which then stretches over the whole shot. Tag="Background"
+             resolves to the edited surface's own slot. -->
         <Border Style="{StaticResource EditorCardStyle}"
-                Visibility="{Binding IsToastSurface, Converter={StaticResource BoolToVis}}">
+                Visibility="{Binding ShowBackgroundImageCard, Converter={StaticResource BoolToVis}}">
             <StackPanel>
                 <TextBlock Text="{DynamicResource LOCPlayAch_Settings_Style_BackgroundImage}"
                            Style="{StaticResource EditorGroupHeaderStyle}"/>
                 <TextBlock Text="{DynamicResource LOCPlayAch_Settings_Style_BackgroundImageHint}"
+                           Visibility="{Binding IsToastSurface, Converter={StaticResource BoolToVis}}"
                            Style="{StaticResource MutedTextStyle}"
                            TextWrapping="Wrap"
                            Margin="0,0,0,6"/>

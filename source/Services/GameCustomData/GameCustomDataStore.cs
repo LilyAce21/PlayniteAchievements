@@ -133,7 +133,8 @@ namespace PlayniteAchievements.Services.GameCustomData
                 [NotificationImageSlot.FrameBadgeUncommon] = "notification_frame_badge_uncommon",
                 [NotificationImageSlot.FrameBadgeRare] = "notification_frame_badge_rare",
                 [NotificationImageSlot.FrameBadgeUltraRare] = "notification_frame_badge_ultrarare",
-                [NotificationImageSlot.FrameBadgeCompletion] = "notification_frame_badge_completion"
+                [NotificationImageSlot.FrameBadgeCompletion] = "notification_frame_badge_completion",
+                [NotificationImageSlot.FrameBackground] = "notification_frame_background"
             };
 
         private readonly ILogger _logger;

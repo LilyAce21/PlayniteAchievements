@@ -424,9 +424,27 @@ namespace PlayniteAchievements.ViewModels
         public bool FrameShowShineBorder => _style.Frame.ShowRarityGlow && HardcoreTakesBorder;
 
         // Frame vignette chrome: the radial edge vignette shows only for Full; the bottom contrast
-        // wash shows for Full and Bottom. None removes both, leaving the raw screenshot.
+        // wash shows for Full and Bottom. None removes both, leaving the raw screenshot; Image
+        // replaces both with the style's frame background image.
         public bool FrameShowRadialVignette => _style.Frame.FrameVignette == FrameVignetteStyle.Full;
-        public bool FrameShowBottomWash => _style.Frame.FrameVignette != FrameVignetteStyle.None;
+        public bool FrameShowBottomWash =>
+            _style.Frame.FrameVignette == FrameVignetteStyle.Full ||
+            _style.Frame.FrameVignette == FrameVignetteStyle.Bottom;
+
+        /// <summary>
+        /// The frame background image, synchronously decoded for the offscreen render; null when
+        /// the vignette is not set to <see cref="FrameVignetteStyle.Image"/> or the file is
+        /// missing or unreadable. The template stretches it over the whole shot.
+        /// </summary>
+        public ImageSource FrameBackgroundImage =>
+            _style.Frame.FrameVignette == FrameVignetteStyle.Image
+                ? LoadSyncImage(_style.FrameBackgroundImagePath)
+                : null;
+
+        public bool FrameShowBackgroundImage =>
+            _style.Frame.FrameVignette == FrameVignetteStyle.Image &&
+            !string.IsNullOrWhiteSpace(_style.FrameBackgroundImagePath) &&
+            File.Exists(_style.FrameBackgroundImagePath);
 
         // Original stop alphas of the built-in frame vignette gradients (what strength 50
         // reproduces); scaled per-stop by the surface's vignette strength setting.

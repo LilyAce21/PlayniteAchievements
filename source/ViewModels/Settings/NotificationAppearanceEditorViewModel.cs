@@ -685,7 +685,7 @@ namespace PlayniteAchievements.ViewModels.Settings
 
         /// <summary>
         /// Vignette choices for the screenshot frame: Full (radial edge vignette plus the bottom
-        /// contrast wash), Bottom (bottom wash only), or None. Frame surface only; the toast has
+        /// contrast wash), Bottom (bottom wash only), None, or the frame background image. Frame surface only; the toast has
         /// its own card chrome, so the dropdown is hidden there.
         /// </summary>
         public IReadOnlyList<FrameVignetteOption> FrameVignetteOptions =>
@@ -693,8 +693,12 @@ namespace PlayniteAchievements.ViewModels.Settings
             {
                 new FrameVignetteOption(FrameVignetteStyle.Full, L("LOCPlayAch_Settings_Style_VignetteFull")),
                 new FrameVignetteOption(FrameVignetteStyle.Bottom, L("LOCDockBottom")),
-                new FrameVignetteOption(FrameVignetteStyle.None, L("LOCNone"))
+                new FrameVignetteOption(FrameVignetteStyle.None, L("LOCNone")),
+                new FrameVignetteOption(FrameVignetteStyle.Image, L("LOCPlayAch_Settings_Style_BackgroundImage"))
             });
+
+        /// <summary>The strength slider applies to the drawn vignettes, not to a background image.</summary>
+        public bool ShowFrameVignetteStrength => Surface?.FrameVignette != FrameVignetteStyle.Image;
 
         /// <summary>
         /// The frame vignette style, read from and written back to the surface.
@@ -1274,18 +1278,27 @@ namespace PlayniteAchievements.ViewModels.Settings
 
         /// <summary>
         /// Whether a toast background image is set. Drives the fit-to-image affordance, which is
-        /// meaningless on the frame surface (no background) or with no image chosen.
+        /// meaningless on the frame surface (the image stretches to the shot) or with no image chosen.
         /// </summary>
         public bool HasBackgroundImage =>
             !IsFrameSurface && !string.IsNullOrWhiteSpace(_style?.ToastBackgroundImagePath);
 
         /// <summary>
-        /// Cache-busted source for the editor's background thumbnail. The managed slot reuses a
-        /// fixed filename, so picking a different image resolves to the same path; the write-time +
-        /// size token makes the thumbnail re-decode the new file instead of showing the cached one.
+        /// Whether the background image card shows: always for the toast; for the frame only
+        /// while its vignette is set to the background image.
+        /// </summary>
+        public bool ShowBackgroundImageCard =>
+            !IsFrameSurface || Surface?.FrameVignette == FrameVignetteStyle.Image;
+
+        /// <summary>
+        /// Cache-busted source for the editor's background thumbnail (this surface's own image).
+        /// The managed slot reuses a fixed filename, so picking a different image resolves to the
+        /// same path; the write-time + size token makes the thumbnail re-decode the new file
+        /// instead of showing the cached one.
         /// </summary>
         public string BackgroundThumbnailUri =>
-            Models.Achievements.AchievementIconResolver.ApplyCacheBust(_style?.ToastBackgroundImagePath);
+            Models.Achievements.AchievementIconResolver.ApplyCacheBust(
+                GetImagePath(ResolveSurfaceSlot(NotificationImageSlot.Background)));
 
         // Cache-busted sources for the editor's badge thumbnails, for the same reason as the
         // background: the managed slots reuse fixed filenames, so imports and preset applies
@@ -1552,8 +1565,7 @@ namespace PlayniteAchievements.ViewModels.Settings
         /// <summary>
         /// Maps a logical slot (as named by the editor XAML's Tag attributes, which serve both
         /// surfaces) onto this surface's concrete store slot: badge slots resolve to the
-        /// frame's own slots on the frame editor. The background is toast-only and passes
-        /// through.
+        /// frame's own slots on the frame editor, the background included.
         /// </summary>
         private NotificationImageSlot ResolveSurfaceSlot(NotificationImageSlot slot)
         {
@@ -1564,6 +1576,8 @@ namespace PlayniteAchievements.ViewModels.Settings
 
             switch (slot)
             {
+                case NotificationImageSlot.Background:
+                    return NotificationImageSlot.FrameBackground;
                 case NotificationImageSlot.BadgeCommon:
                     return NotificationImageSlot.FrameBadgeCommon;
                 case NotificationImageSlot.BadgeUncommon:
@@ -1980,12 +1994,8 @@ namespace PlayniteAchievements.ViewModels.Settings
 
             // Clear this surface's managed images before replacing the surface object, so the
             // old paths are still readable for memory-cache eviction. ClearImage maps the
-            // logical badge slots onto this surface's own store slots.
-            if (!IsFrameSurface)
-            {
-                ClearImage(NotificationImageSlot.Background);
-            }
-
+            // logical background and badge slots onto this surface's own store slots.
+            ClearImage(NotificationImageSlot.Background);
             ClearImage(NotificationImageSlot.BadgeCommon);
             ClearImage(NotificationImageSlot.BadgeUncommon);
             ClearImage(NotificationImageSlot.BadgeRare);
@@ -2014,6 +2024,8 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(IsProviderIconEnabled));
             OnPropertyChanged(nameof(SelectedGlowDisplay));
             OnPropertyChanged(nameof(SelectedFrameVignette));
+            OnPropertyChanged(nameof(ShowFrameVignetteStrength));
+            OnPropertyChanged(nameof(ShowBackgroundImageCard));
             NotifyMotionOptions();
             OnPropertyChanged(nameof(CountdownBarColorText));
             OnPropertyChanged(nameof(CountdownBarSwatch));
@@ -2069,6 +2081,8 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(IsProviderIconEnabled));
             OnPropertyChanged(nameof(SelectedGlowDisplay));
             OnPropertyChanged(nameof(SelectedFrameVignette));
+            OnPropertyChanged(nameof(ShowFrameVignetteStrength));
+            OnPropertyChanged(nameof(ShowBackgroundImageCard));
             NotifyMotionOptions();
             OnPropertyChanged(nameof(CountdownBarColorText));
             OnPropertyChanged(nameof(CountdownBarSwatch));
@@ -2143,7 +2157,8 @@ namespace PlayniteAchievements.ViewModels.Settings
             }
 
             if (ReferenceEquals(sender, _style) &&
-                e.PropertyName == nameof(NotificationStyleSettings.ToastBackgroundImagePath))
+                (e.PropertyName == nameof(NotificationStyleSettings.ToastBackgroundImagePath) ||
+                 e.PropertyName == nameof(NotificationStyleSettings.FrameBackgroundImagePath)))
             {
                 OnPropertyChanged(nameof(Style));
                 OnPropertyChanged(nameof(HasBackgroundImage));
@@ -2223,6 +2238,8 @@ namespace PlayniteAchievements.ViewModels.Settings
             else if (e.PropertyName == nameof(NotificationSurfaceStyle.FrameVignette))
             {
                 OnPropertyChanged(nameof(SelectedFrameVignette));
+                OnPropertyChanged(nameof(ShowFrameVignetteStrength));
+                OnPropertyChanged(nameof(ShowBackgroundImageCard));
             }
             else if (e.PropertyName == nameof(NotificationSurfaceStyle.EntranceMotion) ||
                      e.PropertyName == nameof(NotificationSurfaceStyle.ExitMotion) ||

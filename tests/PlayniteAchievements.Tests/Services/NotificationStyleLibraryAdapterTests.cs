@@ -127,6 +127,29 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
+        public void FrameItem_CopiesItsBackgroundIntoTheFrameSlot_AndAnUpdateFollowsIt()
+        {
+            var item = WriteFrameItem("1.0.0", FrameStyle(Image("frame_bg", 1)));
+            var adapter = Global(true);
+
+            _apply.ApplyToSettings(adapter, item, _live);
+
+            Assert.AreEqual(FrameVignetteStyle.Image, _live.NotificationStyle.Frame.FrameVignette);
+            var path = _live.NotificationStyle.FrameBackgroundImagePath;
+            StringAssert.Contains(path, Path.Combine("notification_images", "global"));
+            StringAssert.Contains(Path.GetFileName(path), "frame_background");
+            Assert.AreEqual(Hash(Image("frame_bg", 1)), Hash(path));
+            Assert.IsNull(_live.NotificationStyle.ToastBackgroundImagePath, "a frame item leaves the toast background alone");
+            Assert.IsFalse(_apply.GetSettingsState(adapter, _live).IsEdited);
+
+            WriteFrameItem("1.1.0", FrameStyle(Image("frame_bg", 2)));
+            _apply.UpdateSettings(adapter, _live, out var kept);
+
+            Assert.AreEqual(0, kept);
+            Assert.AreEqual(Hash(Image("frame_bg", 2)), Hash(_live.NotificationStyle.FrameBackgroundImagePath));
+        }
+
+        [TestMethod]
         public void Apply_ToAPlatformWithoutItsOwnStyle_GivesItOne()
         {
             _live.NotificationStyle.Frame.ShowIcon = false;
@@ -326,6 +349,37 @@ namespace PlayniteAchievements.Services.Tests
                 },
                 package,
                 _toastFolder).Item;
+        }
+
+        private static NotificationStyleSettings FrameStyle(string background)
+        {
+            var style = NotificationStyleSettings.CreateDefault();
+            style.Frame.FrameVignette = FrameVignetteStyle.Image;
+            style.FrameBackgroundImagePath = background;
+            return style;
+        }
+
+        /// <summary>Writes the style as the Workshop frame item "shot" at a version.</summary>
+        private LibraryItem WriteFrameItem(string version, NotificationStyleSettings style)
+        {
+            var package = Path.Combine(_root, "downloads", version, "shot" + NotificationStylePortableStore.FramePackageFileExtension);
+            Directory.CreateDirectory(Path.GetDirectoryName(package));
+            _portable.ExportSurfacePackage(isFrame: true, style, package);
+            return _updates.WriteWorkshopPart(
+                new LibraryItem
+                {
+                    Id = "ws:shot",
+                    Kind = LibraryItemKind.Frame,
+                    Name = "Shot",
+                    Origin = LibraryItemOrigin.Workshop,
+                    WorkshopItemId = "shot",
+                    Part = "frame",
+                    Version = version
+                },
+                package,
+                new DirectoryPackageFolder(
+                    Path.Combine(_root, LibraryStore.FolderOf(LibraryItemKind.Frame)),
+                    NotificationStylePortableStore.FramePackageFileExtension)).Item;
         }
 
         /// <summary>A small PNG whose last byte makes its content distinct.</summary>

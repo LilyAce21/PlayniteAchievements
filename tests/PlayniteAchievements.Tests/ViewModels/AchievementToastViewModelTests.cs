@@ -1034,6 +1034,42 @@ namespace PlayniteAchievements.Tests.ViewModels
         }
 
         [TestMethod]
+        public void FrameVignetteImage_ReplacesBothVignetteLayers_AndShowsOnlyAnExistingImage()
+        {
+            var settings = new PersistedSettings();
+            settings.NotificationStyle.Frame.FrameVignette = FrameVignetteStyle.Image;
+            settings.NotificationStyle.FrameBackgroundImagePath =
+                Path.Combine(Path.GetTempPath(), "PlayAchMissing_" + Guid.NewGuid().ToString("N") + ".png");
+
+            var missing = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+            Assert.IsFalse(missing.FrameShowRadialVignette);
+            Assert.IsFalse(missing.FrameShowBottomWash);
+            Assert.IsFalse(missing.FrameShowBackgroundImage);
+            Assert.IsNull(missing.FrameBackgroundImage);
+
+            var path = Path.Combine(Path.GetTempPath(), "PlayAchFrameBg_" + Guid.NewGuid().ToString("N") + ".png");
+            File.WriteAllBytes(path, Convert.FromBase64String(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NkYGD4DwABBAEAgh8sXQAAAABJRU5ErkJggg=="));
+            try
+            {
+                settings.NotificationStyle.FrameBackgroundImagePath = path;
+                var present = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.IsTrue(present.FrameShowBackgroundImage);
+                Assert.IsNotNull(present.FrameBackgroundImage);
+
+                settings.NotificationStyle.Frame.FrameVignette = FrameVignetteStyle.Full;
+                var full = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.IsFalse(full.FrameShowBackgroundImage, "a kept path does not draw outside the Image choice");
+                Assert.IsTrue(full.FrameShowRadialVignette);
+                Assert.IsTrue(full.FrameShowBottomWash);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [TestMethod]
         public void FrameVignetteBrushes_UpperHalfGrowsCoverageBeyondAlphaStacking()
         {
             var strongSettings = new PersistedSettings();

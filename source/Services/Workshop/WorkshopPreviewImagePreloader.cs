@@ -91,9 +91,13 @@ namespace PlayniteAchievements.Services.Workshop
                 .Take(MaxStyleImages)
                 .ToList();
             var background = model.Style?.ToastBackgroundImagePath;
+            var frameBackground = model.Style?.FrameBackgroundImagePath;
             model.PreloadedImages = await DecodeAllAsync(
                 files,
-                path => string.Equals(path, background, StringComparison.OrdinalIgnoreCase) ? BackgroundDecodePixel : BadgeDecodePixel,
+                path => string.Equals(path, background, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(path, frameBackground, StringComparison.OrdinalIgnoreCase)
+                    ? BackgroundDecodePixel
+                    : BadgeDecodePixel,
                 cancel);
         }
 

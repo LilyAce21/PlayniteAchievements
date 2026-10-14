@@ -157,11 +157,18 @@ namespace PlayniteAchievements.Services.Tests
                 Directory.CreateDirectory(sourceDir);
                 var frameCommonSource = Path.Combine(sourceDir, "frame-common.png");
                 WritePlaceholderFile(frameCommonSource, "frame-common-bytes");
+                var frameBackgroundSource = Path.Combine(sourceDir, "frame-bg.png");
+                WritePlaceholderFile(frameBackgroundSource, "frame-background-bytes");
+                var toastBackgroundSource = Path.Combine(sourceDir, "toast-bg.png");
+                WritePlaceholderFile(toastBackgroundSource, "toast-background-bytes");
 
                 var style = NotificationStyleSettings.CreateDefault();
                 style.Frame.ShowUnlockTime = false;
                 style.Frame.HeaderTexts.UnlockHeader = "Frame header";
                 style.Frame.BadgeImages.CommonPath = frameCommonSource;
+                style.Frame.FrameVignette = FrameVignetteStyle.Image;
+                style.FrameBackgroundImagePath = frameBackgroundSource;
+                style.ToastBackgroundImagePath = toastBackgroundSource;
                 style.Toast.ShowHeader = false;
                 style.Toast.HeaderTexts.UnlockHeader = "Should not travel";
 
@@ -172,6 +179,8 @@ namespace PlayniteAchievements.Services.Tests
                 {
                     var entryNames = archive.Entries.Select(entry => entry.FullName).ToList();
                     CollectionAssert.Contains(entryNames, "images/frame_badge_common.png");
+                    CollectionAssert.Contains(entryNames, "images/frame_background.png");
+                    CollectionAssert.DoesNotContain(entryNames, "images/background.png");
 
                     using (var reader = new StreamReader(
                         archive.GetEntry(NotificationStylePortableStore.ManifestEntryName).Open()))
@@ -194,6 +203,9 @@ namespace PlayniteAchievements.Services.Tests
                 Assert.IsFalse(imported.Frame.ShowUnlockTime);
                 Assert.AreEqual("Frame header", imported.Frame.HeaderTexts.UnlockHeader);
                 AssertScratchFile(ScratchOf(tempDir), imported.Frame.BadgeImages.CommonPath, "frame-common-bytes");
+                Assert.AreEqual(FrameVignetteStyle.Image, imported.Frame.FrameVignette);
+                AssertScratchFile(ScratchOf(tempDir), imported.FrameBackgroundImagePath, "frame-background-bytes");
+                Assert.IsNull(imported.ToastBackgroundImagePath, "the toast background stays out of a frame package");
             }
             finally
             {
@@ -524,6 +536,7 @@ namespace PlayniteAchievements.Services.Tests
                 var style = NotificationStyleSettings.CreateDefault();
                 style.Toast.HeaderTexts.UnlockHeader = "Preview header";
                 style.ToastBackgroundImagePath = backgroundSource;
+                style.FrameBackgroundImagePath = capstoneBadge;
                 var capstone = style.EnableKindStyle(NotificationKind.Capstone);
                 capstone.Toast.BadgeImages.CommonPath = capstoneBadge;
 
@@ -537,6 +550,7 @@ namespace PlayniteAchievements.Services.Tests
                 Assert.AreEqual("Preview header", preview.Style.Toast.HeaderTexts.UnlockHeader);
                 AssertScratchFile(scratch, preview.Style.ToastBackgroundImagePath, "background-bytes");
                 Assert.IsNull(preview.Style.Toast.BadgeImages.CommonPath, "a slot with no bundled image stays empty");
+                Assert.IsNull(preview.Style.FrameBackgroundImagePath, "the frame background stays out of a notification package");
 
                 var previewCapstone = preview.Style.ResolveKind(NotificationKind.Capstone);
                 AssertScratchFile(scratch, previewCapstone.Toast.BadgeImages.CommonPath, "capstone-bytes");

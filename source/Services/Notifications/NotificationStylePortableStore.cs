@@ -146,7 +146,8 @@ namespace PlayniteAchievements.Services.Notifications
                 [NotificationImageSlot.FrameBadgeUncommon] = "frame_badge_uncommon",
                 [NotificationImageSlot.FrameBadgeRare] = "frame_badge_rare",
                 [NotificationImageSlot.FrameBadgeUltraRare] = "frame_badge_ultrarare",
-                [NotificationImageSlot.FrameBadgeCompletion] = "frame_badge_completion"
+                [NotificationImageSlot.FrameBadgeCompletion] = "frame_badge_completion",
+                [NotificationImageSlot.FrameBackground] = "frame_background"
             };
 
         // Null omitted (null == "use default" for these fields), but NOT DefaultValueHandling.Ignore:
@@ -174,8 +175,8 @@ namespace PlayniteAchievements.Services.Notifications
         }
 
         /// <summary>
-        /// Writes only the given surface of the style (plus the toast-only background image for
-        /// the toast surface) to a surface package (<c>.panotif</c>/<c>.paframe</c>, or a preset file). The other surface is left at factory defaults and flagged absent
+        /// Writes only the given surface of the style (plus that surface's background image)
+        /// to a surface package (<c>.panotif</c>/<c>.paframe</c>, or a preset file). The other surface is left at factory defaults and flagged absent
         /// in the manifest, so import replaces only the carried surface.
         /// </summary>
         public void ExportSurfacePackage(
@@ -254,6 +255,7 @@ namespace PlayniteAchievements.Services.Notifications
             if (isFrame)
             {
                 target.Frame = source.Frame;
+                target.FrameBackgroundImagePath = source.FrameBackgroundImagePath;
                 return;
             }
 
@@ -262,8 +264,8 @@ namespace PlayniteAchievements.Services.Notifications
         }
 
         /// <summary>
-        /// A copy of the style holding only the requested surface (and, for the toast, its
-        /// background path), with no kind styles of its own.
+        /// A copy of the style holding only the requested surface and that surface's background
+        /// path, with no kind styles of its own.
         /// </summary>
         private static NotificationStyleSettings PruneToSurface(
             NotificationStyleSettings style,
@@ -273,6 +275,7 @@ namespace PlayniteAchievements.Services.Notifications
             if (isFrame)
             {
                 pruned.Frame = style.Frame.Clone();
+                pruned.FrameBackgroundImagePath = style.FrameBackgroundImagePath;
             }
             else
             {

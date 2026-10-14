@@ -19,6 +19,7 @@ namespace PlayniteAchievements.Models.Settings
         private NotificationSurfaceStyle _toast;
         private NotificationSurfaceStyle _frame;
         private string _toastBackgroundImagePath;
+        private string _frameBackgroundImagePath;
         private Dictionary<string, NotificationStyleSettings> _kindStyles;
 
         /// <summary>
@@ -41,13 +42,24 @@ namespace PlayniteAchievements.Models.Settings
 
         /// <summary>
         /// Absolute path of a user-supplied toast background image in any format ImageFormats
-        /// recognizes, or null for the default surface brush. Applies to the toast only; frames
-        /// never get a background.
+        /// recognizes, or null for the default surface brush. Applies to the toast only; the frame
+        /// has its own <see cref="FrameBackgroundImagePath"/>.
         /// </summary>
         public string ToastBackgroundImagePath
         {
             get => _toastBackgroundImagePath;
             set => SetValue(ref _toastBackgroundImagePath, value);
+        }
+
+        /// <summary>
+        /// Absolute path of a user-supplied screenshot frame background image, or null. Drawn
+        /// stretched over the whole shot in place of the vignette when the frame surface's
+        /// <see cref="NotificationSurfaceStyle.FrameVignette"/> is <see cref="FrameVignetteStyle.Image"/>.
+        /// </summary>
+        public string FrameBackgroundImagePath
+        {
+            get => _frameBackgroundImagePath;
+            set => SetValue(ref _frameBackgroundImagePath, value);
         }
 
         /// <summary>
@@ -125,7 +137,8 @@ namespace PlayniteAchievements.Models.Settings
             {
                 Toast = Toast.Clone(),
                 Frame = Frame.Clone(),
-                ToastBackgroundImagePath = ToastBackgroundImagePath
+                ToastBackgroundImagePath = ToastBackgroundImagePath,
+                FrameBackgroundImagePath = FrameBackgroundImagePath
             };
 
             if (_kindStyles == null)
