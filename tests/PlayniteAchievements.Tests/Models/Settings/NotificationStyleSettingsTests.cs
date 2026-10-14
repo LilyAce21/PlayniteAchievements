@@ -194,6 +194,8 @@ namespace PlayniteAchievements.Tests.Models.Settings
                 NotificationLineEmphasis.Italic | NotificationLineEmphasis.Strikethrough;
             source.NotificationStyle.Frame.FrameVignetteStrength = 75;
             source.NotificationStyle.FrameBackgroundImagePath = @"C:\frame_background.png";
+            source.NotificationStyle.Toast.ImageKeyframeMs = 250;
+            source.NotificationStyle.Frame.ImageKeyframeMs = 400;
             var providerStyle = NotificationStyleSettings.CreateDefault();
             providerStyle.Toast.FontFamily = "Consolas";
             source.SetProviderNotificationStyle("Steam", providerStyle);
@@ -217,6 +219,8 @@ namespace PlayniteAchievements.Tests.Models.Settings
                     copy.NotificationStyle.Toast.RarityEmphasis);
                 Assert.AreEqual(75, copy.NotificationStyle.Frame.FrameVignetteStrength);
                 Assert.AreEqual(@"C:\frame_background.png", copy.NotificationStyle.FrameBackgroundImagePath);
+                Assert.AreEqual(250, copy.NotificationStyle.Toast.ImageKeyframeMs);
+                Assert.AreEqual(400, copy.NotificationStyle.Frame.ImageKeyframeMs);
                 CollectionAssert.AreEqual(
                     source.NotificationStyle.Toast.LineOrder,
                     copy.NotificationStyle.Toast.LineOrder);

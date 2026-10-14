@@ -167,6 +167,7 @@ namespace PlayniteAchievements.Services.Tests
                 style.Frame.HeaderTexts.UnlockHeader = "Frame header";
                 style.Frame.BadgeImages.CommonPath = frameCommonSource;
                 style.Frame.FrameVignette = FrameVignetteStyle.Image;
+                style.Frame.ImageKeyframeMs = 400;
                 style.FrameBackgroundImagePath = frameBackgroundSource;
                 style.ToastBackgroundImagePath = toastBackgroundSource;
                 style.Toast.ShowHeader = false;
@@ -204,6 +205,7 @@ namespace PlayniteAchievements.Services.Tests
                 Assert.AreEqual("Frame header", imported.Frame.HeaderTexts.UnlockHeader);
                 AssertScratchFile(ScratchOf(tempDir), imported.Frame.BadgeImages.CommonPath, "frame-common-bytes");
                 Assert.AreEqual(FrameVignetteStyle.Image, imported.Frame.FrameVignette);
+                Assert.AreEqual(400, imported.Frame.ImageKeyframeMs);
                 AssertScratchFile(ScratchOf(tempDir), imported.FrameBackgroundImagePath, "frame-background-bytes");
                 Assert.IsNull(imported.ToastBackgroundImagePath, "the toast background stays out of a frame package");
             }
@@ -535,6 +537,7 @@ namespace PlayniteAchievements.Services.Tests
 
                 var style = NotificationStyleSettings.CreateDefault();
                 style.Toast.HeaderTexts.UnlockHeader = "Preview header";
+                style.Toast.ImageKeyframeMs = 250;
                 style.ToastBackgroundImagePath = backgroundSource;
                 style.FrameBackgroundImagePath = capstoneBadge;
                 var capstone = style.EnableKindStyle(NotificationKind.Capstone);
@@ -548,6 +551,7 @@ namespace PlayniteAchievements.Services.Tests
                 var preview = store.ReadForPreview(packagePath, scratch);
 
                 Assert.AreEqual("Preview header", preview.Style.Toast.HeaderTexts.UnlockHeader);
+                Assert.AreEqual(250, preview.Style.Toast.ImageKeyframeMs);
                 AssertScratchFile(scratch, preview.Style.ToastBackgroundImagePath, "background-bytes");
                 Assert.IsNull(preview.Style.Toast.BadgeImages.CommonPath, "a slot with no bundled image stays empty");
                 Assert.IsNull(preview.Style.FrameBackgroundImagePath, "the frame background stays out of a notification package");
