@@ -508,13 +508,21 @@
 
             <DockPanel LastChildFill="True">
                 <DockPanel Style="{StaticResource ScoreCardBadgeColumnStyle}">
-                    <!-- The completed-game badge marks mastery, as it marks the Master tier. -->
-                    <StackPanel DockPanel.Dock="Bottom" Style="{StaticResource ScoreCardMasteryLineStyle}">
+                    <!-- The completed-game badge marks mastery, as it marks the Master tier. The
+                     line hangs below the badge; a spacer of the same height above keeps the badge
+                     centered in the card, so a mastery count never lifts it. -->
+                    <StackPanel x:Name="MasteryLine"
+                                DockPanel.Dock="Bottom"
+                                Style="{StaticResource ScoreCardMasteryLineStyle}">
                         <Image Source="{Binding MasteryIconKey, Converter={StaticResource ResourceKeyToImage}}"
                                Style="{StaticResource ScoreCardMasteryIconStyle}"/>
                         <TextBlock Text="{Binding MasteryText}"
                                    Style="{StaticResource ScoreCardMasteryTextStyle}"/>
                     </StackPanel>
+                    <Border DockPanel.Dock="Top"
+                            Height="{Binding ActualHeight, ElementName=MasteryLine}"
+                            Margin="{Binding Margin, ElementName=MasteryLine}"
+                            Visibility="{Binding Visibility, ElementName=MasteryLine}"/>
 
                     <Image Source="{Binding BadgeIconKey, Converter={StaticResource ResourceKeyToImage}}"
                            Style="{StaticResource ScoreCardBadgeStyle}"/>
@@ -524,14 +532,13 @@
                        Style="{StaticResource ScoreCardPlatformIconStyle}"/>
 
                 <Grid x:Name="TextColumn">
-                    <!-- Compact cards are only two rows high; center them against the badge column
-                         so any extra height from the badge or mastery line is not left below the bar. -->
+                    <!-- Centered against the badge column, so the text and the badge share a
+                         center line and any extra height from the badge or mastery line splits
+                         evenly above and below. -->
                     <Grid.Style>
                         <Style TargetType="Grid">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Compact, ElementName=Root}" Value="True">
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                </DataTrigger>
                                 <DataTrigger Binding="{Binding BadgeOnly, ElementName=Root}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
