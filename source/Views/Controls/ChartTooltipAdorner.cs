@@ -12,7 +12,7 @@ namespace PlayniteAchievements.Views.Controls
     /// </summary>
     internal sealed class ChartTooltipAdorner : Adorner
     {
-        private readonly UIElement _tooltip;
+        private UIElement _tooltip;
         private System.Func<Size, Point> _placement;
 
         public ChartTooltipAdorner(UIElement adornedElement, UIElement tooltip)
@@ -21,6 +21,21 @@ namespace PlayniteAchievements.Views.Controls
             _tooltip = tooltip;
             AddVisualChild(tooltip);
             IsHitTestVisible = false;
+        }
+
+        /// <summary>
+        /// Gives the tooltip up so a new adorner can take it: a visual has one parent, and this
+        /// adorner stays the tooltip's parent after it leaves the adorner layer.
+        /// </summary>
+        public void ReleaseTooltip()
+        {
+            if (_tooltip == null)
+            {
+                return;
+            }
+
+            RemoveVisualChild(_tooltip);
+            _tooltip = null;
         }
 
         /// <summary>
@@ -34,18 +49,23 @@ namespace PlayniteAchievements.Views.Controls
             InvalidateArrange();
         }
 
-        protected override int VisualChildrenCount => 1;
+        protected override int VisualChildrenCount => _tooltip == null ? 0 : 1;
 
         protected override Visual GetVisualChild(int index) => _tooltip;
 
         protected override Size MeasureOverride(Size constraint)
         {
-            _tooltip.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            _tooltip?.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             return AdornedElement.RenderSize;
         }
 
         protected override Size ArrangeOverride(Size finalSize)
         {
+            if (_tooltip == null)
+            {
+                return finalSize;
+            }
+
             var size = _tooltip.DesiredSize;
             _tooltip.Arrange(new Rect(_placement?.Invoke(size) ?? default(Point), size));
             return finalSize;
