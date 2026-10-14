@@ -6,6 +6,7 @@ using Playnite.SDK;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Achievements.Scoring;
+using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.Overview;
 using PlayniteAchievements.ViewModels.Items;
@@ -48,6 +49,7 @@ namespace PlayniteAchievements.ViewModels
         private double _levelProgress;
         private string _rank = DefaultRank;
         private bool _useUniformRarityBadges;
+        private bool _useCustomColors;
         private AchievementLevelSnapshot _snapshot;
         private ScoreCardType _scoreType;
 
@@ -77,6 +79,12 @@ namespace PlayniteAchievements.ViewModels
         public string Rank => _rank;
 
         public bool UseUniformRarityBadges => _useUniformRarityBadges;
+
+        /// <summary>
+        /// True to draw the badge and accents in the configured rarity colors; false (the default)
+        /// for the shipped colors.
+        /// </summary>
+        public bool UseCustomColors => _useCustomColors;
 
         /// <summary>
         /// One cell per level of the current rank: completed levels solid, the level in progress
@@ -195,7 +203,10 @@ namespace PlayniteAchievements.ViewModels
 
         public string BadgeIconKey => AchievementRankPresentation.GetScoreCardBadgeIconKey(
             Rank,
-            UseUniformRarityBadges);
+            UseUniformRarityBadges,
+            UseCustomColors);
+
+        public string MasteryIconKey => AchievementRankPresentation.GetScoreCardMasteryIconKey(UseCustomColors);
 
         public Brush AccentBrush => _accentBrush;
 
@@ -309,7 +320,26 @@ namespace PlayniteAchievements.ViewModels
                 OnPropertyChanged(nameof(UseUniformRarityBadges));
             }
 
+            RefreshColors();
+        }
+
+        /// <summary>Switches the card between the configured and the shipped rarity colors.</summary>
+        public void SetUseCustomColors(bool useCustomColors)
+        {
+            if (_useCustomColors == useCustomColors)
+            {
+                return;
+            }
+
+            _useCustomColors = useCustomColors;
+            OnPropertyChanged(nameof(UseCustomColors));
+            RefreshColors();
+        }
+
+        private void RefreshColors()
+        {
             OnPropertyChanged(nameof(BadgeIconKey));
+            OnPropertyChanged(nameof(MasteryIconKey));
             ResolveAccentBrushes();
             UpdateSegments();
             OnPropertyChanged(nameof(AccentBrush));
@@ -317,6 +347,9 @@ namespace PlayniteAchievements.ViewModels
             OnPropertyChanged(nameof(AccentBackgroundBrush));
             OnPropertyChanged(nameof(AccentTrackBrush));
         }
+
+        /// <summary>The settings the colors resolve from: null for the configured ones.</summary>
+        private PersistedSettings ColorSettings => _useCustomColors ? null : RarityAppearanceHelper.ShippedAppearance;
 
         /// <summary>
         /// Resizes the bar to the current rank's level span and repaints each cell. The collection
@@ -345,8 +378,8 @@ namespace PlayniteAchievements.ViewModels
 
             // Master ranks sweep the completed gradient across the bar, one solid step per cell.
             var isMaster = !IsPoints && AchievementRankPresentation.IsMasterRank(Rank);
-            var sweepStart = isMaster ? RarityAppearanceHelper.GetCompletedStartColor() : default(Color);
-            var sweepEnd = isMaster ? RarityAppearanceHelper.GetCompletedEndColor() : default(Color);
+            var sweepStart = isMaster ? RarityAppearanceHelper.GetCompletedStartColor(ColorSettings) : default(Color);
+            var sweepEnd = isMaster ? RarityAppearanceHelper.GetCompletedEndColor(ColorSettings) : default(Color);
 
             for (var i = 0; i < count; i++)
             {
@@ -571,7 +604,10 @@ namespace PlayniteAchievements.ViewModels
 
         private void ResolveAccentBrushes()
         {
-            var accent = IsPoints ? GetPointsAccentColor(PointsFraction >= 1d) : GetAccentColor(Rank);
+            var colorSettings = ColorSettings;
+            var accent = IsPoints
+                ? GetPointsAccentColor(PointsFraction >= 1d, colorSettings)
+                : GetAccentColor(Rank, colorSettings);
             _accentBrush = CreateFrozenBrush(accent);
             _accentBackgroundBrush = CreateFrozenBrush(WithAlpha(accent, BackgroundAlpha));
             _accentTrackBrush = CreateFrozenBrush(WithAlpha(accent, TrackAlpha));
@@ -579,7 +615,8 @@ namespace PlayniteAchievements.ViewModels
             _nextTierAccentBrush = IsPoints
                 ? _accentBrush
                 : CreateFrozenBrush(GetAccentColor(
-                    string.IsNullOrWhiteSpace(_snapshot?.NextRank) ? Rank : _snapshot.NextRank));
+                    string.IsNullOrWhiteSpace(_snapshot?.NextRank) ? Rank : _snapshot.NextRank,
+                    colorSettings));
         }
 
         /// <summary>Points earned out of total, 0 to 1; 0 when the card's games hold no points.</summary>
@@ -590,27 +627,27 @@ namespace PlayniteAchievements.ViewModels
         /// progress fill (the theme accent) while points remain, and the completed-game color once
         /// every point is earned.
         /// </summary>
-        private static Color GetPointsAccentColor(bool complete)
+        private static Color GetPointsAccentColor(bool complete, PersistedSettings colorSettings)
         {
             if (complete)
             {
-                return RarityAppearanceHelper.GetCompletedColor();
+                return RarityAppearanceHelper.GetCompletedColor(colorSettings);
             }
 
             return Application.Current?.TryFindResource("PlayAch.Brush.Progress.Fill") is SolidColorBrush fill
                 ? fill.Color
-                : RarityAppearanceHelper.GetBaseColor(RarityTier.Common);
+                : RarityAppearanceHelper.GetBaseColor(RarityTier.Common, colorSettings);
         }
 
         /// <summary>
         /// The rank's color from the badge color settings: the completed-game color for Master
         /// ranks, which wear the completed badge, and the rank's rarity tier color otherwise.
         /// </summary>
-        private static Color GetAccentColor(string rank)
+        private static Color GetAccentColor(string rank, PersistedSettings colorSettings)
         {
             return AchievementRankPresentation.IsMasterRank(rank)
-                ? RarityAppearanceHelper.GetCompletedColor()
-                : RarityAppearanceHelper.GetBaseColor(AchievementRankPresentation.GetRarityTier(rank));
+                ? RarityAppearanceHelper.GetCompletedColor(colorSettings)
+                : RarityAppearanceHelper.GetBaseColor(AchievementRankPresentation.GetRarityTier(rank), colorSettings);
         }
 
         private static Color WithAlpha(Color color, byte alpha)
