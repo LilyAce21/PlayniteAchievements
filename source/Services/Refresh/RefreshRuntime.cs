@@ -1583,6 +1583,8 @@ namespace PlayniteAchievements.Services.Refresh
                 _logger?.Debug(ex, "Failed to backfill provider key on refreshed game data.");
             }
 
+            data.RaritySource = RaritySourceResolver.ResolveRefreshed(data.RaritySource, data.Achievements);
+
             var key = data.PlayniteGameId.Value.ToString();
 
             GameAchievementData previous = null;
