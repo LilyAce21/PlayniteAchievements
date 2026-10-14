@@ -81,6 +81,8 @@ namespace PlayniteAchievements.ViewModels.Settings
 
             _persistDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _persistDebounceTimer.Tick += OnPersistDebounceTimerTick;
+            _keyframeCommitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(KeyframeCommitDelayMs) };
+            _keyframeCommitTimer.Tick += OnKeyframeCommitTimerTick;
 
             // The frame never renders progress notifications, so its editor has no progress row;
             // the token still lives in the frame's stored order (one canonical order).
@@ -763,9 +765,16 @@ namespace PlayniteAchievements.ViewModels.Settings
         private static readonly string PlayGlyph = char.ConvertFromUtf32(0xEC74);
         private static readonly string PauseGlyph = char.ConvertFromUtf32(0xEC72);
 
+        // A slider drag only moves the readout; the value reaches the style (and the previews,
+        // which decode a still per image for it) once the slider rests this long.
+        private const int KeyframeCommitDelayMs = 150;
+
+        private readonly DispatcherTimer _keyframeCommitTimer;
         private string _imageKeyframeText;
         private int _imageKeyframeMaxMs;
         private bool _isKeyframePreviewPaused;
+        private int? _pendingKeyframeMs;
+        private bool _hasPendingKeyframe;
 
         /// <summary>
         /// Raised when the toast preview switches between animating and holding its images at
@@ -788,22 +797,61 @@ namespace PlayniteAchievements.ViewModels.Settings
                     return;
                 }
 
-                var surface = Surface;
-                if (surface != null && _isEditable)
-                {
-                    surface.ImageKeyframeMs = ParseKeyframe(value);
-                    SetKeyframePreviewPaused(true);
-                }
-
-                OnPropertyChanged(nameof(ImageKeyframeSlider));
+                // A typed value commits at once and supersedes a drag still settling.
+                _keyframeCommitTimer.Stop();
+                _pendingKeyframeMs = ParseKeyframe(value);
+                _hasPendingKeyframe = true;
+                CommitPendingKeyframe();
             }
         }
 
+        /// <summary>
+        /// Slider companion: dragging updates the readout and pauses the preview at once, and
+        /// commits the value after <see cref="KeyframeCommitDelayMs"/> without movement.
+        /// </summary>
         public double ImageKeyframeSlider
         {
-            get => Surface?.ImageKeyframeMs ?? 0;
-            set => ImageKeyframeText = Math.Round(Math.Max(0, Math.Min(_imageKeyframeMaxMs, value)))
-                .ToString(CultureInfo.CurrentCulture);
+            get => _hasPendingKeyframe ? _pendingKeyframeMs ?? 0 : Surface?.ImageKeyframeMs ?? 0;
+            set
+            {
+                if (Surface == null || !_isEditable)
+                {
+                    return;
+                }
+
+                var ms = (int)Math.Round(Math.Max(0, Math.Min(_imageKeyframeMaxMs, value)));
+                _pendingKeyframeMs = ms;
+                _hasPendingKeyframe = true;
+                SetValue(ref _imageKeyframeText, ms.ToString(CultureInfo.CurrentCulture), nameof(ImageKeyframeText));
+                SetKeyframePreviewPaused(true);
+                _keyframeCommitTimer.Stop();
+                _keyframeCommitTimer.Start();
+            }
+        }
+
+        private void OnKeyframeCommitTimerTick(object sender, EventArgs e)
+        {
+            _keyframeCommitTimer.Stop();
+            CommitPendingKeyframe();
+        }
+
+        private void CommitPendingKeyframe()
+        {
+            _keyframeCommitTimer.Stop();
+            if (!_hasPendingKeyframe)
+            {
+                return;
+            }
+
+            _hasPendingKeyframe = false;
+            var surface = Surface;
+            if (surface != null && _isEditable)
+            {
+                surface.ImageKeyframeMs = _pendingKeyframeMs;
+                SetKeyframePreviewPaused(true);
+            }
+
+            OnPropertyChanged(nameof(ImageKeyframeSlider));
         }
 
         /// <summary>The longest loop among this surface's animated slot images, in milliseconds.</summary>
@@ -2436,6 +2484,8 @@ namespace PlayniteAchievements.ViewModels.Settings
         /// </summary>
         public void FlushPendingPersist()
         {
+            // A keyframe still settling from a slider drag belongs to the style being left.
+            CommitPendingKeyframe();
             _persistDebounceTimer.Stop();
             if (!_hasPendingPersist)
             {
@@ -2481,6 +2531,7 @@ namespace PlayniteAchievements.ViewModels.Settings
         {
             FlushPendingPersist();
             _persistDebounceTimer.Tick -= OnPersistDebounceTimerTick;
+            _keyframeCommitTimer.Tick -= OnKeyframeCommitTimerTick;
             Unsubscribe();
         }
 
