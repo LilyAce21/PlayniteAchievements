@@ -235,6 +235,15 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// </summary>
         private List<MinecraftResourceSource> LoadSources(MinecraftInstance instance, IReadOnlyCollection<string> locales, CancellationToken cancel)
         {
+            return LoadSources(instance, locales, _logger, cancel);
+        }
+
+        internal static List<MinecraftResourceSource> LoadSources(
+            MinecraftInstance instance,
+            IReadOnlyCollection<string> locales,
+            ILogger logger,
+            CancellationToken cancel)
+        {
             var paths = new List<string>();
             var gameJar = MinecraftPaths.FindGameJar(instance.GameFolder);
             if (gameJar != null)
@@ -257,7 +266,7 @@ namespace PlayniteAchievements.Providers.Minecraft
             foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 cancel.ThrowIfCancellationRequested();
-                var loaded = MinecraftResourceSource.Load(path, locales, _logger);
+                var loaded = MinecraftResourceSource.Load(path, locales, logger);
                 if (loaded != null)
                 {
                     sources.Add(loaded);
@@ -265,6 +274,37 @@ namespace PlayniteAchievements.Providers.Minecraft
             }
 
             return sources;
+        }
+
+        /// <summary>
+        /// Advancement ids by display title for one instance, built from its definitions as a
+        /// refresh would, for live tracking of an instance the cache has no rows for yet.
+        /// </summary>
+        internal static Dictionary<string, List<string>> BuildTitleIndex(MinecraftInstance instance, string globalLanguage, ILogger logger)
+        {
+            var locale = MinecraftPaths.MapGlobalLanguageToLocale(globalLanguage);
+            var locales = new[] { MinecraftAdvancementCatalog.DefaultLocale, locale }.Distinct().ToList();
+            var sources = LoadSources(instance, locales, logger, CancellationToken.None);
+            var assetLanguage = MinecraftPaths.FindAssetLanguage(new[] { instance.GameFolder }, locale);
+            var catalog = MinecraftAdvancementCatalog.Build(
+                sources,
+                assetLanguage == null ? null : new[] { assetLanguage },
+                locale);
+
+            var index = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var advancement in catalog.Values)
+            {
+                var title = (string.IsNullOrWhiteSpace(advancement.Title) ? advancement.Id : advancement.Title).Trim();
+                if (!index.TryGetValue(title, out var ids))
+                {
+                    ids = new List<string>();
+                    index[title] = ids;
+                }
+
+                ids.Add(advancement.Id);
+            }
+
+            return index;
         }
 
         /// <summary>
