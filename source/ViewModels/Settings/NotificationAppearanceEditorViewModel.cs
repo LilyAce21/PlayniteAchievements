@@ -1284,11 +1284,11 @@ namespace PlayniteAchievements.ViewModels.Settings
             !IsFrameSurface && !string.IsNullOrWhiteSpace(_style?.ToastBackgroundImagePath);
 
         /// <summary>
-        /// Whether the background image card shows: always for the toast; for the frame only
-        /// while its vignette is set to the background image.
+        /// Whether the frame's background picker shows under the Vignette dropdown: only on the
+        /// frame, while its vignette is set to the background image.
         /// </summary>
-        public bool ShowBackgroundImageCard =>
-            !IsFrameSurface || Surface?.FrameVignette == FrameVignetteStyle.Image;
+        public bool ShowFrameBackgroundPicker =>
+            IsFrameSurface && Surface?.FrameVignette == FrameVignetteStyle.Image;
 
         /// <summary>
         /// Cache-busted source for the editor's background thumbnail (this surface's own image).
@@ -2025,7 +2025,7 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(SelectedGlowDisplay));
             OnPropertyChanged(nameof(SelectedFrameVignette));
             OnPropertyChanged(nameof(ShowFrameVignetteStrength));
-            OnPropertyChanged(nameof(ShowBackgroundImageCard));
+            OnPropertyChanged(nameof(ShowFrameBackgroundPicker));
             NotifyMotionOptions();
             OnPropertyChanged(nameof(CountdownBarColorText));
             OnPropertyChanged(nameof(CountdownBarSwatch));
@@ -2082,7 +2082,7 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(SelectedGlowDisplay));
             OnPropertyChanged(nameof(SelectedFrameVignette));
             OnPropertyChanged(nameof(ShowFrameVignetteStrength));
-            OnPropertyChanged(nameof(ShowBackgroundImageCard));
+            OnPropertyChanged(nameof(ShowFrameBackgroundPicker));
             NotifyMotionOptions();
             OnPropertyChanged(nameof(CountdownBarColorText));
             OnPropertyChanged(nameof(CountdownBarSwatch));
@@ -2239,7 +2239,7 @@ namespace PlayniteAchievements.ViewModels.Settings
             {
                 OnPropertyChanged(nameof(SelectedFrameVignette));
                 OnPropertyChanged(nameof(ShowFrameVignetteStrength));
-                OnPropertyChanged(nameof(ShowBackgroundImageCard));
+                OnPropertyChanged(nameof(ShowFrameBackgroundPicker));
             }
             else if (e.PropertyName == nameof(NotificationSurfaceStyle.EntranceMotion) ||
                      e.PropertyName == nameof(NotificationSurfaceStyle.ExitMotion) ||
