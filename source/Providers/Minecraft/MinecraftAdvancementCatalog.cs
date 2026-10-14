@@ -117,7 +117,7 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// <summary>
         /// Lookup order: the requested locale, then en_us, highest-priority source first.
         /// </summary>
-        private static Func<string, string> BuildTranslations(
+        internal static Func<string, string> BuildTranslations(
             IReadOnlyList<MinecraftResourceSource> sources,
             IEnumerable<IReadOnlyDictionary<string, string>> extraLanguageTables,
             string locale)
