@@ -282,58 +282,122 @@ namespace PlayniteAchievements.Providers.Tests
         }
 
         [TestMethod]
-        public void LogParseLine_MatchesAnnouncementsForThePlayer()
+        public void LogParseAnnouncement_CountsOnlyTheIntegratedServersLineForThePlayer()
         {
-            var titles = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Stone Age"] = new List<string> { "pack|minecraft:story/mine_stone" },
-                ["Shared"] = new List<string> { "pack|a:x", "pack|b:y" }
-            };
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Steve" };
             var now = new DateTime(2026, 10, 14, 21, 0, 0, DateTimeKind.Local);
 
-            var vanilla = MinecraftLogWatcher.ParseLine("[20:33:08] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]", names, titles, now);
-            Assert.AreEqual("pack|minecraft:story/mine_stone", vanilla.Value.ApiName);
+            var vanilla = MinecraftLogWatcher.ParseAnnouncement("[20:33:08] [Server thread/INFO]: System chat: Steve has made the advancement [Stone Age]", names, now);
+            Assert.AreEqual("Stone Age", vanilla.Value.Title);
             Assert.AreEqual(new DateTime(2026, 10, 14, 20, 33, 8, DateTimeKind.Local).ToUniversalTime(), vanilla.Value.UnlockTimeUtc);
 
-            var forge = MinecraftLogWatcher.ParseLine("[14Oct2026 20:40:01.067] [Server thread/INFO] [minecraft/MinecraftServer]: Steve has reached the goal [Stone Age]", names, titles, now);
-            Assert.IsNotNull(forge);
+            Assert.IsNotNull(MinecraftLogWatcher.ParseAnnouncement("[14Oct2026 20:40:01.067] [Server thread/INFO] [minecraft/MinecraftServer]: Steve has reached the goal [Stone Age]", names, now));
+            Assert.IsNotNull(MinecraftLogWatcher.ParseAnnouncement("[20:40:01] [Server thread/INFO]: Steve has completed the challenge [Stone Age]", names, now));
 
-            Assert.IsNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] Alex has made the advancement [Stone Age]", names, titles, now));
-            Assert.IsNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] Steve has completed the challenge [Shared]", names, titles, now));
-            Assert.IsNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] <Steve> has made the advancement [Stone Age] lol", names, titles, now));
+            // The client's copy, which is all a LAN guest or a server player's log has, never counts.
+            Assert.IsNull(MinecraftLogWatcher.ParseAnnouncement("[20:33:08] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]", names, now));
+
+            // Another player on a world this PC hosts.
+            Assert.IsNull(MinecraftLogWatcher.ParseAnnouncement("[20:33:18] [Server thread/INFO]: System chat: Alex has made the advancement [Stone Age]", names, now));
+            Assert.IsNull(MinecraftLogWatcher.ParseAnnouncement("[20:33:18] [Server thread/INFO]: <Steve> has made the advancement [Stone Age] lol", names, now));
 
             // No known names (offline account): every player's announcement counts.
-            Assert.IsNotNull(MinecraftLogWatcher.ParseLine("[20:33:18] [Render thread/INFO]: [System] [CHAT] Alex has made the advancement [Stone Age]", new HashSet<string>(), titles, now));
+            Assert.IsNotNull(MinecraftLogWatcher.ParseAnnouncement("[20:33:18] [Server thread/INFO]: System chat: Alex has made the advancement [Stone Age]", new HashSet<string>(), now));
 
             // A time later than now belongs to the previous day.
-            var lateNight = MinecraftLogWatcher.ParseLine("[23:59:50] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]", names, titles, new DateTime(2026, 10, 15, 0, 0, 30, DateTimeKind.Local));
+            var lateNight = MinecraftLogWatcher.ParseAnnouncement("[23:59:50] [Server thread/INFO]: System chat: Steve has made the advancement [Stone Age]", names, new DateTime(2026, 10, 15, 0, 0, 30, DateTimeKind.Local));
             Assert.AreEqual(new DateTime(2026, 10, 14, 23, 59, 50, DateTimeKind.Local).ToUniversalTime(), lateNight.Value.UnlockTimeUtc);
         }
 
         [TestMethod]
-        public void LogReadUnlocks_ReadsOnlyNewLinesAndRestartsAfterRotation()
+        public void LogResolveApiName_UsesCachedRowsThenDefinitions()
+        {
+            var target = MinecraftLogWatcher.CreateTarget(
+                "C:\\pack",
+                "pack",
+                new[] { ("pack|minecraft:story/mine_stone", "Stone Age"), ("pack|a:x", "Shared"), ("pack|b:y", "Shared") },
+                () => new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Acquire Hardware"] = new List<string> { "minecraft:story/smelt_iron" },
+                    ["Twice"] = new List<string> { "a:one", "b:two" }
+                },
+                worldFilter: null);
+
+            Assert.AreEqual("pack|minecraft:story/mine_stone", MinecraftLogWatcher.ResolveApiName(target, "Stone Age"));
+            Assert.IsNull(MinecraftLogWatcher.ResolveApiName(target, "Shared"));
+            Assert.AreEqual("pack|minecraft:story/smelt_iron", MinecraftLogWatcher.ResolveApiName(target, "Acquire Hardware"));
+            Assert.IsNull(MinecraftLogWatcher.ResolveApiName(target, "Twice"));
+            Assert.IsNull(MinecraftLogWatcher.ResolveApiName(target, "Unknown"));
+        }
+
+        [TestMethod]
+        public void LogReadUnlocks_ReadsNewLinesResendsSessionUnlocksAndReplaysThisSessionsLog()
         {
             var root = CreateTempDirectory();
             try
             {
                 var log = Path.Combine(root, "logs", "latest.log");
-                WriteText(log, "[10:00:00] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]\n");
-                var target = MinecraftLogWatcher.CreateTarget(root, new[] { ("pack|minecraft:story/mine_stone", "Stone Age"), ("pack|minecraft:story/smelt_iron", "Acquire Hardware") });
-                var state = new MinecraftLogState { Targets = { target } };
+                WriteText(log, "[10:00:00] [Server thread/INFO]: System chat: Steve has made the advancement [Stone Age]\n");
+                File.SetLastWriteTimeUtc(log, DateTime.UtcNow.AddHours(-2));
+                var rows = new[] { ("pack|minecraft:story/mine_stone", "Stone Age"), ("pack|minecraft:story/smelt_iron", "Acquire Hardware") };
+                var state = new MinecraftLogState { Targets = { MinecraftLogWatcher.CreateTarget(root, "pack", rows, null, null) } };
                 var now = DateTime.Now;
+                var sessionStart = DateTime.UtcNow.AddMinutes(-1);
 
-                // The previous session's line is not replayed.
-                Assert.AreEqual(0, MinecraftLogWatcher.ReadUnlocks(state, now).Count);
+                // A log left from an earlier session is not replayed.
+                Assert.AreEqual(0, MinecraftLogWatcher.ReadUnlocks(state, now, sessionStart).Count);
 
-                File.AppendAllText(log, "[10:01:00] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Acquire Hardware]\n[10:01:01] [Render thread/INFO]: partial");
-                var unlocks = MinecraftLogWatcher.ReadUnlocks(state, now);
-                Assert.AreEqual("pack|minecraft:story/smelt_iron", unlocks.Single().ApiName);
-                Assert.AreEqual(0, MinecraftLogWatcher.ReadUnlocks(state, now).Count);
+                File.AppendAllText(log,
+                    "[10:01:00] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]\n" +
+                    "[10:01:00] [Server thread/INFO]: System chat: Steve has made the advancement [Acquire Hardware]\n" +
+                    "[10:01:01] [Server thread/INFO]: partial");
+                Assert.AreEqual("pack|minecraft:story/smelt_iron", MinecraftLogWatcher.ReadUnlocks(state, now, sessionStart).Single().ApiName);
+
+                // Session unlocks are re-sent on every read.
+                Assert.AreEqual(1, MinecraftLogWatcher.ReadUnlocks(state, now, sessionStart).Count);
 
                 // The game rotates latest.log at launch: a shorter file is read from its start.
-                File.WriteAllText(log, "[11:00:00] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]\n");
-                Assert.AreEqual("pack|minecraft:story/mine_stone", MinecraftLogWatcher.ReadUnlocks(state, now).Single().ApiName);
+                File.WriteAllText(log, "[11:00:00] [Server thread/INFO]: System chat: Steve has made the advancement [Stone Age]\n");
+                Assert.AreEqual(2, MinecraftLogWatcher.ReadUnlocks(state, now, sessionStart).Count);
+
+                // A target added mid-session reads a log written this session from its start.
+                var late = new MinecraftLogState { Targets = { MinecraftLogWatcher.CreateTarget(root, "pack", rows, null, null) } };
+                Assert.AreEqual("pack|minecraft:story/mine_stone", MinecraftLogWatcher.ReadUnlocks(late, now, sessionStart).Single().ApiName);
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [TestMethod]
+        public void LogReadUnlocks_SingleWorldOverrideCountsOnlyWhileThatWorldIsOpen()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var worldA = Path.Combine(root, "saves", "A");
+                var worldB = Path.Combine(root, "saves", "B");
+                foreach (var world in new[] { worldA, worldB })
+                {
+                    WriteText(Path.Combine(world, "level.dat"), string.Empty);
+                    WriteText(Path.Combine(world, "session.lock"), string.Empty);
+                }
+
+                File.SetLastWriteTimeUtc(Path.Combine(worldA, "session.lock"), DateTime.UtcNow.AddMinutes(-30));
+                File.SetLastWriteTimeUtc(Path.Combine(worldB, "session.lock"), DateTime.UtcNow);
+
+                var log = Path.Combine(root, "logs", "latest.log");
+                WriteText(log, "[10:00:00] [Server thread/INFO]: System chat: Steve has made the advancement [Stone Age]\n");
+                var rows = new[] { ("pack|minecraft:story/mine_stone", "Stone Age") };
+                var sessionStart = DateTime.UtcNow.AddMinutes(-1);
+
+                // World B is open; an override naming world A ignores the line.
+                var overrideA = new MinecraftLogState { Targets = { MinecraftLogWatcher.CreateTarget(root, "pack", rows, null, worldA) } };
+                Assert.AreEqual(0, MinecraftLogWatcher.ReadUnlocks(overrideA, DateTime.Now, sessionStart).Count);
+
+                var overrideB = new MinecraftLogState { Targets = { MinecraftLogWatcher.CreateTarget(root, "pack", rows, null, worldB) } };
+                Assert.AreEqual(1, MinecraftLogWatcher.ReadUnlocks(overrideB, DateTime.Now, sessionStart).Count);
             }
             finally
             {
@@ -434,6 +498,40 @@ namespace PlayniteAchievements.Providers.Tests
                 StringAssert.EndsWith(MinecraftPaths.ExpandGameFolders(modrinth).Single(), "Pack C");
                 StringAssert.EndsWith(MinecraftPaths.ExpandGameFolders(carbon).Single(), "instance");
                 StringAssert.EndsWith(MinecraftPaths.ExpandGameFolders(Path.Combine(prism, "instances", "Pack A")).Single(), "minecraft");
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [TestMethod]
+        public void FromFolder_CountsAWorldBeforeItsFirstSaveOnlyWithItsOwnJar()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var gameFolder = CreateFixture(root);
+                foreach (var world in Directory.GetDirectories(Path.Combine(gameFolder, "saves")))
+                {
+                    foreach (var folder in new[] { Path.Combine(world, "advancements"), Path.Combine(world, "players") })
+                    {
+                        if (Directory.Exists(folder))
+                        {
+                            Directory.Delete(folder, recursive: true);
+                        }
+                    }
+                }
+
+                // mmc-pack.json names 1.21 and versions/1.21/1.21.jar exists: a new world counts.
+                var withJar = MinecraftGameResolver.FromFolder(root, "test");
+                Assert.AreEqual(1, withJar.Instances.Count);
+
+                // Without its own jar it waits for the first save, and is still watched as a candidate.
+                Directory.Delete(Path.Combine(gameFolder, "versions"), recursive: true);
+                var withoutJar = MinecraftGameResolver.FromFolder(root, "test");
+                Assert.AreEqual(0, withoutJar.Instances.Count);
+                Assert.AreEqual(1, withoutJar.Candidates.Count);
             }
             finally
             {
