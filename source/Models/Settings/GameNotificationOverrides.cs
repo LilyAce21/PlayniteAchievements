@@ -41,7 +41,6 @@ namespace PlayniteAchievements.Models.Settings
         private bool _enableFriendUnlockToasts;
         private bool _enableProgressToasts;
         private double _notificationDelaySeconds;
-        private ToastScreenCorner _toastPosition;
 
         public bool EnableNotifications
         {
@@ -73,12 +72,6 @@ namespace PlayniteAchievements.Models.Settings
             set => SetValue(ref _notificationDelaySeconds, Math.Max(0, value));
         }
 
-        public ToastScreenCorner ToastPosition
-        {
-            get => _toastPosition;
-            set => SetValue(ref _toastPosition, value);
-        }
-
         /// <summary>
         /// The values a game without its own snapshot resolves to: the globals, with the provider's
         /// stored toast switches in place of the global ones.
@@ -98,8 +91,7 @@ namespace PlayniteAchievements.Models.Settings
                 EnableUnlockToasts = provider?.UnlockToasts ?? settings.EnableUnlockToasts,
                 EnableFriendUnlockToasts = provider?.FriendUnlockToasts ?? settings.EnableFriendUnlockToasts,
                 EnableProgressToasts = provider?.ProgressToasts ?? settings.EnableProgressToasts,
-                NotificationDelaySeconds = settings.NotificationDelaySeconds,
-                ToastPosition = settings.ToastPosition
+                NotificationDelaySeconds = settings.NotificationDelaySeconds
             };
         }
 
@@ -111,8 +103,7 @@ namespace PlayniteAchievements.Models.Settings
                 EnableUnlockToasts = EnableUnlockToasts,
                 EnableFriendUnlockToasts = EnableFriendUnlockToasts,
                 EnableProgressToasts = EnableProgressToasts,
-                NotificationDelaySeconds = NotificationDelaySeconds,
-                ToastPosition = ToastPosition
+                NotificationDelaySeconds = NotificationDelaySeconds
             };
         }
     }
