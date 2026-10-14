@@ -171,7 +171,7 @@ namespace PlayniteAchievements.Providers.Manual
                 };
             }
 
-            _manualSourceRegistry.GetPostProcessorByKey(link.SourceKey)?.Invoke(link, achievements);
+            var raritySource = _manualSourceRegistry.GetPostProcessorByKey(link.SourceKey)?.Invoke(link, achievements);
 
             // Apply stored unlock state to each achievement via the shared resolver so the
             // manual-tracking window and this refresh path agree on flexible key matching.
@@ -186,6 +186,7 @@ namespace PlayniteAchievements.Providers.Manual
                 HasAchievements = true,
                 GameName = game.Name,
                 AppId = int.TryParse(link.SourceGameId, out var appId) ? appId : 0,
+                RaritySource = raritySource,
                 PlayniteGameId = game.Id,
                 Game = game,
                 Achievements = achievements
