@@ -53,7 +53,7 @@ namespace PlayniteAchievements.Tests.ViewModels
                 default(DateTime),
                 AchievementToastViewModel.ComputeNotifyReadyUtc(
                     new AchievementUnlockedEventArgs { ObservedUtc = observed },
-                    new PersistedSettings(),
+                    0,
                     enqueued),
                 "zero delay must not stamp a ready time");
 
@@ -61,11 +61,11 @@ namespace PlayniteAchievements.Tests.ViewModels
                 default(DateTime),
                 AchievementToastViewModel.ComputeNotifyReadyUtc(
                     new AchievementUnlockedEventArgs { ObservedUtc = observed },
-                    null,
+                    -1,
                     enqueued),
-                "null settings must not stamp a ready time");
+                "a negative delay must not stamp a ready time");
 
-            var delayed = new PersistedSettings { NotificationDelaySeconds = 5 };
+            var delayed = 5;
             Assert.AreEqual(
                 default(DateTime),
                 AchievementToastViewModel.ComputeNotifyReadyUtc(
@@ -98,7 +98,7 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             var readyAt = AchievementToastViewModel.ComputeNotifyReadyUtc(
                 new AchievementUnlockedEventArgs { ObservedUtc = observed },
-                new PersistedSettings { NotificationDelaySeconds = 5 },
+                5,
                 enqueued);
 
             Assert.AreEqual(observed.AddSeconds(5), readyAt);
@@ -112,7 +112,7 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             var readyAt = AchievementToastViewModel.ComputeNotifyReadyUtc(
                 new AchievementUnlockedEventArgs { IsFriendUnlock = true },
-                new PersistedSettings { NotificationDelaySeconds = 3 },
+                3,
                 enqueued);
 
             Assert.AreEqual(enqueued.AddSeconds(3), readyAt);
@@ -125,7 +125,7 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             var readyAt = AchievementToastViewModel.ComputeNotifyReadyUtc(
                 new AchievementUnlockedEventArgs { ObservedUtc = localObserved },
-                new PersistedSettings { NotificationDelaySeconds = 2 },
+                2,
                 localObserved.ToUniversalTime());
 
             Assert.AreEqual(localObserved.ToUniversalTime().AddSeconds(2), readyAt);
