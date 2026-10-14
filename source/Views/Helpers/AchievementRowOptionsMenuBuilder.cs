@@ -570,7 +570,9 @@ namespace PlayniteAchievements.Views.Helpers
                 CurrentStore);
             var normalizedMap = CloneStringMap(map);
             normalizedMap[context.ApiName] = normalizedCategory;
-            CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, normalizedMap);
+            MaintainIfRescoped(
+                context.GameId,
+                CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, normalizedMap) == true);
             NotifySummaryRowsChanged(context.GameId);
             context.ApplyCategoryLabel(normalizedCategory);
             return true;
@@ -595,10 +597,26 @@ namespace PlayniteAchievements.Views.Helpers
                 return false;
             }
 
-            CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, categoryMap, typeMap);
+            MaintainIfRescoped(
+                context.GameId,
+                CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, categoryMap, typeMap) == true);
 
             NotifySummaryRowsChanged(context.GameId);
             return true;
+        }
+
+        /// <summary>
+        /// Brings a moved auto capstone's unlock into step with what it now stands for, since no
+        /// refresh follows a hand edit. Quiet: the user moved it, the game reported nothing.
+        /// </summary>
+        private static void MaintainIfRescoped(Guid gameId, bool rescoped)
+        {
+            if (rescoped)
+            {
+                PlayniteAchievementsPlugin.Instance?.AutoCapstoneMaintainer?.Maintain(
+                    gameId,
+                    announceUnlocks: false);
+            }
         }
 
         private static void SetFilterState(
