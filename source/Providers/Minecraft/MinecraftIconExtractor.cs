@@ -135,27 +135,35 @@ namespace PlayniteAchievements.Providers.Minecraft
             }
 
             var decoded = new Dictionary<string, MinecraftTexture>(StringComparer.OrdinalIgnoreCase);
-            var pixels = MinecraftBlockRenderer.Render(
-                model.Elements,
-                reference =>
+            (MinecraftTexture, bool)? Load(MinecraftBlockModelPart part, string reference)
+            {
+                var entry = MinecraftModelResolver.ResolveFaceTexture(part, reference);
+                if (entry == null)
                 {
-                    var entry = MinecraftModelResolver.ResolveFaceTexture(model, reference);
-                    if (entry == null)
-                    {
-                        return null;
-                    }
+                    return null;
+                }
 
-                    if (!decoded.TryGetValue(entry, out var texture))
-                    {
-                        var source = sources.LastOrDefault(candidate => candidate.Textures.Contains(entry));
-                        var bytes = source?.ReadBytes(entry);
-                        texture = bytes == null ? null : DecodeFirstFrame(bytes);
-                        decoded[entry] = texture;
-                    }
+                if (!decoded.TryGetValue(entry, out var texture))
+                {
+                    var source = sources.LastOrDefault(candidate => candidate.Textures.Contains(entry));
+                    var bytes = source?.ReadBytes(entry);
+                    texture = bytes == null ? null : DecodeFirstFrame(bytes);
+                    decoded[entry] = texture;
+                }
 
-                    var foliage = entry.Contains("leaves") || entry.Contains("vine") || entry.Contains("lily_pad");
-                    return texture == null ? ((MinecraftTexture, bool)?)null : (texture, foliage);
-                },
+                var foliage = entry.Contains("leaves") || entry.Contains("vine") || entry.Contains("lily_pad");
+                return texture == null ? ((MinecraftTexture, bool)?)null : (texture, foliage);
+            }
+
+            var pixels = MinecraftBlockRenderer.Render(
+                model.Parts
+                    .Select(part => new MinecraftRenderPart
+                    {
+                        Elements = part.Elements,
+                        Transformation = part.Transformation,
+                        ResolveTexture = reference => Load(part, reference)
+                    })
+                    .ToList(),
                 model.RotationX,
                 model.RotationY,
                 IconSize);
