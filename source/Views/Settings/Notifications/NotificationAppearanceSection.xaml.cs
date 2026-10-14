@@ -64,6 +64,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
         private bool _suppressCustomizeEvents;
         private bool _suppressThemeStylingEvents;
         private bool _suppressSelectionChanged;
+        private bool _suppressSurfaceTabEvents;
         private AchievementToastViewModel _toastPreviewViewModel;
         private ImageSource _lastToastBackgroundRenderSource;
 
@@ -160,13 +161,16 @@ namespace PlayniteAchievements.Views.Settings.Notifications
                 Logger = logger
             });
 
-            ApplySelection();
+            // Selected here rather than left to the TabControl, which would pick the first tab
+            // (Behavior, collapsed outside game mode). A game opens on its Behavior tab; Preselect
+            // still moves to a named surface. The ctor's own calls below cover this selection.
+            _suppressSurfaceTabEvents = true;
+            SurfaceTabs.SelectedItem = IsGameMode ? BehaviorTabItem : ToastTabItem;
+            _suppressSurfaceTabEvents = false;
 
-            // A game opens on its Behavior tab; Preselect still moves to a named surface.
-            if (IsGameMode)
-            {
-                SurfaceTabs.SelectedItem = BehaviorTabItem;
-            }
+            ApplyGameSettingsTab();
+            ApplyPreviewColumns();
+            ApplySelection();
 
             Loaded += (s, e) =>
             {
@@ -2167,7 +2171,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
         {
             // SelectionChanged bubbles up from ComboBoxes inside the tabs; only a tab switch
             // should swap the preset list.
-            if (!ReferenceEquals(e.OriginalSource, SurfaceTabs))
+            if (_suppressSurfaceTabEvents || !ReferenceEquals(e.OriginalSource, SurfaceTabs))
             {
                 return;
             }
