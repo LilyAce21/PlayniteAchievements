@@ -331,6 +331,33 @@ namespace PlayniteAchievements.Tests.Services
             Assert.IsFalse(derived.Unlocked);
         }
 
+        [TestMethod]
+        public void DeriveForCapstone_FinishedCategoryBesideUnfinishedUntypedOne_DependsOnScope()
+        {
+            // The reported shape: a capstone sitting in a finished "Base Game" next to an unfinished
+            // category the user drew up for DLC, with no group type to tell it apart. Standing for the
+            // whole game it waits on the DLC; standing for its category it is earned.
+            var achievements = new[]
+            {
+                Achievement("a", unlocked: true, category: "Base Game"),
+                Achievement("b", unlocked: true, category: "Base Game"),
+                Achievement("c", category: "DLC"),
+                Achievement("custom:auto-capstone", category: "Base Game")
+            };
+
+            var wholeGame = AutoCapstoneCalculator.DeriveForCapstone(
+                achievements,
+                "custom:auto-capstone",
+                isWholeGame: true);
+            var category = AutoCapstoneCalculator.DeriveForCapstone(
+                achievements,
+                "custom:auto-capstone",
+                isWholeGame: false);
+
+            Assert.IsFalse(wholeGame.Unlocked);
+            Assert.IsTrue(category.Unlocked);
+        }
+
         private static AchievementDetail Achievement(
             string apiName,
             bool unlocked = false,
