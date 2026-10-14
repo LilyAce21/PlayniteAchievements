@@ -240,6 +240,7 @@ namespace PlayniteAchievements.Providers.Vita3K
             {
                 ProviderKey = "Vita3K",
                 ProviderGameKey = source.NpCommId,
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game.Source?.Name,
                 GameName = game.Name,
                 PlayniteGameId = game.Id,
