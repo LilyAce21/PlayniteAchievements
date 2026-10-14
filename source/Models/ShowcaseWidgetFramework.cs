@@ -376,6 +376,7 @@ namespace PlayniteAchievements.Models
         private const string ScoreCard = "ScoreCard";
         private const string ScoreCardBadgePositionKey = "ScoreCardBadgePosition";
         private const string ScoreHistoryShown = "ScoreHistoryShown";
+        private const string ScoreCardUseCustomColors = "ScoreCardUseCustomColors";
         private const string IncludeLocked = "IncludeLocked";
         private const string SmallSliceMode = "SmallSliceMode";
         private const string ActivityScope = "ActivityScope";
@@ -592,6 +593,13 @@ namespace PlayniteAchievements.Models
 
         public static void SetScoreHistoryShown(ShowcaseWidgetInstanceSettings settings, bool value) =>
             settings?.SetOption(ScoreHistoryShown, value);
+
+        /// <summary>Whether the card uses the configured rarity colors; unset means the shipped ones.</summary>
+        public static bool GetScoreCardUseCustomColors(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ScoreCardUseCustomColors, false) ?? false;
+
+        public static void SetScoreCardUseCustomColors(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ScoreCardUseCustomColors, value);
 
         /// <summary>True for a Scores widget saved with the legacy Mode of Both and no card option.</summary>
         public static bool IsLegacyDualScores(ShowcaseWidgetInstanceSettings settings) =>
