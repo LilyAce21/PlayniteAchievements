@@ -508,6 +508,10 @@ namespace PlayniteAchievements.Views.Controls
         private PieChartTooltip _tooltip;
         private ChartTooltipAdorner _tooltipAdorner;
 
+        // The layer the adorner was added to. Unloaded can run after the chart has left the
+        // tree, when looking the layer up again finds none.
+        private System.Windows.Documents.AdornerLayer _tooltipLayer;
+
         /// <summary>How far LiveCharts sets a pie tooltip off the center toward the slice.</summary>
         private const double TooltipCenterOffset = 15.0;
 
@@ -521,9 +525,15 @@ namespace PlayniteAchievements.Views.Controls
             _tooltip = _tooltip ?? new PieChartTooltip();
             _tooltipAdorner = new ChartTooltipAdorner(PieHost, _tooltip) { Visibility = Visibility.Collapsed };
             layer.Add(_tooltipAdorner);
+            _tooltipLayer = layer;
             Chart.DataTooltip = null;
         }
 
+        /// <summary>
+        /// Removes the adorner and frees the tooltip, which the next Loaded hands to a new adorner:
+        /// a chart reloaded in place (switching back to the start page) would otherwise give a
+        /// tooltip that still has a parent to a second one, which WPF rejects.
+        /// </summary>
         private void DetachTooltip()
         {
             if (_tooltipAdorner == null)
@@ -531,8 +541,10 @@ namespace PlayniteAchievements.Views.Controls
                 return;
             }
 
-            System.Windows.Documents.AdornerLayer.GetAdornerLayer(PieHost)?.Remove(_tooltipAdorner);
+            _tooltipLayer?.Remove(_tooltipAdorner);
+            _tooltipAdorner.ReleaseTooltip();
             _tooltipAdorner = null;
+            _tooltipLayer = null;
         }
 
         /// <summary>
