@@ -1802,13 +1802,22 @@ namespace PlayniteAchievements.Services.Recording
             var hold = request.FramedSeconds.HasValue ? (double?)request.FramedSeconds.Value : null;
             var frameStart = videoLeadSeconds;
             var frameEnd = FramedClipTiming.EndSeconds(hold, frameStart, composition.EndSeconds);
+            // A frame with animated images plays them from its first moment; a still frame is
+            // converted once.
             var overlays = new List<IFrameOverlaySource>
             {
-                new FrameChromeOverlaySource(
-                    chrome,
-                    MediaFoundationOverlayReencoder.ToTicks(frameStart),
-                    MediaFoundationOverlayReencoder.ToTicks(frameEnd),
-                    hold),
+                track.FrameChromeAnimation != null
+                    ? (IFrameOverlaySource)new AnimatedFrameChromeOverlaySource(
+                        track.FrameChromeAnimation,
+                        chrome,
+                        MediaFoundationOverlayReencoder.ToTicks(frameStart),
+                        MediaFoundationOverlayReencoder.ToTicks(frameEnd),
+                        hold)
+                    : new FrameChromeOverlaySource(
+                        chrome,
+                        MediaFoundationOverlayReencoder.ToTicks(frameStart),
+                        MediaFoundationOverlayReencoder.ToTicks(frameEnd),
+                        hold),
             };
 
             var includesToast = FramedClipTiming.IncludesToast(hold, frameStart, composition.ToastStartSeconds);

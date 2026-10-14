@@ -51,6 +51,11 @@ namespace PlayniteAchievements.Services.Capture
         /// </summary>
         public Rectangle Region { get; }
 
+        /// <summary>The memory the converted overlay holds, for caches that bound several of them.</summary>
+        public long SizeInBytes =>
+            ((long)_lumaAlpha.Length + _lumaTerm.Length + _chromaAlpha.Length + _cbTerm.Length + _crTerm.Length) * sizeof(ushort) +
+            ((long)_lumaSpanStart.Length + _lumaSpanEnd.Length + _chromaSpanStart.Length + _chromaSpanEnd.Length) * sizeof(int);
+
         /// <summary>
         /// Converts <paramref name="pixels"/> (premultiplied BGRA, <paramref name="width"/> x
         /// <paramref name="height"/>) for frames of <paramref name="frameW"/> x

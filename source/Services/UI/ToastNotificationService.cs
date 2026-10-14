@@ -3420,13 +3420,51 @@ namespace PlayniteAchievements.Services.UI
 
                     var size = ResolutionCapMath.Apply(client.ClientW, client.ClientH, capHeight, evenDimensions: true);
                     var timer = System.Diagnostics.Stopwatch.StartNew();
-                    track.FrameChrome = _frameCompositor.RenderChrome(template, vm, size.Width, size.Height);
+
+                    // Animated frame images play in the clip from their first frame (the keyframe
+                    // is for screenshots), so the chrome is drawn over time during the export and
+                    // its first moment is the still it falls back to.
+                    var timelines = vm.FrameAnimationTimelines();
+                    if (timelines.Count > 0)
+                    {
+                        track.FrameChrome = RenderFrameChromeAt(template, vm, size.Width, size.Height, 0);
+                        track.FrameChromeAnimation = new FrameChromeAnimation(
+                            timelines,
+                            timeMs => dispatcher.Invoke(
+                                () => RenderFrameChromeAt(template, vm, size.Width, size.Height, timeMs),
+                                DispatcherPriority.Background,
+                                System.Threading.CancellationToken.None,
+                                TimeSpan.FromSeconds(30)));
+                    }
+                    else
+                    {
+                        track.FrameChrome = _frameCompositor.RenderChrome(template, vm, size.Width, size.Height);
+                    }
+
                     _logger?.Debug(
                         $"[Recording] Frame chrome for '{track.AchievementName}' at {size.Width}x{size.Height}: " +
                         $"{(track.FrameChrome != null ? "rendered" : "failed")} in {timer.ElapsedMilliseconds}ms.");
                 }
             }, DispatcherPriority.Background);
             await render.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Draws the frame's chrome <paramref name="timeMs"/> into a framed clip, with its
+        /// animated images at that point of their loops. UI thread.
+        /// </summary>
+        private FrameChromeImage RenderFrameChromeAt(
+            DataTemplate template, AchievementToastViewModel vm, int width, int height, long timeMs)
+        {
+            vm.FrameAnimationTimeMs = timeMs;
+            try
+            {
+                return _frameCompositor.RenderChrome(template, vm, width, height);
+            }
+            finally
+            {
+                vm.FrameAnimationTimeMs = null;
+            }
         }
 
         /// <summary>

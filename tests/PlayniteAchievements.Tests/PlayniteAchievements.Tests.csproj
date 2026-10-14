@@ -676,6 +676,7 @@
     <Compile Include="..\..\source\Services\Capture\ToastOverlayTrack.cs" Link="Source\Services\Capture\ToastOverlayTrack.cs" />
     <Compile Include="..\..\source\Services\Capture\OverlayBlitMath.cs" Link="Source\Services\Capture\OverlayBlitMath.cs" />
     <Compile Include="..\..\source\Services\Capture\FrameChromeImage.cs" Link="Source\Services\Capture\FrameChromeImage.cs" />
+    <Compile Include="..\..\source\Services\Capture\FrameChromeAnimation.cs" Link="Source\Services\Capture\FrameChromeAnimation.cs" />
     <Compile Include="..\..\source\Services\Capture\FramedClipTiming.cs" Link="Source\Services\Capture\FramedClipTiming.cs" />
     <Compile Include="..\..\source\Services\Capture\StaticNv12Overlay.cs" Link="Source\Services\Capture\StaticNv12Overlay.cs" />
     <Compile Include="..\..\source\Services\Capture\ToastOverlayExportMath.cs" Link="Source\Services\Capture\ToastOverlayExportMath.cs" />
