@@ -8,8 +8,8 @@ namespace PlayniteAchievements.Services.UI
     /// Resolves which unlock clip variants one unlock qualifies for: the provider's effective
     /// clip flags (see <see cref="ProviderNotificationPolicy"/>) ANDed with each variant's own
     /// rarity threshold. The clip counterpart of <see cref="UnlockScreenshotVariantPolicy"/>,
-    /// sharing its <see cref="ScreenshotVariants"/> flags. The EnableUnlockRecordings master
-    /// switch is ANDed in as well, so a None result means no clip at all.
+    /// sharing its <see cref="ScreenshotVariants"/> flags. The recordings master switch (the
+    /// game's own when it has capture settings) is ANDed in as well, so a None result means no clip at all.
     /// </summary>
     internal static class UnlockClipVariantPolicy
     {
@@ -21,21 +21,23 @@ namespace PlayniteAchievements.Services.UI
             RarityTier rarity,
             bool isCompletion,
             string providerKey,
-            PersistedSettings persisted)
+            PersistedSettings persisted,
+            GameCustomDataFile gameData = null)
         {
-            if (persisted?.EnableUnlockRecordings != true)
+            var effective = ProviderNotificationPolicy.Resolve(persisted, providerKey, gameData);
+            if (!effective.RecordingsEnabled)
             {
                 return ScreenshotVariants.None;
             }
 
-            var effective = ProviderNotificationPolicy.Resolve(persisted, providerKey);
+            var captures = effective.Captures;
             var variants = ScreenshotVariants.None;
 
             if (effective.RecordingClean && UnlockCaptureRarityFilter.ShouldCapture(
                     rarity,
                     isCompletion,
-                    persisted.UnlockRecordingCleanRarities,
-                    persisted.UnlockRecordingCleanAlwaysCaptureCompletion))
+                    captures.UnlockRecordingCleanRarities,
+                    captures.UnlockRecordingCleanAlwaysCaptureCompletion))
             {
                 variants |= ScreenshotVariants.Clean;
             }
@@ -45,8 +47,8 @@ namespace PlayniteAchievements.Services.UI
             if (effective.RecordingWithToast && UnlockCaptureRarityFilter.ShouldCapture(
                     rarity,
                     isCompletion,
-                    persisted.UnlockRecordingRarities,
-                    persisted.UnlockRecordingAlwaysCaptureCompletion))
+                    captures.UnlockRecordingRarities,
+                    captures.UnlockRecordingAlwaysCaptureCompletion))
             {
                 variants |= ScreenshotVariants.WithToast;
             }
@@ -54,8 +56,8 @@ namespace PlayniteAchievements.Services.UI
             if (effective.RecordingFramed && UnlockCaptureRarityFilter.ShouldCapture(
                     rarity,
                     isCompletion,
-                    persisted.UnlockRecordingFramedRarities,
-                    persisted.UnlockRecordingFramedAlwaysCaptureCompletion))
+                    captures.UnlockRecordingFramedRarities,
+                    captures.UnlockRecordingFramedAlwaysCaptureCompletion))
             {
                 variants |= ScreenshotVariants.Framed;
             }
@@ -68,7 +70,10 @@ namespace PlayniteAchievements.Services.UI
         /// the game-complete event and capstones count as completion unlocks, as in
         /// <see cref="UnlockCaptureRarityFilter"/>.
         /// </summary>
-        public static ScreenshotVariants Resolve(AchievementUnlockedEventArgs args, PersistedSettings persisted)
+        public static ScreenshotVariants Resolve(
+            AchievementUnlockedEventArgs args,
+            PersistedSettings persisted,
+            GameCustomDataFile gameData = null)
         {
             if (args == null)
             {
@@ -84,7 +89,8 @@ namespace PlayniteAchievements.Services.UI
                 rarity,
                 args.IsGameCompleted || args.IsCompletionAchievement || args.IsCapstone,
                 args.ProviderKey,
-                persisted);
+                persisted,
+                gameData);
         }
     }
 }
