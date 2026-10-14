@@ -9,40 +9,71 @@ using System.Text.RegularExpressions;
 namespace PlayniteAchievements.Providers.Minecraft
 {
     /// <summary>
-    /// One instance's <c>logs/latest.log</c> during a play session: where reading stopped and which
-    /// rows an announced title can mean.
+    /// One game folder's <c>logs/latest.log</c> during a play session: where reading stopped and how
+    /// an announced title maps to a row.
     /// </summary>
     internal sealed class MinecraftLogTarget
     {
         public string LogPath { get; set; }
 
-        /// <summary>Byte offset of the first unread line.</summary>
-        public long Offset { get; set; }
+        public string GameFolder { get; set; }
 
-        /// <summary>Row ids by display title (case-insensitive), within this instance only.</summary>
+        /// <summary>The instance key that prefixes this folder's row ids.</summary>
+        public string InstanceKey { get; set; }
+
+        /// <summary>
+        /// Byte offset of the first unread line; negative until the first read decides between the
+        /// log's start (written this session) and its end (left from an earlier session).
+        /// </summary>
+        public long Offset { get; set; } = -1;
+
+        /// <summary>Row ids by display title (case-insensitive), from the cached rows of this instance.</summary>
         public Dictionary<string, List<string>> ApiNamesByTitle { get; set; } =
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Advancement ids by title from the instance's own definitions, built on first need when a
+        /// title has no cached row (an instance or world the cache has not seen yet).
+        /// </summary>
+        public Lazy<Dictionary<string, List<string>>> DefinitionTitles { get; set; }
+
+        /// <summary>The only world whose unlocks count (a single-world override); null for every world.</summary>
+        public string WorldFilter { get; set; }
     }
 
     /// <summary>
-    /// Registration state for live tracking: the instances' logs and the player names whose
-    /// announcements count. An empty name set accepts every player, for offline-mode accounts the
-    /// launcher files do not name.
+    /// Registration state for live tracking: the watched logs, the player names whose
+    /// announcements count, and the unlocks seen this session. An empty name set accepts every
+    /// player, for offline-mode accounts the launcher files do not name.
     /// </summary>
     internal sealed class MinecraftLogState
     {
         public List<MinecraftLogTarget> Targets { get; set; } = new List<MinecraftLogTarget>();
 
         public HashSet<string> PlayerNames { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Every unlock announced this session, in order. Re-sent on each read: it costs nothing once
+        /// applied, and it lands an unlock whose row the cache gains only after a refresh, or one a
+        /// concurrent refresh write briefly reverted.
+        /// </summary>
+        public List<(string ApiName, DateTime? UnlockTimeUtc)> SessionUnlocks { get; } =
+            new List<(string ApiName, DateTime? UnlockTimeUtc)>();
     }
 
     /// <summary>
     /// Reads advancement announcements from the game log as they are written. The game saves
     /// advancement files only on pause, autosave and quit, but announces each unlock in chat at
-    /// once, and the chat line reaches latest.log immediately:
-    /// <c>[20:33:08] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]</c>.
-    /// Only English announcements are recognized, and advancements a mod or the
+    /// once, and the line reaches latest.log immediately.
+    /// <para>
+    /// Only the integrated server's own line counts:
+    /// <c>[17:10:04] [Server thread/INFO]: System chat: Steve has made the advancement [Stone Age]</c>.
+    /// It is written only when the world runs on this PC (single player, or hosting LAN), whose
+    /// saves the plugin reads. Joining a LAN world or a server logs only the client's
+    /// <c>[Render thread/INFO]: [System] [CHAT]</c> line, so those unlocks, kept on the host, never
+    /// count. Only English announcements are recognized; advancements a mod or the
     /// announceAdvancements game rule keep out of chat wait for the next save.
+    /// </para>
     /// </summary>
     internal static class MinecraftLogWatcher
     {
@@ -52,26 +83,32 @@ namespace PlayniteAchievements.Providers.Minecraft
             @"(?<player>[A-Za-z0-9_]{1,16}) has (?:made the advancement|reached the goal|completed the challenge) \[(?<title>.+)\]\s*$",
             RegexOptions.CultureInvariant);
 
+        // [Server thread/INFO] in vanilla, Fabric and Forge/NeoForge logs alike.
+        private const string ServerThreadMarker = "[Server thread/";
+
         // [20:33:08] in vanilla logs; [29Aug2025 12:13:01.067] in Forge/NeoForge logs.
         private static readonly Regex LeadingTime = new Regex(
             @"^\[(?:\d{2}[A-Za-z]{3}\d{4} )?(?<time>\d{2}:\d{2}:\d{2})",
             RegexOptions.CultureInvariant);
 
-        /// <summary>
-        /// A target for an instance's log, starting after what the log already holds so a previous
-        /// session's announcements are not replayed. A log the game rotates at launch is read from
-        /// its start (see <see cref="ReadNewLines"/>).
-        /// </summary>
-        public static MinecraftLogTarget CreateTarget(string gameFolder, IEnumerable<(string ApiName, string Title)> rows)
+        public static MinecraftLogTarget CreateTarget(
+            string gameFolder,
+            string instanceKey,
+            IEnumerable<(string ApiName, string Title)> rows,
+            Func<Dictionary<string, List<string>>> buildDefinitionTitles,
+            string worldFilter)
         {
-            var logPath = Path.Combine(gameFolder, "logs", "latest.log");
             var target = new MinecraftLogTarget
             {
-                LogPath = logPath,
-                Offset = SafeLength(logPath)
+                LogPath = Path.Combine(gameFolder, "logs", "latest.log"),
+                GameFolder = gameFolder,
+                InstanceKey = instanceKey,
+                WorldFilter = worldFilter,
+                DefinitionTitles = new Lazy<Dictionary<string, List<string>>>(
+                    () => buildDefinitionTitles?.Invoke() ?? new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase))
             };
 
-            foreach (var row in rows)
+            foreach (var row in rows ?? Enumerable.Empty<(string ApiName, string Title)>())
             {
                 if (string.IsNullOrWhiteSpace(row.Title))
                 {
@@ -91,34 +128,57 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// Unlocks announced since the last read: (row id, local announcement time as UTC). A title
-        /// two rows share is skipped, and so is a line from another player.
+        /// Reads every watched log's new lines and returns all unlocks announced this session.
         /// </summary>
-        public static List<(string ApiName, DateTime? UnlockTimeUtc)> ReadUnlocks(MinecraftLogState state, DateTime nowLocal)
+        public static IReadOnlyList<(string ApiName, DateTime? UnlockTimeUtc)> ReadUnlocks(
+            MinecraftLogState state,
+            DateTime nowLocal,
+            DateTime sessionStartUtc)
         {
-            var result = new List<(string ApiName, DateTime? UnlockTimeUtc)>();
-            foreach (var target in state?.Targets ?? Enumerable.Empty<MinecraftLogTarget>())
+            if (state == null)
             {
-                foreach (var line in ReadNewLines(target))
+                return Array.Empty<(string ApiName, DateTime? UnlockTimeUtc)>();
+            }
+
+            foreach (var target in state.Targets)
+            {
+                foreach (var line in ReadNewLines(target, sessionStartUtc))
                 {
-                    var unlock = ParseLine(line, state.PlayerNames, target.ApiNamesByTitle, nowLocal);
-                    if (unlock.HasValue && result.All(existing => existing.ApiName != unlock.Value.ApiName))
+                    var announcement = ParseAnnouncement(line, state.PlayerNames, nowLocal);
+                    if (!announcement.HasValue)
                     {
-                        result.Add(unlock.Value);
+                        continue;
+                    }
+
+                    if (target.WorldFilter != null &&
+                        !string.Equals(MinecraftPaths.FindActiveWorld(target.GameFolder), target.WorldFilter, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var apiName = ResolveApiName(target, announcement.Value.Title);
+                    if (apiName != null && state.SessionUnlocks.All(unlock => unlock.ApiName != apiName))
+                    {
+                        state.SessionUnlocks.Add((apiName, announcement.Value.UnlockTimeUtc));
                     }
                 }
             }
 
-            return result;
+            return state.SessionUnlocks;
         }
 
-        internal static (string ApiName, DateTime? UnlockTimeUtc)? ParseLine(
-            string line,
-            ISet<string> playerNames,
-            IReadOnlyDictionary<string, List<string>> apiNamesByTitle,
-            DateTime nowLocal)
+        /// <summary>
+        /// The title and time of an integrated-server announcement by a listed player; null for any
+        /// other line, including the client's copy and a LAN guest's or server's lines.
+        /// </summary>
+        internal static (string Title, DateTime? UnlockTimeUtc)? ParseAnnouncement(string line, ISet<string> playerNames, DateTime nowLocal)
         {
-            var match = Announcement.Match(line ?? string.Empty);
+            if (line == null || line.IndexOf(ServerThreadMarker, StringComparison.Ordinal) < 0)
+            {
+                return null;
+            }
+
+            var match = Announcement.Match(line);
             if (!match.Success)
             {
                 return null;
@@ -129,12 +189,25 @@ namespace PlayniteAchievements.Providers.Minecraft
                 return null;
             }
 
-            if (!apiNamesByTitle.TryGetValue(match.Groups["title"].Value.Trim(), out var apiNames) || apiNames.Count != 1)
+            return (match.Groups["title"].Value.Trim(), ParseTime(line, nowLocal));
+        }
+
+        /// <summary>
+        /// The row for a title: the instance's cached row when exactly one has it, otherwise the
+        /// advancement its definitions give exactly one of. Null when the title is unknown or shared.
+        /// </summary>
+        internal static string ResolveApiName(MinecraftLogTarget target, string title)
+        {
+            if (target.ApiNamesByTitle.TryGetValue(title, out var cached))
             {
-                return null;
+                return cached.Count == 1 ? cached[0] : null;
             }
 
-            return (apiNames[0], ParseTime(line, nowLocal));
+            return target.DefinitionTitles != null &&
+                   target.DefinitionTitles.Value.TryGetValue(title, out var defined) &&
+                   defined.Count == 1
+                ? target.InstanceKey + "|" + defined[0]
+                : null;
         }
 
         /// <summary>
@@ -160,10 +233,12 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// Complete lines written since <see cref="MinecraftLogTarget.Offset"/>; a partial last line
-        /// is left for the next read. A log shorter than the offset was rotated and is read from its start.
+        /// Complete lines written since the target's offset; a partial last line is left for the
+        /// next read. On the first read, a log written during this session (the game starts a new
+        /// one at launch) is read from its start and an older one from its end. A log shorter than
+        /// the offset was rotated and is read from its start.
         /// </summary>
-        private static IEnumerable<string> ReadNewLines(MinecraftLogTarget target)
+        private static IEnumerable<string> ReadNewLines(MinecraftLogTarget target, DateTime sessionStartUtc)
         {
             byte[] buffer;
             try
@@ -175,6 +250,16 @@ namespace PlayniteAchievements.Providers.Minecraft
 
                 using (var stream = new FileStream(target.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 {
+                    if (target.Offset < 0)
+                    {
+                        // Without a known session start, never replay: an older session's lines
+                        // could notify again.
+                        target.Offset = sessionStartUtc != default(DateTime) &&
+                                        File.GetLastWriteTimeUtc(target.LogPath) >= sessionStartUtc
+                            ? 0
+                            : stream.Length;
+                    }
+
                     if (stream.Length < target.Offset)
                     {
                         target.Offset = 0;
@@ -223,18 +308,6 @@ namespace PlayniteAchievements.Providers.Minecraft
                 .Select(line => line.TrimEnd('\r'))
                 .Where(line => line.Length > 0)
                 .ToList();
-        }
-
-        private static long SafeLength(string path)
-        {
-            try
-            {
-                return File.Exists(path) ? new FileInfo(path).Length : 0;
-            }
-            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
-            {
-                return 0;
-            }
         }
     }
 }
