@@ -97,16 +97,16 @@
                         <CheckBox IsChecked="{Binding Persisted.EnablePsnCapstoneGeneration}"/>
                     </controls:SettingRow>
 
-                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_PsnNpsso}"
-                                         Hint="{DynamicResource LOCPlayAch_Settings_PsnNpsso_Description}">
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_PsnCapstoneNpsso}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_PsnCapstoneNpsso_Description}">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <PasswordBox x:Name="NpssoBox" Width="320"/>
-                                <Button Content="{DynamicResource LOCPlayAch_Settings_PsnNpsso_Save}"
+                                <Button Content="{DynamicResource LOCPlayAch_Settings_PsnCapstoneNpsso_Save}"
                                         Click="NpssoSave_Click"
                                         Margin="{StaticResource PlayAch.Thickness.Left.Sm}"
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"/>
-                                <Button Content="{DynamicResource LOCPlayAch_Settings_PsnNpsso_Test}"
+                                <Button Content="{DynamicResource LOCPlayAch_Settings_PsnCapstoneNpsso_Test}"
                                         Click="NpssoTest_Click"
                                         Margin="{StaticResource PlayAch.Thickness.Left.Sm}"
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"/>
