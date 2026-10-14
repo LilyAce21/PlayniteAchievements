@@ -226,6 +226,7 @@ namespace PlayniteAchievements.Providers.Xbox
                 AppId = appId,
                 GameName = game.Name,
                 ProviderKey = "Xbox",
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game?.Source?.Name,
                 LastUpdatedUtc = DateTime.UtcNow,
                 HasAchievements = achievements != null && achievements.Count > 0,
