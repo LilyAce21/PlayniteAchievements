@@ -1102,6 +1102,37 @@ namespace PlayniteAchievements.Tests.ViewModels
             }
         }
 
+        [TestMethod]
+        public void FrameAnimationTime_PlaysFromTheFirstFrameAndLoops_IgnoringTheKeyframe()
+        {
+            var gif = GifFixture.WriteTempGif(GifFixture.BuildGif(
+                1, 1, new[] { 0xFF0000, 0x0000FF },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 0 }, DelayCentiseconds = 10 },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 1 }, DelayCentiseconds = 10 }));
+            try
+            {
+                var settings = new PersistedSettings();
+                settings.NotificationStyle.Frame.FrameVignette = FrameVignetteStyle.Image;
+                settings.NotificationStyle.Frame.ImageKeyframeMs = 150;
+                settings.NotificationStyle.FrameBackgroundImagePath = gif;
+                var vm = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+
+                Assert.AreEqual(1, vm.FrameAnimationTimelines().Count);
+                Assert.AreEqual(0x0000FF, PixelOf(vm.FrameBackgroundImage), "the screenshot uses the keyframe");
+
+                vm.FrameAnimationTimeMs = 0;
+                Assert.AreEqual(0xFF0000, PixelOf(vm.FrameBackgroundImage), "the video starts at the first frame");
+                vm.FrameAnimationTimeMs = 150;
+                Assert.AreEqual(0x0000FF, PixelOf(vm.FrameBackgroundImage));
+                vm.FrameAnimationTimeMs = 250;
+                Assert.AreEqual(0xFF0000, PixelOf(vm.FrameBackgroundImage), "the loop starts over");
+            }
+            finally
+            {
+                GifFixture.DeleteTempPayload(gif);
+            }
+        }
+
         private static int PixelOf(ImageSource image)
         {
             Assert.IsInstanceOfType(image, typeof(BitmapSource));
