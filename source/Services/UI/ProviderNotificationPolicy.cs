@@ -3,9 +3,11 @@ using PlayniteAchievements.Models.Settings;
 namespace PlayniteAchievements.Services.UI
 {
     /// <summary>
-    /// Resolves the effective unlock-notification feature flags for one provider by combining
-    /// the global notification settings with that provider's stored override (null = inherit).
-    /// The master switches always win: per-provider values only modulate feature defaults.
+    /// Resolves the effective unlock-notification behavior and capture settings for one unlock.
+    /// A game's own snapshot (<see cref="GameCustomDataFile.NotificationBehaviorOverride"/>,
+    /// <see cref="GameCustomDataFile.CaptureOverride"/>) replaces everything below it, master
+    /// switches included. Without one, the globals apply with the provider's stored override
+    /// (null = inherit) in place of the feature switches, and the master switches always win.
     /// Recomputed per call; unlock events are rare so no caching is needed.
     /// </summary>
     internal static class ProviderNotificationPolicy
@@ -13,61 +15,72 @@ namespace PlayniteAchievements.Services.UI
         internal readonly struct EffectiveNotifications
         {
             public EffectiveNotifications(
-                bool unlockToasts,
-                bool friendUnlockToasts,
-                bool screenshotClean,
-                bool screenshotWithToast,
-                bool screenshotFramed,
-                bool recordings,
-                bool progressToasts = false,
-                bool recordingClean = false,
-                bool recordingWithToast = false,
-                bool recordingFramed = false)
+                GameNotificationBehaviorOverride behavior,
+                GameCaptureOverride captures,
+                bool recordings)
             {
-                RecordingClean = recordingClean;
-                RecordingWithToast = recordingWithToast;
-                RecordingFramed = recordingFramed;
-                UnlockToasts = unlockToasts;
-                FriendUnlockToasts = friendUnlockToasts;
-                ScreenshotClean = screenshotClean;
-                ScreenshotWithToast = screenshotWithToast;
-                ScreenshotFramed = screenshotFramed;
+                Behavior = behavior;
+                Captures = captures;
                 Recordings = recordings;
-                ProgressToasts = progressToasts;
             }
 
-            public bool UnlockToasts { get; }
+            /// <summary>
+            /// The resolved behavior values (timing, position, vibration and the toast switches as
+            /// stored). Read the gated flags below rather than its switches. Null only for the
+            /// default instance.
+            /// </summary>
+            public GameNotificationBehaviorOverride Behavior { get; }
 
-            public bool FriendUnlockToasts { get; }
+            /// <summary>
+            /// The resolved capture values (rarity filters, completion bypasses, timing and the
+            /// variant switches as stored). Read the gated flags below rather than its switches.
+            /// Null only for the default instance.
+            /// </summary>
+            public GameCaptureOverride Captures { get; }
+
+            public bool UnlockToasts => Behavior != null && Behavior.EnableNotifications && Behavior.EnableUnlockToasts;
+
+            public bool FriendUnlockToasts => Behavior != null && Behavior.EnableNotifications && Behavior.EnableFriendUnlockToasts;
 
             /// <summary>Incremental-progress notifications (silent, capture-free).</summary>
-            public bool ProgressToasts { get; }
+            public bool ProgressToasts => Behavior != null && Behavior.EnableNotifications && Behavior.EnableProgressToasts;
 
-            public bool ScreenshotClean { get; }
+            public bool ScreenshotClean => Captures != null && Captures.EnableUnlockScreenshots && Captures.UnlockScreenshotClean;
 
-            public bool ScreenshotWithToast { get; }
+            public bool ScreenshotWithToast => Captures != null && Captures.EnableUnlockScreenshots && Captures.UnlockScreenshotWithToast;
 
-            public bool ScreenshotFramed { get; }
+            public bool ScreenshotFramed => Captures != null && Captures.EnableUnlockScreenshots && Captures.UnlockScreenshotFramed;
 
+            /// <summary>
+            /// The provider's stored all-clips filter (true when unset, or when the game has its
+            /// own capture settings). Does not include the recordings master switch; see
+            /// <see cref="RecordingsEnabled"/>.
+            /// </summary>
             public bool Recordings { get; }
 
-            // The clip variants resolve without the EnableUnlockRecordings master switch, like
-            // Recordings: the recording service ANDs that in itself.
-            public bool RecordingClean { get; }
+            /// <summary>The recordings master switch: the game's own when it has one, else the global.</summary>
+            public bool RecordingsEnabled => Captures != null && Captures.EnableUnlockRecordings;
 
-            public bool RecordingWithToast { get; }
+            // The clip variants resolve without the recordings master switch, like Recordings:
+            // callers AND in RecordingsEnabled themselves.
+            public bool RecordingClean => Captures != null && Captures.UnlockRecordingClean;
 
-            public bool RecordingFramed { get; }
+            public bool RecordingWithToast => Captures != null && Captures.UnlockRecordingWithToast;
+
+            public bool RecordingFramed => Captures != null && Captures.UnlockRecordingFramed;
 
             public bool AnyScreenshot => ScreenshotClean || ScreenshotWithToast || ScreenshotFramed;
         }
 
         /// <summary>
-        /// The effective notification flags for a provider. A null or blank provider key (and a
-        /// provider without a stored override) resolves to the globals; null settings resolve to
-        /// all-false.
+        /// The effective notification settings for a provider and, when given, a game's custom
+        /// data. A null or blank provider key (and a provider without a stored override) resolves
+        /// to the globals; null settings resolve to all-false.
         /// </summary>
-        public static EffectiveNotifications Resolve(PersistedSettings settings, string providerKey)
+        public static EffectiveNotifications Resolve(
+            PersistedSettings settings,
+            string providerKey,
+            GameCustomDataFile gameData = null)
         {
             if (settings == null)
             {
@@ -75,37 +88,15 @@ namespace PlayniteAchievements.Services.UI
             }
 
             var overrides = settings.GetProviderNotificationOverride(providerKey);
-            var toastsOn = settings.EnableNotifications;
-            var screenshotsOn = settings.EnableUnlockScreenshots;
+            var gameCaptures = gameData?.CaptureOverride;
 
             return new EffectiveNotifications(
-                unlockToasts: toastsOn && (overrides?.UnlockToasts ?? settings.EnableUnlockToasts),
-                friendUnlockToasts: toastsOn && (overrides?.FriendUnlockToasts ?? settings.EnableFriendUnlockToasts),
-                screenshotClean: screenshotsOn && (overrides?.ScreenshotClean ?? settings.UnlockScreenshotClean),
-                screenshotWithToast: screenshotsOn && (overrides?.ScreenshotWithToast ?? settings.UnlockScreenshotWithToast),
-                screenshotFramed: screenshotsOn && (overrides?.ScreenshotFramed ?? settings.UnlockScreenshotFramed),
-                // Recordings resolve to only the per-provider filter (override ?? true): the
-                // recording service ANDs its own EnableUnlockRecordings master enable, which is
-                // introduced together with that service.
-                recordings: overrides?.Recordings ?? true,
-                progressToasts: toastsOn && (overrides?.ProgressToasts ?? settings.EnableProgressToasts),
-                recordingClean: ResolveClipVariant(overrides, overrides?.RecordingClean, settings.UnlockRecordingClean),
-                recordingWithToast: ResolveClipVariant(overrides, overrides?.RecordingWithToast, settings.UnlockRecordingWithToast),
-                recordingFramed: ResolveClipVariant(overrides, overrides?.RecordingFramed, settings.UnlockRecordingFramed));
-        }
-
-        /// <summary>
-        /// A clip variant's own override, else off when the provider's stored all-clips switch is
-        /// off, else the global variant setting.
-        /// </summary>
-        private static bool ResolveClipVariant(ProviderNotificationOverride overrides, bool? own, bool global)
-        {
-            if (own.HasValue)
-            {
-                return own.Value;
-            }
-
-            return overrides?.Recordings != false && global;
+                gameData?.NotificationBehaviorOverride ??
+                    GameNotificationBehaviorOverride.FromEffective(settings, overrides),
+                gameCaptures ?? GameCaptureOverride.FromEffective(settings, overrides),
+                // A game's own capture settings carry every clip variant explicitly, so the
+                // provider's legacy all-clips switch no longer applies to it.
+                recordings: gameCaptures != null || (overrides?.Recordings ?? true));
         }
     }
 }
