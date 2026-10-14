@@ -200,6 +200,7 @@ namespace PlayniteAchievements.Models.Settings
         private bool _includeUnplayedGames = true;
         private string _overviewScoreCardSlot1 = ScoreCardSlots.Collection;
         private string _overviewScoreCardSlot2 = ScoreCardSlots.Prestige;
+        private bool _overviewScoreCardsUseCustomColors;
         private bool _showFriendSpoilers;
         private int _friendsOverviewRecentUnlockLimit = 200;
         private bool _showTopMenuBarButton = true;
@@ -2326,6 +2327,16 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// When true, the overview header's score cards use the configured rarity colors; when
+        /// false, the shipped ones.
+        /// </summary>
+        public bool OverviewScoreCardsUseCustomColors
+        {
+            get => _overviewScoreCardsUseCustomColors;
+            set => SetValue(ref _overviewScoreCardsUseCustomColors, value);
+        }
+
+        /// <summary>
         /// When true, shows the top menu bar button for opening the achievements window.
         /// </summary>
         public bool ShowTopMenuBarButton
@@ -3349,6 +3360,7 @@ namespace PlayniteAchievements.Models.Settings
                 IncludeUnplayedGames = this.IncludeUnplayedGames,
                 OverviewScoreCardSlot1 = this.OverviewScoreCardSlot1,
                 OverviewScoreCardSlot2 = this.OverviewScoreCardSlot2,
+                OverviewScoreCardsUseCustomColors = this.OverviewScoreCardsUseCustomColors,
                 ShowTopMenuBarButton = this.ShowTopMenuBarButton,
                 ShowCompletedProgressColoring = this.ShowCompletedProgressColoring,
                 TintMissableLocks = this.TintMissableLocks,
@@ -3515,6 +3527,7 @@ namespace PlayniteAchievements.Models.Settings
 
             OverviewScoreCardSlot1 = defaults.OverviewScoreCardSlot1;
             OverviewScoreCardSlot2 = defaults.OverviewScoreCardSlot2;
+            OverviewScoreCardsUseCustomColors = defaults.OverviewScoreCardsUseCustomColors;
             ShowTopMenuBarButton = defaults.ShowTopMenuBarButton;
             ShowCompletedProgressColoring = defaults.ShowCompletedProgressColoring;
             TintMissableLocks = defaults.TintMissableLocks;
