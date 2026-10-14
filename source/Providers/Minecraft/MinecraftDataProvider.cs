@@ -17,7 +17,7 @@ namespace PlayniteAchievements.Providers.Minecraft
     /// Java Minecraft advancements read from local world saves. Covers every advancement the game
     /// displays, from vanilla, mods or datapacks, with progress merged across worlds.
     /// </summary>
-    internal sealed class MinecraftDataProvider : DataProviderBase<MinecraftSettings>, IDataProvider, IProviderOverride
+    internal sealed class MinecraftDataProvider : DataProviderBase<MinecraftSettings>, IDataProvider, IProviderOverride, IInGameProgressSource
     {
         internal const string Key = "Minecraft";
 
@@ -81,6 +81,79 @@ namespace PlayniteAchievements.Providers.Minecraft
             CancellationToken cancel)
         {
             return _scanner.RefreshAsync(gamesToRefresh, onGameStarting, onGameCompleted, cancel);
+        }
+
+        /// <summary>
+        /// Watches each instance's latest.log for the game's chat announcements, so an unlock shows
+        /// as soon as it happens rather than at the next world save. Unannounced unlocks still arrive
+        /// through the regular in-game refresh once the world saves.
+        /// </summary>
+        InGameProgressRegistration IInGameProgressSource.TryRegister(Game game, GameAchievementData cachedSchema)
+        {
+            if (game == null ||
+                cachedSchema?.Achievements == null ||
+                cachedSchema.Achievements.Count == 0 ||
+                !string.Equals(cachedSchema.ProviderKey, ProviderKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var source = MinecraftGameResolver.Resolve(game, ProviderSettings, _playniteApi);
+            if (source == null || source.Instances.Count == 0)
+            {
+                return null;
+            }
+
+            var state = new MinecraftLogState
+            {
+                PlayerNames = MinecraftAccounts.ResolveNames(ProviderSettings?.PlayerUuid, source.GameFolders)
+            };
+            foreach (var instance in source.Instances)
+            {
+                var prefix = instance.Key + "|";
+                var rows = cachedSchema.Achievements
+                    .Where(achievement => achievement?.ApiName != null &&
+                                          achievement.ApiName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    .Select(achievement => (achievement.ApiName, achievement.DisplayName));
+                state.Targets.Add(MinecraftLogWatcher.CreateTarget(instance.GameFolder, rows));
+            }
+
+            return new InGameProgressRegistration
+            {
+                ProviderKey = ProviderKey,
+                WatchTargets = state.Targets.Select(target => target.LogPath).ToList(),
+                PollInterval = InGameProgressRegistration.FileWatchSafetyPollInterval,
+                State = state
+            };
+        }
+
+        Task<IReadOnlyList<InGameProgressQueryResult>> IInGameProgressSource.QueryAsync(
+            IReadOnlyList<InGameTrackingContext> games,
+            CancellationToken cancellationToken)
+        {
+            var results = new List<InGameProgressQueryResult>();
+            foreach (var context in games ?? Array.Empty<InGameTrackingContext>())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var gameId = context?.Game?.Id ?? Guid.Empty;
+                if (!(context?.Registration?.State is MinecraftLogState state))
+                {
+                    results.Add(InGameProgressQueryResult.Failed(gameId, "no_state"));
+                    continue;
+                }
+
+                var observations = MinecraftLogWatcher.ReadUnlocks(state, DateTime.Now)
+                    .Select(unlock => new AchievementProgressObservation
+                    {
+                        ApiName = unlock.ApiName,
+                        Unlocked = true,
+                        UnlockTimeUtc = unlock.UnlockTimeUtc
+                    })
+                    .ToList();
+                results.Add(InGameProgressQueryResult.Succeeded(gameId, observations, isDelta: true));
+            }
+
+            return Task.FromResult<IReadOnlyList<InGameProgressQueryResult>>(results);
         }
 
         /// <summary>
