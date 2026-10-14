@@ -126,6 +126,11 @@ namespace PlayniteAchievements.Views.Showcase
                         ScoreBadgePositionName);
                     AddToggle(
                         panel,
+                        Localize("LOCPlayAch_Settings_ScoreCardUseCustomColors"),
+                        ShowcaseWidgetOptions.GetScoreCardUseCustomColors(_settings),
+                        value => ShowcaseWidgetOptions.SetScoreCardUseCustomColors(_settings, value));
+                    AddToggle(
+                        panel,
                         Localize("LOCPlayAch_Showcase_ScoreHistory"),
                         ShowcaseWidgetOptions.GetScoreHistoryShown(_settings),
                         value => ShowcaseWidgetOptions.SetScoreHistoryShown(_settings, value));
