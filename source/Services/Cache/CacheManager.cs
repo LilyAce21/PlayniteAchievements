@@ -1661,6 +1661,7 @@ namespace PlayniteAchievements.Services.Cache
                 ProviderKey = source.ProviderKey,
                 ProviderPlatformKey = source.ProviderPlatformKey,
                 LibrarySourceName = source.LibrarySourceName,
+                RaritySource = source.RaritySource,
                 HasAchievements = source.HasAchievements,
                 ExcludedByUser = source.ExcludedByUser,
                 GameName = source.GameName,
