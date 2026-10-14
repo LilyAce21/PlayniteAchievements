@@ -86,6 +86,13 @@ namespace PlayniteAchievements.Services.Capture
         /// </summary>
         public FrameChromeImage FrameChrome { get; set; }
 
+        /// <summary>
+        /// Draws the frame's chrome over time when the frame carries animated images, so the
+        /// framed clip plays them; <see cref="FrameChrome"/> is then its first moment. Null when
+        /// the frame is a still.
+        /// </summary>
+        public FrameChromeAnimation FrameChromeAnimation { get; set; }
+
         /// <summary>One captured difference layer and the track time it was captured at.</summary>
         public struct TimedLayer
         {
