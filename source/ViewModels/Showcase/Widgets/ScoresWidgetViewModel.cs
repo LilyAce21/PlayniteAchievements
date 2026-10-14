@@ -185,10 +185,12 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
             MaxCardWidth = Density == WidgetViewportDensity.Expanded ? 440 : 360;
             var badgePosition = ShowcaseWidgetOptions.GetScoreCardBadgePosition(instance);
             var useCustomColors = ShowcaseWidgetOptions.GetScoreCardUseCustomColors(instance);
+            var showTotal = ShowcaseWidgetOptions.GetScoreCardShowTotal(instance);
             foreach (var existing in Cards)
             {
                 existing.BadgePosition = badgePosition;
                 existing.Card.SetUseCustomColors(useCustomColors);
+                existing.Card.SetShowTotal(showTotal);
             }
 
             var history = Projection?.ScoreHistory ?? new List<ShowcaseScorePoint>();
@@ -227,6 +229,7 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
                 .UseUniformRarityBadges ?? false;
             var card = new ScoreCardViewModel(type);
             card.SetUseCustomColors(useCustomColors);
+            card.SetShowTotal(showTotal);
             card.ApplyFor(type, snapshot, uniformBadges);
             Cards.ReplaceAll(new[]
             {
