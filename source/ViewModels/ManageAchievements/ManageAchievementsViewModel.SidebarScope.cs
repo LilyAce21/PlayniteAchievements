@@ -176,7 +176,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
 
                 // No custom data: the per-kind customization counts are an Overview tab section,
                 // never a sidebar chip.
-                SidebarSummary = BuildOverviewSummary(scoped, null);
+                SidebarSummary = BuildOverviewSummary(scoped, null, _showsRarity);
                 _sidebarTotalAchievements = scoped.Count;
                 _sidebarUnlockedAchievements = scoped.Count(achievement => achievement.Unlocked);
                 SidebarScopeLabel = string.Join(", ", labels.Select(AchievementCategoryTypeHelper.ToCategoryLeafDisplayText));
