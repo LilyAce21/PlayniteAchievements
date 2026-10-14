@@ -135,6 +135,7 @@ namespace PlayniteAchievements.Services.Tests
             _apply.ApplyToSettings(adapter, item, _live);
 
             Assert.AreEqual(FrameVignetteStyle.Image, _live.NotificationStyle.Frame.FrameVignette);
+            Assert.AreEqual(400, _live.NotificationStyle.Frame.ImageKeyframeMs);
             var path = _live.NotificationStyle.FrameBackgroundImagePath;
             StringAssert.Contains(path, Path.Combine("notification_images", "global"));
             StringAssert.Contains(Path.GetFileName(path), "frame_background");
@@ -142,10 +143,13 @@ namespace PlayniteAchievements.Services.Tests
             Assert.IsNull(_live.NotificationStyle.ToastBackgroundImagePath, "a frame item leaves the toast background alone");
             Assert.IsFalse(_apply.GetSettingsState(adapter, _live).IsEdited);
 
-            WriteFrameItem("1.1.0", FrameStyle(Image("frame_bg", 2)));
+            var v2 = FrameStyle(Image("frame_bg", 2));
+            v2.Frame.ImageKeyframeMs = 900;
+            WriteFrameItem("1.1.0", v2);
             _apply.UpdateSettings(adapter, _live, out var kept);
 
             Assert.AreEqual(0, kept);
+            Assert.AreEqual(900, _live.NotificationStyle.Frame.ImageKeyframeMs, "an untouched keyframe follows the new version");
             Assert.AreEqual(Hash(Image("frame_bg", 2)), Hash(_live.NotificationStyle.FrameBackgroundImagePath));
         }
 
@@ -355,6 +359,7 @@ namespace PlayniteAchievements.Services.Tests
         {
             var style = NotificationStyleSettings.CreateDefault();
             style.Frame.FrameVignette = FrameVignetteStyle.Image;
+            style.Frame.ImageKeyframeMs = 400;
             style.FrameBackgroundImagePath = background;
             return style;
         }
