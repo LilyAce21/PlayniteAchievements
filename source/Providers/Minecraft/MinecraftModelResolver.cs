@@ -29,7 +29,7 @@ namespace PlayniteAchievements.Providers.Minecraft
         // sees first on a block, then whatever the model offers.
         private static readonly string[] PreferredSlots =
         {
-            "layer0", "all", "side", "front", "north", "texture", "top", "end", "cross", "plant", "particle"
+            "layer0", "all", "side", "front", "north", "texture", "top", "end", "cross", "plant"
         };
 
         /// <summary>
@@ -50,6 +50,9 @@ namespace PlayniteAchievements.Providers.Minecraft
                     continue;
                 }
 
+                // The particle slot is the break-particle texture, never how the item looks; for
+                // items drawn in code (shields, heads, chests, decorated pots) it is all the model has.
+                textures.Remove("particle");
 
                 var slots = PreferredSlots
                     .Where(textures.ContainsKey)
