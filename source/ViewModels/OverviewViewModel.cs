@@ -2196,6 +2196,9 @@ namespace PlayniteAchievements.ViewModels
         private void ApplyScoreCards()
         {
             var useUniformRarityBadges = UseUniformRarityBadges;
+            var useCustomColors = _settings?.Persisted?.OverviewScoreCardsUseCustomColors ?? false;
+            ScoreCard1.SetUseCustomColors(useCustomColors);
+            ScoreCard2.SetUseCustomColors(useCustomColors);
             var snapshot = _latestSnapshot ?? new OverviewDataSnapshot
             {
                 CollectorScore = CollectorScore,
@@ -2540,6 +2543,10 @@ namespace PlayniteAchievements.ViewModels
                 || propertyName == nameof(PersistedSettings.OverviewScoreCardSlot2))
             {
                 RaiseOverviewScoreCardVisibilityChanged();
+                ApplyScoreCards();
+            }
+            else if (propertyName == nameof(PersistedSettings.OverviewScoreCardsUseCustomColors))
+            {
                 ApplyScoreCards();
             }
             else if (propertyName == nameof(PersistedSettings.EnableFriendsFeatures))
