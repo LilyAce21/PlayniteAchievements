@@ -263,6 +263,8 @@ namespace PlayniteAchievements.Services.Recording
             public Guid CaptureCorrelationId;
             public string ProviderKey;
             public string GameName;
+            // The game's own capture folder, written into as is; null uses the global layout.
+            public string GameDirectory;
             public string AchievementName;
             public int AchievementNumber;
             public int TotalCount;
@@ -370,7 +372,8 @@ namespace PlayniteAchievements.Services.Recording
 
             // The game's own recordings switch when it has capture settings, else the global one.
             var persisted = _settings?.Persisted;
-            if (!ProviderNotificationPolicy.Resolve(persisted, null, LoadGameData(game?.Id ?? Guid.Empty)).RecordingsEnabled)
+            var gameData = LoadGameData(game?.Id ?? Guid.Empty);
+            if (!ProviderNotificationPolicy.Resolve(persisted, null, gameData).RecordingsEnabled)
             {
                 return;
             }
@@ -380,7 +383,8 @@ namespace PlayniteAchievements.Services.Recording
                 return;
             }
 
-            var outputDir = ResolveOutputDirectory(persisted);
+            // A game with its own capture folder needs no global one.
+            var outputDir = gameData?.CaptureOverride?.CaptureDirectory ?? ResolveOutputDirectory(persisted);
             if (string.IsNullOrWhiteSpace(outputDir))
             {
                 _logger?.Warn("[Recording] Unlock recordings are enabled but the output folder is missing/invalid; skipping this session.");
@@ -1152,6 +1156,7 @@ namespace PlayniteAchievements.Services.Recording
                 CaptureCorrelationId = e.CaptureCorrelationId,
                 ProviderKey = e.ProviderKey,
                 GameName = e.GameName,
+                GameDirectory = effective.Captures.CaptureDirectory,
                 // Resolved through the shared helper so completion notifications (no
                 // DisplayName) get the same name the toast wave reports, letting the clip
                 // match its wave's overlay track and carry a sensible filename.
@@ -2475,7 +2480,8 @@ namespace PlayniteAchievements.Services.Recording
             try
             {
                 var baseDir = ResolveOutputDirectory(persisted);
-                if (string.IsNullOrWhiteSpace(baseDir))
+                var gameDir = request.GameDirectory;
+                if (string.IsNullOrWhiteSpace(baseDir) && string.IsNullOrWhiteSpace(gameDir))
                 {
                     return null;
                 }
@@ -2486,7 +2492,10 @@ namespace PlayniteAchievements.Services.Recording
                 // never land in different places.
                 if (request.IsTestFire && persisted.EnableCaptureTestFolder)
                 {
-                    baseDir = Path.Combine(baseDir, UnlockScreenshotService.TestFolderName);
+                    baseDir = Path.Combine(
+                        string.IsNullOrWhiteSpace(baseDir) ? gameDir : baseDir,
+                        UnlockScreenshotService.TestFolderName);
+                    gameDir = null;
                 }
 
                 var relative = UnlockScreenshotService.BuildRelativePath(
@@ -2497,7 +2506,7 @@ namespace PlayniteAchievements.Services.Recording
                     request.TotalCount,
                     variantSuffix: string.IsNullOrWhiteSpace(variantSuffix) ? null : variantSuffix.Trim(),
                     extension: ".mp4");
-                var folder = Path.Combine(baseDir, relative.Folder);
+                var folder = UnlockScreenshotService.ResolveTargetFolder(baseDir, gameDir, relative.Folder);
                 Directory.CreateDirectory(folder);
                 return UnlockScreenshotService.EnsureUniquePath(Path.Combine(folder, relative.FileName));
             }
