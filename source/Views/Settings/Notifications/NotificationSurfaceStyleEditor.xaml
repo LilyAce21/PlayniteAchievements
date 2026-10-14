@@ -242,6 +242,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0"
@@ -256,19 +257,50 @@
                               MinWidth="190"
                               Margin="0,0,0,8"/>
 
-                    <TextBlock Grid.Row="1" Grid.Column="0"
+                    <!-- The frame background image, picked right under the dropdown while it is
+                         the chosen vignette; stretched over the whole shot. Tag="Background"
+                         resolves to the frame's own slot. -->
+                    <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                                Orientation="Horizontal"
+                                Margin="0,0,0,8"
+                                Visibility="{Binding ShowFrameBackgroundPicker, Converter={StaticResource BoolToVis}}">
+                        <Border Tag="Background"
+                                Style="{DynamicResource PlayAch.FilePickTarget.Style}"
+                                helpers:FilePickTarget.IsEnabled="True"
+                                helpers:FilePickTarget.Picked="ImagePickTarget_Picked"
+                                Width="160"
+                                Height="90"
+                                Background="{DynamicResource PlayAch.Brush.Surface}"
+                                Margin="0,0,8,0">
+                            <Image helpers:AsyncImage.Uri="{Binding BackgroundThumbnailUri}"
+                                   helpers:AsyncImage.DecodePixel="320"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+                        <Button Tag="Background"
+                                Content="{DynamicResource LOCClearLabel}"
+                                Click="ImageClear_Click"
+                                VerticalAlignment="Center"/>
+                        <Button Tag="Background"
+                                Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                Click="ImageBrowse_Click"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0"
                                Text="{DynamicResource LOCPlayAch_Settings_Style_VignetteStrength}"
                                Visibility="{Binding ShowFrameVignetteStrength, Converter={StaticResource BoolToVis}}"
                                Style="{StaticResource EditorRowLabelStyle}"
                                Margin="0,0,8,0"/>
-                    <Slider Grid.Row="1" Grid.Column="1"
+                    <Slider Grid.Row="2" Grid.Column="1"
                             Visibility="{Binding ShowFrameVignetteStrength, Converter={StaticResource BoolToVis}}"
                             Minimum="0" Maximum="100"
                             SmallChange="1" LargeChange="10" TickFrequency="1" IsSnapToTickEnabled="True"
                             Value="{Binding FrameVignetteStrengthSlider, Mode=TwoWay}"
                             VerticalAlignment="Center"
                             Margin="0,0,8,0"/>
-                    <TextBox Grid.Row="1" Grid.Column="2"
+                    <TextBox Grid.Row="2" Grid.Column="2"
                              Visibility="{Binding ShowFrameVignetteStrength, Converter={StaticResource BoolToVis}}"
                              Text="{Binding FrameVignetteStrengthText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                              Width="70"
@@ -1113,16 +1145,14 @@
             </StackPanel>
         </Border>
 
-        <!-- Background image: always on the toast; on the frame while its vignette is set to
-             the background image, which then stretches over the whole shot. Tag="Background"
-             resolves to the edited surface's own slot. -->
+        <!-- Background image (toast only; the frame picks its background under the Vignette
+             dropdown in the Display card). -->
         <Border Style="{StaticResource EditorCardStyle}"
-                Visibility="{Binding ShowBackgroundImageCard, Converter={StaticResource BoolToVis}}">
+                Visibility="{Binding IsToastSurface, Converter={StaticResource BoolToVis}}">
             <StackPanel>
                 <TextBlock Text="{DynamicResource LOCPlayAch_Settings_Style_BackgroundImage}"
                            Style="{StaticResource EditorGroupHeaderStyle}"/>
                 <TextBlock Text="{DynamicResource LOCPlayAch_Settings_Style_BackgroundImageHint}"
-                           Visibility="{Binding IsToastSurface, Converter={StaticResource BoolToVis}}"
                            Style="{StaticResource MutedTextStyle}"
                            TextWrapping="Wrap"
                            Margin="0,0,0,6"/>
