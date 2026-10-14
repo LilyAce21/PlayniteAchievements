@@ -130,6 +130,7 @@ namespace PlayniteAchievements.Models.Settings
         private bool _unlockRecordingFramedAlwaysCaptureCompletion;
         private int? _unlockRecordingFramedSeconds;
         private bool _recordingIncludeAudio;
+        private string _captureDirectory;
 
         public double CaptureDelaySeconds
         {
@@ -265,6 +266,16 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// The folder this game's screenshots and clips are saved straight into, with no game
+        /// subfolder. Null keeps the global layout (&lt;capture folder&gt;\&lt;Game&gt;).
+        /// </summary>
+        public string CaptureDirectory
+        {
+            get => _captureDirectory;
+            set => SetValue(ref _captureDirectory, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+        }
+
+        /// <summary>
         /// Record audio into this game's clips. Read when its recording session starts; the audio
         /// source and microphone stay global.
         /// </summary>
@@ -356,7 +367,8 @@ namespace PlayniteAchievements.Models.Settings
                 UnlockRecordingAlwaysCaptureCompletion = UnlockRecordingAlwaysCaptureCompletion,
                 UnlockRecordingFramedAlwaysCaptureCompletion = UnlockRecordingFramedAlwaysCaptureCompletion,
                 UnlockRecordingFramedSeconds = UnlockRecordingFramedSeconds,
-                RecordingIncludeAudio = RecordingIncludeAudio
+                RecordingIncludeAudio = RecordingIncludeAudio,
+                CaptureDirectory = CaptureDirectory
             };
         }
     }
