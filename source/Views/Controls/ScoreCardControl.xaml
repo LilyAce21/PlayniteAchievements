@@ -487,7 +487,7 @@
                 <DockPanel Style="{StaticResource ScoreCardBadgeColumnStyle}">
                     <!-- The completed-game badge marks mastery, as it marks the Master tier. -->
                     <StackPanel DockPanel.Dock="Bottom" Style="{StaticResource ScoreCardMasteryLineStyle}">
-                        <Image Source="{DynamicResource ScoreBadgeCompletedGame}"
+                        <Image Source="{Binding MasteryIconKey, Converter={StaticResource ResourceKeyToImage}}"
                                Style="{StaticResource ScoreCardMasteryIconStyle}"/>
                         <TextBlock Text="{Binding MasteryText}"
                                    Style="{StaticResource ScoreCardMasteryTextStyle}"/>
