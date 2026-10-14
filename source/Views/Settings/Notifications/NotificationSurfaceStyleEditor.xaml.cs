@@ -113,6 +113,11 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             }
         }
 
+        private void KeyframePreviewToggle_Click(object sender, RoutedEventArgs e)
+        {
+            ViewModel?.ToggleKeyframePreview();
+        }
+
         private async void ImagePickTarget_Picked(object sender, FilePickedEventArgs e)
         {
             var viewModel = ViewModel;

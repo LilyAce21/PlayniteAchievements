@@ -112,6 +112,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             _frameEditorViewModel = new NotificationAppearanceEditorViewModel(
                 settings, plugin, logger, isFrameSurface: true);
             _toastEditorViewModel.StyleChanged += OnEditorStyleChanged;
+            _toastEditorViewModel.KeyframePreviewChanged += OnEditorStyleChanged;
             _frameEditorViewModel.StyleChanged += OnEditorStyleChanged;
 
             // The editors are DataContext islands over the editor view models, independent of
@@ -1092,7 +1093,11 @@ namespace PlayniteAchievements.Views.Settings.Notifications
                 toastUseThemeStylingOverride: _currentToastUseThemeStyling,
                 frameUseThemeStylingOverride: _currentFrameUseThemeStyling,
                 toastBackgroundRenderSourceOverride: ToastBackgroundAnimationHost?.Source,
-                useToastBackgroundRenderSourceOverride: true);
+                useToastBackgroundRenderSourceOverride: true)
+            {
+                // Paused: the slot images show their keyframe stills instead of animating.
+                HoldToastImagesAtKeyframe = _toastEditorViewModel?.IsKeyframePreviewPaused == true
+            };
             var toastItems = new[] { _toastPreviewViewModel };
             var toastTemplate = ToastSurfaceFactory.ResolveToastTemplate(
                 _toastTemplateResolver, toastItems, _currentToastUseThemeStyling, ScopeProviderKey, ScopeGameId);
