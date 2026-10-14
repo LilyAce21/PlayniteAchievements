@@ -414,6 +414,22 @@ namespace PlayniteAchievements.Views.Controls
 
         private List<string> _appliedHiddenColumnKeys = new List<string>();
 
+        private static readonly string[] RarityColumnKeys = { "Rarity", "RarityTier", "RarityPercent" };
+
+        /// <summary>
+        /// False when the game's provider supplied no rarity, so its Common tiers are defaults:
+        /// the rarity columns are hidden whatever the saved layout says.
+        /// </summary>
+        public static readonly DependencyProperty ShowsRarityProperty =
+            DependencyProperty.Register(nameof(ShowsRarity), typeof(bool),
+                typeof(AchievementDataGridControl), new PropertyMetadata(true, OnColumnVisibilityChanged));
+
+        public bool ShowsRarity
+        {
+            get => (bool)GetValue(ShowsRarityProperty);
+            set => SetValue(ShowsRarityProperty, value);
+        }
+
         /// <summary>
         /// Identifies the HideStatusColumn dependency property.
         /// When true, hides the Status column (checkmark/padlock).
@@ -2750,6 +2766,11 @@ namespace PlayniteAchievements.Views.Controls
                 IsFriendSurface(ColumnSettingsKey) || IsWorkshopPreviewSurface(ColumnSettingsKey));
 
             _appliedHiddenColumnKeys = HiddenColumnKeys?.Where(key => !string.IsNullOrWhiteSpace(key)).ToList() ?? new List<string>();
+            if (!ShowsRarity)
+            {
+                _appliedHiddenColumnKeys.AddRange(RarityColumnKeys);
+            }
+
             foreach (var key in _appliedHiddenColumnKeys)
             {
                 SetForcedColumnCollapsed(_columnPersistence, key, true);
