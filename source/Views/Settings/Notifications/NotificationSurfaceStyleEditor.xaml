@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers"
+             xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
              xmlns:vmSettings="clr-namespace:PlayniteAchievements.ViewModels.Settings"
              mc:Ignorable="d"
              d:DesignHeight="700"
@@ -305,6 +306,52 @@
                              Text="{Binding FrameVignetteStrengthText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                              Width="70"
                              TextAlignment="Right"/>
+                </Grid>
+
+                <!-- Keyframe: the moment of the animated slot images (background and badges)
+                     that screenshots show, in ms. Disabled while none of them is animated; the
+                     notification preview can pause on it, and editing the value pauses it. -->
+                <Grid HorizontalAlignment="Left"
+                      Margin="0,8,0,0"
+                      IsEnabled="{Binding HasAnimatedImages}"
+                      ToolTip="{DynamicResource LOCPlayAch_Settings_Style_ImageKeyframeHint}"
+                      ToolTipService.ShowOnDisabled="True">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" MinWidth="90"/>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="{DynamicResource LOCPlayAch_Settings_Style_ImageKeyframe}"
+                               Style="{StaticResource EditorRowLabelStyle}"
+                               Margin="0,0,8,0"/>
+                    <Slider Grid.Column="1"
+                            Minimum="0"
+                            Maximum="{Binding ImageKeyframeMaxMs}"
+                            SmallChange="10" LargeChange="100"
+                            Value="{Binding ImageKeyframeSlider, Mode=TwoWay}"
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,0"/>
+                    <TextBox Grid.Column="2"
+                             Text="{Binding ImageKeyframeText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                             Width="70"
+                             TextAlignment="Right"/>
+                    <Button Grid.Column="3"
+                            Style="{StaticResource PlayAch.Button.ToolbarIconStyle}"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            Click="KeyframePreviewToggle_Click"
+                            ToolTip="{Binding KeyframePreviewToolTip}"
+                            Visibility="{Binding ShowKeyframePreviewToggle, Converter={StaticResource BoolToVis}}">
+                        <controls:GlyphIcon Glyph="{Binding KeyframePreviewGlyph}"
+                                            Size="14"
+                                            FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            SnapsToDevicePixels="True"/>
+                    </Button>
                 </Grid>
             </StackPanel>
         </Border>
