@@ -69,6 +69,10 @@ namespace PlayniteAchievements.Views.Settings.Notifications
 
         private bool IsGameMode => _gameId != Guid.Empty;
 
+        // Game mode: the game's own behavior and capture editors, created when their tab is opened.
+        private NotificationBehaviorSection _gameBehaviorSection;
+        private NotificationCapturesSection _gameCapturesSection;
+
         public NotificationAppearanceSection()
         {
             InitializeComponent();
@@ -129,6 +133,8 @@ namespace PlayniteAchievements.Views.Settings.Notifications
                 PlatformSelector.Visibility = Visibility.Collapsed;
                 PlatformSelectorPanel.Visibility = Visibility.Collapsed;
                 GameSelectionPanel.Visibility = Visibility.Visible;
+                BehaviorTabItem.Visibility = Visibility.Visible;
+                CapturesTabItem.Visibility = Visibility.Visible;
             }
             else
             {
@@ -155,6 +161,13 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             });
 
             ApplySelection();
+
+            // A game opens on its Behavior tab; Preselect still moves to a named surface.
+            if (IsGameMode)
+            {
+                SurfaceTabs.SelectedItem = BehaviorTabItem;
+            }
+
             Loaded += (s, e) =>
             {
                 // Nothing sits behind this handler but the dispatcher, so it absorbs its own
@@ -2159,11 +2172,51 @@ namespace PlayniteAchievements.Views.Settings.Notifications
                 return;
             }
 
+            ApplyGameSettingsTab();
             ApplyPreviewColumns();
 
             // Each tab carries its own sample dropdown, so the tab switch can change the kind
             // being styled along with the surface; the preset row follows on the way out.
             ApplySelection();
+        }
+
+        private bool IsGameSettingsTabActive =>
+            BehaviorTabItem?.IsSelected == true || CapturesTabItem?.IsSelected == true;
+
+        /// <summary>
+        /// Shows the game's Behavior or Captures section in place of the style preview, presets
+        /// and editors while one of those tabs is active, creating it on first use.
+        /// </summary>
+        private void ApplyGameSettingsTab()
+        {
+            // The tabs raise SelectionChanged while InitializeComponent is still building the tree.
+            if (SurfaceToolbar == null || PreviewScopeGrid == null || StyleScroller == null || GameSettingsHost == null)
+            {
+                return;
+            }
+
+            var active = IsGameMode && IsGameSettingsTabActive;
+            var styleVisibility = active ? Visibility.Collapsed : Visibility.Visible;
+            SurfaceToolbar.Visibility = styleVisibility;
+            PreviewScopeGrid.Visibility = styleVisibility;
+            StyleScroller.Visibility = styleVisibility;
+            GameSettingsHost.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+            if (!active)
+            {
+                GameSettingsHost.Content = null;
+                return;
+            }
+
+            if (BehaviorTabItem.IsSelected)
+            {
+                GameSettingsHost.Content = _gameBehaviorSection ?? (_gameBehaviorSection =
+                    new NotificationBehaviorSection(_settings, _plugin, _logger, _gameId, ResolveGameProviderKey()));
+            }
+            else
+            {
+                GameSettingsHost.Content = _gameCapturesSection ?? (_gameCapturesSection =
+                    new NotificationCapturesSection(_settings, _plugin, _logger, _gameId, ResolveGameProviderKey()));
+            }
         }
 
         /// <summary>
@@ -2300,6 +2353,8 @@ namespace PlayniteAchievements.Views.Settings.Notifications
                 _frameEditorViewModel?.DiscardPendingPersist();
             }
 
+            _gameBehaviorSection?.RefreshGameData();
+            _gameCapturesSection?.RefreshGameData();
             ApplySelection();
         }
 
@@ -2320,6 +2375,8 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             _toastEditorViewModel?.Dispose();
             _frameEditorViewModel?.Dispose();
             SoundsEditor?.Dispose();
+            _gameBehaviorSection?.Dispose();
+            _gameCapturesSection?.Dispose();
             CloseFramePreview();
         }
 

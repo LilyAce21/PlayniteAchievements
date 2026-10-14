@@ -25,7 +25,7 @@ namespace PlayniteAchievements.Models.Settings
     /// Persisted user settings for PlayniteAchievements plugin.
     /// These settings are serialized to the plugin settings JSON file.
     /// </summary>
-    public partial class PersistedSettings : ObservableObject
+    public partial class PersistedSettings : ObservableObject, IUnlockCaptureRarities
     {
         public const double DefaultAchievementDataGridMaxHeight = 600d;
         public const double MinimumGridRowHeight = 32d;

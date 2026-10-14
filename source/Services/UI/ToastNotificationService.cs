@@ -99,6 +99,9 @@ namespace PlayniteAchievements.Services.UI
         // toast placement key window resolution off this game so a wave from one running game
         // never anchors to another running game's window.
         private Guid? _activeWaveGameId;
+        // The current wave's game's own capture settings, resolved once per wave alongside
+        // _activeWaveGameId; null when the game follows its provider and the globals.
+        private GameCaptureOverride _activeWaveCaptures;
         // The anchor the toast is placed against, resolved once per wave: the running game's window
         // when a game is running, otherwise the current Playnite window. The toast is always realized
         // Per-Monitor-V2 aware and positioned in physical pixels (ToastWindowPlacer) relative to this
@@ -386,7 +389,7 @@ namespace PlayniteAchievements.Services.UI
                 return false;
             }
 
-            if (ShouldToast(args.IsPreview, args.IsFriendUnlock, args.IsProgressUpdate, args.ProviderKey))
+            if (ShouldToast(args.IsPreview, args.IsFriendUnlock, args.IsProgressUpdate, args.ProviderKey, args.PlayniteGameId))
             {
                 return true;
             }
@@ -405,15 +408,19 @@ namespace PlayniteAchievements.Services.UI
                 return true;
             }
 
+            // The variant policy ANDs the screenshots master switch (the game's own when it has
+            // capture settings) into every variant.
+            // A screenshot needs a folder: the global one, or the game's own.
             var persisted = _settings?.Persisted;
-            if (persisted?.EnableUnlockScreenshots != true ||
-                string.IsNullOrWhiteSpace(persisted.UnlockScreenshotDirectory))
+            var gameData = LoadGameData(args.PlayniteGameId);
+            if (string.IsNullOrWhiteSpace(persisted?.UnlockScreenshotDirectory) &&
+                string.IsNullOrWhiteSpace(gameData?.CaptureOverride?.CaptureDirectory))
             {
                 return false;
             }
 
             return UnlockScreenshotVariantPolicy.Resolve(
-                ResolveRarity(args), IsCompletionUnlock(args), args.ProviderKey, persisted)
+                ResolveRarity(args), IsCompletionUnlock(args), args.ProviderKey, persisted, gameData)
                 != ScreenshotVariants.None;
         }
 
@@ -437,14 +444,14 @@ namespace PlayniteAchievements.Services.UI
         /// policy ANDs the EnableNotifications master switch into every toast flag and resolves
         /// all-false for null settings. Progress notifications have their own flag.
         /// </summary>
-        private bool ShouldToast(bool isPreview, bool isFriendUnlock, bool isProgressUpdate, string providerKey)
+        private bool ShouldToast(bool isPreview, bool isFriendUnlock, bool isProgressUpdate, string providerKey, Guid gameId)
         {
             if (isPreview)
             {
                 return true;
             }
 
-            var effective = ProviderNotificationPolicy.Resolve(_settings?.Persisted, providerKey);
+            var effective = ResolveEffective(providerKey, gameId);
             if (isProgressUpdate)
             {
                 return effective.ProgressToasts;
@@ -454,6 +461,16 @@ namespace PlayniteAchievements.Services.UI
                 ? effective.FriendUnlockToasts
                 : effective.UnlockToasts;
         }
+
+        /// <summary>
+        /// The effective notification settings for one unlock: the game's own behavior and capture
+        /// snapshots when it has them, else its provider's and the globals.
+        /// </summary>
+        private ProviderNotificationPolicy.EffectiveNotifications ResolveEffective(string providerKey, Guid gameId) =>
+            ProviderNotificationPolicy.Resolve(_settings?.Persisted, providerKey, LoadGameData(gameId));
+
+        private GameCustomDataFile LoadGameData(Guid gameId) =>
+            _gameCustomDataStore != null && _gameCustomDataStore.TryLoad(gameId, out var data) ? data : null;
 
         private void EnqueueOnUi(AchievementUnlockedEventArgs args, bool needsOverlayTrack)
         {
@@ -466,8 +483,12 @@ namespace PlayniteAchievements.Services.UI
 
             // Snapshotted at enqueue, mirroring the recording side's per-request snapshot, so both
             // sides agree per unlock and a mid-queue settings change never moves queued items.
+            var gameData = LoadGameData(args.PlayniteGameId);
             var notifyReadyAtUtc = AchievementToastViewModel.ComputeNotifyReadyUtc(
-                args, _settings?.Persisted, CaptureTimelineClock.UtcNow);
+                args,
+                ProviderNotificationPolicy.Resolve(_settings?.Persisted, args.ProviderKey, gameData)
+                    .Behavior?.NotificationDelaySeconds ?? 0,
+                CaptureTimelineClock.UtcNow);
 
             // Per-game monotonic clamp: per-game FIFO is a queue invariant, so a settings change
             // between two enqueues of the same game must not let the later unlock become ready
@@ -495,7 +516,7 @@ namespace PlayniteAchievements.Services.UI
             {
                 NeedsOverlayTrack = needsOverlayTrack,
                 NeedsFramedClip = needsOverlayTrack &&
-                    (UnlockClipVariantPolicy.Resolve(args, _settings?.Persisted) & ScreenshotVariants.Framed) != 0,
+                    (UnlockClipVariantPolicy.Resolve(args, _settings?.Persisted, gameData) & ScreenshotVariants.Framed) != 0,
                 NotifyReadyAtUtc = notifyReadyAtUtc,
             });
             if (!_processing)
@@ -2153,8 +2174,8 @@ namespace PlayniteAchievements.Services.UI
                    items[end].IsGameCompleted == anchor.IsGameCompleted &&
                    items[end].IsCapstone == anchor.IsCapstone &&
                    items[end].IsProgressUpdate == anchor.IsProgressUpdate &&
-                   ShouldToast(items[end].IsPreview, items[end].IsFriendUnlock, items[end].IsProgressUpdate, items[end].ProviderKey) ==
-                       ShouldToast(anchor.IsPreview, anchor.IsFriendUnlock, anchor.IsProgressUpdate, anchor.ProviderKey))
+                   ShouldToast(items[end].IsPreview, items[end].IsFriendUnlock, items[end].IsProgressUpdate, items[end].ProviderKey, items[end].PlayniteGameId) ==
+                       ShouldToast(anchor.IsPreview, anchor.IsFriendUnlock, anchor.IsProgressUpdate, anchor.ProviderKey, anchor.PlayniteGameId))
             {
                 result.Add(items[end]);
                 end++;
@@ -2258,7 +2279,7 @@ namespace PlayniteAchievements.Services.UI
             // toast, items that only produce capture output, or a mix (waves batch by friend/own
             // only).
             var toastItems = wave
-                .Where(vm => ShouldToast(vm.IsPreview, vm.IsFriendUnlock, vm.IsProgressUpdate, vm.ProviderKey))
+                .Where(vm => ShouldToast(vm.IsPreview, vm.IsFriendUnlock, vm.IsProgressUpdate, vm.ProviderKey, vm.PlayniteGameId))
                 .ToList();
             if (toastItems.Count > 0)
             {
@@ -2298,6 +2319,8 @@ namespace PlayniteAchievements.Services.UI
 
             var waveIsTestFire = wave[0].IsTestFire;
             _activeToastThemeStylingEnabled = wave[0].ToastUseThemeStyling;
+            // A wave never mixes games, so its first item's game owns the wave's capture settings.
+            _activeWaveCaptures = LoadGameData(wave[0].PlayniteGameId)?.CaptureOverride;
             // Resolve the corner once for this wave: the style's position, else a theme override,
             // else the plugin setting. Positioning (including the per-frame game-window follow) and
             // slide direction both read the resolved value.
@@ -2335,7 +2358,7 @@ namespace PlayniteAchievements.Services.UI
             //
             // Previews and retriggers are exempt: both capture the instant they are asked for.
             var captureDelaySeconds = !waveIsTestFire && !wave[0].IsPreview
-                ? Math.Max(0, _settings?.Persisted?.CaptureDelaySeconds ?? 0)
+                ? Math.Max(0, _activeWaveCaptures?.CaptureDelaySeconds ?? _settings?.Persisted?.CaptureDelaySeconds ?? 0)
                 : 0;
 
             // The instant the base frame is aimed at, published to the recording service so a
@@ -2622,7 +2645,7 @@ namespace PlayniteAchievements.Services.UI
                     $"systemScale={systemScale:0.###}, perMonitorWindow={needsPerMonitorWindow}, " +
                     $"isGame={_activeIsGame}, revealed={visible}, mode={wavePlan.Mode}, " +
                     $"testFire={waveIsTestFire}, preview={previewSource.HasValue}, cards={cardItems.Count}, " +
-                    $"shots={plan != null}, recordings={_settings?.Persisted?.EnableUnlockRecordings ?? false}");
+                    $"shots={plan != null}, recordings={_activeWaveCaptures?.EnableUnlockRecordings ?? _settings?.Persisted?.EnableUnlockRecordings ?? false}");
                 if (needsPerMonitorWindow)
                 {
                     using (Common.DpiAwarenessScope.PerMonitorV2())
@@ -2752,7 +2775,7 @@ namespace PlayniteAchievements.Services.UI
                 // anchor only — a test fire out of game has no video — and only with recordings
                 // enabled, since nothing else consumes a track.
                 if (_activeIsGame && _activeReferenceHwnd != IntPtr.Zero &&
-                    (_settings?.Persisted?.EnableUnlockRecordings ?? false))
+                    (_activeWaveCaptures?.EnableUnlockRecordings ?? _settings?.Persisted?.EnableUnlockRecordings ?? false))
                 {
                     trackRecorder = new ToastOverlayTrackRecorder(
                         _logger, TrackSampleIntervalMs(),
@@ -3208,6 +3231,9 @@ namespace PlayniteAchievements.Services.UI
 
             public string BaseDirectory { get; set; }
 
+            // The wave's game's own capture folder, saved into as is; null uses BaseDirectory\Game.
+            public string GameDirectory { get; set; }
+
             // Filename suffixes snapshotted from settings at plan-build time so the
             // fire-and-forget save uses the values as of capture. Null means no suffix.
             public string CleanSuffix { get; set; }
@@ -3245,9 +3271,14 @@ namespace PlayniteAchievements.Services.UI
                 return null;
             }
 
+            // The screenshots master switch is ANDed into each variant by the policy below (the
+            // game's own when it has capture settings).
+            // A game with its own capture folder saves straight into it and needs no global folder.
             var persisted = _settings?.Persisted;
+            var gameData = LoadGameData(first.PlayniteGameId);
+            var gameDir = gameData?.CaptureOverride?.CaptureDirectory;
             var baseDir = persisted?.UnlockScreenshotDirectory;
-            if (persisted?.EnableUnlockScreenshots != true || string.IsNullOrWhiteSpace(baseDir))
+            if (persisted == null || (string.IsNullOrWhiteSpace(baseDir) && string.IsNullOrWhiteSpace(gameDir)))
             {
                 return null;
             }
@@ -3256,14 +3287,18 @@ namespace PlayniteAchievements.Services.UI
             // unlock — re-capturing a moment is the point of the shortcut. Opting into the test
             // folder diverts it to a shared "Test" subfolder the capture library hides, which is
             // what makes the shortcut usable for throwaway testing instead.
-            if (first.IsTestFire && (_settings?.Persisted?.EnableCaptureTestFolder ?? false))
+            if (first.IsTestFire && persisted.EnableCaptureTestFolder)
             {
-                baseDir = System.IO.Path.Combine(baseDir, UnlockScreenshotService.TestFolderName);
+                baseDir = System.IO.Path.Combine(
+                    string.IsNullOrWhiteSpace(baseDir) ? gameDir : baseDir,
+                    UnlockScreenshotService.TestFolderName);
+                gameDir = null;
             }
 
             var plan = new WaveScreenshotPlan
             {
                 BaseDirectory = baseDir,
+                GameDirectory = gameDir,
                 CleanSuffix = NormalizeSuffix(persisted.UnlockScreenshotSuffixClean),
                 WithToastSuffix = NormalizeSuffix(persisted.UnlockScreenshotSuffixWithToast),
                 FramedSuffix = NormalizeSuffix(persisted.UnlockScreenshotSuffixFramed),
@@ -3271,13 +3306,14 @@ namespace PlayniteAchievements.Services.UI
             foreach (var vm in wave)
             {
                 // Each variant is gated independently by its own per-variant rarity threshold and
-                // completion bypass. The policy ANDs the EnableUnlockScreenshots master switch into
-                // each variant flag.
+                // completion bypass. The policy ANDs the screenshots master switch into each
+                // variant flag. A wave never mixes games, so the first item's game data serves all.
                 var variants = UnlockScreenshotVariantPolicy.Resolve(
                     vm.Rarity,
                     vm.IsGameCompleted || vm.IsCompletionAchievement || vm.IsCapstone,
                     vm.ProviderKey,
-                    persisted);
+                    persisted,
+                    gameData);
 
                 if (variants != ScreenshotVariants.None)
                 {
@@ -3506,7 +3542,8 @@ namespace PlayniteAchievements.Services.UI
                                 _screenshotService.Save(
                                     itemClean, baseDir, vm.ProviderKey, vm.GameName, vm.AchievementName,
                                     vm.AchievementNumber, vm.TotalCount,
-                                    plan.CleanSuffix);
+                                    plan.CleanSuffix,
+                                    plan.GameDirectory);
                             }
 
                             if ((item.Variants & ScreenshotVariants.WithToast) != 0 &&
@@ -3515,7 +3552,8 @@ namespace PlayniteAchievements.Services.UI
                                 _screenshotService.Save(
                                     toastShot, baseDir, vm.ProviderKey, vm.GameName, vm.AchievementName,
                                     vm.AchievementNumber, vm.TotalCount,
-                                    plan.WithToastSuffix);
+                                    plan.WithToastSuffix,
+                                    plan.GameDirectory);
                             }
 
                             if (framedByVm.TryGetValue(vm, out var framed))
@@ -3523,7 +3561,8 @@ namespace PlayniteAchievements.Services.UI
                                 _screenshotService.Save(
                                     framed, baseDir, vm.ProviderKey, vm.GameName, vm.AchievementName,
                                     vm.AchievementNumber, vm.TotalCount,
-                                    plan.FramedSuffix);
+                                    plan.FramedSuffix,
+                                    plan.GameDirectory);
                             }
                         }
 

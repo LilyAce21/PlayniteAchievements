@@ -1176,10 +1176,13 @@ namespace PlayniteAchievements
                         // captures, and its measured onsets, so composited chimes land where the
                         // live ones were heard.
                         () => _unlockSounds?.HostProcessId,
-                        id => _unlockSounds?.TryGetAudibleOnsetUtc(id));
+                        id => _unlockSounds?.TryGetAudibleOnsetUtc(id),
+                        // Each game's own capture settings, read per session and per unlock.
+                        gameId => _gameCustomDataStore != null && _gameCustomDataStore.TryLoad(gameId, out var data) ? data : null);
                     _captureLibraryService = new Services.Captures.CaptureLibraryService(
                         () => _settingsViewModel?.Settings?.Persisted,
-                        _logger);
+                        _logger,
+                        gameDirectoriesAccessor: ReadGameCaptureDirectories);
                     Services.Captures.AchievementCapturePathResolver.CaptureLibraryAccessor =
                         () => _captureLibraryService;
                     _inGameMonitor = new InGameAchievementMonitor(
@@ -2427,8 +2430,10 @@ namespace PlayniteAchievements
                 if (_gameCustomDataStore != null)
                 {
                     _gameCustomDataStore.CustomDataChanged += GameCustomDataStore_CustomDataChanged;
+                    _gameCustomDataStore.CustomDataWritten += GameCustomDataStore_CustomDataWrittenForCaptures;
                     _eventSubscriptions.Add(() =>
                     {
+                        _gameCustomDataStore.CustomDataWritten -= GameCustomDataStore_CustomDataWrittenForCaptures;
                         _gameCustomDataStore.CustomDataChanged -= GameCustomDataStore_CustomDataChanged;
                         lock (_customDataChangeSync)
                         {
@@ -2475,6 +2480,43 @@ namespace PlayniteAchievements
         // sync, the start page and the whole-library theme lists are left alone.
         private readonly Dictionary<Guid, bool> _pendingCustomDataChangeIds = new Dictionary<Guid, bool>();
         private Timer _customDataChangeTimer;
+
+        /// <summary>
+        /// Each game with its own capture folder, by game name, as the capture library reads it:
+        /// captures are named after the game, so the library matches folders by name.
+        /// </summary>
+        private IReadOnlyDictionary<string, string> ReadGameCaptureDirectories()
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var directories = _gameCustomDataStore?.QueryAll(
+                rows => rows
+                    .Where(data => data?.PlayniteGameId != Guid.Empty &&
+                                   !string.IsNullOrWhiteSpace(data?.CaptureOverride?.CaptureDirectory))
+                    .Select(data => new KeyValuePair<Guid, string>(data.PlayniteGameId, data.CaptureOverride.CaptureDirectory))
+                    .ToList());
+            foreach (var pair in directories ?? new List<KeyValuePair<Guid, string>>())
+            {
+                var name = PlayniteApi?.Database?.Games?.Get(pair.Key)?.Name;
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    result[name] = pair.Value;
+                }
+            }
+
+            return result;
+        }
+
+        private void GameCustomDataStore_CustomDataWrittenForCaptures(object sender, GameCustomDataWrittenEventArgs e)
+        {
+            // Only a change to a game's own capture folder moves where its captures are read from.
+            if (e != null && !string.Equals(
+                    e.Previous?.CaptureOverride?.CaptureDirectory,
+                    e.Persisted?.CaptureOverride?.CaptureDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _captureLibraryService?.RefreshGameDirectories();
+            }
+        }
 
         private void GameCustomDataStore_CustomDataChanged(object sender, GameCustomDataChangedEventArgs e)
         {

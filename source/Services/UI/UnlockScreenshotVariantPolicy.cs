@@ -23,21 +23,23 @@ namespace PlayniteAchievements.Services.UI
             RarityTier rarity,
             bool isCompletion,
             string providerKey,
-            PersistedSettings persisted)
+            PersistedSettings persisted,
+            GameCustomDataFile gameData = null)
         {
             if (persisted == null)
             {
                 return ScreenshotVariants.None;
             }
 
-            var effective = ProviderNotificationPolicy.Resolve(persisted, providerKey);
+            var effective = ProviderNotificationPolicy.Resolve(persisted, providerKey, gameData);
+            var captures = effective.Captures;
             var variants = ScreenshotVariants.None;
 
             if (effective.ScreenshotClean && UnlockCaptureRarityFilter.ShouldCapture(
                     rarity,
                     isCompletion,
-                    persisted.UnlockScreenshotCleanRarities,
-                    persisted.UnlockScreenshotCleanAlwaysCaptureCompletion))
+                    captures.UnlockScreenshotCleanRarities,
+                    captures.UnlockScreenshotCleanAlwaysCaptureCompletion))
             {
                 variants |= ScreenshotVariants.Clean;
             }
@@ -45,8 +47,8 @@ namespace PlayniteAchievements.Services.UI
             if (effective.ScreenshotWithToast && UnlockCaptureRarityFilter.ShouldCapture(
                     rarity,
                     isCompletion,
-                    persisted.UnlockScreenshotWithToastRarities,
-                    persisted.UnlockScreenshotWithToastAlwaysCaptureCompletion))
+                    captures.UnlockScreenshotWithToastRarities,
+                    captures.UnlockScreenshotWithToastAlwaysCaptureCompletion))
             {
                 variants |= ScreenshotVariants.WithToast;
             }
@@ -54,8 +56,8 @@ namespace PlayniteAchievements.Services.UI
             if (effective.ScreenshotFramed && UnlockCaptureRarityFilter.ShouldCapture(
                     rarity,
                     isCompletion,
-                    persisted.UnlockScreenshotFramedRarities,
-                    persisted.UnlockScreenshotFramedAlwaysCaptureCompletion))
+                    captures.UnlockScreenshotFramedRarities,
+                    captures.UnlockScreenshotFramedAlwaysCaptureCompletion))
             {
                 variants |= ScreenshotVariants.Framed;
             }

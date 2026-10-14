@@ -30,7 +30,16 @@
     <Grid Background="{DynamicResource PlayAch.Brush.Panel}">
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="20">
+            <StackPanel x:Name="ContentPanel" Margin="20">
+                <!-- Game mode only: whether this game has its own capture settings. Without them
+                     the settings below show the inherited values, read-only. -->
+                <CheckBox x:Name="GameCustomizeCheckBox"
+                          Content="{DynamicResource LOCPlayAch_ManageAchievements_Notifications_CustomizeCaptures}"
+                          Click="GameCustomizeCheckBox_Click"
+                          Visibility="Collapsed"
+                          Margin="{StaticResource PlayAch.Thickness.Bottom.Md}"/>
+
+                <StackPanel x:Name="SettingsBody">
                 <!-- Capture timing. Deliberately not gated on the notifications master switch:
                      ProviderNotificationPolicy ANDs screenshots and recordings against their own
                      masters only, so captures work with notifications off. -->
@@ -53,6 +62,32 @@
                                      Width="{StaticResource PlayAch.Size.Input.NarrowWidth}"
                                      TextAlignment="Right"/>
                         </controls:SettingRow>
+
+                        <!-- Game mode only: the folder this game's screenshots and clips go
+                             straight into, in place of the global folders below. -->
+                        <StackPanel x:Name="GameFolderPanel"
+                                    Visibility="Collapsed"
+                                    Margin="{StaticResource PlayAch.Thickness.Top.Md}">
+                            <TextBlock Text="{DynamicResource LOCPlayAch_ManageAchievements_Notifications_CaptureFolder}"
+                                       Foreground="{DynamicResource PlayAch.Brush.Text}"
+                                       Margin="{StaticResource PlayAch.Thickness.Bottom.Xs}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding Persisted.CaptureDirectory, UpdateSourceTrigger=LostFocus}"
+                                         VerticalAlignment="Center"/>
+                                <Button Grid.Column="1"
+                                        Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                        Click="GameCaptureDirectory_Browse_Click"
+                                        Margin="8,0,0,0"/>
+                            </Grid>
+                            <TextBlock Text="{DynamicResource LOCPlayAch_ManageAchievements_Notifications_CaptureFolderHint}"
+                                       Style="{StaticResource MutedTextStyle}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
@@ -164,6 +199,8 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- File naming, resolution and folders stay app-wide; collapsed in game mode. -->
+                            <StackPanel x:Name="ScreenshotGlobalPanel">
                             <TextBlock Text="{DynamicResource LOCPlayAch_Settings_ScreenshotSuffixes}"
                                        Style="{StaticResource SubSectionHeaderStyle}"
                                        Margin="{StaticResource PlayAch.Thickness.Bottom.Sm}"/>
@@ -208,6 +245,7 @@
                                         Click="ScreenshotDirectory_Browse_Click"
                                         Margin="8,0,0,0"/>
                             </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -329,6 +367,8 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Folder, clip length and quality stay app-wide; collapsed in game mode. -->
+                            <StackPanel x:Name="RecordingGlobalPanel">
                             <TextBlock Text="{DynamicResource LOCPlayAch_Settings_RecordingDirectory}"
                                        Foreground="{DynamicResource PlayAch.Brush.Text}"
                                        Margin="{StaticResource PlayAch.Thickness.Bottom.Xs}"/>
@@ -379,12 +419,14 @@
                                     <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_RecordingQualityLow}" Tag="{x:Static settings:RecordingQuality.Low}"/>
                                 </ComboBox>
                             </controls:SettingRow>
+                            </StackPanel>
 
                             <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_RecordingIncludeAudio}"
                                                  Margin="{StaticResource PlayAch.Thickness.Bottom.SettingRow}">
                                 <CheckBox IsChecked="{Binding Persisted.RecordingIncludeAudio}"/>
                             </controls:SettingRow>
-                            <StackPanel Margin="{StaticResource PlayAch.Thickness.SettingRow.Indent}"
+                            <StackPanel x:Name="AudioGlobalPanel"
+                                        Margin="{StaticResource PlayAch.Thickness.SettingRow.Indent}"
                                         IsEnabled="{Binding Persisted.RecordingIncludeAudio}"
                                         Grid.IsSharedSizeScope="True">
                                 <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_RecordingAudioSource}">
@@ -403,6 +445,7 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </Grid>

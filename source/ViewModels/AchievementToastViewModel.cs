@@ -179,16 +179,15 @@ namespace PlayniteAchievements.ViewModels
 
         /// <summary>
         /// Computes <see cref="NotifyReadyAtUtc"/>: the unlock observation (or the enqueue instant
-        /// when no observation stamp exists, e.g. friend unlocks) plus the configured notification
-        /// delay. Previews and test fires are exempt and always ready, matching the capture-delay
-        /// exemptions.
+        /// when no observation stamp exists, e.g. friend unlocks) plus the unlock's effective
+        /// notification delay. Previews and test fires are exempt and always ready, matching the
+        /// capture-delay exemptions.
         /// </summary>
         internal static DateTime ComputeNotifyReadyUtc(
             AchievementUnlockedEventArgs args,
-            PersistedSettings settings,
+            double delaySeconds,
             DateTime enqueuedUtc)
         {
-            var delaySeconds = settings?.NotificationDelaySeconds ?? 0;
             if (args == null || args.IsPreview || args.IsTestFire || delaySeconds <= 0)
             {
                 return default(DateTime);

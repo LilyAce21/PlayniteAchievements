@@ -219,6 +219,58 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
+        public void NormalizeInternal_KeepsTheGameNotificationOverrides_AndTheyAloneKeepTheRecord()
+        {
+            var gameId = Guid.NewGuid();
+            var data = new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride { NotificationDelaySeconds = 9 },
+                CaptureOverride = new GameCaptureOverride { EnableUnlockRecordings = true, UnlockRecordingFramedSeconds = 4 }
+            };
+
+            var normalized = GameCustomDataNormalizer.NormalizeInternal(data, gameId);
+
+            Assert.AreEqual(9, normalized.NotificationBehaviorOverride?.NotificationDelaySeconds);
+            Assert.AreEqual(true, normalized.CaptureOverride?.EnableUnlockRecordings);
+            Assert.AreEqual(4, normalized.CaptureOverride?.UnlockRecordingFramedSeconds);
+            Assert.IsTrue(GameCustomDataNormalizer.HasInternalData(new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                CaptureOverride = new GameCaptureOverride()
+            }));
+            Assert.IsTrue(GameCustomDataNormalizer.HasInternalData(new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride()
+            }));
+
+            var merged = GameCustomDataNormalizer.MergePreferExisting(new GameCustomDataFile { PlayniteGameId = gameId }, data);
+            Assert.AreEqual(9, merged.NotificationBehaviorOverride?.NotificationDelaySeconds);
+            Assert.AreEqual(4, merged.CaptureOverride?.UnlockRecordingFramedSeconds);
+        }
+
+        [TestMethod]
+        public void PortablePackage_DoesNotCarryTheGameNotificationOverrides_AndImportKeepsTheLocalOnes()
+        {
+            var gameId = Guid.NewGuid();
+            var local = new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride { EnableUnlockToasts = true },
+                CaptureOverride = new GameCaptureOverride { EnableUnlockScreenshots = true }
+            };
+
+            var imported = GameCustomDataFile.FromPortable(local.ToPortable(), gameId, null, null);
+            Assert.IsNull(imported.NotificationBehaviorOverride);
+            Assert.IsNull(imported.CaptureOverride);
+
+            PortablePersonalState.CarryLocal(local, imported);
+            Assert.AreEqual(true, imported.NotificationBehaviorOverride?.EnableUnlockToasts);
+            Assert.AreEqual(true, imported.CaptureOverride?.EnableUnlockScreenshots);
+        }
+
+        [TestMethod]
         public void NormalizeInternal_ManualLink_PreservesDisplayPlatformOverride()
         {
             // NormalizeManualLink rebuilds the link field by field on every save, so an omitted

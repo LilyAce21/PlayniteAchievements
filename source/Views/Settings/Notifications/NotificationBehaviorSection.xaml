@@ -20,7 +20,16 @@
     <Grid Background="{DynamicResource PlayAch.Brush.Panel}">
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="20">
+            <StackPanel x:Name="ContentPanel" Margin="20">
+                <!-- Game mode only: whether this game has its own behavior. Without it the
+                     settings below show the inherited values, read-only. -->
+                <CheckBox x:Name="GameCustomizeCheckBox"
+                          Content="{DynamicResource LOCPlayAch_ManageAchievements_Notifications_CustomizeBehavior}"
+                          Click="GameCustomizeCheckBox_Click"
+                          Visibility="Collapsed"
+                          Margin="{StaticResource PlayAch.Thickness.Bottom.Md}"/>
+
+                <StackPanel x:Name="SettingsBody">
                 <!-- What fires -->
                 <Border Style="{StaticResource SectionBorderStyle}">
                     <StackPanel Grid.IsSharedSizeScope="True">
@@ -38,7 +47,8 @@
                             <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_EnableUnlockToasts}">
                                 <CheckBox IsChecked="{Binding Persisted.EnableUnlockToasts}"/>
                             </controls:SettingRow>
-                            <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_EnableFriendUnlockToasts}"
+                            <controls:SettingRow x:Name="FriendUnlockToastsRow"
+                                                 Label="{DynamicResource LOCPlayAch_Settings_EnableFriendUnlockToasts}"
                                                  Visibility="{Binding Persisted.EnableFriendsFeatures, Converter={StaticResource BoolToVis}}">
                                 <CheckBox IsChecked="{Binding Persisted.EnableFriendUnlockToasts}"/>
                             </controls:SettingRow>
@@ -59,7 +69,9 @@
                                    Margin="{StaticResource PlayAch.Thickness.Bottom.Md}"/>
                         <Border Style="{StaticResource SectionAccentRuleStyle}"/>
 
-                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ToastDurationSeconds}">
+                        <!-- Rows named *GlobalRow stay app-wide and collapse in game mode. -->
+                        <controls:SettingRow x:Name="DurationGlobalRow"
+                                             Label="{DynamicResource LOCPlayAch_Settings_ToastDurationSeconds}">
                             <TextBox Text="{Binding Persisted.ToastDurationSeconds, UpdateSourceTrigger=LostFocus}"
                                      Width="{StaticResource PlayAch.Size.Input.NarrowWidth}"
                                      TextAlignment="Right"/>
@@ -71,12 +83,14 @@
                                      Width="{StaticResource PlayAch.Size.Input.NarrowWidth}"
                                      TextAlignment="Right"/>
                         </controls:SettingRow>
-                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_MaxConcurrentToasts}">
+                        <controls:SettingRow x:Name="MaxConcurrentGlobalRow"
+                                             Label="{DynamicResource LOCPlayAch_Settings_MaxConcurrentToasts}">
                             <TextBox Text="{Binding Persisted.MaxConcurrentToasts, UpdateSourceTrigger=LostFocus}"
                                      Width="{StaticResource PlayAch.Size.Input.NarrowWidth}"
                                      TextAlignment="Right"/>
                         </controls:SettingRow>
-                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_Style_Position}">
+                        <controls:SettingRow x:Name="PositionGlobalRow"
+                                             Label="{DynamicResource LOCPlayAch_Settings_Style_Position}">
                             <ComboBox SelectedValue="{Binding Persisted.ToastPosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       SelectedValuePath="Tag"
                                       MinWidth="140">
@@ -87,7 +101,8 @@
                                 <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_TopLeft}" Tag="{x:Static settings:ToastScreenCorner.TopLeft}"/>
                             </ComboBox>
                         </controls:SettingRow>
-                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_NotificationRenderMode}"
+                        <controls:SettingRow x:Name="RenderModeGlobalRow"
+                                             Label="{DynamicResource LOCPlayAch_Settings_NotificationRenderMode}"
                                              Hint="{DynamicResource LOCPlayAch_Settings_NotificationRenderMode_Hint}">
                             <ComboBox SelectedValue="{Binding Persisted.NotificationRenderMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       SelectedValuePath="Tag"
@@ -97,10 +112,12 @@
                             </ComboBox>
                         </controls:SettingRow>
 
-                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_EnableControllerVibration}">
+                        <controls:SettingRow x:Name="VibrationGlobalRow"
+                                             Label="{DynamicResource LOCPlayAch_Settings_EnableControllerVibration}">
                             <CheckBox IsChecked="{Binding Persisted.EnableControllerVibration}"/>
                         </controls:SettingRow>
-                        <StackPanel Margin="{StaticResource PlayAch.Thickness.SettingRow.Indent}"
+                        <StackPanel x:Name="VibrationGlobalPanel"
+                                    Margin="{StaticResource PlayAch.Thickness.SettingRow.Indent}"
                                     IsEnabled="{Binding Persisted.EnableControllerVibration}"
                                     Grid.IsSharedSizeScope="True">
                             <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ControllerVibrationStrength}">
@@ -140,6 +157,7 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </Grid>

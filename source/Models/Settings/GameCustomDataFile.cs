@@ -197,6 +197,20 @@ namespace PlayniteAchievements.Models.Settings
         /// </summary>
         public UnlockSoundSettings UnlockSounds { get; set; }
 
+        /// <summary>
+        /// The game's own notification behavior, or null when it follows its provider and the
+        /// globals. Local to this machine like <see cref="UnlockSounds"/>: not carried by the
+        /// portable package.
+        /// </summary>
+        public GameNotificationBehaviorOverride NotificationBehaviorOverride { get; set; }
+
+        /// <summary>
+        /// The game's own unlock capture settings, or null when it follows its provider and the
+        /// globals. Local to this machine like <see cref="UnlockSounds"/>: not carried by the
+        /// portable package.
+        /// </summary>
+        public GameCaptureOverride CaptureOverride { get; set; }
+
         public ProviderOverrideData ProviderOverride { get; set; }
 
         /// <summary>
@@ -275,6 +289,8 @@ namespace PlayniteAchievements.Models.Settings
                 ExophaseSlugOverride = ExophaseSlugOverride,
                 NotificationAppearanceOverride = NotificationAppearanceOverride?.Clone(),
                 UnlockSounds = UnlockSounds?.Clone(),
+                NotificationBehaviorOverride = NotificationBehaviorOverride?.Clone(),
+                CaptureOverride = CaptureOverride?.Clone(),
                 ProviderOverride = ProviderOverride?.Clone(),
                 ExophaseEnrichmentSlugOverride = ExophaseEnrichmentSlugOverride,
                 ManualLink = ManualLink?.Clone(),
