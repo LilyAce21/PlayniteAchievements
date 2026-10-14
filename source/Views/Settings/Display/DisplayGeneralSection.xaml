@@ -203,8 +203,8 @@
                 </StackPanel>
             </Border>
 
-            <!-- Which parts of the Overview window show. How they look is set in the window
-                 itself: a score card's right-click menu, and the mini-showcase's editor. -->
+            <!-- Which parts of the Overview window show, and the score cards' color source. The
+                 mini-showcase's look is set in its editor in the window itself. -->
             <Border Style="{StaticResource SectionBorderStyle}" Grid.IsSharedSizeScope="True">
                 <StackPanel>
                     <TextBlock Text="{DynamicResource LOCPlayAch_Menu_OpenOverview}"
@@ -226,6 +226,9 @@
                                       MinWidth="140"
                                       Margin="8,0,0,0"/>
                         </StackPanel>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ScoreCardUseCustomColors}">
+                        <CheckBox IsChecked="{Binding Persisted.OverviewScoreCardsUseCustomColors}"/>
                     </controls:SettingRow>
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ShowOverviewMiniShowcase}"
                                          Margin="0">
