@@ -478,6 +478,84 @@ namespace PlayniteAchievements.Providers.Tests
         }
 
         [TestMethod]
+        public void BlockRenderer_DrawsTheTopAndTwoSidesWithInventoryShading()
+        {
+            var elements = JArray.Parse("[{\"from\":[0,0,0],\"to\":[16,16,16],\"faces\":{" +
+                "\"up\":{\"texture\":\"#up\"},\"down\":{\"texture\":\"#up\"}," +
+                "\"north\":{\"texture\":\"#north\"},\"south\":{\"texture\":\"#north\"}," +
+                "\"east\":{\"texture\":\"#east\"},\"west\":{\"texture\":\"#east\"}}}]");
+            MinecraftTexture Solid(byte r, byte g, byte b)
+            {
+                var pixels = new byte[16 * 16 * 4];
+                for (var i = 0; i < pixels.Length; i += 4)
+                {
+                    pixels[i] = b;
+                    pixels[i + 1] = g;
+                    pixels[i + 2] = r;
+                    pixels[i + 3] = 255;
+                }
+
+                return new MinecraftTexture { Pixels = pixels, Width = 16, Height = 16 };
+            }
+
+            var textures = new Dictionary<string, MinecraftTexture>
+            {
+                ["#up"] = Solid(200, 0, 0),
+                ["#north"] = Solid(0, 200, 0),
+                ["#east"] = Solid(0, 0, 200)
+            };
+            var size = 64;
+            var pixels = MinecraftBlockRenderer.Render(elements, reference => (textures[reference], false), 30, 225, size);
+            Assert.IsNotNull(pixels);
+
+            (int R, int G, int B, int A) At(int x, int y)
+            {
+                var index = (y * size + x) * 4;
+                return (pixels[index + 2], pixels[index + 1], pixels[index], pixels[index + 3]);
+            }
+
+            // The top face is full brightness; the left side (east at 225°) a little darker, the right
+            // side (north) darker still; the corners stay transparent.
+            Assert.AreEqual((200, 0, 0, 255), At(32, 16));
+            Assert.AreEqual((0, 0, 160, 255), At(16, 40));
+            Assert.AreEqual((0, 120, 0, 255), At(48, 40));
+            Assert.AreEqual(0, At(1, 1).A);
+        }
+
+        [TestMethod]
+        public void ResolveBlockModel_FollowsParentsReadsSpriteSlotsAndLeavesSpritesFlat()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var jar = Path.Combine(root, "pack.jar");
+                WriteZip(jar, new Dictionary<string, byte[]>
+                {
+                    ["assets/minecraft/models/block/block.json"] = Json("{\"display\":{\"gui\":{\"rotation\":[30,225,0]}}}"),
+                    ["assets/minecraft/models/block/cube.json"] = Json("{\"parent\":\"block/block\",\"elements\":[{\"from\":[0,0,0],\"to\":[16,16,16],\"faces\":{\"up\":{\"texture\":\"#up\"}}}]}"),
+                    ["assets/minecraft/models/block/cube_all.json"] = Json("{\"parent\":\"block/cube\",\"textures\":{\"up\":\"#all\"}}"),
+                    ["assets/minecraft/models/block/glass.json"] = Json("{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":{\"force_translucent\":true,\"sprite\":\"minecraft:block/glass\"}}}"),
+                    ["assets/minecraft/items/glass.json"] = Json("{\"model\":{\"type\":\"minecraft:model\",\"model\":\"minecraft:block/glass\"}}"),
+                    ["assets/minecraft/models/item/generated.json"] = Json("{\"parent\":\"builtin/generated\"}"),
+                    ["assets/minecraft/models/item/stick.json"] = Json("{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"minecraft:item/stick\"}}")
+                });
+                var sources = new List<MinecraftResourceSource> { MinecraftResourceSource.Load(jar, new[] { "en_us" }, new FakeLogger()) };
+
+                var glass = MinecraftModelResolver.ResolveBlockModel("minecraft", "glass", null, sources);
+                Assert.AreEqual("minecraft:block/glass", glass.ModelId);
+                Assert.AreEqual(30, glass.RotationX);
+                Assert.AreEqual(225, glass.RotationY);
+                Assert.AreEqual("assets/minecraft/textures/block/glass.png", MinecraftModelResolver.ResolveFaceTexture(glass, "#up"));
+
+                Assert.IsNull(MinecraftModelResolver.ResolveBlockModel("minecraft", "stick", null, sources));
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
+        }
+
+        [TestMethod]
         public void ParseTimestamp_ConvertsCompactOffsetToUtc()
         {
             Assert.AreEqual(
