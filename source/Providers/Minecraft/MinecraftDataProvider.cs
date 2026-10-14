@@ -28,6 +28,8 @@ namespace PlayniteAchievements.Providers.Minecraft
 
         private readonly MinecraftScanner _scanner;
         private readonly IPlayniteAPI _playniteApi;
+        private readonly ILogger _logger;
+        private readonly PlayniteAchievementsSettings _settings;
 
         public MinecraftDataProvider(ILogger logger, PlayniteAchievementsSettings settings, IPlayniteAPI playniteApi)
             : this(logger, settings, playniteApi, string.Empty)
@@ -39,6 +41,8 @@ namespace PlayniteAchievements.Providers.Minecraft
             if (logger == null) throw new ArgumentNullException(nameof(logger));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
             _playniteApi = playniteApi;
+            _logger = logger;
+            _settings = settings;
             _scanner = new MinecraftScanner(logger, settings, ProviderSettings, _playniteApi, pluginUserDataPath);
         }
 
@@ -84,9 +88,11 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// Watches each instance's latest.log for the game's chat announcements, so an unlock shows
-        /// as soon as it happens rather than at the next world save. Unannounced unlocks still arrive
-        /// through the regular in-game refresh once the world saves.
+        /// Watches the latest.log of every game folder the game covers for the integrated server's
+        /// advancement announcements, so an unlock shows as soon as it happens rather than at the
+        /// next world save. Folders without rows yet (a new world or instance) are watched too: their
+        /// titles resolve through the instance's definitions, and the unknown row makes the monitor
+        /// refresh at once. Unannounced unlocks still arrive through the refresh once the world saves.
         /// </summary>
         InGameProgressRegistration IInGameProgressSource.TryRegister(Game game, GameAchievementData cachedSchema)
         {
@@ -99,23 +105,40 @@ namespace PlayniteAchievements.Providers.Minecraft
             }
 
             var source = MinecraftGameResolver.Resolve(game, ProviderSettings, _playniteApi);
-            if (source == null || source.Instances.Count == 0)
+            if (source == null || source.Candidates.Count == 0)
             {
                 return null;
             }
 
             var state = new MinecraftLogState
             {
-                PlayerNames = MinecraftAccounts.ResolveNames(ProviderSettings?.PlayerUuid, source.GameFolders)
+                PlayerNames = MinecraftAccounts.ResolveNames(ProviderSettings?.PlayerUuid, source.Candidates.Select(candidate => candidate.GameFolder))
             };
-            foreach (var instance in source.Instances)
+            foreach (var candidate in source.Candidates)
             {
-                var prefix = instance.Key + "|";
+                var prefix = candidate.Key + "|";
                 var rows = cachedSchema.Achievements
                     .Where(achievement => achievement?.ApiName != null &&
                                           achievement.ApiName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     .Select(achievement => (achievement.ApiName, achievement.DisplayName));
-                state.Targets.Add(MinecraftLogWatcher.CreateTarget(instance.GameFolder, rows));
+                var instance = candidate;
+                state.Targets.Add(MinecraftLogWatcher.CreateTarget(
+                    candidate.GameFolder,
+                    candidate.Key,
+                    rows,
+                    () => MinecraftScanner.BuildTitleIndex(
+                        new MinecraftInstance
+                        {
+                            Key = instance.Key,
+                            Name = instance.Name,
+                            GameFolder = instance.GameFolder,
+                            Worlds = source.SingleWorld != null
+                                ? new List<string> { source.SingleWorld }
+                                : MinecraftPaths.EnumerateWorlds(instance.GameFolder)
+                        },
+                        _settings?.Persisted?.GlobalLanguage,
+                        _logger),
+                    source.SingleWorld));
             }
 
             return new InGameProgressRegistration
@@ -142,7 +165,7 @@ namespace PlayniteAchievements.Providers.Minecraft
                     continue;
                 }
 
-                var observations = MinecraftLogWatcher.ReadUnlocks(state, DateTime.Now)
+                var observations = MinecraftLogWatcher.ReadUnlocks(state, DateTime.Now, context.SessionStartUtc)
                     .Select(unlock => new AchievementProgressObservation
                     {
                         ApiName = unlock.ApiName,
