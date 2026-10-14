@@ -406,6 +406,8 @@ namespace PlayniteAchievements.Models
         private const string ImagePath = "ImagePath";
         private const string TextContent = "Text";
         private const string HorizontalAlign = "HorizontalAlignment";
+        private const string TitleAlign = "TitleAlignment";
+        private const string ShowBackground = "ShowBackground";
         private const string VerticalAlign = "VerticalAlignment";
         private const string TextSizeOption = "TextSize";
         private const string TextPixelSizeOption = "TextPixelSize";
@@ -1166,6 +1168,24 @@ namespace PlayniteAchievements.Models
         public static void SetHorizontalAlignment(
             ShowcaseWidgetInstanceSettings settings,
             ShowcaseHorizontalAlignment value) => settings?.SetOption(HorizontalAlign, value);
+
+        /// <summary>Where a widget's custom title sits in its header; unset means left.</summary>
+        public static ShowcaseHorizontalAlignment GetTitleAlignment(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, TitleAlign, ShowcaseHorizontalAlignment.Left);
+
+        public static void SetTitleAlignment(
+            ShowcaseWidgetInstanceSettings settings,
+            ShowcaseHorizontalAlignment value) => settings?.SetOption(TitleAlign, value);
+
+        /// <summary>
+        /// Whether the widget draws its card surface and outline. Unset means the host's default:
+        /// shown on the showcase, hidden on the start page, where widgets sit on the page itself.
+        /// </summary>
+        public static bool GetShowBackground(ShowcaseWidgetInstanceSettings settings, bool hostDefault) =>
+            settings?.GetOption(ShowBackground, hostDefault) ?? hostDefault;
+
+        public static void SetShowBackground(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ShowBackground, value);
 
         public static ShowcaseVerticalAlignment GetVerticalAlignment(ShowcaseWidgetInstanceSettings settings) =>
             GetEnum(settings, VerticalAlign, ShowcaseVerticalAlignment.Center);
