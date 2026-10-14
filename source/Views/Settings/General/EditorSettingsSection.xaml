@@ -85,6 +85,42 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <!-- ================== PSN CAPSTONE ================== -->
+            <Border Style="{StaticResource SectionBorderStyle}">
+                <StackPanel Grid.IsSharedSizeScope="True">
+                    <TextBlock Text="{DynamicResource LOCPlayAch_Settings_PsnCapstone_Header}"
+                               Style="{StaticResource SectionHeaderStyle}"/>
+
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_EnablePsnCapstoneGeneration}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_EnablePsnCapstoneGeneration_Description}">
+                        <CheckBox IsChecked="{Binding Persisted.EnablePsnCapstoneGeneration}"/>
+                    </controls:SettingRow>
+
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_PsnNpsso}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_PsnNpsso_Description}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <PasswordBox x:Name="NpssoBox" Width="320"/>
+                                <Button Content="{DynamicResource LOCPlayAch_Settings_PsnNpsso_Save}"
+                                        Click="NpssoSave_Click"
+                                        Margin="{StaticResource PlayAch.Thickness.Left.Sm}"
+                                        Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"/>
+                                <Button Content="{DynamicResource LOCPlayAch_Settings_PsnNpsso_Test}"
+                                        Click="NpssoTest_Click"
+                                        Margin="{StaticResource PlayAch.Thickness.Left.Sm}"
+                                        Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"/>
+                            </StackPanel>
+                            <TextBlock x:Name="NpssoStatus"
+                                       Style="{StaticResource MutedTextStyle}"
+                                       TextWrapping="Wrap"
+                                       MaxWidth="400"
+                                       HorizontalAlignment="Left"
+                                       Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </controls:SettingRow>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

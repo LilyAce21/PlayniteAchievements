@@ -149,7 +149,7 @@ namespace PlayniteAchievements.Services.Achievements
                     continue;
                 }
 
-                if (copy.IsAutoCapstone &&
+                if (copy.IsAutoCapstone && !copy.IsPsnCapstone &&
                     AutoCapstoneTextRewriter.Rewrite(copy, ResolveCategory(data, copy), gameNames, current, known))
                 {
                     changed = true;

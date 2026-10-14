@@ -69,6 +69,47 @@ namespace PlayniteAchievements.Views.Settings.General
             }
         }
 
+        private void NpssoSave_Click(object sender, RoutedEventArgs e)
+        {
+            var service = _plugin.PsnCapstoneService;
+            if (service == null)
+            {
+                return;
+            }
+
+            var entered = NpssoBox.Password;
+            if (!string.IsNullOrWhiteSpace(entered) && !Services.Psn.NpssoProtector.LooksPlausible(entered))
+            {
+                NpssoStatus.Text = "That does not look like an NPSSO token (it is a single code of about 64 characters).";
+                return;
+            }
+
+            service.SetNpsso(entered);
+            NpssoBox.Clear();
+            NpssoStatus.Text = string.IsNullOrWhiteSpace(entered)
+                ? "NPSSO token cleared."
+                : "NPSSO token saved (encrypted).";
+        }
+
+        private async void NpssoTest_Click(object sender, RoutedEventArgs e)
+        {
+            var service = _plugin.PsnCapstoneService;
+            if (service == null)
+            {
+                return;
+            }
+
+            if (!service.HasNpsso)
+            {
+                NpssoStatus.Text = "Save an NPSSO token first.";
+                return;
+            }
+
+            NpssoStatus.Text = "Testing...";
+            var problem = await service.TestConnectionAsync();
+            NpssoStatus.Text = problem ?? "Connected to PlayStation Network.";
+        }
+
         private void Apply_Click(object sender, RoutedEventArgs e)
         {
             // A template still being typed is committed first, so Apply uses what the box shows.

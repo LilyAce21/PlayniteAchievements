@@ -656,6 +656,17 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_EnableAutoCapstoneGeneration_Description">After a game refreshes, gives it an auto capstone once if it has no capstone yet. Turning this off stops new ones and keeps existing capstones.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneGeneration_ApplyToExisting">Also add auto capstones to games already in your library?</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneGeneration_Progress">Adding auto capstones...</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_PsnCapstone">PSN Capstone</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_PsnCapstoneHint">Builds this game's capstone from its PlayStation Platinum trophy (name, description and icon). Needs an NPWR ID and your NPSSO token, or an imported platinum_data.json.</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_PsnFindId">Find NPWR ID</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_PsnFindIdHint">Opens a web search for this game's PlayStation trophy page in your browser, where the NPWR ID is shown in the page title.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PsnCapstone_Header">PSN Capstone</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_EnablePsnCapstoneGeneration">Automatically Generate PSN Capstones</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_EnablePsnCapstoneGeneration_Description">After a game refreshes, gives it a PSN Capstone once if it has an NPWR ID saved and no capstone yet. Off by default. Games that already have an auto or PSN capstone are skipped.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PsnNpsso">NPSSO token</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PsnNpsso_Description">Stored encrypted for this Windows account and sent only to PlayStation. Paste a fresh one when it expires. Leave empty and click Save to clear it.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PsnNpsso_Save">Save</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PsnNpsso_Test">Test connection</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneText_Hint">The text new auto capstones get. {0} is the game's name and {1} the category's. Apply updates existing auto capstones still on default text; ones whose title or description you edited keep it.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneText_ApplyConfirm">Update every auto capstone still on default text to these templates? Capstones whose title or description you edited keep their text.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneText_Progress">Updating auto capstone text...</sys:String>

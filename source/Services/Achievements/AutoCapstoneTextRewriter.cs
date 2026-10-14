@@ -63,7 +63,7 @@ namespace PlayniteAchievements.Services.Achievements
             AutoCapstoneTemplates current,
             AutoCapstoneKnownTemplates known)
         {
-            if (definition?.IsAutoCapstone != true || known == null || gameNames == null || gameNames.Count == 0)
+            if (definition?.IsAutoCapstone != true || definition.IsPsnCapstone || known == null || gameNames == null || gameNames.Count == 0)
             {
                 return false;
             }

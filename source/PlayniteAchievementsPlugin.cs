@@ -149,6 +149,9 @@ namespace PlayniteAchievements
         private TagSyncService _tagSyncService;
         private AutoCapstoneMaintainer _autoCapstoneMaintainer;
         private AutoCapstoneGenerator _autoCapstoneGenerator;
+        private Services.Psn.PsnCapstoneService _psnCapstoneService;
+        private PsnCapstoneAuthoring _psnCapstoneAuthoring;
+        private PsnCapstoneGenerator _psnCapstoneGenerator;
         private AutoCapstoneAuthoring _autoCapstoneAuthoring;
         private AutoCapstoneTextService _autoCapstoneTextService;
 
@@ -182,6 +185,8 @@ namespace PlayniteAchievements
         public AchievementOverridesService AchievementOverridesService => _achievementOverridesService;
         public AutoCapstoneMaintainer AutoCapstoneMaintainer => _autoCapstoneMaintainer;
         public AutoCapstoneAuthoring AutoCapstoneAuthoring => _autoCapstoneAuthoring;
+        internal Services.Psn.PsnCapstoneService PsnCapstoneService => _psnCapstoneService;
+        internal PsnCapstoneAuthoring PsnCapstoneAuthoring => _psnCapstoneAuthoring;
         public AchievementMarkerToggle AchievementMarkerToggle => _achievementMarkerToggle;
         public AchievementDataService AchievementDataService => _achievementDataService;
         public MemoryImageService ImageService => _imageService;
@@ -883,6 +888,25 @@ namespace PlayniteAchievements
                         () => _settingsViewModel?.Settings?.Persisted?.EnableAutoCapstoneGeneration == true,
                         _logger);
 
+                    // PSN Capstones: built from a game's PlayStation Platinum and written as an
+                    // auto capstone, so the maintainer above keeps them in step like any other.
+                    _psnCapstoneService = new Services.Psn.PsnCapstoneService(
+                        () => _settingsViewModel?.Settings?.Persisted,
+                        PersistSettingsForUiSilently,
+                        _logger);
+                    _psnCapstoneAuthoring = new PsnCapstoneAuthoring(
+                        _gameCustomDataStore,
+                        _achievementOverridesService,
+                        _autoCapstoneAuthoring,
+                        gameId => _achievementDataService?.GetGameAchievementData(gameId),
+                        () => _managedCustomIconService,
+                        _logger);
+                    _psnCapstoneGenerator = new PsnCapstoneGenerator(
+                        _psnCapstoneService,
+                        _psnCapstoneAuthoring,
+                        () => _settingsViewModel?.Settings?.Persisted?.EnablePsnCapstoneGeneration == true,
+                        _logger);
+
                     // Maintained first and in line, so a capstone this refresh finished is announced
                     // before the refresh returns. Generation follows off the refresh's thread: a
                     // capstone it authors is worked out at authoring and has nothing to announce.
@@ -893,6 +917,12 @@ namespace PlayniteAchievements
                         {
                             var ids = gameIds.ToList();
                             _ = Task.Run(() => _autoCapstoneGenerator.GenerateAsync(ids));
+                        }
+
+                        if (_psnCapstoneGenerator != null && gameIds != null)
+                        {
+                            var psnIds = gameIds.ToList();
+                            _ = Task.Run(() => _psnCapstoneGenerator.GenerateAsync(psnIds));
                         }
                     };
                     _windowTracker = new ActiveGameWindowTracker(_logger);
@@ -1597,6 +1627,66 @@ namespace PlayniteAchievements
         }
 
         /// <summary>
+        /// Asks, as PSN Capstone generation is switched on, whether the library games that have a
+        /// remembered NPWR ID should get theirs now. Games without one are never touched.
+        /// </summary>
+        private void OfferPsnCapstonesForExistingGames()
+        {
+            if (_psnCapstoneGenerator == null || _psnCapstoneService == null)
+            {
+                return;
+            }
+
+            var withIds = _psnCapstoneService.GamesWithNpwrs().ToList();
+            if (withIds.Count == 0)
+            {
+                return;
+            }
+
+            if (!_psnCapstoneService.HasNpsso)
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "Enter your NPSSO token under Settings > General > Editor first. PSN Capstones are generated once it is set.",
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"));
+                return;
+            }
+
+            var answer = PlayniteApi.Dialogs.ShowMessage(
+                "Also add PSN Capstones to the " + withIds.Count + " games that already have an NPWR ID saved? Games that already have a capstone are skipped.",
+                ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (answer != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            PlayniteApi.Dialogs.ActivateGlobalProgress(
+                async progress =>
+                {
+                    progress.ProgressMaxValue = withIds.Count;
+                    try
+                    {
+                        await _psnCapstoneGenerator
+                            .GenerateAsync(
+                                withIds,
+                                progress.CancelToken,
+                                (done, total) => progress.CurrentProgressValue = done)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Cancelled from the dialog: the rest get theirs as they next refresh.
+                    }
+                },
+                new GlobalProgressOptions("Adding PSN Capstones...")
+                {
+                    Cancelable = true,
+                    IsIndeterminate = false
+                });
+        }
+
+        /// <summary>
         /// Applies the auto capstone text templates in the background when they differ from the
         /// ones last applied, which is how a language change reaches existing capstones.
         /// </summary>
@@ -1745,6 +1835,12 @@ namespace PlayniteAchievements
                 _settingsViewModel?.Settings?.Persisted?.EnableAutoCapstoneGeneration == true)
             {
                 OfferAutoCapstonesForExistingGames();
+            }
+
+            if (e.PropertyName == nameof(PersistedSettings.EnablePsnCapstoneGeneration) &&
+                _settingsViewModel?.Settings?.Persisted?.EnablePsnCapstoneGeneration == true)
+            {
+                OfferPsnCapstonesForExistingGames();
             }
 
             if (e.PropertyName == nameof(PersistedSettings.UseUniformRarityBadges) ||

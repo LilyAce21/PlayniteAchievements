@@ -14,6 +14,7 @@ using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.CustomProviders;
 using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.Images;
+using PlayniteAchievements.Services.Psn;
 using PlayniteAchievements.ViewModels.Items;
 using PlayniteAchievements.ViewModels.ManageAchievements;
 using System;
@@ -221,6 +222,8 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             ResetCommand = new RelayCommand(_ => ResetRows(), _ => HasRows && !IsSaving);
             ResetOrderCommand = new RelayCommand(_ => ResetOrder(), _ => HasCustomOrder && !IsSaving);
             AutoCapstoneCommand = new RelayCommand(_ => _ = ApplyAutoCapstoneAsync(), _ => HasRows && !IsSaving);
+            PsnCapstoneCommand = new RelayCommand(_ => _ = ApplyPsnCapstoneAsync(), _ => HasRows && !IsSaving);
+            PsnFindIdCommand = new RelayCommand(_ => OpenPsnIdSearch(), _ => true);
             ToggleAllTitlesRevealCommand = new RelayCommand(_ => ToggleAllTitlesReveal());
             ToggleAllDescriptionsRevealCommand = new RelayCommand(_ => ToggleAllDescriptionsReveal());
             ToggleAllTrophiesRevealCommand = new RelayCommand(_ => ToggleAllTrophiesReveal());
@@ -1133,6 +1136,15 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         public RelayCommand AutoCapstoneCommand { get; }
 
         /// <summary>
+        /// Builds the game's capstone from its PlayStation Platinum trophy (name, description and
+        /// icon), asking for an NPWR ID or an imported platinum_data.json. Leaves Auto Capstone alone.
+        /// </summary>
+        public RelayCommand PsnCapstoneCommand { get; }
+
+        /// <summary>Opens a web search for the game's PlayStation trophy page, where its NPWR ID shows.</summary>
+        public RelayCommand PsnFindIdCommand { get; }
+
+        /// <summary>
         /// Reveals every masked name in the grid, or masks them all again when none is left masked.
         /// Acts on the rows the filter is showing: the column header is part of what is on screen,
         /// so it should not quietly reveal hundreds of rows the user cannot see.
@@ -2037,6 +2049,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     : null;
                 row.IsAutoCapstone = definition != null;
                 row.IsWholeGameAutoCapstone = definition?.IsWholeGameAutoCapstone == true;
+                row.IsPsnCapstone = definition?.IsPsnCapstone == true;
             }
         }
 
@@ -3109,6 +3122,177 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             catch (Exception ex)
             {
                 _logger?.Error(ex, $"Failed applying the automatic capstone for gameId={_gameId}.");
+                SetStatus(string.Format(L("LOCPlayAch_Status_Failed", "Error: {0}"), ex.Message), true);
+            }
+        }
+
+        private void OpenPsnIdSearch()
+        {
+            try
+            {
+                var name = API.Instance?.Database?.Games?.Get(_gameId)?.Name;
+                var query = "psprices game-trophies " + (name ?? string.Empty) + " trophies NPWR";
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                    "https://duckduckgo.com/?q=" + Uri.EscapeDataString(query))
+                {
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "Could not open the NPWR ID search.");
+            }
+        }
+
+        /// <summary>
+        /// Builds a PSN Capstone for this game from its PlayStation Platinum, authored through
+        /// <see cref="PsnCapstoneAuthoring"/>, the code the automatic setting runs too.
+        /// </summary>
+        private async Task ApplyPsnCapstoneAsync()
+        {
+            MarkUndoIntent(EditorEditIntent.Atomic("PsnCapstone", "LOCPlayAch_ManageAchievements_Custom_PsnCapstone"));
+
+            try
+            {
+                var plugin = PlayniteAchievementsPlugin.Instance;
+                var service = plugin?.PsnCapstoneService;
+                var authoring = plugin?.PsnCapstoneAuthoring;
+                var dialogs = API.Instance?.Dialogs;
+                if (service == null || authoring == null || dialogs == null)
+                {
+                    return;
+                }
+
+                const string caption = "PSN Capstone";
+
+                if (authoring.HasAnyCapstone(_gameId))
+                {
+                    var replace = dialogs.ShowMessage(
+                        L("LOCPlayAch_PsnCapstone_ReplaceConfirm",
+                            "This game already has a capstone. Replace it with a PSN Capstone?"),
+                        caption,
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                    if (replace != MessageBoxResult.Yes)
+                    {
+                        return;
+                    }
+                }
+
+                var source = dialogs.ShowMessage(
+                    "Yes: enter the game's NPWR ID (fetched from PlayStation with your NPSSO token).\n" +
+                    "No: import a platinum_data.json made by your own script.",
+                    caption,
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Question);
+                if (source == MessageBoxResult.Cancel)
+                {
+                    return;
+                }
+
+                PsnPlatinum platinum = null;
+                byte[] icon = null;
+
+                if (source == MessageBoxResult.Yes)
+                {
+                    if (!service.HasNpsso)
+                    {
+                        dialogs.ShowErrorMessage(
+                            "No NPSSO token is set. Enter it under Settings > General > Editor, or import a platinum_data.json instead.",
+                            caption);
+                        return;
+                    }
+
+                    var remembered = string.Join(", ", service.GetNpwrs(_gameId));
+                    var entered = dialogs.SelectString(
+                        "Paste an NPWR ID (for example NPWR39144_00), or a trophy page title that contains one. Several IDs can be pasted; a PS5 set is preferred.",
+                        caption,
+                        remembered);
+                    if (entered == null || !entered.Result)
+                    {
+                        return;
+                    }
+
+                    var ids = PsnNpwr.Extract(entered.SelectedString);
+                    if (ids.Count == 0)
+                    {
+                        dialogs.ShowErrorMessage("No NPWR ID was found in that text. It looks like NPWR12345_00.", caption);
+                        return;
+                    }
+
+                    PsnCapstoneFetchResult fetched = null;
+                    var progress = dialogs.ActivateGlobalProgress(
+                        p => { fetched = service.FetchAsync(ids, p.CancelToken).GetAwaiter().GetResult(); },
+                        new GlobalProgressOptions("Fetching the PlayStation Platinum...") { Cancelable = true, IsIndeterminate = true });
+                    if (progress?.Canceled == true)
+                    {
+                        return;
+                    }
+
+                    if (fetched == null || !fetched.Success)
+                    {
+                        dialogs.ShowErrorMessage(fetched?.Error ?? "The Platinum could not be fetched.", caption);
+                        return;
+                    }
+
+                    service.RememberNpwrs(_gameId, ids);
+                    platinum = fetched.Platinum;
+                    icon = fetched.Icon;
+                }
+                else
+                {
+                    var path = dialogs.SelectFile("platinum_data.json|*.json");
+                    if (string.IsNullOrWhiteSpace(path))
+                    {
+                        return;
+                    }
+
+                    if (new FileInfo(path).Length > PsnPlatinumImport.MaxJsonLength ||
+                        !PsnPlatinumImport.TryParse(File.ReadAllText(path), out platinum))
+                    {
+                        dialogs.ShowErrorMessage("That file is not a platinum_data.json this feature can read.", caption);
+                        return;
+                    }
+
+                    // The icon the script saved beside the JSON is used first, so an import needs no network.
+                    var localIcon = !string.IsNullOrEmpty(platinum.Npwr)
+                        ? Path.Combine(Path.GetDirectoryName(path) ?? string.Empty, platinum.Npwr + "_platinum.png")
+                        : null;
+                    if (localIcon != null && File.Exists(localIcon) && new FileInfo(localIcon).Length <= PsnClient.MaxIconBytes)
+                    {
+                        icon = File.ReadAllBytes(localIcon);
+                    }
+                    else if (!string.IsNullOrEmpty(platinum.IconUrl))
+                    {
+                        icon = await service.DownloadIconAsync(platinum.IconUrl).ConfigureAwait(true);
+                    }
+
+                    if (!string.IsNullOrEmpty(platinum.Npwr))
+                    {
+                        service.RememberNpwrs(_gameId, new[] { platinum.Npwr });
+                    }
+                }
+
+                var apiName = await authoring
+                    .AuthorAsync(_gameId, platinum, icon, replaceExisting: true)
+                    .ConfigureAwait(true);
+
+                _gameDataSnapshotProvider?.Invalidate();
+                RaiseAssignmentsChanged();
+                ReloadData();
+
+                var authored = FindRow(apiName);
+                if (authored != null)
+                {
+                    SelectRowAndScrollTo(authored);
+                    CapstoneChanged?.Invoke(this, new CapstoneChangedEventArgs(apiName, authored.DisplayName));
+                }
+
+                SetStatus(null, false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, $"Failed applying the PSN capstone for gameId={_gameId}.");
                 SetStatus(string.Format(L("LOCPlayAch_Status_Failed", "Error: {0}"), ex.Message), true);
             }
         }
@@ -6532,6 +6716,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             ResetCommand.RaiseCanExecuteChanged();
             ResetOrderCommand.RaiseCanExecuteChanged();
             AutoCapstoneCommand.RaiseCanExecuteChanged();
+            PsnCapstoneCommand.RaiseCanExecuteChanged();
             AddCustomProviderCommand?.RaiseCanExecuteChanged();
             EditCustomProviderCommand?.RaiseCanExecuteChanged();
         }
@@ -7246,6 +7431,9 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
 
         /// <inheritdoc cref="CustomAchievementDefinition.IsWholeGameAutoCapstone"/>
         public bool IsWholeGameAutoCapstone { get; internal set; }
+
+        /// <inheritdoc cref="CustomAchievementDefinition.IsPsnCapstone"/>
+        public bool IsPsnCapstone { get; internal set; }
 
         /// <summary>
         /// The file stem an overriding image is copied to inside the plugin's icon cache, so a
@@ -8872,6 +9060,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 Hidden = Hidden,
                 IsAutoCapstone = IsAutoCapstone,
                 IsWholeGameAutoCapstone = IsAutoCapstone && IsWholeGameAutoCapstone,
+                IsPsnCapstone = IsAutoCapstone && IsPsnCapstone,
                 // A stored definition always carries a rarity, whichever row built it.
                 Rarity = ManageAchievements.AchievementEditorFieldRules.NormalizeAuthoredRarity(Rarity, isBulkRow: false)
             };

@@ -1532,6 +1532,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                     Hidden = definition.Hidden,
                     IsAutoCapstone = definition.IsAutoCapstone,
                     IsWholeGameAutoCapstone = definition.IsAutoCapstone && definition.IsWholeGameAutoCapstone,
+                    IsPsnCapstone = definition.IsAutoCapstone && definition.IsPsnCapstone,
                     IsCapstone = definition.IsCapstone,
                     Rarity = NormalizeRarity(definition.Rarity),
                     GlobalPercentUnlocked = NormalizePercent(definition.GlobalPercentUnlocked),

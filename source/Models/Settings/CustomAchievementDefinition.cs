@@ -58,6 +58,14 @@ namespace PlayniteAchievements.Models.Settings
         /// </summary>
         public bool IsWholeGameAutoCapstone { get; set; }
 
+        /// <summary>
+        /// True when this capstone was built from a PlayStation Platinum trophy. It is also an
+        /// auto capstone, so its unlock and rarity are kept in step the same way, but its name,
+        /// description and icon belong to PlayStation and the auto capstone text templates leave
+        /// them alone.
+        /// </summary>
+        public bool IsPsnCapstone { get; set; }
+
         public CustomAchievementDefinition Clone()
         {
             return new CustomAchievementDefinition
@@ -81,7 +89,8 @@ namespace PlayniteAchievements.Models.Settings
                 ProgressNum = ProgressNum,
                 ProgressDenom = ProgressDenom,
                 IsAutoCapstone = IsAutoCapstone,
-                IsWholeGameAutoCapstone = IsWholeGameAutoCapstone
+                IsWholeGameAutoCapstone = IsWholeGameAutoCapstone,
+                IsPsnCapstone = IsPsnCapstone
             };
         }
     }

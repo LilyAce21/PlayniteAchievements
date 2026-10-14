@@ -75,6 +75,9 @@ namespace PlayniteAchievements.Models.Settings
         private int _friendsPeriodicUpdateHours = 24;
         private bool _enableInGamePolling = true;
         private bool _enableAutoCapstoneGeneration = false;
+        private bool _enablePsnCapstoneGeneration = false;
+        private string _psnCapstoneNpsso = string.Empty;
+        private List<string> _psnCapstoneNpwrMap = new List<string>();
         private string _autoCapstoneGameNameTemplate;
         private string _autoCapstoneGameDescriptionTemplate;
         private string _autoCapstoneCategoryNameTemplate;
@@ -899,6 +902,35 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _enableAutoCapstoneGeneration;
             set => SetValue(ref _enableAutoCapstoneGeneration, value);
+        }
+
+        /// <summary>
+        /// Gives each game with a remembered NPWR ID a PSN Capstone built from its PlayStation
+        /// Platinum, once per game and never over a capstone the game already has. Off by default.
+        /// </summary>
+        public bool EnablePsnCapstoneGeneration
+        {
+            get => _enablePsnCapstoneGeneration;
+            set => SetValue(ref _enablePsnCapstoneGeneration, value);
+        }
+
+        /// <summary>
+        /// The NPSSO token for PSN Capstones, encrypted with Windows' per-user data protection.
+        /// Empty when none is set. Never shown, logged or sent anywhere but PlayStation.
+        /// </summary>
+        public string PsnCapstoneNpsso
+        {
+            get => _psnCapstoneNpsso;
+            set => SetValue(ref _psnCapstoneNpsso, value ?? string.Empty);
+        }
+
+        /// <summary>
+        /// The NPWR IDs remembered per game, one entry each in the form "gameId=NPWR1,NPWR2".
+        /// </summary>
+        public List<string> PsnCapstoneNpwrMap
+        {
+            get => _psnCapstoneNpwrMap;
+            set => SetValue(ref _psnCapstoneNpwrMap, value ?? new List<string>());
         }
 
         /// <summary>
@@ -3166,6 +3198,9 @@ namespace PlayniteAchievements.Models.Settings
                 FriendsPeriodicUpdateHours = this.FriendsPeriodicUpdateHours,
                 EnableInGamePolling = this.EnableInGamePolling,
                 EnableAutoCapstoneGeneration = this.EnableAutoCapstoneGeneration,
+                EnablePsnCapstoneGeneration = this.EnablePsnCapstoneGeneration,
+                PsnCapstoneNpsso = this.PsnCapstoneNpsso,
+                PsnCapstoneNpwrMap = new List<string>(this.PsnCapstoneNpwrMap ?? new List<string>()),
                 AutoCapstoneGameNameTemplate = this.AutoCapstoneGameNameTemplate,
                 AutoCapstoneGameDescriptionTemplate = this.AutoCapstoneGameDescriptionTemplate,
                 AutoCapstoneCategoryNameTemplate = this.AutoCapstoneCategoryNameTemplate,
