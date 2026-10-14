@@ -24,7 +24,8 @@ namespace PlayniteAchievements.Providers.Minecraft
     }
 
     /// <summary>
-    /// Reads <c>saves/&lt;world&gt;/advancements/&lt;uuid&gt;.json</c> for the selected player and
+    /// Reads <c>saves/&lt;world&gt;/players/advancements/&lt;uuid&gt;.json</c> (26.x) or
+    /// <c>saves/&lt;world&gt;/advancements/&lt;uuid&gt;.json</c> (earlier) for the selected player and
     /// merges the worlds into one progress record per advancement id.
     /// </summary>
     internal static class MinecraftProgressReader
@@ -105,8 +106,8 @@ namespace PlayniteAchievements.Providers.Minecraft
         /// </summary>
         internal static List<string> SelectPlayerFiles(string worldFolder, ISet<string> playerUuids)
         {
-            var folder = Path.Combine(worldFolder ?? string.Empty, "advancements");
-            if (!Directory.Exists(folder))
+            var folder = MinecraftPaths.GetAdvancementsFolder(worldFolder);
+            if (folder == null)
             {
                 return new List<string>();
             }
