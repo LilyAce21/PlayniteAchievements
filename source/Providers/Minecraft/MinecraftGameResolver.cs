@@ -36,6 +36,15 @@ namespace PlayniteAchievements.Providers.Minecraft
     {
         public List<MinecraftInstance> Instances { get; set; } = new List<MinecraftInstance>();
 
+        /// <summary>
+        /// Every game folder the game covers, included or not, with its key: live tracking watches
+        /// all of them so a world created mid-session is tracked from its first unlock.
+        /// </summary>
+        public List<MinecraftInstance> Candidates { get; set; } = new List<MinecraftInstance>();
+
+        /// <summary>The one world an override names, or null when every world of the instances counts.</summary>
+        public string SingleWorld { get; set; }
+
         /// <summary>Game folders left out, each with the reason, for the refresh log.</summary>
         public List<string> SkippedFolders { get; set; } = new List<string>();
 
@@ -143,6 +152,8 @@ namespace PlayniteAchievements.Providers.Minecraft
                 return new MinecraftGameSource
                 {
                     Instances = new List<MinecraftInstance> { instance },
+                    Candidates = new List<MinecraftInstance> { instance },
+                    SingleWorld = world,
                     ResolvedBy = resolvedBy
                 };
             }
@@ -152,31 +163,20 @@ namespace PlayniteAchievements.Providers.Minecraft
         }
 
         /// <summary>
-        /// One instance per game folder with a world that has advancement data (worlds from versions
-        /// before advancements, such as 1.7.10 packs, have none); a folder name shared by two
-        /// launchers gets a numeric suffix, in folder order, so keys stay unique and stable.
+        /// One instance per game folder that has a world with advancement data, or a world and its
+        /// own game jar (a new world before its first save). Worlds from versions before
+        /// advancements, such as 1.7.10 packs, have neither. A folder name shared by two launchers
+        /// gets a numeric suffix, in folder order, so keys stay unique and stable.
         /// </summary>
         private static MinecraftGameSource FromGameFolders(IEnumerable<string> gameFolders, string resolvedBy)
         {
             var instances = new List<MinecraftInstance>();
+            var candidates = new List<MinecraftInstance>();
             var skipped = new List<string>();
             var usedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var gameFolder in gameFolders.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var instance = CreateInstance(gameFolder);
-                instance.Worlds = MinecraftPaths.EnumerateWorlds(gameFolder);
-                if (instance.Worlds.Count == 0)
-                {
-                    skipped.Add($"'{gameFolder}' (no worlds in saves)");
-                    continue;
-                }
-
-                if (!MinecraftPaths.HasAdvancementWorld(gameFolder))
-                {
-                    skipped.Add($"'{gameFolder}' ({instance.Worlds.Count} world(s), none with an advancements folder)");
-                    continue;
-                }
-
                 var baseKey = instance.Key;
                 for (var suffix = 2; !usedKeys.Add(instance.Key); suffix++)
                 {
@@ -184,10 +184,30 @@ namespace PlayniteAchievements.Providers.Minecraft
                     instance.Name = $"{MinecraftPaths.ReadInstanceName(gameFolder) ?? baseKey} ({suffix})";
                 }
 
+                candidates.Add(instance);
+                instance.Worlds = MinecraftPaths.EnumerateWorlds(gameFolder);
+                if (instance.Worlds.Count == 0)
+                {
+                    skipped.Add($"'{gameFolder}' (no worlds in saves)");
+                    continue;
+                }
+
+                if (!MinecraftPaths.HasAdvancementWorld(gameFolder) && MinecraftPaths.FindOwnGameJar(gameFolder) == null)
+                {
+                    skipped.Add($"'{gameFolder}' ({instance.Worlds.Count} world(s), none with an advancements folder)");
+                    continue;
+                }
+
                 instances.Add(instance);
             }
 
-            return new MinecraftGameSource { Instances = instances, SkippedFolders = skipped, ResolvedBy = resolvedBy };
+            return new MinecraftGameSource
+            {
+                Instances = instances,
+                Candidates = candidates,
+                SkippedFolders = skipped,
+                ResolvedBy = resolvedBy
+            };
         }
 
         private static MinecraftInstance CreateInstance(string gameFolder)
