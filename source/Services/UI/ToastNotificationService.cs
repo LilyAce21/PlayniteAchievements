@@ -807,7 +807,7 @@ namespace PlayniteAchievements.Services.UI
                     var container = itemsControl.ItemContainerGenerator.ContainerFromItem(vm) as FrameworkElement;
                     if (container != null)
                     {
-                        overlay = TryRenderToastItemOverlay(window, container, out var physSize);
+                        overlay = TryRenderToastItemOverlay(window, container, vm, out var physSize);
                         if (overlay != null)
                         {
                             ToastWindowPlacer.ComputeCorner(
@@ -1340,18 +1340,27 @@ namespace PlayniteAchievements.Services.UI
         /// <summary>
         /// Renders one live toast card to a premultiplied-alpha GDI bitmap at its physical pixel
         /// size (see <see cref="TryRenderToastItemBytes"/>). Returns null (the caller degrades to
-        /// the plain game capture) when the card can't be rendered.
+        /// the plain game capture) when the card can't be rendered. The style's animated slot
+        /// images show their keyframe for the render (when the toast surface sets one) rather than
+        /// whatever frame is playing; the card on screen keeps animating.
         /// </summary>
         private System.Drawing.Bitmap TryRenderToastItemOverlay(
-            Window window, FrameworkElement container, out System.Drawing.Size physSize)
+            Window window, FrameworkElement container, AchievementToastViewModel vm,
+            out System.Drawing.Size physSize)
         {
             physSize = System.Drawing.Size.Empty;
-            if (!TryRenderToastItemBytes(
-                    window, container, scratch: null, len => new byte[len], applyHostOpacity: true,
-                    captureScale: 1.0, probeCase: "screenshot",
-                    out var pixels, out var pw, out var ph, out _, out _))
+            byte[] pixels;
+            int pw;
+            int ph;
+            using (AsyncImage.HoldStills(container, vm == null ? null : (Func<string, ImageSource>)vm.ToastCaptureStill))
             {
-                return null;
+                if (!TryRenderToastItemBytes(
+                        window, container, scratch: null, len => new byte[len], applyHostOpacity: true,
+                        captureScale: 1.0, probeCase: "screenshot",
+                        out pixels, out pw, out ph, out _, out _))
+                {
+                    return null;
+                }
             }
 
             var bitmap = CreatePArgbBitmap(pixels, pw, ph);
@@ -5086,6 +5095,10 @@ namespace PlayniteAchievements.Services.UI
                 // string it is given, and the icon the templates bind is resolved from the
                 // decorated one. Priming the plain path would warm an entry nobody asks for.
                 AddPrimeRequest(requests, seenRequests, vm.IconDisplaySource, PrimeIconDecodePixel);
+
+                // The with-notification screenshot draws animated slot images at the keyframe;
+                // decoding those stills now keeps that work off the capture.
+                vm.PrefetchToastCaptureStills();
                 if (vm.ShowRightBadge)
                 {
                     AddPrimeRequest(
