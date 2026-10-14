@@ -79,6 +79,41 @@ namespace PlayniteAchievements.Tests.ViewModels
         }
 
         [TestMethod]
+        public void ApplyFor_PointsCardTakesItsPlatformIconAndColorAndCanHideTheTotal()
+        {
+            var card = new ScoreCardViewModel(ScoreCardType.Collection);
+            var snapshot = new PlayniteAchievements.Services.Overview.OverviewDataSnapshot { CollectorScore = 10000 };
+            var totals = new PlatformScoreTotals();
+            totals.Add("Xbox", 10000, 40000);
+            snapshot.ApplyPlatformScores(totals);
+
+            card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
+            Assert.IsNull(card.PlatformIconKey, "Collection and Prestige have no platform");
+            Assert.IsNull(card.PlatformColorHex);
+
+            card.ApplyFor(ScoreCardType.Gamerscore, snapshot, useUniformRarityBadges: false);
+            var (iconKey, colorHex) = PlayniteAchievements.Providers.ProviderRegistry.ResolveProviderVisualsOrFallback("Xbox");
+            Assert.AreEqual(iconKey, card.PlatformIconKey);
+            Assert.AreEqual(colorHex, card.PlatformColorHex);
+            var platformColor = (Color)ColorConverter.ConvertFromString(colorHex);
+            Assert.AreEqual(platformColor, ((SolidColorBrush)card.AccentBrush).Color);
+
+            card.SetShowTotal(false);
+            Assert.AreEqual("10,000", card.TierText, "earned alone");
+            Assert.AreEqual(1, card.Segments.Count);
+            Assert.AreNotSame(card.AccentTrackBrush, card.Segments[0].Fill, "the bar still fills to earned out of total");
+
+            // Every point earned keeps the platform color rather than switching to the completed color.
+            totals = new PlatformScoreTotals();
+            totals.Add("Xbox", 40000, 40000);
+            snapshot.ApplyPlatformScores(totals);
+            card.ApplyFor(ScoreCardType.Gamerscore, snapshot, useUniformRarityBadges: false);
+            Assert.AreEqual(platformColor, ((SolidColorBrush)card.AccentBrush).Color);
+
+            card.SetShowTotal(true);
+            Assert.AreEqual("40,000/40,000", card.TierText);
+        }
+        [TestMethod]
         public void Apply_FormatsPointsTierAndLevel()
         {
             var card = new ScoreCardViewModel(ScoreCardType.Collection);
