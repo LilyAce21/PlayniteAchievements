@@ -87,11 +87,16 @@ namespace PlayniteAchievements.Services.Achievements
                             ? null
                             : resolveCustomProviderKey?.Invoke(customData.CustomProviderId),
                         GameName = resolveGameName?.Invoke(gameId),
+                        RaritySource = RaritySource.None,
                         LastUpdatedUtc = DateTime.UtcNow
                     };
                     summaryData.Games.Add(game);
                     gamesByGameId[gameId] = game;
                 }
+
+                game.RaritySource = CustomAchievementProjectionService.CombineRaritySource(
+                    game.RaritySource,
+                    CustomAchievementProjectionService.ResolveRaritySource(customData.CustomAchievements));
 
                 var platinumApiNames = new List<string>();
                 foreach (var achievement in visible)
