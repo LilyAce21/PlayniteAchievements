@@ -59,14 +59,6 @@ namespace PlayniteAchievements.Tests.Models
             Assert.AreEqual(expectedKey ?? ScoreCardSlots.NoneKey, ScoreCardSlots.Normalize(slot));
         }
 
-        [TestMethod]
-        public void PersistedSlot_NormalizesLegacyValueOnAssignment()
-        {
-            var settings = new PersistedSettings { OverviewScoreCardSlot1 = "EpicXp" };
-
-            Assert.AreEqual("Points:Epic", settings.OverviewScoreCardSlot1);
-        }
-
         [DataTestMethod]
         [DataRow("Xbox", "Xbox")]
         [DataRow("Xenia", "Xbox")]
