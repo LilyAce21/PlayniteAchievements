@@ -18,14 +18,14 @@
             BorderBrush="{DynamicResource PlayAch.Brush.Border}"
             CornerRadius="{StaticResource PlayAch.Radius.Section}"
             ClipToBounds="True">
-        <!-- Fill and outline are style setters, not local values, so the ShowCardChrome
+        <!-- Fill and outline are style setters, not local values, so the DrawsBackground
              trigger can clear them. Transparent (not null) keeps gaps hit-testable. -->
         <Border.Style>
             <Style TargetType="Border">
                 <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Surface}"/>
                 <Setter Property="BorderThickness" Value="{StaticResource PlayAch.Thickness.Border}"/>
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding ShowCardChrome, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    <DataTrigger Binding="{Binding DrawsBackground, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                  Value="False">
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="BorderThickness" Value="0"/>
