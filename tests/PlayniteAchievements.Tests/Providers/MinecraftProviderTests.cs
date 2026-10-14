@@ -259,7 +259,7 @@ namespace PlayniteAchievements.Providers.Tests
                 // Pack B's only world progress: a fresh world with nothing done.
                 foreach (var world in Directory.GetDirectories(Path.Combine(packB, ".minecraft", "saves")))
                 {
-                    foreach (var file in Directory.GetFiles(Path.Combine(world, "advancements")))
+                    foreach (var file in Directory.GetFiles(MinecraftPaths.GetAdvancementsFolder(world)))
                     {
                         File.WriteAllText(file, "{\"DataVersion\":3953}");
                     }
@@ -535,11 +535,12 @@ namespace PlayniteAchievements.Providers.Tests
                 "\"minecraft:adventure/adventuring_time\":{\"criteria\":{\"a\":\"2024-03-01 12:00:00 +0000\"},\"done\":false}," +
                 "\"minecraft:recipes/misc/bread\":{\"criteria\":{\"has\":\"2024-03-01 12:00:00 +0000\"},\"done\":true}," +
                 "\"coolmod:first\":{\"criteria\":{},\"done\":true},\"DataVersion\":3953}");
-            WriteText(Path.Combine(worldB, "advancements", PlayerUuid + ".json"),
+            // World B uses the 26.x layout, players/advancements; World A keeps the earlier one.
+            WriteText(Path.Combine(worldB, "players", "advancements", PlayerUuid + ".json"),
                 "{\"minecraft:story/mine_stone\":{\"criteria\":{\"get_stone\":\"2024-02-01 08:00:00 -0500\"},\"done\":true}," +
                 "\"minecraft:adventure/adventuring_time\":{\"criteria\":{\"a\":\"2024-02-01 08:00:00 -0500\",\"b\":\"2024-02-01 08:00:00 -0500\"},\"done\":false}," +
                 "\"DataVersion\":3953}");
-            WriteText(Path.Combine(worldB, "advancements", OtherUuid + ".json"),
+            WriteText(Path.Combine(worldB, "players", "advancements", OtherUuid + ".json"),
                 "{\"minecraft:nether/secret\":{\"criteria\":{\"a\":\"2024-01-01 00:00:00 +0000\",\"b\":\"2024-01-01 00:00:00 +0000\"},\"done\":true},\"DataVersion\":3953}");
 
             return gameFolder;
