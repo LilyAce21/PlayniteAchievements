@@ -108,22 +108,29 @@ namespace PlayniteAchievements
                 viewId,
                 instanceId,
                 definition.ShowcaseWidgetKind.Value);
-            if (settings.Kind != ShowcaseWidgetKind.Profile)
+            // The custom title, then (for the profile card) its identity, then the display
+            // options, as in the Showcase widget dialog; each persists on edit.
+            var panel = new StackPanel { Margin = new Thickness(16) };
+            ShowcaseProfileSettingsEditor.AddTextBox(
+                panel,
+                L("LOCPlayAch_Showcase_CustomTitle"),
+                settings.CustomTitle,
+                value => settings.CustomTitle = value,
+                () =>
+                {
+                    PersistSettingsForUi();
+                    ShowcaseConfigurationEvents.RaiseChanged();
+                });
+            if (settings.Kind == ShowcaseWidgetKind.Profile)
             {
-                return new ShowcaseWidgetOptionsControl(
-                    settings,
-                    PersistSettingsForUi);
+                var profile = settings.Profile ?? (settings.Profile = new ShowcaseProfileSettings());
+                panel.Children.Add(new ShowcaseProfileSettingsEditor(profile, () =>
+                {
+                    PersistSettingsForUi();
+                    ShowcaseConfigurationEvents.RaiseChanged();
+                }));
             }
 
-            // The profile card's identity (name, avatar, links) sits above its display options,
-            // as in the Showcase widget dialog; both persist on each edit.
-            var profile = settings.Profile ?? (settings.Profile = new ShowcaseProfileSettings());
-            var panel = new StackPanel { Margin = new Thickness(16) };
-            panel.Children.Add(new ShowcaseProfileSettingsEditor(profile, () =>
-            {
-                PersistSettingsForUi();
-                ShowcaseConfigurationEvents.RaiseChanged();
-            }));
             panel.Children.Add(new ShowcaseWidgetOptionsControl(
                 settings,
                 PersistSettingsForUi,
