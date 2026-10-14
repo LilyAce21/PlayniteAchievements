@@ -189,6 +189,87 @@ namespace PlayniteAchievements.Views.Helpers
             });
         }
 
+        /// <summary>
+        /// Shows a still in place of each image under <paramref name="root"/> that
+        /// <paramref name="stillFor"/> returns one for, keyed by the image's local file path,
+        /// until the returned scope is disposed; images it returns null for are left alone. For a
+        /// synchronous render such as a screenshot: both sides run inside one dispatcher callback,
+        /// so the screen never shows the swap. The change goes through SetCurrentValue so the
+        /// image's own value and bindings keep ownership, and a WebP frame clock is detached for
+        /// the span (an animation would override the still) and reattached where it left off.
+        /// UI thread only.
+        /// </summary>
+        internal static IDisposable HoldStills(DependencyObject root, Func<string, ImageSource> stillFor)
+        {
+            var restores = new List<Action>();
+            if (stillFor == null)
+            {
+                return new RestoreScope(restores);
+            }
+
+            ForEachImage(root, target =>
+            {
+                if (!(GetUri(target) is string uri) || !(target is IAnimatable animatable))
+                {
+                    return;
+                }
+
+                var path = AnimatedImageHelper.NormalizeSourceUri(uri);
+                var still = string.IsNullOrWhiteSpace(path) ? null : stillFor(path);
+                if (still == null)
+                {
+                    return;
+                }
+
+                var property = target is System.Windows.Controls.Image
+                    ? System.Windows.Controls.Image.SourceProperty
+                    : ImageBrush.ImageSourceProperty;
+                var clock = target.GetValue(FrameClockProperty) as AnimationClock;
+                if (clock != null)
+                {
+                    animatable.ApplyAnimationClock(property, null);
+                }
+
+                var previous = target.GetValue(property);
+                target.SetCurrentValue(property, still);
+                restores.Add(() =>
+                {
+                    target.SetCurrentValue(property, previous);
+                    if (clock != null)
+                    {
+                        animatable.ApplyAnimationClock(property, clock, HandoffBehavior.SnapshotAndReplace);
+                    }
+                });
+            });
+
+            return new RestoreScope(restores);
+        }
+
+        private sealed class RestoreScope : IDisposable
+        {
+            private List<Action> _restores;
+
+            internal RestoreScope(List<Action> restores)
+            {
+                _restores = restores;
+            }
+
+            public void Dispose()
+            {
+                var restores = _restores;
+                _restores = null;
+                if (restores == null)
+                {
+                    return;
+                }
+
+                for (var i = restores.Count - 1; i >= 0; i--)
+                {
+                    restores[i]();
+                }
+            }
+        }
+
         private static void ForEachImage(
             DependencyObject root, Action<DependencyObject> action)
         {
