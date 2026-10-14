@@ -54,7 +54,9 @@ namespace PlayniteAchievements.Models.Settings
         /// whose achievements span several categories is filed in the default one, and reading the
         /// scope off the filing would narrow it to that category. False for a category capstone,
         /// and for every auto capstone authored before this was stored, which keep standing for
-        /// wherever they are filed.
+        /// wherever they are filed. Moving the capstone re-sets it from where it lands: a named
+        /// category makes it that category's, the default makes it the whole game's. Renaming or
+        /// nesting its category is not a move and leaves it alone.
         /// </summary>
         public bool IsWholeGameAutoCapstone { get; set; }
 
