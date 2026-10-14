@@ -217,6 +217,7 @@ namespace PlayniteAchievements.Models.Settings
         private ToastScreenCorner? _position;
         private FrameVignetteStyle _frameVignette = FrameVignetteStyle.Full;
         private double? _frameVignetteStrength;
+        private int? _imageKeyframeMs;
         private List<string> _lineOrder;
         private string _fontFamily;
         private string _headerFontFamily;
@@ -525,6 +526,19 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _frameVignetteStrength;
             set => SetValue(ref _frameVignetteStrength, value);
+        }
+
+        /// <summary>
+        /// Time in milliseconds into each animated slot image (this surface's background and
+        /// badges) whose frame screenshots show, or null for the first frame. Each image holds its
+        /// last frame past its own end. The frame surface draws every still at this time; the
+        /// toast keeps animating on screen and in clips, and only the with-notification
+        /// screenshot shows this frame.
+        /// </summary>
+        public int? ImageKeyframeMs
+        {
+            get => _imageKeyframeMs;
+            set => SetValue(ref _imageKeyframeMs, value);
         }
 
         /// <summary>
@@ -943,6 +957,7 @@ namespace PlayniteAchievements.Models.Settings
                 Position = Position,
                 FrameVignette = FrameVignette,
                 FrameVignetteStrength = FrameVignetteStrength,
+                ImageKeyframeMs = ImageKeyframeMs,
                 LineOrder = LineOrder != null ? new List<string>(LineOrder) : null,
                 FontFamily = FontFamily,
                 HeaderFontFamily = HeaderFontFamily,
