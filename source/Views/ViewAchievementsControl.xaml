@@ -256,6 +256,7 @@
                                                  ShowRarityGlow="{Binding ShowRarityGlow}"
                                                  ColorNamesByRarity="{Binding ColorNamesByRarity}"
                                                  ColorRarityColumnsByRarity="{Binding ColorRarityColumnsByRarity}"
+                                                 ShowsRarity="{Binding ShowsRarity}"
                                                  FixedRowHeight="{Binding SingleGameGridRowHeight}"
                                                  ShowColumnHeaders="{Binding ShowAchievementGridColumnHeaders}"
                                                  ControlBar="{Binding AchievementsControlBar}"
