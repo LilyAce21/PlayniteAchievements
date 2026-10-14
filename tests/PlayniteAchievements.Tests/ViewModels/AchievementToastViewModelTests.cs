@@ -1070,6 +1070,47 @@ namespace PlayniteAchievements.Tests.ViewModels
         }
 
         [TestMethod]
+        public void ImageKeyframe_FrameDrawsThatMoment_AndTheToastCapturePinsOnlyItsOwnSlots()
+        {
+            var gif = GifFixture.WriteTempGif(GifFixture.BuildGif(
+                1, 1, new[] { 0xFF0000, 0x0000FF },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 0 }, DelayCentiseconds = 10 },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 1 }, DelayCentiseconds = 10 }));
+            try
+            {
+                var settings = new PersistedSettings();
+                var style = settings.NotificationStyle;
+                style.Frame.FrameVignette = FrameVignetteStyle.Image;
+                style.FrameBackgroundImagePath = gif;
+                style.ToastBackgroundImagePath = gif;
+
+                var firstFrame = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.AreEqual(0xFF0000, PixelOf(firstFrame.FrameBackgroundImage));
+                Assert.IsNull(firstFrame.ToastCaptureStill(gif), "no keyframe leaves the capture live");
+
+                style.Frame.ImageKeyframeMs = 150;
+                style.Toast.ImageKeyframeMs = 150;
+                var keyed = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.AreEqual(0x0000FF, PixelOf(keyed.FrameBackgroundImage));
+                Assert.AreEqual(0x0000FF, PixelOf(keyed.ToastCaptureStill(gif)));
+                Assert.IsNull(keyed.ToastCaptureStill(Path.Combine(Path.GetTempPath(), "other.gif")),
+                    "an image outside the style's slots is left as it is");
+            }
+            finally
+            {
+                GifFixture.DeleteTempPayload(gif);
+            }
+        }
+
+        private static int PixelOf(ImageSource image)
+        {
+            Assert.IsInstanceOfType(image, typeof(BitmapSource));
+            var pixels = new int[1];
+            new FormatConvertedBitmap((BitmapSource)image, PixelFormats.Bgra32, null, 0).CopyPixels(pixels, 4, 0);
+            return pixels[0] & 0xFFFFFF;
+        }
+
+        [TestMethod]
         public void FrameVignetteBrushes_UpperHalfGrowsCoverageBeyondAlphaStacking()
         {
             var strongSettings = new PersistedSettings();
