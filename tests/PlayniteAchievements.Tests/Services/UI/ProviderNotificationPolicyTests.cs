@@ -234,5 +234,99 @@ namespace PlayniteAchievements.Tests.Services.UI
                 new ProviderNotificationOverride { Recordings = false });
             Assert.IsFalse(ProviderNotificationPolicy.Resolve(settings, "Steam").Recordings);
         }
+
+        [TestMethod]
+        public void Resolve_GameWithoutOverrides_MatchesProviderResolution()
+        {
+            var settings = MakeSettings(enableUnlockToasts: true, screenshotClean: true);
+            settings.NotificationDelaySeconds = 8;
+            settings.SetProviderNotificationOverride(
+                "Steam",
+                new ProviderNotificationOverride { UnlockToasts = false, RecordingClean = true });
+
+            var withGame = ProviderNotificationPolicy.Resolve(settings, "Steam", new GameCustomDataFile());
+            var without = ProviderNotificationPolicy.Resolve(settings, "Steam");
+
+            Assert.AreEqual(without.UnlockToasts, withGame.UnlockToasts);
+            Assert.IsFalse(withGame.UnlockToasts);
+            Assert.AreEqual(without.ScreenshotClean, withGame.ScreenshotClean);
+            Assert.AreEqual(without.RecordingClean, withGame.RecordingClean);
+            Assert.IsTrue(withGame.RecordingClean);
+            Assert.AreEqual(8, withGame.Behavior.NotificationDelaySeconds);
+        }
+
+        [TestMethod]
+        public void Resolve_GameBehaviorOverride_ReplacesProviderAndGlobalMaster()
+        {
+            var settings = MakeSettings(enableNotifications: false, enableUnlockToasts: false);
+            settings.SetProviderNotificationOverride(
+                "Steam",
+                new ProviderNotificationOverride { UnlockToasts = false });
+            var gameData = new GameCustomDataFile
+            {
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride
+                {
+                    EnableNotifications = true,
+                    EnableUnlockToasts = true,
+                    NotificationDelaySeconds = 3
+                }
+            };
+
+            var effective = ProviderNotificationPolicy.Resolve(settings, "Steam", gameData);
+
+            Assert.IsTrue(effective.UnlockToasts);
+            Assert.IsFalse(effective.FriendUnlockToasts);
+            Assert.AreEqual(3, effective.Behavior.NotificationDelaySeconds);
+            // Captures still follow the globals.
+            Assert.IsFalse(effective.ScreenshotClean);
+            Assert.IsTrue(effective.ScreenshotWithToast);
+        }
+
+        [TestMethod]
+        public void Resolve_GameBehaviorOverride_CanTurnToastsOff()
+        {
+            var settings = MakeSettings();
+            var gameData = new GameCustomDataFile
+            {
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride
+                {
+                    EnableNotifications = true,
+                    EnableUnlockToasts = false
+                }
+            };
+
+            Assert.IsFalse(ProviderNotificationPolicy.Resolve(settings, "Steam", gameData).UnlockToasts);
+            Assert.IsTrue(ProviderNotificationPolicy.Resolve(settings, "Steam").UnlockToasts);
+        }
+
+        [TestMethod]
+        public void Resolve_GameCaptureOverride_EnablesRecordingsWhileGlobalIsOff()
+        {
+            var settings = MakeSettings(enableUnlockScreenshots: false);
+            settings.EnableUnlockRecordings = false;
+            settings.SetProviderNotificationOverride(
+                "Steam",
+                new ProviderNotificationOverride { Recordings = false });
+            var gameData = new GameCustomDataFile
+            {
+                CaptureOverride = new GameCaptureOverride
+                {
+                    EnableUnlockScreenshots = true,
+                    UnlockScreenshotFramed = true,
+                    EnableUnlockRecordings = true,
+                    UnlockRecordingClean = true
+                }
+            };
+
+            var effective = ProviderNotificationPolicy.Resolve(settings, "Steam", gameData);
+
+            Assert.IsTrue(effective.RecordingsEnabled);
+            Assert.IsTrue(effective.Recordings, "the provider's all-clips switch does not apply to a game with its own captures");
+            Assert.IsTrue(effective.RecordingClean);
+            Assert.IsFalse(effective.RecordingWithToast);
+            Assert.IsTrue(effective.ScreenshotFramed);
+            Assert.IsFalse(effective.ScreenshotWithToast);
+            Assert.IsFalse(ProviderNotificationPolicy.Resolve(settings, "Steam").RecordingsEnabled);
+        }
     }
 }
