@@ -397,10 +397,20 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             // Membership is scoped out of the library-wide passes inside the service, so the
             // catch-up has to be booked here.
             MarkLibraryRefreshDeferred(false);
-            _achievementOverridesService.SetAchievementCategoryOverrides(
+            var rescoped = _achievementOverridesService.SetAchievementCategoryOverrides(
                 _gameId,
                 categoryOverrideMap,
                 categoryTypeOverrideMap);
+
+            // A moved auto capstone stands for somewhere new, and no refresh follows a hand edit
+            // to bring its unlock into step. Quiet, because the user moved it rather than the game
+            // reporting an unlock.
+            if (rescoped)
+            {
+                PlayniteAchievementsPlugin.Instance?.AutoCapstoneMaintainer?.Maintain(
+                    _gameId,
+                    announceUnlocks: false);
+            }
 
             // The Editor rebuilds and writes the whole override map from its own rows, so a
             // membership change it is never told about is reverted by its next category edit.
