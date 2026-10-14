@@ -218,6 +218,7 @@ namespace PlayniteAchievements.Models.Settings
             target.IncludeUnplayedGames = source.IncludeUnplayedGames;
             target.OverviewScoreCardSlot1 = source.OverviewScoreCardSlot1;
             target.OverviewScoreCardSlot2 = source.OverviewScoreCardSlot2;
+            target.OverviewScoreCardsUseCustomColors = source.OverviewScoreCardsUseCustomColors;
             target.ShowTopMenuBarButton = source.ShowTopMenuBarButton;
             target.ShowCompletedProgressColoring = source.ShowCompletedProgressColoring;
             target.TintMissableLocks = source.TintMissableLocks;
