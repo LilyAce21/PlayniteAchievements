@@ -223,6 +223,7 @@ namespace PlayniteAchievements.Providers.GameJolt
                 HasAchievements = hasAchievements,
                 GameName = game?.Name,
                 ProviderGameKey = string.IsNullOrWhiteSpace(gameJoltId) ? null : gameJoltId,
+                RaritySource = RaritySource.Tier,
                 PlayniteGameId = game?.Id ?? Guid.Empty,
                 Achievements = achievements ?? new List<AchievementDetail>()
             };
