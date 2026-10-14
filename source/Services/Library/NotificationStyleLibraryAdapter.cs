@@ -169,6 +169,10 @@ namespace PlayniteAchievements.Services.Library
 
         public bool IsFrame => _isFrame;
 
+        /// <summary>The slot this adapter's surface keeps its background image in.</summary>
+        private NotificationImageSlot BackgroundSlot =>
+            _isFrame ? NotificationImageSlot.FrameBackground : NotificationImageSlot.Background;
+
         public JObject Project(NotificationStyleScope target, IEnumerable<string> ownedKeys = null)
         {
             if (target == null)
@@ -220,11 +224,9 @@ namespace PlayniteAchievements.Services.Library
                 var target = result.EnableKindStyle(kind);
                 var owner = scope.ImageOwner.ForNotificationKind(kind);
                 WriteSurface(target, null, package.Style, incoming[SurfaceKey], null, incoming[SurfaceKey], owner);
-                if (!_isFrame)
-                {
-                    target.ToastBackgroundImagePath = ResolveImage(
-                        incoming[BackgroundKey], null, incoming[BackgroundKey], null, package.Style.ToastBackgroundImagePath, owner, NotificationImageSlot.Background);
-                }
+                NotificationImageSlotMap.SetPath(target, BackgroundSlot, ResolveImage(
+                    incoming[BackgroundKey], null, incoming[BackgroundKey], null,
+                    NotificationImageSlotMap.GetPath(package.Style, BackgroundSlot), owner, BackgroundSlot));
 
                 scope.Write(result);
                 _pruneImages?.Invoke();
@@ -261,9 +263,9 @@ namespace PlayniteAchievements.Services.Library
                 result[SurfaceKey] = ProjectSurface(style);
             }
 
-            if (!_isFrame && Wants(BackgroundKey))
+            if (Wants(BackgroundKey))
             {
-                result[BackgroundKey] = LibraryFileTokens.FileValue(style?.ToastBackgroundImagePath);
+                result[BackgroundKey] = LibraryFileTokens.FileValue(NotificationImageSlotMap.GetPath(style, BackgroundSlot));
             }
 
             var kinds = owned == null
@@ -287,12 +289,7 @@ namespace PlayniteAchievements.Services.Library
         /// <summary>The top-level projection keys a package with this style owns.</summary>
         public IReadOnlyCollection<string> OwnedKeysOf(NotificationStyleSettings packageStyle)
         {
-            var keys = new List<string> { SurfaceKey };
-            if (!_isFrame)
-            {
-                keys.Add(BackgroundKey);
-            }
-
+            var keys = new List<string> { SurfaceKey, BackgroundKey };
             keys.AddRange(KindsOf(packageStyle).Select(KindKey));
             keys.Add(TemplateKey);
             return keys;
@@ -451,16 +448,16 @@ namespace PlayniteAchievements.Services.Library
                 WriteSurface(result, before, incomingStyle, surface, current[SurfaceKey], incoming[SurfaceKey], owner);
             }
 
-            if (!_isFrame && merged.GetValue(BackgroundKey, StringComparison.OrdinalIgnoreCase) != null)
+            if (merged.GetValue(BackgroundKey, StringComparison.OrdinalIgnoreCase) != null)
             {
-                result.ToastBackgroundImagePath = ResolveImage(
+                NotificationImageSlotMap.SetPath(result, BackgroundSlot, ResolveImage(
                     merged[BackgroundKey],
                     current[BackgroundKey],
                     incoming[BackgroundKey],
-                    before.ToastBackgroundImagePath,
-                    incomingStyle.ToastBackgroundImagePath,
+                    NotificationImageSlotMap.GetPath(before, BackgroundSlot),
+                    NotificationImageSlotMap.GetPath(incomingStyle, BackgroundSlot),
                     owner,
-                    NotificationImageSlot.Background);
+                    BackgroundSlot));
             }
 
             foreach (var property in merged.Properties().ToList())
@@ -484,17 +481,14 @@ namespace PlayniteAchievements.Services.Library
                 var kindOwner = owner.ForNotificationKind(kind.Value);
                 var target = result.EnableKindStyle(kind.Value);
                 WriteSurface(target, beforeKind, incomingKind, property.Value[SurfaceKey], currentKind?[SurfaceKey], incomingKindValue?[SurfaceKey], kindOwner);
-                if (!_isFrame)
-                {
-                    target.ToastBackgroundImagePath = ResolveImage(
-                        property.Value[BackgroundKey],
-                        currentKind?[BackgroundKey],
-                        incomingKindValue?[BackgroundKey],
-                        beforeKind?.ToastBackgroundImagePath,
-                        incomingKind?.ToastBackgroundImagePath,
-                        kindOwner,
-                        NotificationImageSlot.Background);
-                }
+                NotificationImageSlotMap.SetPath(target, BackgroundSlot, ResolveImage(
+                    property.Value[BackgroundKey],
+                    currentKind?[BackgroundKey],
+                    incomingKindValue?[BackgroundKey],
+                    NotificationImageSlotMap.GetPath(beforeKind, BackgroundSlot),
+                    NotificationImageSlotMap.GetPath(incomingKind, BackgroundSlot),
+                    kindOwner,
+                    BackgroundSlot));
             }
         }
 
@@ -615,13 +609,11 @@ namespace PlayniteAchievements.Services.Library
 
         private JObject ProjectKind(NotificationStyleSettings kindStyle)
         {
-            var result = new JObject { [SurfaceKey] = ProjectSurface(kindStyle) };
-            if (!_isFrame)
+            return new JObject
             {
-                result[BackgroundKey] = LibraryFileTokens.FileValue(kindStyle?.ToastBackgroundImagePath);
-            }
-
-            return result;
+                [SurfaceKey] = ProjectSurface(kindStyle),
+                [BackgroundKey] = LibraryFileTokens.FileValue(NotificationImageSlotMap.GetPath(kindStyle, BackgroundSlot))
+            };
         }
 
         private JObject ProjectSurface(NotificationStyleSettings style)
