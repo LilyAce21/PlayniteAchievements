@@ -190,6 +190,10 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Modern
             CollectionHelper.SynchronizeCollection(SummaryItems, desired);
             Services.Captures.CapturePresenceMarker.MarkSummaries(desired, CaptureLibrary);
             SetValue(HasSummaryItemPropertyKey, item != null);
+            if (AchievementsGrid != null)
+            {
+                AchievementsGrid.ShowsRarity = item?.ShowsRarity ?? true;
+            }
         }
 
         private void OnCapturesChanged(object sender, Services.Captures.CapturesChangedEventArgs e)
