@@ -294,6 +294,14 @@ namespace PlayniteAchievements.Providers.Tests
             Assert.IsNotNull(MinecraftLogWatcher.ParseAnnouncement("[14Oct2026 20:40:01.067] [Server thread/INFO] [minecraft/MinecraftServer]: Steve has reached the goal [Stone Age]", names, now));
             Assert.IsNotNull(MinecraftLogWatcher.ParseAnnouncement("[20:40:01] [Server thread/INFO]: Steve has completed the challenge [Stone Age]", names, now));
 
+            // Re-Console's console-style wording.
+            var reConsole = MinecraftLogWatcher.ParseAnnouncement("[16:36:22] [Server thread/INFO]: System chat: Steve has just earned the achievement [The Power of Books]", names, now);
+            Assert.AreEqual("The Power of Books", reConsole.Value.Title);
+
+            // Other bracketed server chat is not an unlock.
+            Assert.IsNull(MinecraftLogWatcher.ParseAnnouncement("[20:41:00] [Server thread/INFO]: System chat: Steve was slain by Zombie using [Diamond Sword]", names, now));
+            Assert.IsNull(MinecraftLogWatcher.ParseAnnouncement("[20:41:00] [Server thread/INFO]: [Steve] has made the advancement [Stone Age]", names, now));
+
             // The client's copy, which is all a LAN guest or a server player's log has, never counts.
             Assert.IsNull(MinecraftLogWatcher.ParseAnnouncement("[20:33:08] [Render thread/INFO]: [System] [CHAT] Steve has made the advancement [Stone Age]", names, now));
 
