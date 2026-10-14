@@ -931,7 +931,8 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 HasAchievementData = (gameData?.HasAchievements ?? false) && list.Count > 0;
 
                 var currentCustomData = TryLoadStoredCustomData(_plugin?.GameCustomDataStore);
-                OverviewSummary = BuildOverviewSummary(list, currentCustomData);
+                _showsRarity = gameData?.ShowsRarity ?? true;
+                OverviewSummary = BuildOverviewSummary(list, currentCustomData, _showsRarity);
                 _sidebarSourceAchievements = list;
                 IsExcluded = isExcluded;
                 IsExcludedFromSummaries = GameCustomDataLookup.IsExcludedFromSummaries(_gameId, _settings?.Persisted);
@@ -967,19 +968,23 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
         }
 
+        // Whether the loaded game's provider supplied any rarity; its Common counts are defaults otherwise.
+        private bool _showsRarity = true;
+
         private static ManageOverviewSummary BuildOverviewSummary(
             IReadOnlyList<AchievementDetail> achievements,
-            GameCustomDataFile customData)
+            GameCustomDataFile customData,
+            bool showsRarity)
         {
             var breakdown = ManageOverviewSummaryBuilder.BuildBreakdown(achievements);
             var stats = breakdown.Stats;
 
             return new ManageOverviewSummary
             {
-                RarityCommon = Stat(stats.CommonCount, stats.TotalCommonPossible),
-                RarityUncommon = Stat(stats.UncommonCount, stats.TotalUncommonPossible),
-                RarityRare = Stat(stats.RareCount, stats.TotalRarePossible),
-                RarityUltraRare = Stat(stats.UltraRareCount, stats.TotalUltraRarePossible),
+                RarityCommon = showsRarity ? Stat(stats.CommonCount, stats.TotalCommonPossible) : ManageOverviewStat.None,
+                RarityUncommon = showsRarity ? Stat(stats.UncommonCount, stats.TotalUncommonPossible) : ManageOverviewStat.None,
+                RarityRare = showsRarity ? Stat(stats.RareCount, stats.TotalRarePossible) : ManageOverviewStat.None,
+                RarityUltraRare = showsRarity ? Stat(stats.UltraRareCount, stats.TotalUltraRarePossible) : ManageOverviewStat.None,
                 Capstones = breakdown.CapstoneCount > 0
                     ? new ManageOverviewStat(
                         FormatProgress(breakdown.UnlockedCapstoneCount, breakdown.CapstoneCount),
