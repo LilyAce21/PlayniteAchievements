@@ -25,11 +25,16 @@ namespace PlayniteAchievements.Views.Showcase
         private readonly Action _persist;
         private readonly bool _publishChanges;
         private readonly bool _includeScoreHistory;
+        private readonly bool? _backgroundDefault;
         private DebouncedSettingsPersist _gridOptionsPersist;
 
         /// <param name="includeScoreHistory">
         /// False for a score card with no history chart (the Overview header's cards), which drops
         /// the history toggle and range.
+        /// </param>
+        /// <param name="backgroundDefault">
+        /// The host's default for the widget background, which adds the title alignment and
+        /// background rows every widget shares; null for an editor with no widget card around it.
         /// </param>
         public ShowcaseWidgetOptionsControl(
             ShowcaseWidgetInstanceSettings settings,
@@ -37,10 +42,12 @@ namespace PlayniteAchievements.Views.Showcase
             bool publishChanges = true,
             Thickness? margin = null,
             bool loadStyles = true,
-            bool includeScoreHistory = true)
+            bool includeScoreHistory = true,
+            bool? backgroundDefault = null)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _includeScoreHistory = includeScoreHistory;
+            _backgroundDefault = backgroundDefault;
             _persist = persist;
             _publishChanges = publishChanges;
             if (loadStyles)
@@ -82,6 +89,27 @@ namespace PlayniteAchievements.Views.Showcase
         private UIElement Build(Thickness margin)
         {
             var panel = new StackPanel { Margin = margin };
+            if (_backgroundDefault.HasValue)
+            {
+                AddChoice(
+                    panel,
+                    Localize("LOCPlayAch_Settings_Display_Alignment"),
+                    new[]
+                    {
+                        ShowcaseHorizontalAlignment.Left,
+                        ShowcaseHorizontalAlignment.Center,
+                        ShowcaseHorizontalAlignment.Right
+                    },
+                    ShowcaseWidgetOptions.GetTitleAlignment(_settings),
+                    value => ShowcaseWidgetOptions.SetTitleAlignment(_settings, value),
+                    HorizontalAlignmentName);
+                AddToggle(
+                    panel,
+                    Localize("LOCPlayAch_Showcase_ShowBackground"),
+                    ShowcaseWidgetOptions.GetShowBackground(_settings, _backgroundDefault.Value),
+                    value => ShowcaseWidgetOptions.SetShowBackground(_settings, value));
+            }
+
             switch (_settings.Kind)
             {
                 case ShowcaseWidgetKind.Profile:
