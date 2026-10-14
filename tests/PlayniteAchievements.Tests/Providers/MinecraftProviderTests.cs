@@ -520,6 +520,26 @@ namespace PlayniteAchievements.Providers.Tests
             Assert.AreEqual((0, 0, 160, 255), At(16, 40));
             Assert.AreEqual((0, 120, 0, 255), At(48, 40));
             Assert.AreEqual(0, At(1, 1).A);
+
+            // Two blocks side by side (a bed) are scaled down to fit and centred.
+            var twoBlocks = MinecraftBlockRenderer.Render(
+                new[]
+                {
+                    new MinecraftRenderPart { Elements = elements, ResolveTexture = reference => (textures[reference], false) },
+                    new MinecraftRenderPart
+                    {
+                        Elements = elements,
+                        ResolveTexture = reference => (textures[reference], false),
+                        Transformation = JObject.Parse("{\"translation\":[0,0,1]}")
+                    }
+                },
+                30,
+                225,
+                size);
+            Assert.IsNotNull(twoBlocks);
+            int Alpha(byte[] buffer, int x, int y) => buffer[(y * size + x) * 4 + 3];
+            var columnsWithPixels = Enumerable.Range(0, size).Where(x => Enumerable.Range(0, size).Any(y => Alpha(twoBlocks, x, y) > 0)).ToList();
+            Assert.IsTrue(columnsWithPixels.First() <= 3 && columnsWithPixels.Last() >= size - 4, "the pair should span the icon width");
         }
 
         [TestMethod]
@@ -537,7 +557,11 @@ namespace PlayniteAchievements.Providers.Tests
                     ["assets/minecraft/models/block/glass.json"] = Json("{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":{\"force_translucent\":true,\"sprite\":\"minecraft:block/glass\"}}}"),
                     ["assets/minecraft/items/glass.json"] = Json("{\"model\":{\"type\":\"minecraft:model\",\"model\":\"minecraft:block/glass\"}}"),
                     ["assets/minecraft/models/item/generated.json"] = Json("{\"parent\":\"builtin/generated\"}"),
-                    ["assets/minecraft/models/item/stick.json"] = Json("{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"minecraft:item/stick\"}}")
+                    ["assets/minecraft/models/item/stick.json"] = Json("{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"minecraft:item/stick\"}}"),
+                    ["assets/minecraft/models/block/red_bed_head.json"] = Json("{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":\"minecraft:block/red_wool\"}}"),
+                    ["assets/minecraft/models/block/red_bed_foot.json"] = Json("{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":\"minecraft:block/red_wool\"}}"),
+                    ["assets/minecraft/items/red_bed.json"] = Json("{\"model\":{\"type\":\"minecraft:composite\",\"models\":[{\"type\":\"minecraft:model\",\"model\":\"minecraft:block/red_bed_head\"},{\"type\":\"minecraft:model\",\"model\":\"minecraft:block/red_bed_foot\",\"transformation\":{\"left_rotation\":[0,0,0,1],\"right_rotation\":[0,0,0,1],\"scale\":[1,1,1],\"translation\":[0,0,1]}}]}}"),
+                    ["assets/minecraft/items/bundle.json"] = Json("{\"model\":{\"type\":\"minecraft:composite\",\"models\":[{\"type\":\"minecraft:model\",\"model\":\"minecraft:item/stick\"}]}}")
                 });
                 var sources = new List<MinecraftResourceSource> { MinecraftResourceSource.Load(jar, new[] { "en_us" }, new FakeLogger()) };
 
@@ -545,9 +569,18 @@ namespace PlayniteAchievements.Providers.Tests
                 Assert.AreEqual("minecraft:block/glass", glass.ModelId);
                 Assert.AreEqual(30, glass.RotationX);
                 Assert.AreEqual(225, glass.RotationY);
-                Assert.AreEqual("assets/minecraft/textures/block/glass.png", MinecraftModelResolver.ResolveFaceTexture(glass, "#up"));
+                Assert.AreEqual("assets/minecraft/textures/block/glass.png", MinecraftModelResolver.ResolveFaceTexture(glass.Parts.Single(), "#up"));
 
                 Assert.IsNull(MinecraftModelResolver.ResolveBlockModel("minecraft", "stick", null, sources));
+
+                // A bed: a composite of the head and the foot moved one block along z.
+                var bed = MinecraftModelResolver.ResolveBlockModel("minecraft", "red_bed", null, sources);
+                Assert.AreEqual(2, bed.Parts.Count);
+                Assert.IsNull(bed.Parts[0].Transformation);
+                Assert.AreEqual(1.0, (double)bed.Parts[1].Transformation["translation"][2]);
+
+                // A bundle is a composite of flat layers and stays flat.
+                Assert.IsNull(MinecraftModelResolver.ResolveBlockModel("minecraft", "bundle", null, sources));
             }
             finally
             {
