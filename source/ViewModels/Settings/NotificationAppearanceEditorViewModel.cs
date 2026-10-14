@@ -758,6 +758,144 @@ namespace PlayniteAchievements.ViewModels.Settings
 
         #endregion
 
+        #region Image keyframe (animated slot images in screenshots)
+
+        private static readonly string PlayGlyph = char.ConvertFromUtf32(0xEC74);
+        private static readonly string PauseGlyph = char.ConvertFromUtf32(0xEC72);
+
+        private string _imageKeyframeText;
+        private int _imageKeyframeMaxMs;
+        private bool _isKeyframePreviewPaused;
+
+        /// <summary>
+        /// Raised when the toast preview switches between animating and holding its images at
+        /// the keyframe. Preview-only state: nothing is persisted.
+        /// </summary>
+        public event EventHandler KeyframePreviewChanged;
+
+        /// <summary>
+        /// Keyframe text mirror in milliseconds (LostFocus commit). Blank clears it: the frame
+        /// then uses each image's first frame and the with-notification screenshot keeps whatever
+        /// frame is playing. Editing it on the notification pauses the preview at the new frame.
+        /// </summary>
+        public string ImageKeyframeText
+        {
+            get => _imageKeyframeText;
+            set
+            {
+                if (!SetValueAndReturn(ref _imageKeyframeText, value))
+                {
+                    return;
+                }
+
+                var surface = Surface;
+                if (surface != null && _isEditable)
+                {
+                    surface.ImageKeyframeMs = ParseKeyframe(value);
+                    SetKeyframePreviewPaused(true);
+                }
+
+                OnPropertyChanged(nameof(ImageKeyframeSlider));
+            }
+        }
+
+        public double ImageKeyframeSlider
+        {
+            get => Surface?.ImageKeyframeMs ?? 0;
+            set => ImageKeyframeText = Math.Round(Math.Max(0, Math.Min(_imageKeyframeMaxMs, value)))
+                .ToString(CultureInfo.CurrentCulture);
+        }
+
+        /// <summary>The longest loop among this surface's animated slot images, in milliseconds.</summary>
+        public int ImageKeyframeMaxMs => _imageKeyframeMaxMs;
+
+        /// <summary>Whether any of this surface's slot images is animated; the keyframe row is disabled otherwise.</summary>
+        public bool HasAnimatedImages => _imageKeyframeMaxMs > 0;
+
+        /// <summary>The pause/resume button belongs to the notification preview; the frame is always a still.</summary>
+        public bool ShowKeyframePreviewToggle => IsToastSurface;
+
+        public bool IsKeyframePreviewPaused => _isKeyframePreviewPaused;
+
+        public string KeyframePreviewGlyph => _isKeyframePreviewPaused ? PlayGlyph : PauseGlyph;
+
+        public string KeyframePreviewToolTip => _isKeyframePreviewPaused
+            ? L("LOCPlayAch_Common_Resume")
+            : L("LOCPlayAch_Common_Pause");
+
+        public void ToggleKeyframePreview()
+        {
+            SetKeyframePreviewPaused(!_isKeyframePreviewPaused);
+        }
+
+        private void SetKeyframePreviewPaused(bool paused)
+        {
+            if (IsFrameSurface || _isKeyframePreviewPaused == paused)
+            {
+                return;
+            }
+
+            _isKeyframePreviewPaused = paused;
+            OnPropertyChanged(nameof(IsKeyframePreviewPaused));
+            OnPropertyChanged(nameof(KeyframePreviewGlyph));
+            OnPropertyChanged(nameof(KeyframePreviewToolTip));
+            KeyframePreviewChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Re-reads the timelines of this surface's slot images (background and badges): the
+        /// slider spans the longest one, and the row is disabled when none is animated.
+        /// </summary>
+        private void RefreshImageKeyframeRange()
+        {
+            var maxMs = 0;
+            if (_style != null)
+            {
+                foreach (var slot in KeyframeSlots)
+                {
+                    maxMs = Math.Max(maxMs, AnimatedImageKeyframe.DurationMs(GetImagePath(ResolveSurfaceSlot(slot))));
+                }
+            }
+
+            if (_imageKeyframeMaxMs == maxMs)
+            {
+                return;
+            }
+
+            _imageKeyframeMaxMs = maxMs;
+            OnPropertyChanged(nameof(ImageKeyframeMaxMs));
+            OnPropertyChanged(nameof(HasAnimatedImages));
+            OnPropertyChanged(nameof(ImageKeyframeSlider));
+        }
+
+        private static readonly NotificationImageSlot[] KeyframeSlots =
+        {
+            NotificationImageSlot.Background,
+            NotificationImageSlot.BadgeCommon,
+            NotificationImageSlot.BadgeUncommon,
+            NotificationImageSlot.BadgeRare,
+            NotificationImageSlot.BadgeUltraRare,
+            NotificationImageSlot.BadgeCompletion
+        };
+
+        private static int? ParseKeyframe(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+
+            if (double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var value) ||
+                double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+            {
+                return (int)Math.Round(Math.Max(0, Math.Min(int.MaxValue, value)));
+            }
+
+            return null;
+        }
+
+        #endregion
+
         #region Card dimensions (toast surface only; blank = template default)
 
         /// <summary>
@@ -994,6 +1132,10 @@ namespace PlayniteAchievements.ViewModels.Settings
             SetValue(ref _frameVignetteStrengthText,
                 surface?.FrameVignetteStrength?.ToString(CultureInfo.CurrentCulture) ?? string.Empty,
                 nameof(FrameVignetteStrengthText));
+            SetValue(ref _imageKeyframeText,
+                surface?.ImageKeyframeMs?.ToString(CultureInfo.CurrentCulture) ?? string.Empty,
+                nameof(ImageKeyframeText));
+            OnPropertyChanged(nameof(ImageKeyframeSlider));
 
             // The slider companions are computed straight from the surface; refresh them
             // together with their text mirrors.
@@ -1369,6 +1511,7 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(BadgeRareDefaultImage));
             OnPropertyChanged(nameof(BadgeUltraRareDefaultImage));
             OnPropertyChanged(nameof(BadgeCompletionDefaultImage));
+            RefreshImageKeyframeRange();
         }
 
         /// <summary>
@@ -2164,6 +2307,7 @@ namespace PlayniteAchievements.ViewModels.Settings
                 OnPropertyChanged(nameof(HasBackgroundImage));
                 OnPropertyChanged(nameof(BackgroundImageDimensionsText));
                 OnPropertyChanged(nameof(BackgroundThumbnailUri));
+                RefreshImageKeyframeRange();
             }
 
             if (ReferenceEquals(sender, _subscribedBadges))
