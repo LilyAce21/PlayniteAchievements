@@ -50,11 +50,20 @@ namespace PlayniteAchievements.Services.Images.Webm
 
         private static BitmapSource Decode(byte[] payload, int decodePixel)
         {
-            var image = WebmContainer.Parse(payload);
+            return DecodeFrame(WebmContainer.Parse(payload), 0, decodePixel);
+        }
+
+        /// <summary>
+        /// Decodes frame <paramref name="frameIndex"/> of a parsed WebM (every frame before it is
+        /// decoded on the way, as the codec requires), scaled down to <paramref name="decodePixel"/>
+        /// wide when that is smaller; 0 keeps the full size. Throws when this machine lacks the decoder.
+        /// </summary>
+        internal static BitmapSource DecodeFrame(WebmImage image, int frameIndex, int decodePixel)
+        {
             int[] pixels;
             using (var decoder = new WebmFrameDecoder(image))
             {
-                decoder.Decode(0);
+                decoder.Decode(frameIndex);
                 pixels = decoder.Pixels;
             }
 
