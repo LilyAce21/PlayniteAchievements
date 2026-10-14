@@ -79,9 +79,13 @@ namespace PlayniteAchievements.Providers.Minecraft
     {
         private const int MaxReadBytes = 4 * 1024 * 1024;
 
+        // Vanilla says "has made the advancement", "has reached the goal" and "has completed the
+        // challenge"; mods reword it, e.g. Re-Console's "has just earned the achievement". The verb and
+        // noun must name an unlock: other bracketed chat, such as a death message's "[Diamond Sword]",
+        // never matches.
         private static readonly Regex Announcement = new Regex(
-            @"(?<player>[A-Za-z0-9_]{1,16}) has (?:made the advancement|reached the goal|completed the challenge) \[(?<title>.+)\]\s*$",
-            RegexOptions.CultureInvariant);
+            @"(?<player>[A-Za-z0-9_]{1,16}) has (?:just )?(?:made|earned|reached|completed|unlocked|gained|got|gotten) (?:the |an |a )?(?:advancement|achievement|goal|challenge) \[(?<title>.+)\]\s*$",
+            RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         // [Server thread/INFO] in vanilla, Fabric and Forge/NeoForge logs alike.
         private const string ServerThreadMarker = "[Server thread/";
