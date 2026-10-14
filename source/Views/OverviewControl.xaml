@@ -502,8 +502,12 @@
                         </Style>
                     </StackPanel.Style>
 
-                    <controls:ScoreCardControl Style="{StaticResource OverviewScoreCardStyle}"
+                    <!-- Right-click opens the card's settings, the same dialog as a showcase Score Card. -->
+                    <controls:ScoreCardControl x:Name="ScoreCard1Control"
+                                               Style="{StaticResource OverviewScoreCardStyle}"
                                                ScoreCard="{Binding ScoreCard1}"
+                                               BadgePosition="{Binding ScoreCard1BadgePosition}"
+                                               MouseRightButtonUp="ScoreCard_MouseRightButtonUp"
                                                Visibility="{Binding ShowOverviewScoreCard1, Converter={StaticResource BoolToVis}}"/>
 
                     <Border x:Name="ScoreCardsDivider"
@@ -515,8 +519,11 @@
                             Margin="12,2"
                             Visibility="{Binding ShowOverviewScoreCardDivider, Converter={StaticResource BoolToVis}}"/>
 
-                    <controls:ScoreCardControl Style="{StaticResource OverviewScoreCardStyle}"
+                    <controls:ScoreCardControl x:Name="ScoreCard2Control"
+                                               Style="{StaticResource OverviewScoreCardStyle}"
                                                ScoreCard="{Binding ScoreCard2}"
+                                               BadgePosition="{Binding ScoreCard2BadgePosition}"
+                                               MouseRightButtonUp="ScoreCard_MouseRightButtonUp"
                                                Visibility="{Binding ShowOverviewScoreCard2, Converter={StaticResource BoolToVis}}"/>
                 </StackPanel>
 
