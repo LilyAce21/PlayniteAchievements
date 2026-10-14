@@ -75,6 +75,15 @@ namespace PlayniteAchievements.Models.Achievements
 
         private static PersistedSettings _activeSettings;
 
+        private static readonly Lazy<PersistedSettings> ShippedAppearanceSettings =
+            new Lazy<PersistedSettings>(() => new PersistedSettings());
+
+        /// <summary>
+        /// Settings at the shipped rarity colors, for surfaces that can opt out of the configured
+        /// colors. Pass as the settings argument of the color getters; never mutate it.
+        /// </summary>
+        public static PersistedSettings ShippedAppearance => ShippedAppearanceSettings.Value;
+
         public static Color GetBaseColor(RarityTier tier, PersistedSettings settings = null)
         {
             var persisted = settings ?? _activeSettings;
@@ -551,6 +560,7 @@ namespace PlayniteAchievements.Models.Achievements
             SetScoreBadge(resources, "ScoreBadgeGoldHexagon", "BadgeGoldHexagon");
             SetScoreBadge(resources, "ScoreBadgePlatinumHexagon", "BadgePlatinumHexagon");
             SetScoreBadge(resources, "ScoreBadgeCompletedGame", "BadgeCompletedGame");
+            ApplyShippedScoreBadgeResources(resources);
 
             void SetGeneratedBadge(ResourceDictionary target, RarityTier tier, string badgeKey)
             {
@@ -601,6 +611,34 @@ namespace PlayniteAchievements.Models.Achievements
                 if (image != null)
                 {
                     resources[key] = image;
+                }
+            }
+
+            ApplyShippedScoreBadgeResources(resources);
+        }
+
+        /// <summary>
+        /// Score card badges at the shipped colors and shapes, under "ScoreDefault" keys, for score
+        /// cards set not to use the configured rarity colors.
+        /// </summary>
+        private static void ApplyShippedScoreBadgeResources(ResourceDictionary resources)
+        {
+            foreach (var badgeKey in new[]
+            {
+                "BadgeBronzeTriangle",
+                "BadgeBronzeHexagon",
+                "BadgeSilverSquare",
+                "BadgeSilverHexagon",
+                "BadgeGoldPentagon",
+                "BadgeGoldHexagon",
+                "BadgePlatinumHexagon",
+                "BadgeCompletedGame"
+            })
+            {
+                var image = TryGetDefaultImage(badgeKey);
+                if (image != null)
+                {
+                    resources["ScoreDefault" + badgeKey] = image;
                 }
             }
         }
