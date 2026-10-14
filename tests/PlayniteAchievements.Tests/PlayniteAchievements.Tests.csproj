@@ -170,6 +170,7 @@
     <Compile Include="..\..\source\Services\Images\ImageHeaderDimensions.cs" Link="Source\Services\Images\ImageHeaderDimensions.cs" />
     <Compile Include="..\..\source\Services\Images\ImageFormats.cs" Link="Source\Services\Images\ImageFormats.cs" />
     <Compile Include="..\..\source\Services\Images\PackageImageFormat.cs" Link="Source\Services\Images\PackageImageFormat.cs" />
+    <Compile Include="..\..\source\Services\Images\AnimatedImageKeyframe.cs" Link="Source\Services\Images\AnimatedImageKeyframe.cs" />
     <Compile Include="..\..\source\Services\Images\WebpAnimationInfo.cs" Link="Source\Services\Images\WebpAnimationInfo.cs" />
     <Compile Include="..\..\source\Services\Images\WebpCodecProbe.cs" Link="Source\Services\Images\WebpCodecProbe.cs" />
     <Compile Include="..\..\source\Services\Images\WebmCodecProbe.cs" Link="Source\Services\Images\WebmCodecProbe.cs" />
