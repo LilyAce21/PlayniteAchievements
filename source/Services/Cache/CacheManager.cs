@@ -1665,6 +1665,8 @@ namespace PlayniteAchievements.Services.Cache
                 ExcludedByUser = source.ExcludedByUser,
                 GameName = source.GameName,
                 AppId = source.AppId,
+                ProviderGameKey = source.ProviderGameKey,
+                IsAppIdOverridden = source.IsAppIdOverridden,
                 PlayniteGameId = source.PlayniteGameId,
                 Game = source.Game,
                 Achievements = new List<AchievementDetail>()
