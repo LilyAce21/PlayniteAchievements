@@ -1189,17 +1189,21 @@ namespace PlayniteAchievements.Models.Tests
             var source = new PersistedSettings
             {
                 OverviewScoreCardSlot1 = "Points:Xbox",
-                OverviewScoreCardSlot2 = "None"
+                OverviewScoreCardSlot2 = "None",
+                OverviewScoreCardsUseCustomColors = true
             };
 
             var clone = source.Clone();
             var target = new PersistedSettings();
             target.CopyFrom(source);
 
+            Assert.IsFalse(new PersistedSettings().OverviewScoreCardsUseCustomColors);
             Assert.AreEqual("Points:Xbox", clone.OverviewScoreCardSlot1);
             Assert.AreEqual("None", clone.OverviewScoreCardSlot2);
+            Assert.IsTrue(clone.OverviewScoreCardsUseCustomColors);
             Assert.AreEqual("Points:Xbox", target.OverviewScoreCardSlot1);
             Assert.AreEqual("None", target.OverviewScoreCardSlot2);
+            Assert.IsTrue(target.OverviewScoreCardsUseCustomColors);
         }
 
         [TestMethod]
