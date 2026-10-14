@@ -324,11 +324,12 @@ namespace PlayniteAchievements.Providers.Tests
                 "C:\\pack",
                 "pack",
                 new[] { ("pack|minecraft:story/mine_stone", "Stone Age"), ("pack|a:x", "Shared"), ("pack|b:y", "Shared") },
-                () => new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+                () => MinecraftLiveLanguage.Create(null, new Dictionary<string, List<string>>
                 {
                     ["Acquire Hardware"] = new List<string> { "minecraft:story/smelt_iron" },
-                    ["Twice"] = new List<string> { "a:one", "b:two" }
-                },
+                    ["Twice"] = new List<string> { "a:one", "b:two" },
+                    ["Steinzeit"] = new List<string> { "minecraft:story/mine_stone" }
+                }),
                 worldFilter: null);
 
             Assert.AreEqual("pack|minecraft:story/mine_stone", MinecraftLogWatcher.ResolveApiName(target, "Stone Age"));
@@ -336,6 +337,69 @@ namespace PlayniteAchievements.Providers.Tests
             Assert.AreEqual("pack|minecraft:story/smelt_iron", MinecraftLogWatcher.ResolveApiName(target, "Acquire Hardware"));
             Assert.IsNull(MinecraftLogWatcher.ResolveApiName(target, "Twice"));
             Assert.IsNull(MinecraftLogWatcher.ResolveApiName(target, "Unknown"));
+
+            // A title in the game's language resolves even when the plugin shows another language.
+            Assert.AreEqual("pack|minecraft:story/mine_stone", MinecraftLogWatcher.ResolveApiName(target, "Steinzeit"));
+        }
+
+        [TestMethod]
+        public void LiveLanguageFromTemplate_MatchesTheGamesOwnWordingInAnyLanguage()
+        {
+            var english = MinecraftLiveLanguage.FromTemplate("%s has made the advancement %s");
+            var match = english.Match("Steve has made the advancement [Stone Age]");
+            Assert.AreEqual("Steve", match.Groups["player"].Value);
+            Assert.AreEqual("Stone Age", match.Groups["title"].Value);
+            Assert.IsFalse(english.IsMatch("<Steve> has made the advancement [Stone Age]"));
+
+            var german = MinecraftLiveLanguage.FromTemplate("%s hat den Fortschritt %s erzielt");
+            Assert.AreEqual("Steinzeit", german.Match("Steve hat den Fortschritt [Steinzeit] erzielt").Groups["title"].Value);
+
+            var reordered = MinecraftLiveLanguage.FromTemplate("Fortschritt %2$s von %1$s");
+            var reorderedMatch = reordered.Match("Fortschritt [Steinzeit] von Steve");
+            Assert.AreEqual("Steve", reorderedMatch.Groups["player"].Value);
+            Assert.AreEqual("Steinzeit", reorderedMatch.Groups["title"].Value);
+
+            Assert.IsNull(MinecraftLiveLanguage.FromTemplate("%s joined the game"));
+
+            // A parsed German server line through the template patterns.
+            var patterns = new[] { german };
+            var parsed = MinecraftLogWatcher.ParseAnnouncement(
+                "[20:33:08] [Server thread/INFO]: System chat: Steve hat den Fortschritt [Steinzeit] erzielt",
+                new HashSet<string> { "Steve" },
+                DateTime.Now,
+                patterns);
+            Assert.AreEqual("Steinzeit", parsed.Value.Title);
+        }
+
+        [TestMethod]
+        public void LiveLanguageBuild_UsesTheGameLanguageAndResourcePackOverrides()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var gameFolder = CreateFixture(root);
+                // A resource pack rewords the announcement, as Legacy4J-style packs do, and the game runs in German.
+                WriteText(Path.Combine(gameFolder, "resourcepacks", "Legacy", "assets", "minecraft", "lang", "en_us.json"),
+                    "{\"chat.type.advancement.task\":\"%s has just earned the achievement %s\"}");
+                WriteText(Path.Combine(gameFolder, "resourcepacks", "Legacy", "assets", "minecraft", "lang", "de_de.json"),
+                    "{\"chat.type.advancement.task\":\"%s hat den Fortschritt %s erzielt\",\"advancements.story.mine_stone.title\":\"Steinzeit\"}");
+                WriteText(Path.Combine(gameFolder, "options.txt"), "version:3953\nlang:de_de\nresourcePacks:[\"vanilla\",\"file/Legacy\"]\n");
+
+                var instance = MinecraftGameResolver.FromFolder(root, "test").Instances.Single();
+                var language = MinecraftLiveLanguage.Build(instance, new FakeLogger());
+
+                Assert.IsTrue(language.Announcements.Any(pattern => pattern.IsMatch("Steve hat den Fortschritt [Steinzeit] erzielt")));
+                CollectionAssert.AreEqual(new[] { "minecraft:story/mine_stone" }, language.IdsByTitle["Steinzeit"]);
+
+                // English game with the pack: the reworded template matches.
+                WriteText(Path.Combine(gameFolder, "options.txt"), "lang:en_us\nresourcePacks:[\"vanilla\",\"file/Legacy\"]\n");
+                var english = MinecraftLiveLanguage.Build(instance, new FakeLogger());
+                Assert.IsTrue(english.Announcements.Any(pattern => pattern.IsMatch("Steve has just earned the achievement [Stone Age]")));
+            }
+            finally
+            {
+                DeleteDirectory(root);
+            }
         }
 
         [TestMethod]
