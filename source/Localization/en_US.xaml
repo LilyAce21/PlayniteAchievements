@@ -1011,6 +1011,7 @@
     <sys:String x:Key="LOCPlayAch_Settings_PieLegendPosition">Legend Position</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ScoreCardBadgePosition">Badge Position</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ScoreCardUseCustomColors">Use Custom Rarity Colors</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ScoreCardShowTotal">Show Total Points</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowTopMenuBarButton">Show Top Menu Bar Button</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowAchievementGridColumnHeaders">Show Column Headers</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowGridControlBar">Show Control Bar</sys:String>

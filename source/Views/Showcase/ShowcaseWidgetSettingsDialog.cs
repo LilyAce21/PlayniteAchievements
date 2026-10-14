@@ -22,11 +22,13 @@ namespace PlayniteAchievements.Views.Showcase
         private readonly ShowcaseWidgetInstanceSettings _workingWidget;
         private readonly ShowcaseProfileSettings _workingProfile;
         private readonly bool _linked;
+        private readonly bool _includeScoreHistory;
         private TextBox _titleBox;
         private ShowcaseProfileSettingsEditor _profileEditor;
 
-        private ShowcaseWidgetSettingsDialog(ShowcaseWidgetInstanceSettings widget, bool linked)
+        private ShowcaseWidgetSettingsDialog(ShowcaseWidgetInstanceSettings widget, bool linked, bool includeScoreHistory)
         {
+            _includeScoreHistory = includeScoreHistory;
             _sourceWidget = widget ?? throw new ArgumentNullException(nameof(widget));
             _linked = linked;
             _workingWidget = widget.Clone();
@@ -49,14 +51,15 @@ namespace PlayniteAchievements.Views.Showcase
         /// True for a widget linked to the overview: its title comes from the overview's
         /// selections, so no title field is offered.
         /// </param>
-        public static bool Show(ShowcaseWidgetInstanceSettings widget, bool linked = false)
+        /// <param name="includeScoreHistory">False for a score card with no history chart, such as the Overview header's.</param>
+        public static bool Show(ShowcaseWidgetInstanceSettings widget, bool linked = false, bool includeScoreHistory = true)
         {
             if (widget == null)
             {
                 return false;
             }
 
-            var editor = new ShowcaseWidgetSettingsDialog(widget, linked);
+            var editor = new ShowcaseWidgetSettingsDialog(widget, linked, includeScoreHistory);
             var title = string.Format(
                 FormattingCulture.Current,
                 Localize("LOCPlayAch_Showcase_WidgetSettingsTitle"),
@@ -127,7 +130,8 @@ namespace PlayniteAchievements.Views.Showcase
                     _workingWidget,
                     publishChanges: false,
                     margin: new Thickness(0),
-                    loadStyles: false));
+                    loadStyles: false,
+                    includeScoreHistory: _includeScoreHistory));
             }
 
             var buttons = new StackPanel

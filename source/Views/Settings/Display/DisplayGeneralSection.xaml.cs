@@ -49,18 +49,29 @@ namespace PlayniteAchievements.Views.Settings.Display
                 OnSettingsReloaded);
 
             UpdateGlowTierTexts();
-            UpdateScoreCardSlotOptions();
+            UpdateScoreCardNames();
         }
 
-        /// <summary>The Overview score card choices: every card a picker lists, then None.</summary>
-        public static readonly DependencyProperty ScoreCardSlotOptionsProperty =
-            DependencyProperty.Register(nameof(ScoreCardSlotOptions), typeof(IReadOnlyList<ScoreCardSlotOption>),
-                typeof(DisplayGeneralSection), new PropertyMetadata(Array.Empty<ScoreCardSlotOption>()));
+        /// <summary>The first Overview score card's type name, labeling its show toggle.</summary>
+        public static readonly DependencyProperty ScoreCard1NameProperty =
+            DependencyProperty.Register(nameof(ScoreCard1Name), typeof(string),
+                typeof(DisplayGeneralSection), new PropertyMetadata(string.Empty));
 
-        public IReadOnlyList<ScoreCardSlotOption> ScoreCardSlotOptions
+        public string ScoreCard1Name
         {
-            get => (IReadOnlyList<ScoreCardSlotOption>)GetValue(ScoreCardSlotOptionsProperty);
-            set => SetValue(ScoreCardSlotOptionsProperty, value);
+            get => (string)GetValue(ScoreCard1NameProperty);
+            set => SetValue(ScoreCard1NameProperty, value);
+        }
+
+        /// <summary>The second Overview score card's type name, labeling its show toggle.</summary>
+        public static readonly DependencyProperty ScoreCard2NameProperty =
+            DependencyProperty.Register(nameof(ScoreCard2Name), typeof(string),
+                typeof(DisplayGeneralSection), new PropertyMetadata(string.Empty));
+
+        public string ScoreCard2Name
+        {
+            get => (string)GetValue(ScoreCard2NameProperty);
+            set => SetValue(ScoreCard2NameProperty, value);
         }
 
         /// <summary>Summary text for the soft-glow tier selector button.</summary>
@@ -119,33 +130,16 @@ namespace PlayniteAchievements.Views.Settings.Display
         private void OnSettingsReloaded()
         {
             UpdateGlowTierTexts();
-            UpdateScoreCardSlotOptions();
+            UpdateScoreCardNames();
         }
 
-        /// <summary>
-        /// Lists the cards for the two Overview slots, keeping each slot's saved card even when its
-        /// points family no longer has points.
-        /// </summary>
-        private void UpdateScoreCardSlotOptions()
+        private void UpdateScoreCardNames()
         {
             var persisted = _settings?.Persisted;
-            var options = new List<ScoreCardSlotOption>();
-            foreach (var card in ScoreCardChoices.Build())
-            {
-                options.Add(new ScoreCardSlotOption(card.Key, ShowcaseUiText.ScoreCardTypeName(card)));
-            }
-
-            foreach (var slot in new[] { persisted?.OverviewScoreCardSlot1, persisted?.OverviewScoreCardSlot2 })
-            {
-                if (ScoreCardSlots.TryGetCardType(slot, out var saved) &&
-                    !options.Exists(option => option.Key == saved.Key))
-                {
-                    options.Add(new ScoreCardSlotOption(saved.Key, ShowcaseUiText.ScoreCardTypeName(saved)));
-                }
-            }
-
-            options.Add(new ScoreCardSlotOption(ScoreCardSlots.NoneKey, ResourceProvider.GetString("LOCNone")));
-            ScoreCardSlotOptions = options;
+            ScoreCard1Name = ShowcaseUiText.ScoreCardTypeName(
+                ShowcaseWidgetOptions.GetScoreCardType(persisted?.OverviewScoreCard1));
+            ScoreCard2Name = ShowcaseUiText.ScoreCardTypeName(
+                ShowcaseWidgetOptions.GetScoreCardType(persisted?.OverviewScoreCard2));
         }
 
         private void OnPersistedPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -154,6 +148,11 @@ namespace PlayniteAchievements.Views.Settings.Display
                 e.PropertyName == nameof(PersistedSettings.TintMissableLocks))
             {
                 RarityAppearanceHelper.ApplyBadgeApplicationResources(_settings?.Persisted);
+            }
+            else if (e.PropertyName == nameof(PersistedSettings.OverviewScoreCard1) ||
+                     e.PropertyName == nameof(PersistedSettings.OverviewScoreCard2))
+            {
+                UpdateScoreCardNames();
             }
         }
 

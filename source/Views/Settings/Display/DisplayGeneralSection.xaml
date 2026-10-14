@@ -203,8 +203,9 @@
                 </StackPanel>
             </Border>
 
-            <!-- Which parts of the Overview window show, and the score cards' color source. The
-                 mini-showcase's look is set in its editor in the window itself. -->
+            <!-- Which parts of the Overview window show. Each score card's options and the
+                 mini-showcase's look are set in the window itself (right-click a card; the
+                 mini-showcase's editor). -->
             <Border Style="{StaticResource SectionBorderStyle}" Grid.IsSharedSizeScope="True">
                 <StackPanel>
                     <TextBlock Text="{DynamicResource LOCPlayAch_Menu_OpenOverview}"
@@ -214,21 +215,12 @@
 
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Showcase_ScoreCards}">
                         <StackPanel Orientation="Horizontal">
-                            <ComboBox ItemsSource="{Binding ScoreCardSlotOptions, ElementName=DisplayGeneralSectionRoot}"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectedValuePath="Key"
-                                      SelectedValue="{Binding Persisted.OverviewScoreCardSlot1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      MinWidth="140"/>
-                            <ComboBox ItemsSource="{Binding ScoreCardSlotOptions, ElementName=DisplayGeneralSectionRoot}"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectedValuePath="Key"
-                                      SelectedValue="{Binding Persisted.OverviewScoreCardSlot2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      MinWidth="140"
-                                      Margin="8,0,0,0"/>
+                            <CheckBox Content="{Binding ScoreCard1Name, ElementName=DisplayGeneralSectionRoot}"
+                                      IsChecked="{Binding Persisted.ShowOverviewScoreCard1}"/>
+                            <CheckBox Content="{Binding ScoreCard2Name, ElementName=DisplayGeneralSectionRoot}"
+                                      IsChecked="{Binding Persisted.ShowOverviewScoreCard2}"
+                                      Margin="16,0,0,0"/>
                         </StackPanel>
-                    </controls:SettingRow>
-                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ScoreCardUseCustomColors}">
-                        <CheckBox IsChecked="{Binding Persisted.OverviewScoreCardsUseCustomColors}"/>
                     </controls:SettingRow>
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ShowOverviewMiniShowcase}"
                                          Margin="0">

@@ -377,6 +377,7 @@ namespace PlayniteAchievements.Models
         private const string ScoreCardBadgePositionKey = "ScoreCardBadgePosition";
         private const string ScoreHistoryShown = "ScoreHistoryShown";
         private const string ScoreCardUseCustomColors = "ScoreCardUseCustomColors";
+        private const string ScoreCardShowTotal = "ScoreCardShowTotal";
         private const string IncludeLocked = "IncludeLocked";
         private const string SmallSliceMode = "SmallSliceMode";
         private const string ActivityScope = "ActivityScope";
@@ -600,6 +601,13 @@ namespace PlayniteAchievements.Models
 
         public static void SetScoreCardUseCustomColors(ShowcaseWidgetInstanceSettings settings, bool value) =>
             settings?.SetOption(ScoreCardUseCustomColors, value);
+
+        /// <summary>Whether a points card shows earned out of total; unset means shown. Earned alone otherwise.</summary>
+        public static bool GetScoreCardShowTotal(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ScoreCardShowTotal, true) ?? true;
+
+        public static void SetScoreCardShowTotal(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ScoreCardShowTotal, value);
 
         /// <summary>True for a Scores widget saved with the legacy Mode of Both and no card option.</summary>
         public static bool IsLegacyDualScores(ShowcaseWidgetInstanceSettings settings) =>

@@ -149,6 +149,8 @@ namespace PlayniteAchievements.Models.Settings
 
                 changed |= ConvertScoreCardVisibilityToSlots(persisted);
 
+                changed |= ConvertScoreCardSlotsToCards(persisted);
+
                 changed |= SeedOverviewMiniShowcase(persisted);
 
                 changed |= CopyLegacyAchievementGridHeaderVisibility(persisted);
@@ -239,8 +241,9 @@ namespace PlayniteAchievements.Models.Settings
         {
             const string collectionName = "ShowOverviewCollectionScoreCard";
             const string prestigeName = "ShowOverviewPrestigeScoreCard";
-            const string slot1Name = nameof(PersistedSettings.OverviewScoreCardSlot1);
-            const string slot2Name = nameof(PersistedSettings.OverviewScoreCardSlot2);
+            // Legacy names now: ConvertScoreCardSlotsToCards carries the slots into the cards.
+            const string slot1Name = "OverviewScoreCardSlot1";
+            const string slot2Name = "OverviewScoreCardSlot2";
 
             if (persisted[collectionName] == null && persisted[prestigeName] == null)
             {
@@ -269,6 +272,71 @@ namespace PlayniteAchievements.Models.Settings
             return true;
         }
 
+        /// <summary>
+        /// Replaces the overview's two card slots and shared custom-colors flag with a card and a
+        /// show toggle per slot: a card key becomes that card, shown; None becomes the slot's
+        /// default card, hidden; the colors flag is copied into both cards. Runs after the
+        /// visibility-to-slot conversion, so the oldest profiles pass through both. A card that is
+        /// already saved is kept.
+        /// </summary>
+        private static bool ConvertScoreCardSlotsToCards(JObject persisted)
+        {
+            const string slot1Name = "OverviewScoreCardSlot1";
+            const string slot2Name = "OverviewScoreCardSlot2";
+            const string customColorsName = "OverviewScoreCardsUseCustomColors";
+
+            if (persisted[slot1Name] == null && persisted[slot2Name] == null && persisted[customColorsName] == null)
+            {
+                return false;
+            }
+
+            var useCustomColors = ReadBool(persisted[customColorsName], false);
+            ConvertScoreCardSlot(
+                persisted,
+                persisted[slot1Name],
+                ScoreCardType.Collection,
+                nameof(PersistedSettings.OverviewScoreCard1),
+                nameof(PersistedSettings.ShowOverviewScoreCard1),
+                useCustomColors);
+            ConvertScoreCardSlot(
+                persisted,
+                persisted[slot2Name],
+                ScoreCardType.Prestige,
+                nameof(PersistedSettings.OverviewScoreCard2),
+                nameof(PersistedSettings.ShowOverviewScoreCard2),
+                useCustomColors);
+
+            persisted.Remove(slot1Name);
+            persisted.Remove(slot2Name);
+            persisted.Remove(customColorsName);
+            return true;
+        }
+
+        private static void ConvertScoreCardSlot(
+            JObject persisted,
+            JToken slot,
+            ScoreCardType defaultType,
+            string cardName,
+            string showName,
+            bool useCustomColors)
+        {
+            if (persisted[cardName] != null)
+            {
+                return;
+            }
+
+            var key = slot != null && slot.Type == JTokenType.String
+                ? ScoreCardSlots.Normalize(slot.Value<string>())
+                : defaultType.Key;
+            var shown = ScoreCardSlots.TryGetCardType(key, out var type);
+            var card = PersistedSettings.CreateOverviewScoreCard(shown ? type : defaultType);
+            ShowcaseWidgetOptions.SetScoreCardUseCustomColors(card, useCustomColors);
+            persisted[cardName] = JObject.FromObject(card);
+            if (persisted[showName] == null)
+            {
+                persisted[showName] = shown;
+            }
+        }
         /// <summary>
         /// The settings that drove the overview's fixed chart strip before it became the
         /// mini-showcase. Removed once their values have been carried into the strip's widgets.
