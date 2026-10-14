@@ -84,8 +84,8 @@ namespace PlayniteAchievements.Services.Images
     }
 
     /// <summary>
-    /// The user-image slots a notification style can customize: the toast background and the
-    /// five badge replacements per surface (toast slots keep the legacy unprefixed names).
+    /// The user-image slots a notification style can customize: a background and five badge
+    /// replacements per surface (toast slots keep the legacy unprefixed names).
     /// </summary>
     public enum NotificationImageSlot
     {
@@ -99,7 +99,8 @@ namespace PlayniteAchievements.Services.Images
         FrameBadgeUncommon,
         FrameBadgeRare,
         FrameBadgeUltraRare,
-        FrameBadgeCompletion
+        FrameBadgeCompletion,
+        FrameBackground
     }
 
     /// <summary>
@@ -132,7 +133,8 @@ namespace PlayniteAchievements.Services.Images
                 [NotificationImageSlot.FrameBadgeUncommon] = "frame_badge_uncommon",
                 [NotificationImageSlot.FrameBadgeRare] = "frame_badge_rare",
                 [NotificationImageSlot.FrameBadgeUltraRare] = "frame_badge_ultrarare",
-                [NotificationImageSlot.FrameBadgeCompletion] = "frame_badge_completion"
+                [NotificationImageSlot.FrameBadgeCompletion] = "frame_badge_completion",
+                [NotificationImageSlot.FrameBackground] = "frame_background"
             };
 
         private readonly DiskImageService _diskImageService;
