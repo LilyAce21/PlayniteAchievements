@@ -479,20 +479,25 @@ namespace PlayniteAchievements.Services.Achievements
         // library rollup reads - the game's counts, filters and summary art are all unchanged by
         // it - so these writes are scoped out of the library-wide summary and projection passes.
         // Callers repaint their own rows in place, which is what keeps the edit visible.
-        public void SetAchievementCategoryOverrides(Guid gameId, IReadOnlyDictionary<string, string> categoryOverrides)
+        //
+        // Each returns true when the write moved an auto capstone into or out of the default
+        // category and so changed what it stands for; the caller re-derives it.
+        public bool SetAchievementCategoryOverrides(Guid gameId, IReadOnlyDictionary<string, string> categoryOverrides)
         {
             if (gameId == Guid.Empty)
             {
-                return;
+                return false;
             }
 
+            var rescoped = false;
             _gameCustomDataStore.Update(
                 gameId,
                 customData =>
                 {
-                    ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                    rescoped = ReplaceCategoryRescopingAutoCapstones(customData, categoryOverrides);
                 },
                 affectsSummaryData: false);
+            return rescoped;
         }
 
         public void SetAchievementCategoryTypeOverrides(Guid gameId, IReadOnlyDictionary<string, string> categoryTypeOverrides)
@@ -511,24 +516,51 @@ namespace PlayniteAchievements.Services.Achievements
                 affectsSummaryData: false);
         }
 
-        public void SetAchievementCategoryOverrides(
+        public bool SetAchievementCategoryOverrides(
             Guid gameId,
             IReadOnlyDictionary<string, string> categoryOverrides,
             IReadOnlyDictionary<string, string> categoryTypeOverrides)
         {
             if (gameId == Guid.Empty)
             {
-                return;
+                return false;
             }
 
+            var rescoped = false;
             _gameCustomDataStore.Update(
                 gameId,
                 customData =>
                 {
-                    ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                    rescoped = ReplaceCategoryRescopingAutoCapstones(customData, categoryOverrides);
                     ReplaceOverrideField(customData, categoryTypeOverrides, (entry, value) => entry.CategoryType = value);
                 },
                 affectsSummaryData: false);
+            return rescoped;
+        }
+
+        /// <summary>
+        /// Replaces the category labels and re-scopes any auto capstone the replacement moved, see
+        /// <see cref="AutoCapstoneScope.Rescope"/>. True when one changed scope.
+        /// </summary>
+        private static bool ReplaceCategoryRescopingAutoCapstones(
+            GameCustomDataFile customData,
+            IReadOnlyDictionary<string, string> categoryOverrides)
+        {
+            var before = CloneOverrides(customData);
+            ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+            var after = customData.AchievementOverrides;
+
+            var rescoped = AutoCapstoneScope.Rescope(
+                customData.CustomAchievements,
+                apiName => before.TryGetValue(apiName, out var entry) ? entry?.Category : null,
+                apiName => after != null && after.TryGetValue(apiName, out var entry) ? entry?.Category : null);
+            if (rescoped == null)
+            {
+                return false;
+            }
+
+            customData.CustomAchievements = rescoped;
+            return true;
         }
 
         /// <summary>
@@ -541,29 +573,45 @@ namespace PlayniteAchievements.Services.Achievements
         /// queue a library-wide overview recompute per click for nothing. Pass true only when the
         /// game-summary category selection actually changed, since that does drive the game's row.
         /// </param>
-        public void SetAchievementCategoryAssignmentAndMetadata(
+        /// <param name="rescopeAutoCapstones">
+        /// True when the write files achievements somewhere new, so a moved auto capstone takes the
+        /// scope of where it went. False for a rename or a re-nesting, which carries the members
+        /// along and leaves what each capstone stands for alone.
+        /// </param>
+        public bool SetAchievementCategoryAssignmentAndMetadata(
             Guid gameId,
             IReadOnlyDictionary<string, string> categoryOverrides,
             IReadOnlyDictionary<string, string> categoryTypeOverrides,
             IReadOnlyList<string> categoryOrder,
             IReadOnlyDictionary<string, CategoryImageOverrideData> categoryImageOverrides,
             GameSummaryCategoryData gameSummaryCategory,
-            bool affectsSummaryData = true)
+            bool affectsSummaryData = true,
+            bool rescopeAutoCapstones = false)
         {
             if (gameId == Guid.Empty)
             {
-                return;
+                return false;
             }
 
+            var rescoped = false;
             _gameCustomDataStore.Update(gameId, customData =>
             {
-                ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                if (rescopeAutoCapstones)
+                {
+                    rescoped = ReplaceCategoryRescopingAutoCapstones(customData, categoryOverrides);
+                }
+                else
+                {
+                    ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                }
+
                 ReplaceOverrideField(customData, categoryTypeOverrides, (entry, value) => entry.CategoryType = value);
                 customData.AchievementCategoryOrder = CopyCategoryOrder(categoryOrder);
                 customData.AchievementCategoryImageOverrides = CopyCategoryImageOverrides(categoryImageOverrides);
                 customData.GameSummaryCategory = GameCustomDataNormalizer.NormalizeGameSummaryCategory(gameSummaryCategory);
             },
             affectsSummaryData);
+            return rescoped;
         }
 
         /// <param name="affectsSummaryData">
