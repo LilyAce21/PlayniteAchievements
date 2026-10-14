@@ -7,9 +7,11 @@ using PlayniteAchievements.Common;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Providers;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.Overview;
 using PlayniteAchievements.ViewModels.Items;
+using PlayniteAchievements.Views.Converters;
 
 namespace PlayniteAchievements.ViewModels
 {
@@ -50,6 +52,9 @@ namespace PlayniteAchievements.ViewModels
         private string _rank = DefaultRank;
         private bool _useUniformRarityBadges;
         private bool _useCustomColors;
+        private bool _showTotal = true;
+        private string _platformIconKey;
+        private string _platformColorHex;
         private AchievementLevelSnapshot _snapshot;
         private ScoreCardType _scoreType;
 
@@ -85,6 +90,23 @@ namespace PlayniteAchievements.ViewModels
         /// for the shipped colors.
         /// </summary>
         public bool UseCustomColors => _useCustomColors;
+
+        /// <summary>
+        /// True (the default) for a points card to show earned out of total; false for earned
+        /// alone. The bar fills to earned out of total either way.
+        /// </summary>
+        public bool ShowTotal => _showTotal;
+
+        /// <summary>A points card's platform icon key; null for Collection and Prestige.</summary>
+        public string PlatformIconKey => _platformIconKey;
+
+        /// <summary>A points card's platform color, which also colors its bar; null for Collection and Prestige.</summary>
+        public string PlatformColorHex => _platformColorHex;
+
+        /// <summary>A points card's platform icon in the platform color; null for Collection and Prestige.</summary>
+        public ImageSource PlatformIcon => IsPoints
+            ? ProviderIconConverter.BuildIcon(_platformIconKey, _platformColorHex)
+            : null;
 
         /// <summary>
         /// One cell per level of the current rank: completed levels solid, the level in progress
@@ -135,8 +157,10 @@ namespace PlayniteAchievements.ViewModels
             L("LOCPlayAch_Score_LevelFormat"),
             Level);
 
-        /// <summary>The card's main line: the rank, or a points card's earned out of total.</summary>
-        public string TierText => IsPoints ? CountsText : AchievementRankPresentation.FormatRank(Rank);
+        /// <summary>The card's main line: the rank, or a points card's earned points, out of total when shown.</summary>
+        public string TierText => IsPoints
+            ? (_showTotal ? CountsText : ScoreText)
+            : AchievementRankPresentation.FormatRank(Rank);
 
         /// <summary>Points earned out of the points the card's games hold.</summary>
         public string CountsText => FormatCounts(Score, Total);
@@ -336,6 +360,29 @@ namespace PlayniteAchievements.ViewModels
             RefreshColors();
         }
 
+        /// <summary>Switches a points card between earned out of total and earned alone.</summary>
+        public void SetShowTotal(bool showTotal)
+        {
+            if (_showTotal == showTotal)
+            {
+                return;
+            }
+
+            _showTotal = showTotal;
+            OnPropertyChanged(nameof(ShowTotal));
+            OnPropertyChanged(nameof(TierText));
+            OnPropertyChanged(nameof(CompactTierText));
+        }
+
+        /// <summary>
+        /// Re-resolves the colors, including a points card's platform color, after a provider color
+        /// override changes.
+        /// </summary>
+        public void RefreshProviderAppearance()
+        {
+            RefreshColors();
+        }
+
         private void RefreshColors()
         {
             OnPropertyChanged(nameof(BadgeIconKey));
@@ -346,6 +393,14 @@ namespace PlayniteAchievements.ViewModels
             OnPropertyChanged(nameof(NextTierAccentBrush));
             OnPropertyChanged(nameof(AccentBackgroundBrush));
             OnPropertyChanged(nameof(AccentTrackBrush));
+            RaisePlatformChanged();
+        }
+
+        private void RaisePlatformChanged()
+        {
+            OnPropertyChanged(nameof(PlatformIconKey));
+            OnPropertyChanged(nameof(PlatformColorHex));
+            OnPropertyChanged(nameof(PlatformIcon));
         }
 
         /// <summary>The settings the colors resolve from: null for the configured ones.</summary>
@@ -484,6 +539,7 @@ namespace PlayniteAchievements.ViewModels
             OnPropertyChanged(nameof(NextTierAccentBrush));
             OnPropertyChanged(nameof(AccentBackgroundBrush));
             OnPropertyChanged(nameof(AccentTrackBrush));
+            RaisePlatformChanged();
         }
 
         private static int GetDisplayLevel(AchievementLevelSnapshot snapshot)
@@ -605,8 +661,9 @@ namespace PlayniteAchievements.ViewModels
         private void ResolveAccentBrushes()
         {
             var colorSettings = ColorSettings;
+            ResolvePlatformVisuals();
             var accent = IsPoints
-                ? GetPointsAccentColor(PointsFraction >= 1d, colorSettings)
+                ? GetPointsAccentColor(_platformColorHex, colorSettings)
                 : GetAccentColor(Rank, colorSettings);
             _accentBrush = CreateFrozenBrush(accent);
             _accentBackgroundBrush = CreateFrozenBrush(WithAlpha(accent, BackgroundAlpha));
@@ -623,15 +680,32 @@ namespace PlayniteAchievements.ViewModels
         private double PointsFraction => _total > 0 ? Math.Min(1d, (double)_score / _total) : 0d;
 
         /// <summary>
-        /// A points card's color, from the same tokens as the plugin's game progress bars: the
-        /// progress fill (the theme accent) while points remain, and the completed-game color once
-        /// every point is earned.
+        /// A points card's platform icon and color, from the family's provider key with any
+        /// provider color override applied. Cleared for Collection and Prestige.
         /// </summary>
-        private static Color GetPointsAccentColor(bool complete, PersistedSettings colorSettings)
+        private void ResolvePlatformVisuals()
         {
-            if (complete)
+            if (!IsPoints)
             {
-                return RarityAppearanceHelper.GetCompletedColor(colorSettings);
+                _platformIconKey = null;
+                _platformColorHex = null;
+                return;
+            }
+
+            var visuals = ProviderRegistry.ResolveProviderVisualsOrFallback(_scoreType.PointsFamily);
+            _platformIconKey = visuals.iconKey;
+            _platformColorHex = visuals.colorHex;
+        }
+
+        /// <summary>
+        /// A points card's color: its platform's color, complete or not. The progress fill (the
+        /// theme accent) stands in when the color does not parse.
+        /// </summary>
+        private static Color GetPointsAccentColor(string platformColorHex, PersistedSettings colorSettings)
+        {
+            if (TryParseColor(platformColorHex, out var platformColor))
+            {
+                return platformColor;
             }
 
             return Application.Current?.TryFindResource("PlayAch.Brush.Progress.Fill") is SolidColorBrush fill
@@ -648,6 +722,29 @@ namespace PlayniteAchievements.ViewModels
             return AchievementRankPresentation.IsMasterRank(rank)
                 ? RarityAppearanceHelper.GetCompletedColor(colorSettings)
                 : RarityAppearanceHelper.GetBaseColor(AchievementRankPresentation.GetRarityTier(rank), colorSettings);
+        }
+
+        private static bool TryParseColor(string colorHex, out Color color)
+        {
+            color = default(Color);
+            if (string.IsNullOrWhiteSpace(colorHex))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (ColorConverter.ConvertFromString(colorHex.Trim()) is Color parsed)
+                {
+                    color = parsed;
+                    return true;
+                }
+            }
+            catch (FormatException)
+            {
+            }
+
+            return false;
         }
 
         private static Color WithAlpha(Color color, byte alpha)
