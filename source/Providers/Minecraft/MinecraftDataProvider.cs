@@ -29,7 +29,6 @@ namespace PlayniteAchievements.Providers.Minecraft
         private readonly MinecraftScanner _scanner;
         private readonly IPlayniteAPI _playniteApi;
         private readonly ILogger _logger;
-        private readonly PlayniteAchievementsSettings _settings;
 
         public MinecraftDataProvider(ILogger logger, PlayniteAchievementsSettings settings, IPlayniteAPI playniteApi)
             : this(logger, settings, playniteApi, string.Empty)
@@ -42,7 +41,6 @@ namespace PlayniteAchievements.Providers.Minecraft
             if (settings == null) throw new ArgumentNullException(nameof(settings));
             _playniteApi = playniteApi;
             _logger = logger;
-            _settings = settings;
             _scanner = new MinecraftScanner(logger, settings, ProviderSettings, _playniteApi, pluginUserDataPath);
         }
 
@@ -126,7 +124,7 @@ namespace PlayniteAchievements.Providers.Minecraft
                     candidate.GameFolder,
                     candidate.Key,
                     rows,
-                    () => MinecraftScanner.BuildTitleIndex(
+                    () => MinecraftLiveLanguage.Build(
                         new MinecraftInstance
                         {
                             Key = instance.Key,
@@ -136,7 +134,6 @@ namespace PlayniteAchievements.Providers.Minecraft
                                 ? new List<string> { source.SingleWorld }
                                 : MinecraftPaths.EnumerateWorlds(instance.GameFolder)
                         },
-                        _settings?.Persisted?.GlobalLanguage,
                         _logger),
                     source.SingleWorld));
             }
