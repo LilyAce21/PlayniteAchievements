@@ -195,7 +195,8 @@ namespace PlayniteAchievements.Services.Workshop.Preview
         private static GameCustomDataPreviewModel BuildGameCustomData(string packagePath, string scratch, WorkshopPreviewContext context)
         {
             var store = Require(context.GameCustomDataStore, "Game custom data store");
-            var package = store.ReadPortablePackage(packagePath, scratch);
+            // Keys spread over the compared game's own instances, as the install would.
+            var package = store.ReadPortablePackage(packagePath, scratch, context.GameDataSource?.CurrentData);
             var diff = GameCustomDataPreviewDiffBuilder.Build(package, context.GameDataSource);
             return new GameCustomDataPreviewModel(packagePath, scratch, package, diff);
         }
