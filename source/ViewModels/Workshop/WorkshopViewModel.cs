@@ -4,6 +4,7 @@ using PlayniteAchievements.Common;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Workshop;
 using PlayniteAchievements.Services.Workshop.Preview;
+using PlayniteAchievements.ViewModels.Library;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -486,24 +487,51 @@ namespace PlayniteAchievements.ViewModels.Workshop
                 }
 
                 var gameId = LinkedOrCertainGame(row, gameData) ?? match?.PlayniteGameId;
-                var link = gameId is Guid id && gameData.TryGetValue(id, out var record)
-                           && Services.Library.GameDataLinkService.Names(record, row.Id)
-                    ? record
-                    : null;
                 row.LocalGameName = gameId == null
                     ? null
                     : gameId == match?.PlayniteGameId
                         ? match.GameName
                         : _plugin.PlayniteApi?.Database?.Games?.Get(gameId.Value)?.Name;
-                row.IsInstalled = link != null;
-                row.HasUpdate = Services.Library.GameDataLinkService.HasUpdate(link, row.Item);
+
+                var applied = gameData
+                    .Where(pair => Services.Library.GameDataLinkService.Names(pair.Value, row.Id))
+                    .ToList();
+                row.IsInstalled = applied.Count > 0;
+                row.HasUpdate = Services.Library.GameDataLinkService.GamesBehind(applied, row.Item).Count > 0;
+                row.Uses = applied
+                    .Select(pair =>
+                    {
+                        var use = new Services.Library.LibraryTargetUse(
+                            Services.Library.LibraryTargetKeys.GameData(pair.Key),
+                            pair.Value,
+                            isEdited: false,
+                            Services.Library.GameDataLinkService.HasUpdate(pair.Value, row.Item),
+                            canReset: true);
+                        var item = new Services.Library.LibraryItem
+                        {
+                            Kind = Services.Library.LibraryItemKind.GameData,
+                            Origin = Services.Library.LibraryItemOrigin.Workshop,
+                            WorkshopItemId = row.Id,
+                            Version = pair.Value.AppliedVersion
+                        };
+                        return new WorkshopUseLine(LibraryUseLabels.GameName(_plugin, pair.Key), LibraryUseLabels.State(item, use));
+                    })
+                    .OrderBy(use => use.Label, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
                 return;
             }
 
             var owned = library[row.Id].ToList();
             row.IsInstalled = owned.Count > 0;
             var updates = _plugin.LibraryUpdateService;
-            row.IsApplied = updates != null && owned.Any(item => updates.UsesOf(item).Count > 0);
+            var uses = updates == null
+                ? new List<WorkshopUseLine>()
+                : owned
+                    .SelectMany(item => updates.UsesOf(item)
+                        .Select(use => new WorkshopUseLine(LibraryUseLabels.Target(_plugin, use.TargetKey), LibraryUseLabels.State(item, use))))
+                    .ToList();
+            row.IsApplied = uses.Count > 0;
+            row.Uses = uses;
             row.HasUpdate = owned.Any(item => WorkshopIdentityStore.IsNewer(row.Version, item.Version));
         }
 
@@ -770,35 +798,14 @@ namespace PlayniteAchievements.ViewModels.Workshop
         /// <summary>Asks the window to pick bundle parts; null cancels.</summary>
         public Func<WorkshopItemViewModel, Services.Workshop.BundleParts, Services.Workshop.BundleParts?> PickBundleParts { get; set; }
 
-        /// <summary>Asks the window to pick a library game for game data; null cancels.</summary>
-        public Func<WorkshopItemViewModel, IReadOnlyList<Game>, Game> PickGame { get; set; }
+        /// <summary>
+        /// Asks the window which games game data goes onto and how each meets its data: the new
+        /// targets, empty when nothing new was picked, or null on Cancel.
+        /// </summary>
+        public Func<WorkshopItemViewModel, IReadOnlyList<Services.Library.GameDataTarget>> PickGameDataTargets { get; set; }
 
         /// <summary>Asks the window to confirm a question; defaults to yes when unset.</summary>
         public Func<string, bool> Confirm { get; set; }
-
-        /// <summary>
-        /// Asks how game data meets what the game already has, or null when the user cancels.
-        /// Onto a game that already has this item applied it is an update, which keeps the edits
-        /// made since. Onto a game with other custom data it offers Merge (what the user set stays,
-        /// the package fills the rest) or Replace; onto a game without any, it just confirms.
-        /// </summary>
-        private WorkshopGameDataInstallMode? ChooseGameDataMode(WorkshopItemViewModel row, Guid gameId, string gameName)
-        {
-            var question = string.Format(ResourceProvider.GetString("LOCPlayAch_Workshop_InstallConfirmGameData"), row.Name, gameName);
-            if (IsAppliedTo(row, gameId))
-            {
-                return Confirm == null || Confirm(question) ? WorkshopGameDataInstallMode.KeepEditsSinceInstall : (WorkshopGameDataInstallMode?)null;
-            }
-
-            var hasExistingData = _plugin.GameCustomDataStore?.HasPortableData(gameId) ?? false;
-            if (hasExistingData && ChooseMergeOrReplace != null)
-            {
-                var choiceQuestion = string.Format(ResourceProvider.GetString("LOCPlayAch_Workshop_InstallChoiceGameData"), row.Name, gameName);
-                return ChooseMergeOrReplace(choiceQuestion);
-            }
-
-            return Confirm == null || Confirm(question) ? WorkshopGameDataInstallMode.Replace : (WorkshopGameDataInstallMode?)null;
-        }
 
         /// <summary>True when the game's Workshop game data record is this row's item.</summary>
         private bool IsAppliedTo(WorkshopItemViewModel row, Guid gameId)
@@ -806,16 +813,16 @@ namespace PlayniteAchievements.ViewModels.Workshop
             return Services.Library.GameDataLinkService.Names(_gameData.Get(gameId), row.Id);
         }
 
-        /// <summary>
-        /// Asks Merge, Replace or Cancel for game data going onto a game that already has custom
-        /// data; returns null on Cancel. Set by the hosting view.
-        /// </summary>
-        public Func<string, WorkshopGameDataInstallMode?> ChooseMergeOrReplace { get; set; }
-
         public async Task InstallAsync(WorkshopItemViewModel row)
         {
             if (row == null || IsBusy || !row.CanInstall)
             {
+                return;
+            }
+
+            if (row.Kind == WorkshopItemKind.GameCustomData)
+            {
+                await InstallGameDataAsync(row);
                 return;
             }
 
@@ -839,26 +846,6 @@ namespace PlayniteAchievements.ViewModels.Workshop
                     request.Parts = picked;
                 }
 
-                if (row.Kind == WorkshopItemKind.GameCustomData)
-                {
-                    var gameId = ResolveTargetGame(row);
-                    if (gameId == null)
-                    {
-                        return;
-                    }
-
-                    var gameName = _plugin.PlayniteApi?.Database?.Games?.Get(gameId.Value)?.Name ?? row.GameName;
-                    var mode = ChooseGameDataMode(row, gameId.Value, gameName);
-                    if (mode == null)
-                    {
-                        return;
-                    }
-
-                    request.TargetGameId = gameId;
-                    request.GameDataMode = mode.Value;
-                    isUpdate = mode.Value == WorkshopGameDataInstallMode.KeepEditsSinceInstall;
-                }
-
                 // The install consumes its own copy, so the cached download stays for another
                 // preview or install of the same version, and this scratch folder stays the only
                 // thing the finally below cleans up.
@@ -869,7 +856,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
                 await Task.Run(() => File.Copy(downloaded, packagePath, overwrite: true), _lifetime.Token);
 
                 // An update brings the targets that follow the item along, keeping their edits.
-                if (isUpdate && row.Kind != WorkshopItemKind.GameCustomData)
+                if (isUpdate)
                 {
                     request.FollowerMode = Services.Library.LibraryApplyMode.Merge;
                 }
@@ -948,24 +935,65 @@ namespace PlayniteAchievements.ViewModels.Workshop
         }
 
         /// <summary>
-        /// The game game data goes onto: the game the row stands for (a provider match, or a game
-        /// that already has the item applied), else the user's pick.
+        /// Game data from Browse. With a newer version than some games have, an update merges it
+        /// into every game behind, keeping the edits made there since; otherwise the item goes
+        /// onto the games the user picks that do not have it yet. Either way the package is
+        /// downloaded once.
         /// </summary>
-        private Guid? ResolveTargetGame(WorkshopItemViewModel row)
+        private async Task InstallGameDataAsync(WorkshopItemViewModel row)
         {
-            var known = LinkedOrCertainGame(row, ReadGameData());
-            if (known != null)
+            var isUpdate = row.HasUpdate;
+            IReadOnlyList<Services.Library.GameDataTarget> targets;
+            if (isUpdate)
             {
-                return known;
+                var behind = Services.Library.GameDataLinkService.GamesBehind(ReadGameData(), row.Item);
+                var names = string.Join(", ", behind.Select(gameId => LibraryUseLabels.GameName(_plugin, gameId)));
+                if (behind.Count == 0
+                    || (Confirm != null && !Confirm(string.Format(ResourceProvider.GetString("LOCPlayAch_Workshop_UpdateConfirmGameData"), row.Name, names))))
+                {
+                    return;
+                }
+
+                targets = behind
+                    .Select(gameId => new Services.Library.GameDataTarget(gameId, WorkshopGameDataInstallMode.KeepEditsSinceInstall))
+                    .ToList();
+            }
+            else
+            {
+                targets = PickGameDataTargets?.Invoke(row);
+                if (targets == null || targets.Count == 0)
+                {
+                    return;
+                }
             }
 
-            // A name-only match or no match: let the user confirm or pick from the library.
-            var candidates = _matcher.Candidates(row.Item.Game?.Keys);
-            var games = candidates.Count > 0
-                ? candidates
-                : (_plugin.PlayniteApi?.Database?.Games?.OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase).ToList() ?? new List<Game>());
-            var picked = PickGame?.Invoke(row, games);
-            return picked?.Id;
+            IsBusy = true;
+            ErrorMessage = null;
+            try
+            {
+                var downloaded = await EnsureDownloadedAsync(row);
+                StatusMessage = ResourceProvider.GetString("LOCPlayAch_Workshop_Installing");
+                var applier = new Services.Library.GameDataPackageApplier(_plugin.WorkshopClient, _installer, _gameData);
+                var result = await applier.InstallManyAsync(row.Item, downloaded, targets, _lifetime.Token);
+
+                ApplyLocalState(row, ReadLibrary(), ReadGameData(), _identity.TryGetSubmitterHash());
+                ItemsView.Refresh();
+                StatusMessage = DescribeInstall(result, isUpdate) ?? ResourceProvider.GetString("LOCPlayAch_Status_Succeeded");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, $"Failed installing Workshop game data {row.Id}.");
+                ErrorMessage = string.Format(ResourceProvider.GetString("LOCPlayAch_Status_Failed"), ex.Message);
+                StatusMessage = null;
+            }
+            finally
+            {
+                ProgressFraction = 0;
+                IsBusy = false;
+            }
         }
 
         // ---- download cache ----------------------------------------------------------------
