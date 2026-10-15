@@ -35,6 +35,8 @@ namespace PlayniteAchievements.Services.Psn
         private readonly Func<PersistedSettings> _settings;
         private readonly Action _persist;
         private readonly Func<PsnClient> _clientFactory;
+        private readonly Func<Guid, KeyValuePair<int, string>> _identity;
+        private readonly PsnSharedIdStore _sharedIds;
         private readonly ILogger _logger;
         private readonly object _sync = new object();
 
@@ -45,12 +47,16 @@ namespace PlayniteAchievements.Services.Psn
             Func<PersistedSettings> settings,
             Action persist,
             ILogger logger,
-            Func<PsnClient> clientFactory = null)
+            Func<PsnClient> clientFactory = null,
+            Func<Guid, KeyValuePair<int, string>> identity = null,
+            PsnSharedIdStore sharedIds = null)
         {
             _settings = settings;
             _persist = persist;
             _logger = logger;
             _clientFactory = clientFactory ?? (() => new PsnClient());
+            _identity = identity;
+            _sharedIds = sharedIds;
         }
 
         public bool HasNpsso => !string.IsNullOrWhiteSpace(NpssoProtector.Unprotect(_settings()?.PsnCapstoneNpsso));
@@ -77,23 +83,49 @@ namespace PlayniteAchievements.Services.Psn
 
         // ---- remembered NPWR IDs -------------------------------------------------------------
 
-        /// <summary>The NPWR IDs remembered for a game, empty when there are none.</summary>
+        /// <summary>
+        /// The NPWR IDs remembered for a game, empty when there are none. IDs saved here win; a game
+        /// with none of its own falls back to the file shared with the Achievements app.
+        /// </summary>
         public IReadOnlyList<string> GetNpwrs(Guid gameId)
         {
             var prefix = gameId.ToString("D") + "=";
             var entry = (_settings()?.PsnCapstoneNpwrMap ?? new List<string>())
                 .FirstOrDefault(line => line != null && line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-            if (entry == null)
+            if (entry != null)
+            {
+                var own = entry.Substring(prefix.Length)
+                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(value => value.Trim().ToUpperInvariant())
+                    .Where(PsnNpwr.IsValid)
+                    .Distinct()
+                    .ToList();
+                if (own.Count > 0)
+                {
+                    return own;
+                }
+            }
+
+            return LookupShared(gameId);
+        }
+
+        private IReadOnlyList<string> LookupShared(Guid gameId)
+        {
+            if (_sharedIds == null || _identity == null)
             {
                 return Array.Empty<string>();
             }
 
-            return entry.Substring(prefix.Length)
-                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(value => value.Trim().ToUpperInvariant())
-                .Where(PsnNpwr.IsValid)
-                .Distinct()
-                .ToList();
+            try
+            {
+                var identity = _identity(gameId);
+                return _sharedIds.Lookup(identity.Key, identity.Value);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "Could not read the shared NPWR IDs.");
+                return Array.Empty<string>();
+            }
         }
 
         /// <summary>Remembers the NPWR IDs for a game, replacing what was there.</summary>
@@ -121,6 +153,20 @@ namespace PlayniteAchievements.Services.Psn
 
             settings.PsnCapstoneNpwrMap = map;
             _persist?.Invoke();
+
+            // Also leave it where the Achievements app looks, so the same game is not typed twice.
+            if (ids.Count > 0 && _sharedIds != null && _identity != null)
+            {
+                try
+                {
+                    var identity = _identity(gameId);
+                    _sharedIds.Remember(identity.Key, identity.Value, ids);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Warn(ex, "Could not save the NPWR IDs to the shared file.");
+                }
+            }
         }
 
         public IReadOnlyList<Guid> GamesWithNpwrs()

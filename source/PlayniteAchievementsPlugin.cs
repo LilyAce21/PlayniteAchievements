@@ -893,7 +893,15 @@ namespace PlayniteAchievements
                     _psnCapstoneService = new Services.Psn.PsnCapstoneService(
                         () => _settingsViewModel?.Settings?.Persisted,
                         PersistSettingsForUiSilently,
-                        _logger);
+                        _logger,
+                        identity: gameId =>
+                        {
+                            var game = PlayniteApi?.Database?.Games?.Get(gameId);
+                            var appId = 0;
+                            Providers.Steam.SteamGameIdentity.TryGetSteamAppId(game, out appId);
+                            return new System.Collections.Generic.KeyValuePair<int, string>(appId, game?.Name);
+                        },
+                        sharedIds: new Services.Psn.PsnSharedIdStore());
                     _psnCapstoneAuthoring = new PsnCapstoneAuthoring(
                         _gameCustomDataStore,
                         _achievementOverridesService,
@@ -1637,7 +1645,13 @@ namespace PlayniteAchievements
                 return;
             }
 
-            var withIds = _psnCapstoneService.GamesWithNpwrs().ToList();
+            // Games with an ID saved here, plus any whose ID the Achievements app saved.
+            var withIds = _psnCapstoneService.GamesWithNpwrs()
+                .Concat((PlayniteApi?.Database?.Games ?? Enumerable.Empty<Playnite.SDK.Models.Game>())
+                    .Select(game => game.Id)
+                    .Where(id => _psnCapstoneService.GetNpwrs(id).Count > 0))
+                .Distinct()
+                .ToList();
             if (withIds.Count == 0)
             {
                 return;
