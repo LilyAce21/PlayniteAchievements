@@ -296,6 +296,12 @@
                                     AutomationProperties.Name="{DynamicResource LOCPlayAch_Workshop_Update}"
                                     Visibility="{Binding CanUpdate, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding DataContext.UpdateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <Button Content="&#xEFC2;"
+                                    Style="{StaticResource LibraryIconButtonStyle}"
+                                    ToolTip="{DynamicResource LOCPlayAch_Workshop_ApplyToGames}"
+                                    AutomationProperties.Name="{DynamicResource LOCPlayAch_Workshop_ApplyToGames}"
+                                    Visibility="{Binding CanApplyToGames, Converter={StaticResource BoolToVis}}"
+                                    Command="{Binding DataContext.ApplyToGamesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                             <Button Content="&#xEFD1;"
                                     Style="{StaticResource LibraryIconButtonStyle}"
                                     ToolTip="{DynamicResource LOCPlayAch_Workshop_Reinstall}"

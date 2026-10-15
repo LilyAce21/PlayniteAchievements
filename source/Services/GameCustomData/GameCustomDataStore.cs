@@ -2,7 +2,9 @@ using Newtonsoft.Json;
 using Playnite.SDK;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
+using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Providers;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.Images;
 using System;
@@ -10,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace PlayniteAchievements.Services.GameCustomData
@@ -748,6 +751,7 @@ namespace PlayniteAchievements.Services.GameCustomData
             EnsurePortablePackageExtension(destinationPath);
 
             var portable = LoadNormalizedPortableOrThrow(playniteGameId);
+            ScopePortableForExport(playniteGameId, portable);
             var fileStems = AchievementIconCachePathBuilder.BuildFileStems(
                 EnumeratePortableIconApiNames(portable));
             var categoryFileStems = AchievementIconCachePathBuilder.BuildCategoryFileStems(
@@ -1004,6 +1008,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                 if (entriesByName.ContainsKey(PortablePackageManifestEntryName))
                 {
                     var portable = ReadPortableManifestOrNull(entriesByName);
+                    ScopePortableForGame(portable, LoadAchievementDataOrNull(playniteGameId));
                     RewritePackageManifestImages(
                         new ManagedPackageImageSink(this, playniteGameId),
                         entriesByName,
@@ -1667,6 +1672,71 @@ namespace PlayniteAchievements.Services.GameCustomData
             return bundledSource;
         }
 
+        /// <summary>The game's cached achievements, or null when there are none or no data service is attached.</summary>
+        private GameAchievementData LoadAchievementDataOrNull(Guid playniteGameId)
+        {
+            return _achievementDataService?.GetGameAchievementData(playniteGameId);
+        }
+
+        /// <summary>
+        /// Writes portable keys in place of a scoped provider's per-scope keys
+        /// (<see cref="GameCustomDataPortableScoping.ToPortable"/>). Icons count as the same when
+        /// their files have the same content.
+        /// </summary>
+        private void ScopePortableForExport(Guid playniteGameId, GameCustomDataPortableFile portable)
+        {
+            var data = LoadAchievementDataOrNull(playniteGameId);
+            var scope = AchievementKeyScopes.For(data?.ProviderKey);
+            if (scope == null)
+            {
+                return;
+            }
+
+            var gameIdText = playniteGameId.ToString("D");
+            GameCustomDataPortableScoping.ToPortable(
+                portable,
+                scope,
+                data.Achievements,
+                value => IconContentIdentity(value, gameIdText));
+        }
+
+        /// <summary>
+        /// Spreads a package's portable keys over the target game's scopes
+        /// (<see cref="GameCustomDataPortableScoping.ToGame"/>). A no-op without cached rows or
+        /// for an unscoped provider.
+        /// </summary>
+        private static void ScopePortableForGame(GameCustomDataPortableFile portable, GameAchievementData target)
+        {
+            GameCustomDataPortableScoping.ToGame(
+                portable,
+                AchievementKeyScopes.For(target?.ProviderKey),
+                target?.Achievements);
+        }
+
+        private string IconContentIdentity(string value, string gameIdText)
+        {
+            var path = _managedCustomIconService?.ResolveManagedDisplayPath(value, gameIdText) ?? value;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                {
+                    using (var sha = SHA256.Create())
+                    using (var stream = File.OpenRead(path))
+                    {
+                        return BitConverter.ToString(sha.ComputeHash(stream));
+                    }
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+
+            return value;
+        }
+
         private IReadOnlyList<string> LoadAchievementApiNamesForImageOnlyPackageOrThrow(Guid playniteGameId)
         {
             if (_achievementDataService == null)
@@ -1674,8 +1744,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                 throw new InvalidOperationException("Achievement data service is not available.");
             }
 
-            var apiNames = _achievementDataService
-                .GetGameAchievementData(playniteGameId)?
+            var apiNames = LoadAchievementDataOrNull(playniteGameId)?
                 .Achievements?
                 .Where(achievement => achievement != null && !string.IsNullOrWhiteSpace(achievement.ApiName))
                 .Select(achievement => achievement.ApiName.Trim())

@@ -30,7 +30,8 @@ namespace PlayniteAchievements.Services.GameCustomData
         ///
         /// An image-only package lists its icons by API name. An import also matches them
         /// against the target game's cached achievements and drops the rest; that needs a game,
-        /// so it is left to the caller.
+        /// so it is left to the caller. So is spreading a manifest's portable keys over a target
+        /// game's scopes (<see cref="GameCustomDataPortableScoping.ToGame"/>).
         /// </remarks>
         public GameCustomDataPortablePackage ReadPortablePackage(string sourcePath, string imageScratchDirectory)
         {

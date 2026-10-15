@@ -21,6 +21,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
         private bool _isApplied;
         private string _localGameName;
         private bool _isMine;
+        private IReadOnlyList<WorkshopUseLine> _uses = Array.Empty<WorkshopUseLine>();
 
         public WorkshopItemViewModel(WorkshopItem item)
         {
@@ -160,7 +161,7 @@ namespace PlayniteAchievements.ViewModels.Workshop
 
         public bool HasReadme => !string.IsNullOrWhiteSpace(_readme);
 
-        /// <summary>True when the item is in the library; for game data, when its game has it applied.</summary>
+        /// <summary>True when the item is in the library; for game data, when any game has it applied.</summary>
         public bool IsInstalled
         {
             get => _isInstalled;
@@ -215,10 +216,22 @@ namespace PlayniteAchievements.ViewModels.Workshop
         public string ActionLabel => HasUpdate
             ? ResourceProvider.GetString("LOCPlayAch_Workshop_Update")
             : IsInstalled
-                ? InstalledLabel
+                ? Kind == WorkshopItemKind.GameCustomData
+                    ? ResourceProvider.GetString("LOCPlayAch_Workshop_ApplyToGames")
+                    : InstalledLabel
                 : ResourceProvider.GetString("LOCPlayAch_Workshop_Install");
 
-        public bool CanInstall => !RequiresNewerPlugin && (!IsInstalled || HasUpdate);
+        /// <summary>Game data can always go onto more games; a look installs once, then updates.</summary>
+        public bool CanInstall => !RequiresNewerPlugin && (Kind == WorkshopItemKind.GameCustomData || !IsInstalled || HasUpdate);
+
+        /// <summary>Where the item is used, as the Library page lists it: each game for game data, each setting or game for a look.</summary>
+        public IReadOnlyList<WorkshopUseLine> Uses
+        {
+            get => _uses;
+            set => SetValue(ref _uses, value ?? Array.Empty<WorkshopUseLine>(), nameof(Uses), nameof(HasUses));
+        }
+
+        public bool HasUses => _uses.Count > 0;
 
         /// <summary>A readable line from the manifest's `contents` counts.</summary>
         public string ContentsSummary => SummarizeContents(Item.Contents, Kind);
@@ -307,5 +320,21 @@ namespace PlayniteAchievements.ViewModels.Workshop
 
             return string.Join(", ", parts);
         }
+    }
+
+    /// <summary>One place a Workshop item is used: the place, and the version and state there.</summary>
+    public sealed class WorkshopUseLine
+    {
+        public WorkshopUseLine(string label, string state)
+        {
+            Label = label;
+            State = state;
+        }
+
+        public string Label { get; }
+
+        public string State { get; }
+
+        public bool HasState => !string.IsNullOrWhiteSpace(State);
     }
 }

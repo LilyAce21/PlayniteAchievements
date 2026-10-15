@@ -533,6 +533,46 @@ namespace PlayniteAchievements.Services.Tests
             CollectionAssert.AreEqual(new[] { nameof(AchievementPreviewState.UnlockedIcon), nameof(AchievementPreviewState.LockedIcon) }, raised);
         }
 
+        [TestMethod]
+        public void ScopedPackage_ChangesEveryInstance_ButCountsWhatItCarries()
+        {
+            var icon = WriteFile("stone.png", 1, 2, 3);
+            var manifest = new GameCustomDataPortableFile
+            {
+                AchievementOverrides = Overrides(("Re-Console|minecraft:story/mine_stone", new AchievementOverride { UnlockedIconPath = icon }))
+            };
+            GameAchievementData Rows() => new GameAchievementData
+            {
+                PlayniteGameId = GameId,
+                GameName = "Minecraft",
+                ProviderKey = "Minecraft",
+                Achievements = new List<AchievementDetail>
+                {
+                    new AchievementDetail { ApiName = "Vanilla|minecraft:story/mine_stone", DisplayName = "Stone Age", Category = "Vanilla::Minecraft" },
+                    new AchievementDetail { ApiName = "Modded|minecraft:story/mine_stone", DisplayName = "Stone Age", Category = "Modded::Minecraft" }
+                }
+            };
+            var source = new GameCustomDataPreviewSource
+            {
+                GameId = GameId,
+                GameName = "Minecraft",
+                RawData = Rows(),
+                CurrentData = Rows(),
+                Persisted = new PersistedSettings()
+            };
+
+            var diff = GameCustomDataPreviewDiffBuilder.Build(ManifestPackage(manifest), source);
+
+            Assert.AreEqual(1, diff.IconCount);
+            CollectionAssert.AreEquivalent(
+                new[] { "Vanilla|minecraft:story/mine_stone", "Modded|minecraft:story/mine_stone" },
+                diff.Rows.Select(row => row.ApiName).ToList());
+            Assert.IsTrue(diff.Rows.All(row => row.Changes.HasFlag(AchievementPreviewChange.UnlockedIcon)));
+            CollectionAssert.AreEquivalent(
+                new[] { "Vanilla|minecraft:story/mine_stone", "Modded|minecraft:story/mine_stone" },
+                diff.PackageTouchedApiNames.ToList());
+        }
+
         private static GameCustomDataPortablePackage ManifestPackage(GameCustomDataPortableFile manifest)
         {
             // The shape ReadPortablePackage hands out: normalized, personal state stripped.

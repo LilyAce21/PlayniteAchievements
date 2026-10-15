@@ -39,17 +39,37 @@
                      MouseDoubleClick="GamesList_MouseDoubleClick">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Margin="4,2">
-                            <TextBlock Text="{Binding Name, Mode=OneWay}"
-                                       Foreground="{DynamicResource PlayAch.Brush.Text}"
-                                       FontSize="{DynamicResource PlayAch.FontSize.Body}"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding Metadata, Mode=OneWay}"
+                        <Grid Margin="4,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0"
+                                      VerticalAlignment="Center"
+                                      Margin="{StaticResource PlayAch.Thickness.Right.Sm}"
+                                      IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                      IsEnabled="{Binding CanToggle, Mode=OneWay}"
+                                      Visibility="{Binding ShowCheck, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding Name, Mode=OneWay}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Text}"
+                                           FontSize="{DynamicResource PlayAch.FontSize.Body}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Metadata, Mode=OneWay}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"
+                                           FontSize="{DynamicResource PlayAch.FontSize.Caption}"
+                                           TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding HasMetadata, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2"
+                                       VerticalAlignment="Center"
+                                       Margin="{StaticResource PlayAch.Thickness.Left.Sm}"
+                                       Text="{DynamicResource LOCPlayAch_Library_Applied}"
                                        Foreground="{DynamicResource PlayAch.Brush.Text.Secondary}"
                                        FontSize="{DynamicResource PlayAch.FontSize.Caption}"
-                                       TextTrimming="CharacterEllipsis"
-                                       Visibility="{Binding HasMetadata, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
-                        </StackPanel>
+                                       Visibility="{Binding IsLocked, Mode=OneWay, Converter={StaticResource BoolToVis}}"/>
+                        </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>

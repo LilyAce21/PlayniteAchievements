@@ -12,28 +12,57 @@ using System.Windows.Input;
 namespace PlayniteAchievements.Views.Dialogs
 {
     /// <summary>
-    /// Picks one library game from a list, filtered as the user types. Hosted in a Playnite
-    /// extension window by <see cref="Helpers.PlayniteGamePickerDialog"/>, so it draws with the
-    /// plugin's themed controls and brushes rather than WPF defaults.
+    /// Picks one library game from a list, or several with checkboxes, filtered as the user
+    /// types. Hosted in a Playnite extension window by <see cref="Helpers.PlayniteGamePickerDialog"/>,
+    /// so it draws with the plugin's themed controls and brushes rather than WPF defaults.
     /// </summary>
     public partial class GamePickerDialog : UserControl
     {
         private readonly ICollectionView _view;
+        private readonly List<PickerItem> _items;
+        private readonly bool _multiple;
 
         public GamePickerDialog()
         {
             InitializeComponent();
         }
 
-        public GamePickerDialog(IEnumerable<Game> games, string initialSearch) : this()
+        /// <summary>Picks one game.</summary>
+        public GamePickerDialog(IEnumerable<Game> games, string initialSearch)
+            : this(games, initialSearch, multiple: false, checkedIds: null, lockedIds: null)
         {
-            var items = new ObservableCollection<PickerItem>(
-                (games ?? Enumerable.Empty<Game>())
-                    .Where(game => game != null && game.Id != Guid.Empty)
-                    .OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase)
-                    .Select(game => new PickerItem(game)));
+        }
 
-            _view = CollectionViewSource.GetDefaultView(items);
+        /// <summary>
+        /// Picks several games. <paramref name="checkedIds"/> start checked; <paramref name="lockedIds"/>
+        /// are checked and cannot be unchecked. The games keep the order given.
+        /// </summary>
+        public GamePickerDialog(IEnumerable<Game> games, string initialSearch, ISet<Guid> checkedIds, ISet<Guid> lockedIds)
+            : this(games, initialSearch, multiple: true, checkedIds, lockedIds)
+        {
+        }
+
+        private GamePickerDialog(IEnumerable<Game> games, string initialSearch, bool multiple, ISet<Guid> checkedIds, ISet<Guid> lockedIds)
+            : this()
+        {
+            _multiple = multiple;
+            var valid = (games ?? Enumerable.Empty<Game>()).Where(game => game != null && game.Id != Guid.Empty);
+            if (!multiple)
+            {
+                valid = valid.OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase);
+            }
+
+            _items = valid
+                .GroupBy(game => game.Id)
+                .Select(group => group.First())
+                .Select(game =>
+                {
+                    var locked = lockedIds?.Contains(game.Id) == true;
+                    return new PickerItem(game, multiple, locked || checkedIds?.Contains(game.Id) == true, locked);
+                })
+                .ToList();
+
+            _view = CollectionViewSource.GetDefaultView(new ObservableCollection<PickerItem>(_items));
             _view.Filter = FilterGame;
             GamesList.ItemsSource = _view;
             SearchBox.Text = initialSearch ?? string.Empty;
@@ -52,6 +81,9 @@ namespace PlayniteAchievements.Views.Dialogs
         }
 
         public Game SelectedGame { get; private set; }
+
+        /// <summary>For a multiple pick, every checked game, locked ones included, in list order.</summary>
+        public IReadOnlyList<Game> CheckedGames { get; private set; } = Array.Empty<Game>();
 
         public bool? DialogResult { get; private set; }
 
@@ -79,12 +111,20 @@ namespace PlayniteAchievements.Views.Dialogs
 
         private void Accept()
         {
-            if (!(GamesList.SelectedItem is PickerItem item))
+            if (_multiple)
             {
-                return;
+                CheckedGames = _items.Where(item => item.IsChecked).Select(item => item.Game).ToList();
+            }
+            else
+            {
+                if (!(GamesList.SelectedItem is PickerItem item))
+                {
+                    return;
+                }
+
+                SelectedGame = item.Game;
             }
 
-            SelectedGame = item.Game;
             DialogResult = true;
             RequestClose?.Invoke(this, EventArgs.Empty);
         }
@@ -93,6 +133,14 @@ namespace PlayniteAchievements.Views.Dialogs
         {
             DialogResult = false;
             RequestClose?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void ToggleSelected()
+        {
+            if (GamesList.SelectedItem is PickerItem item && item.CanToggle)
+            {
+                item.IsChecked = !item.IsChecked;
+            }
         }
 
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -115,6 +163,10 @@ namespace PlayniteAchievements.Views.Dialogs
                     GamesList.ScrollIntoView(GamesList.SelectedItem);
                     e.Handled = true;
                     break;
+                case Key.Space when _multiple && Keyboard.Modifiers == ModifierKeys.Control:
+                    ToggleSelected();
+                    e.Handled = true;
+                    break;
                 case Key.Escape:
                     Cancel();
                     e.Handled = true;
@@ -124,6 +176,12 @@ namespace PlayniteAchievements.Views.Dialogs
 
         private void GamesList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
+            if (_multiple)
+            {
+                ToggleSelected();
+                return;
+            }
+
             Accept();
         }
 
@@ -137,11 +195,16 @@ namespace PlayniteAchievements.Views.Dialogs
             Cancel();
         }
 
-        private sealed class PickerItem
+        private sealed class PickerItem : INotifyPropertyChanged
         {
-            public PickerItem(Game game)
+            private bool _isChecked;
+
+            public PickerItem(Game game, bool showCheck, bool isChecked, bool isLocked)
             {
                 Game = game;
+                ShowCheck = showCheck;
+                _isChecked = isChecked;
+                IsLocked = isLocked;
                 Name = game.Name ?? string.Empty;
                 var source = game.Source?.Name;
                 var platforms = string.Join(
@@ -156,6 +219,8 @@ namespace PlayniteAchievements.Views.Dialogs
                 SearchText = string.Join(" ", Name, source, platforms);
             }
 
+            public event PropertyChangedEventHandler PropertyChanged;
+
             public Game Game { get; }
 
             public string Name { get; }
@@ -165,6 +230,29 @@ namespace PlayniteAchievements.Views.Dialogs
             public bool HasMetadata => Metadata.Length > 0;
 
             public string SearchText { get; }
+
+            /// <summary>True in a multiple pick, where each row has a checkbox.</summary>
+            public bool ShowCheck { get; }
+
+            /// <summary>True for a game that stays checked, such as one that already has what is being applied.</summary>
+            public bool IsLocked { get; }
+
+            public bool CanToggle => ShowCheck && !IsLocked;
+
+            public bool IsChecked
+            {
+                get => _isChecked;
+                set
+                {
+                    if (_isChecked == value || IsLocked)
+                    {
+                        return;
+                    }
+
+                    _isChecked = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+                }
+            }
         }
     }
 }
