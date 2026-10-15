@@ -116,6 +116,9 @@
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataStore.CustomAchievementsPackage.cs" Link="Source\Services\GameCustomData\GameCustomDataStore.CustomAchievementsPackage.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataStore.PortablePackageRead.cs" Link="Source\Services\GameCustomData\GameCustomDataStore.PortablePackageRead.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataPackageImageSink.cs" Link="Source\Services\GameCustomData\GameCustomDataPackageImageSink.cs" />
+    <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataPortableScoping.cs" Link="Source\Services\GameCustomData\GameCustomDataPortableScoping.cs" />
+    <Compile Include="..\..\source\Providers\IAchievementKeyScope.cs" Link="Source\Providers\IAchievementKeyScope.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftKeyScope.cs" Link="Source\Providers\Minecraft\MinecraftKeyScope.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataPortablePackage.cs" Link="Source\Services\GameCustomData\GameCustomDataPortablePackage.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\PortablePersonalState.cs" Link="Source\Services\GameCustomData\PortablePersonalState.cs" />
     <Compile Include="..\..\source\Services\CustomAchievementCsvFormat.cs" Link="Source\Services\CustomAchievementCsvFormat.cs" />
