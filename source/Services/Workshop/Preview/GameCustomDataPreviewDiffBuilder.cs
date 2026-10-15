@@ -1,5 +1,6 @@
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Providers;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.Hydration;
@@ -33,13 +34,15 @@ namespace PlayniteAchievements.Services.Workshop.Preview
                 throw new ArgumentNullException(nameof(package));
             }
 
+            // The summary counts what the package carries; the comparison and the touched rows use
+            // its keys as the install lays them over the compared game's own scopes.
             var entries = BuildPackageEntries(package);
             var diff = new GameCustomDataPreviewDiff();
             FillSummary(diff, package, entries);
-            diff.PackageTouchedApiNames = BuildTouchedApiNames(package, entries);
 
             if (source == null)
             {
+                diff.PackageTouchedApiNames = BuildTouchedApiNames(package, entries);
                 diff.IsPackageOnly = true;
                 diff.Rows = entries
                     .Select(entry => new AchievementPreviewRow(entry.ApiName, null, entry.State, entry.Changes))
@@ -47,7 +50,10 @@ namespace PlayniteAchievements.Services.Workshop.Preview
                 return diff;
             }
 
-            var predicted = PredictRecord(package, source, out var keptEdits, out var hasBaseline);
+            var scoped = ScopeToGame(package, source);
+            diff.PackageTouchedApiNames = BuildTouchedApiNames(scoped, BuildPackageEntries(scoped));
+
+            var predicted = PredictRecord(scoped, source, out var keptEdits, out var hasBaseline);
             diff.ComparedAgainstGameName = source.GameName;
             diff.KeptEditCount = keptEdits;
             diff.HasBaseline = hasBaseline;
@@ -68,6 +74,32 @@ namespace PlayniteAchievements.Services.Workshop.Preview
         }
 
         // ---- the record the install would leave --------------------------------------------
+
+        /// <summary>
+        /// The package with its manifest keys spread over the compared game's scopes, as
+        /// <c>GameCustomDataStore.ImportReplacePortable</c> does before it saves. The package
+        /// itself is left as read; other shapes come back unchanged.
+        /// </summary>
+        private static GameCustomDataPortablePackage ScopeToGame(
+            GameCustomDataPortablePackage package,
+            GameCustomDataPreviewSource source)
+        {
+            var target = source.CurrentData ?? source.RawData;
+            var scope = AchievementKeyScopes.For(target?.ProviderKey);
+            if (package.Shape != GameCustomDataPackageShape.Manifest || package.Manifest == null || scope == null)
+            {
+                return package;
+            }
+
+            var manifest = package.Manifest.Clone();
+            GameCustomDataPortableScoping.ToGame(manifest, scope, target.Achievements);
+            return new GameCustomDataPortablePackage(
+                package.Shape,
+                manifest,
+                package.CustomAchievements,
+                package.ExtractedImages,
+                package.ImageOnlyEntries);
+        }
 
         /// <summary>
         /// The custom data record the install would store for the game: the package's record
