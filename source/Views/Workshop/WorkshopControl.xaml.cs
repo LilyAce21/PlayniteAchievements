@@ -46,9 +46,8 @@ namespace PlayniteAchievements.Views.Workshop
             var viewModel = new WorkshopViewModel(plugin, logger, focusGameId, focusKind)
             {
                 PickBundleParts = PickBundleParts,
-                PickGame = PickGame,
+                PickGameDataTargets = row => GameDataTargetPicker.Pick(plugin, Window.GetWindow(this), row.Id, row.Name, row.Item.Game?.Keys),
                 Confirm = Confirm,
-                ChooseMergeOrReplace = ChooseMergeOrReplace,
                 ShowPreview = (row, model) => WorkshopPreviewDialog.Show(plugin, row, model, Window.GetWindow(this)),
                 OpenEdit = item => plugin.OpenWorkshopEdit(item, Window.GetWindow(this))
             };
@@ -167,49 +166,6 @@ namespace PlayniteAchievements.Views.Workshop
             }
 
             return selected.OfType<BundleParts>().Aggregate(BundleParts.None, (acc, part) => acc | part);
-        }
-
-        private Game PickGame(WorkshopItemViewModel item, IReadOnlyList<Game> games)
-        {
-            if (games == null || games.Count == 0)
-            {
-                _plugin.PlayniteApi?.Dialogs?.ShowMessage(
-                    string.Format(ResourceProvider.GetString("LOCPlayAch_Workshop_NoGameMatch"), item.GameName ?? item.Name),
-                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return null;
-            }
-
-            return PlayniteGamePickerDialog.Pick(
-                Window.GetWindow(this),
-                games,
-                ResourceProvider.GetString("LOCPlayAch_Workshop_PickGame"),
-                item.GameName ?? string.Empty);
-        }
-
-        private WorkshopGameDataInstallMode? ChooseMergeOrReplace(string message)
-        {
-            var dialogs = _plugin.PlayniteApi?.Dialogs;
-            if (dialogs == null)
-            {
-                return null;
-            }
-
-            var merge = new MessageBoxOption(ResourceProvider.GetString("LOCPlayAch_Common_Merge"), isDefault: true);
-            var replace = new MessageBoxOption(ResourceProvider.GetString("LOCPlayAch_Button_Replace"));
-            var cancel = new MessageBoxOption(ResourceProvider.GetString("LOCCancelLabel"), isCancel: true);
-            var picked = dialogs.ShowMessage(
-                message,
-                ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
-                MessageBoxImage.Question,
-                new List<MessageBoxOption> { merge, replace, cancel });
-            if (picked == merge)
-            {
-                return WorkshopGameDataInstallMode.MergeKeepingExisting;
-            }
-
-            return picked == replace ? WorkshopGameDataInstallMode.Replace : (WorkshopGameDataInstallMode?)null;
         }
 
         private bool Confirm(string message)
