@@ -16,6 +16,20 @@ namespace PlayniteAchievements.Services.Library
     /// the edits made since the last apply, and a reset applies the kept package copy again as
     /// published. Shared by Manage Achievements and the Library page.
     /// </summary>
+    /// <summary>One game a game data package goes onto, and how it meets that game's data.</summary>
+    public struct GameDataTarget
+    {
+        public GameDataTarget(Guid gameId, WorkshopGameDataInstallMode mode)
+        {
+            GameId = gameId;
+            Mode = mode;
+        }
+
+        public Guid GameId { get; }
+
+        public WorkshopGameDataInstallMode Mode { get; }
+    }
+
     public sealed class GameDataPackageApplier
     {
         private readonly WorkshopClient _client;
@@ -33,12 +47,23 @@ namespace PlayniteAchievements.Services.Library
         /// Downloads <paramref name="item"/> once and merges it into each game, keeping the edits
         /// made there since its last apply. The results are combined.
         /// </summary>
-        public async Task<WorkshopInstallResult> UpdateAsync(WorkshopItem item, IReadOnlyList<Guid> gameIds, CancellationToken cancel)
+        public Task<WorkshopInstallResult> UpdateAsync(WorkshopItem item, IReadOnlyList<Guid> gameIds, CancellationToken cancel)
         {
-            var combined = new WorkshopInstallResult();
-            if (item == null || gameIds == null || gameIds.Count == 0)
+            var targets = new List<GameDataTarget>();
+            foreach (var gameId in gameIds ?? Array.Empty<Guid>())
             {
-                return combined;
+                targets.Add(new GameDataTarget(gameId, WorkshopGameDataInstallMode.KeepEditsSinceInstall));
+            }
+
+            return ApplyManyAsync(item, targets, cancel);
+        }
+
+        /// <summary>Downloads <paramref name="item"/> once and installs it onto each target. The results are combined.</summary>
+        public async Task<WorkshopInstallResult> ApplyManyAsync(WorkshopItem item, IReadOnlyList<GameDataTarget> targets, CancellationToken cancel)
+        {
+            if (item == null || targets == null || targets.Count == 0)
+            {
+                return new WorkshopInstallResult();
             }
 
             var scratch = NewScratch();
@@ -47,17 +72,32 @@ namespace PlayniteAchievements.Services.Library
                 var downloaded = Path.Combine(scratch, "download", PackageFileOf(item));
                 Directory.CreateDirectory(Path.GetDirectoryName(downloaded));
                 await _client.DownloadPackageAsync(item, downloaded, null, cancel);
-                foreach (var gameId in gameIds)
-                {
-                    var result = await InstallAsync(gameId, item, downloaded, WorkshopGameDataInstallMode.KeepEditsSinceInstall, cancel);
-                    combined.Warnings.AddRange(result.Warnings);
-                    combined.KeptEdits += result.KeptEdits;
-                    combined.UpdatedTargets++;
-                }
+                return await InstallManyAsync(item, downloaded, targets, cancel);
             }
             finally
             {
                 PortablePackage.TryDeleteDirectory(scratch);
+            }
+        }
+
+        /// <summary>
+        /// Installs the package at <paramref name="packagePath"/> onto each target, each from its
+        /// own copy, so the file stays. The results are combined.
+        /// </summary>
+        public async Task<WorkshopInstallResult> InstallManyAsync(
+            WorkshopItem item,
+            string packagePath,
+            IReadOnlyList<GameDataTarget> targets,
+            CancellationToken cancel)
+        {
+            var combined = new WorkshopInstallResult();
+            foreach (var target in targets ?? Array.Empty<GameDataTarget>())
+            {
+                var result = await InstallAsync(target.GameId, item, packagePath, target.Mode, cancel);
+                combined.Warnings.AddRange(result.Warnings);
+                combined.KeptEdits += result.KeptEdits;
+                combined.UpdatedTargets++;
+                combined.GameId = target.GameId;
             }
 
             return combined;
