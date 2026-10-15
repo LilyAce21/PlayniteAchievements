@@ -96,6 +96,7 @@ namespace PlayniteAchievements.ViewModels.Library
 
             SelectFilterCommand = new RelayCommand(parameter => SelectFilter(parameter as LibraryKindFilter));
             UpdateCommand = new AsyncCommand(_ => UpdateAsync(SelectedRow), _ => !IsBusy && SelectedRow?.CanUpdate == true);
+            ApplyToGamesCommand = new AsyncCommand(_ => ApplyGameDataToGamesAsync(SelectedRow), _ => !IsBusy && SelectedRow?.CanApplyToGames == true);
             ReinstallCommand = new AsyncCommand(_ => ReinstallAsync(SelectedRow), _ => !IsBusy && SelectedRow?.CanReinstall == true);
             ShareCommand = new RelayCommand(_ => Share(SelectedRow), _ => SelectedRow?.HasFile == true);
             RenameCommand = new RelayCommand(_ => Rename(SelectedRow), _ => !IsBusy && SelectedRow?.HasLibraryCopy == true);
@@ -138,6 +139,10 @@ namespace PlayniteAchievements.ViewModels.Library
 
         public RelayCommand SelectFilterCommand { get; }
         public AsyncCommand UpdateCommand { get; }
+
+        /// <summary>Puts the selected Workshop game data onto more games.</summary>
+        public AsyncCommand ApplyToGamesCommand { get; }
+
         public AsyncCommand ReinstallCommand { get; }
         public RelayCommand ShareCommand { get; }
         public RelayCommand RenameCommand { get; }
@@ -162,6 +167,12 @@ namespace PlayniteAchievements.ViewModels.Library
 
         /// <summary>Asks Merge, Replace or Cancel; null on Cancel.</summary>
         public Func<string, LibraryApplyMode?> ChooseMergeOrReplace { get; set; }
+
+        /// <summary>
+        /// Asks which games a game data row goes onto and how each meets its data: the new
+        /// targets, empty when nothing new was picked, or null on Cancel.
+        /// </summary>
+        public Func<LibraryItemRow, IReadOnlyList<GameDataTarget>> PickGameDataTargets { get; set; }
 
         /// <summary>Asks for a new name, starting from the given one; null on Cancel.</summary>
         public Func<string, string> AskName { get; set; }
@@ -493,6 +504,7 @@ namespace PlayniteAchievements.ViewModels.Library
         private void RaiseCommandStates()
         {
             UpdateCommand?.RaiseCanExecuteChanged();
+            ApplyToGamesCommand?.RaiseCanExecuteChanged();
             ReinstallCommand?.RaiseCanExecuteChanged();
             ShareCommand?.RaiseCanExecuteChanged();
             OpenPublishedCommand?.RaiseCanExecuteChanged();
@@ -506,84 +518,11 @@ namespace PlayniteAchievements.ViewModels.Library
 
         // ---- labels -----------------------------------------------------------------------------
 
-        private string TargetLabel(string key)
-        {
-            if (string.Equals(key, LibraryTargetKeys.Colors, StringComparison.OrdinalIgnoreCase))
-            {
-                return L("LOCPlayAch_Settings_Display_Colors");
-            }
+        private string TargetLabel(string key) => LibraryUseLabels.Target(_plugin, key);
 
-            if (string.Equals(key, LibraryTargetKeys.Sounds, StringComparison.OrdinalIgnoreCase))
-            {
-                return L("LOCPlayAch_Workshop_Share_Sounds");
-            }
+        private string GameNameOf(Guid gameId) => LibraryUseLabels.GameName(_plugin, gameId);
 
-            var surface = key.StartsWith("sounds:", StringComparison.OrdinalIgnoreCase)
-                ? L("LOCPlayAch_Workshop_Share_Sounds")
-                : key.StartsWith("frame:", StringComparison.OrdinalIgnoreCase)
-                    ? L("LOCPlayAch_Settings_FrameHeader")
-                    : L("LOCPlayAch_Settings_Style_ToastTab");
-            if (string.Equals(key, LibraryTargetKeys.ToastGlobal, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(key, LibraryTargetKeys.FrameGlobal, StringComparison.OrdinalIgnoreCase))
-            {
-                return surface;
-            }
-
-            const string providerSegment = ":provider:";
-            var providerAt = key.IndexOf(providerSegment, StringComparison.OrdinalIgnoreCase);
-            if (providerAt >= 0)
-            {
-                return surface + " · " + ProviderName(key.Substring(providerAt + providerSegment.Length));
-            }
-
-            if (key.StartsWith("showcase:", StringComparison.OrdinalIgnoreCase))
-            {
-                var pageId = key.Substring("showcase:".Length);
-                var page = _plugin.Settings?.Persisted?.Showcase?.Pages?.FirstOrDefault(candidate =>
-                    string.Equals(candidate?.PageId, pageId, StringComparison.OrdinalIgnoreCase));
-                return string.Format(L("LOCPlayAch_Workshop_Share_ShowcasePage"), page?.Name ?? pageId);
-            }
-
-            if (LibraryTargetKeys.TryGetGameId(key, out var gameId))
-            {
-                return surface + " · " + GameNameOf(gameId);
-            }
-
-            return key;
-        }
-
-        private string GameNameOf(Guid gameId)
-        {
-            return _plugin.PlayniteApi?.Database?.Games?.Get(gameId)?.Name ?? gameId.ToString();
-        }
-
-        private static string UseState(LibraryItem item, LibraryTargetUse use)
-        {
-            var applied = string.IsNullOrWhiteSpace(use.Link.AppliedVersion) ? item.Version : use.Link.AppliedVersion;
-            var parts = new List<string>();
-            if (item.IsWorkshop && !string.IsNullOrWhiteSpace(applied))
-            {
-                parts.Add("v" + applied);
-            }
-
-            if (use.IsEdited)
-            {
-                parts.Add(L("LOCPlayAch_Library_Edited"));
-            }
-
-            if (use.IsUpdateAvailable)
-            {
-                parts.Add(L("LOCPlayAch_Workshop_UpdateAvailable"));
-            }
-
-            return string.Join(" · ", parts);
-        }
-
-        private static string ProviderName(string providerKey)
-        {
-            var name = ResourceProvider.GetString("LOCPlayAch_Provider_" + providerKey);
-            return string.IsNullOrWhiteSpace(name) || name.StartsWith("<!", StringComparison.Ordinal) ? providerKey : name;
-        }
+        private static string UseState(LibraryItem item, LibraryTargetUse use) => LibraryUseLabels.State(item, use);
 
         private static string L(string key) => ResourceProvider.GetString(key);
 
