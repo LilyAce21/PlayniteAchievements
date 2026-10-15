@@ -92,7 +92,7 @@ namespace PlayniteAchievements.Services.Psn
         {
             lock (_sync)
             {
-                var games = Read()["games"] as JObject;
+                var games = Read(forWrite: false)["games"] as JObject;
                 if (games == null)
                 {
                     return Array.Empty<string>();
@@ -130,7 +130,7 @@ namespace PlayniteAchievements.Services.Psn
                 try
                 {
                     Directory.CreateDirectory(_directory);
-                    var data = Read();
+                    var data = Read(forWrite: true);
                     var games = data["games"] as JObject ?? new JObject();
                     foreach (var key in keys)
                     {
@@ -164,8 +164,9 @@ namespace PlayniteAchievements.Services.Psn
         }
 
         // Reads the file, reusing the last read while it has not changed so scanning a big
-        // library for known IDs does not read the file once per game.
-        private JObject Read()
+        // library for known IDs does not read the file once per game. A read for lookup shares the
+        // cached document (callers only read it); a read for writing gets its own copy.
+        private JObject Read(bool forWrite)
         {
             try
             {
@@ -177,7 +178,7 @@ namespace PlayniteAchievements.Services.Psn
 
                 if (_cache != null && info.LastWriteTimeUtc == _cacheWriteUtc && info.Length == _cacheLength)
                 {
-                    return (JObject)_cache.DeepClone();
+                    return forWrite ? (JObject)_cache.DeepClone() : _cache;
                 }
 
                 var parsed = JObject.Parse(File.ReadAllText(FilePath, Encoding.UTF8));
@@ -186,7 +187,7 @@ namespace PlayniteAchievements.Services.Psn
                     _cache = parsed;
                     _cacheWriteUtc = info.LastWriteTimeUtc;
                     _cacheLength = info.Length;
-                    return (JObject)parsed.DeepClone();
+                    return forWrite ? (JObject)parsed.DeepClone() : parsed;
                 }
             }
             catch (Exception)
