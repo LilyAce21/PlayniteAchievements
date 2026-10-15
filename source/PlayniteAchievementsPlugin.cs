@@ -898,7 +898,7 @@ namespace PlayniteAchievements
                         {
                             var game = PlayniteApi?.Database?.Games?.Get(gameId);
                             var appId = 0;
-                            Providers.Steam.SteamGameIdentity.TryGetSteamAppId(game, out appId);
+                            global::PlayniteAchievements.Providers.Steam.SteamGameIdentity.TryGetSteamAppId(game, out appId);
                             return new System.Collections.Generic.KeyValuePair<int, string>(appId, game?.Name);
                         },
                         sharedIds: new Services.Psn.PsnSharedIdStore());
