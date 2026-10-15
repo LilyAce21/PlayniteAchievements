@@ -38,6 +38,12 @@ namespace PlayniteAchievements.Views.Workshop
             {
                 Confirm = Confirm,
                 ChooseMergeOrReplace = ChooseMergeOrReplace,
+                PickGameDataTargets = row => GameDataTargetPicker.Pick(
+                    plugin,
+                    Window.GetWindow(this),
+                    row.IndexItem?.Id,
+                    row.Name,
+                    row.IndexItem?.Game?.Keys),
                 AskName = AskName,
                 OpenShare = share => plugin.OpenWorkshopShare(
                     share.Kind,
