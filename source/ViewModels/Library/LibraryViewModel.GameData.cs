@@ -127,6 +127,31 @@ namespace PlayniteAchievements.ViewModels.Library
                 $"Failed updating the game data {item.Id}.");
         }
 
+        /// <summary>
+        /// Puts the Workshop's current version onto the games the user picks that do not have it
+        /// yet, downloading it once.
+        /// </summary>
+        private async Task ApplyGameDataToGamesAsync(LibraryItemRow row)
+        {
+            var item = row?.IndexItem;
+            if (item == null)
+            {
+                return;
+            }
+
+            var targets = PickGameDataTargets?.Invoke(row);
+            if (targets == null || targets.Count == 0)
+            {
+                return;
+            }
+
+            StatusMessage = string.Format(L("LOCPlayAch_Workshop_Downloading"), item.Name);
+            await RunGameDataAsync(
+                applier => applier.ApplyManyAsync(item, targets, _lifetime.Token),
+                isUpdate: false,
+                $"Failed applying the game data {item.Id}.");
+        }
+
         /// <summary>After a Playnite confirmation, applies the game's kept package again as published, as Manage Achievements does.</summary>
         private async Task ResetGameDataAsync(LibraryUseRow use)
         {
