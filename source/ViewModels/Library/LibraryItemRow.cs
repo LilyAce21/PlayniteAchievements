@@ -134,7 +134,7 @@ namespace PlayniteAchievements.ViewModels.Library
             get => _indexItem;
             set => SetValue(ref _indexItem, value, nameof(IndexItem), nameof(HasUpdate), nameof(UpdateVersion), nameof(CanUpdate),
                 nameof(CanReinstall), nameof(Author), nameof(Secondary), nameof(UpdateTag), nameof(Name), nameof(VersionText),
-                nameof(Description), nameof(HasDescription));
+                nameof(Description), nameof(HasDescription), nameof(CanApplyToGames));
         }
 
         /// <summary>
@@ -251,6 +251,9 @@ namespace PlayniteAchievements.ViewModels.Library
         public bool ShowReinstall => IsWorkshop && !IsGameData;
 
         public bool CanReinstall => ShowReinstall && _indexItem != null;
+
+        /// <summary>Game data goes onto more games from the Workshop's current version, once the index is read.</summary>
+        public bool CanApplyToGames => IsGameData && _indexItem != null;
 
         /// <summary>The Workshop id this install published the item as, or null.</summary>
         public string PublishedItemId => _publishedItemId;
