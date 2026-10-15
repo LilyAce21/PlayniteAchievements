@@ -1,4 +1,3 @@
-using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
 using System;
 using System.Collections.Generic;
@@ -31,15 +30,10 @@ namespace PlayniteAchievements.Services.GameCustomData
         ///
         /// An image-only package lists its icons by API name. An import also matches them
         /// against the target game's cached achievements and drops the rest; that needs a game,
-        /// so it is left to the caller.
-        ///
-        /// With a <paramref name="target"/>, a manifest's keys are first spread over that game's
-        /// scopes as an import onto it would (<see cref="GameCustomDataPortableScoping.ToGame"/>).
+        /// so it is left to the caller. So is spreading a manifest's portable keys over a target
+        /// game's scopes (<see cref="GameCustomDataPortableScoping.ToGame"/>).
         /// </remarks>
-        public GameCustomDataPortablePackage ReadPortablePackage(
-            string sourcePath,
-            string imageScratchDirectory,
-            GameAchievementData target = null)
+        public GameCustomDataPortablePackage ReadPortablePackage(string sourcePath, string imageScratchDirectory)
         {
             if (string.IsNullOrWhiteSpace(sourcePath))
             {
@@ -67,11 +61,6 @@ namespace PlayniteAchievements.Services.GameCustomData
                 if (entriesByName.ContainsKey(PortablePackageManifestEntryName))
                 {
                     var portable = ReadPortableManifestOrNull(entriesByName);
-                    if (target != null)
-                    {
-                        ScopePortableForGame(portable, target);
-                    }
-
                     RewritePackageManifestImages(sink, entriesByName, portable);
 
                     var normalized = GameCustomDataNormalizer.NormalizePortable(portable, Guid.Empty);
