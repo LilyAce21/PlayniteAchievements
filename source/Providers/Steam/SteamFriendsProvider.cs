@@ -448,6 +448,20 @@ namespace PlayniteAchievements.Providers.Steam
                 _logger?.Debug(ex, $"Steam friend achievements request failed for friend={friend.ExternalUserId}, appId={appId}.");
             }
 
+            if (fetch?.TokenRejected == true)
+            {
+                _logger?.Warn($"[SteamFriends] Steam rejected the web token for friend={friend.ExternalUserId}, appId={appId}; only public data is readable until Steam is signed in again.");
+            }
+
+            if (fetch?.Data == null && fetch?.AuthProblem == true)
+            {
+                // A friends-only profile is readable only as a signed-in viewer; report sign-in
+                // rather than marking the friend private.
+                return FriendsProviderResult<FriendGameAchievements>.Failed(
+                    "Steam sign-in is needed to read this friend's achievements.",
+                    authRequired: true);
+            }
+
             if (fetch?.Data != null)
             {
                 var rows = await BuildRowsFromUserAchievementsAsync(token.WebApiToken, appId, fetch, cancel)
