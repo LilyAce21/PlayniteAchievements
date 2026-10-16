@@ -380,10 +380,15 @@ namespace PlayniteAchievements.ViewModels
         public bool HasFriendAvatar => !string.IsNullOrWhiteSpace(FriendAvatar);
 
         // A category that just repeats the game name (common for single-list providers) reads as
-        // a duplicate, so it is force-hidden in both the toast and the frame.
+        // a duplicate, so it is force-hidden in both the toast and the frame. The Default bucket
+        // names no category at all, so it is hidden the same way the grid cells blank it.
         private bool HasDistinctCategory =>
             !string.IsNullOrWhiteSpace(_args.Category) &&
-            !string.Equals(_args.Category?.Trim(), _args.GameName?.Trim(), StringComparison.OrdinalIgnoreCase);
+            !string.Equals(_args.Category?.Trim(), _args.GameName?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(
+                Services.Achievements.CategoryPathHelper.NormalizePath(_args.Category),
+                Services.Achievements.AchievementCategoryTypeHelper.DefaultCategoryLabel,
+                StringComparison.OrdinalIgnoreCase);
 
         // Unlock timestamp bindings (local time, current-culture formatting like the grids'
         // UnlockTimeText). A midnight time-of-day means a date-only provider timestamp, so the
