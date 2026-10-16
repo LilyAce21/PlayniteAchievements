@@ -701,10 +701,13 @@ namespace PlayniteAchievements.Providers.Steam
                 hidden &&
                 viewerLoggedIn &&
                 page.UserAchievementsState == SteamSsrQueryState.Error;
+            // Steam answers an invalid token as an anonymous request (EResult 15 for hidden data,
+            // not HTTP 401), so a loaded achievements page that is not signed in is the evidence
+            // that the session is gone, whatever token was sent.
             result.SignInNeeded =
                 hidden &&
                 !viewerLoggedIn &&
-                (string.IsNullOrWhiteSpace(accessToken) || api.TokenRejected);
+                (page != null || string.IsNullOrWhiteSpace(accessToken) || api.TokenRejected);
             return result;
         }
 
