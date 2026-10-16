@@ -61,6 +61,7 @@ namespace PlayniteAchievements.Providers.Steam
         private readonly ILogger _logger;
         private readonly Func<ICacheManager> _cacheAccessor;
         private readonly SteamLocalStatsReader _localStatsReader;
+        private readonly SteamCategoryArtDownloader _categoryArtDownloader;
 
         public SteamScanner(
             PlayniteAchievementsSettings settings,
@@ -71,8 +72,10 @@ namespace PlayniteAchievements.Providers.Steam
             IPlayniteAPI api,
             ILogger logger,
             Func<ICacheManager> cacheAccessor = null,
-            SteamLocalStatsReader localStatsReader = null)
+            SteamLocalStatsReader localStatsReader = null,
+            SteamCategoryArtDownloader categoryArtDownloader = null)
         {
+            _categoryArtDownloader = categoryArtDownloader;
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _steamClient = steamClient ?? throw new ArgumentNullException(nameof(steamClient));
             _steamApiClient = steamApiClient ?? throw new ArgumentNullException(nameof(steamApiClient));
@@ -111,11 +114,7 @@ namespace PlayniteAchievements.Providers.Steam
                     _logger?.Info("[SteamAch] Probing Steam login status before scan...");
                     var tokenResolution = await _tokenResolver.ResolveAsync(cancel).ConfigureAwait(false);
                     steamUserId = tokenResolution.UserId?.Trim() ?? steamUserId;
-                    accessToken = tokenResolution.Token;
-                    webAvailable =
-                        tokenResolution.IsSuccess &&
-                        !string.IsNullOrWhiteSpace(steamUserId) &&
-                        !string.IsNullOrWhiteSpace(accessToken);
+                    accessToken = tokenResolution.IsSuccess ? tokenResolution.Token : null;
                 }
                 catch (OperationCanceledException) when (cancel.IsCancellationRequested)
                 {
@@ -123,7 +122,15 @@ namespace PlayniteAchievements.Providers.Steam
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, "[SteamAch] Web authentication probe failed; trying local stats.");
+                    _logger?.Debug(ex, "[SteamAch] Web authentication probe failed; continuing without a token.");
+                }
+
+                // Steam's achievement services answer without a token for public profiles, so the
+                // web path needs only the account id. The token adds private-profile access.
+                webAvailable = !string.IsNullOrWhiteSpace(steamUserId);
+                if (webAvailable && string.IsNullOrWhiteSpace(accessToken))
+                {
+                    _logger?.Info("[SteamAch] No Steam web token; refreshing through the public Web API.");
                 }
 
                 var rateLimiter = new RateLimiter(
@@ -131,6 +138,7 @@ namespace PlayniteAchievements.Providers.Steam
                     _settings.Persisted.MaxRetryAttempts);
                 var madeWebRequest = false;
                 var localFailures = 0;
+                var hiddenWithoutToken = 0;
 
                 var payload = await ProviderRefreshExecutor.RunProviderGamesAsync(
                     gamesToRefresh,
@@ -204,6 +212,10 @@ namespace PlayniteAchievements.Providers.Steam
                         // Log the exception object so the stack trace identifies where a silent
                         // timeout (e.g. HttpClient's TaskCanceledException) actually originated.
                         _logger?.Warn(ex, $"[SteamAch] Skipping game after retries: {game?.Name} (appId={appIdText}). Consecutive errors={consecutiveErrors}. {ex.GetType().Name}: {ex.Message}");
+                        if (string.IsNullOrWhiteSpace(accessToken) && ex is SteamStatsUnavailableException)
+                        {
+                            Interlocked.Increment(ref hiddenWithoutToken);
+                        }
                     },
                     delayBetweenGamesAsync: null,
                     delayAfterErrorAsync: null,
@@ -211,7 +223,9 @@ namespace PlayniteAchievements.Providers.Steam
 
                 // A complete local fallback is a successful offline refresh. Surface auth only
                 // when at least one requested game could use neither the web nor its local files.
-                payload.AuthRequired = !webAvailable && localFailures > 0;
+                // Without a token only public data is readable, so a private profile also needs
+                // sign-in.
+                payload.AuthRequired = (!webAvailable && localFailures > 0) || hiddenWithoutToken > 0;
                 return payload;
             }
             finally
@@ -298,41 +312,38 @@ namespace PlayniteAchievements.Providers.Steam
                 return null;
             }
 
-            var schema = await FetchSchemaAsync(accessToken, appId, cancel).ConfigureAwait(false);
-            var hasAchievements = schema?.Achievements?.Count > 0;
-            if (!hasAchievements && schema == null)
+            // Steam answers GetGameAchievements with EResult 42 for apps without achievements,
+            // which is the one definitive "no achievements" signal. Any other failure is
+            // indeterminate and must not be written as an achievement-less game.
+            var schemaResult = await FetchSchemaResultAsync(accessToken, appId, cancel).ConfigureAwait(false);
+            if (schemaResult.Outcome == SteamApiOutcome.NoAchievements)
             {
-                var language = string.IsNullOrWhiteSpace(_settings.Persisted.GlobalLanguage)
-                    ? "english"
-                    : _settings.Persisted.GlobalLanguage.Trim();
-                var apiHasAchievements = await _steamApiClient
-                    .GetGameHasAchievementsAsync(accessToken, appId, language, cancel)
-                    .ConfigureAwait(false);
-                if (apiHasAchievements == false)
+                _logger?.Debug($"[SteamAch] appId={appId} has no achievements (eresult={schemaResult.EResult?.ToString() ?? "-"}).");
+                return new GameAchievementData
                 {
-                    _logger?.Debug($"[SteamAch] Skipping stats scrape for appId={appId}; Steam API reports no achievements.");
-                    return new GameAchievementData
-                    {
-                        AppId = appId,
-                        GameName = game.Name,
-                        ProviderKey = "Steam",
-                        LibrarySourceName = game?.Source?.Name,
-                        LastUpdatedUtc = DateTime.UtcNow,
-                        HasAchievements = false,
-                        PlayniteGameId = game.Id,
-                        Achievements = new List<AchievementDetail>()
-                    };
-                }
-
-                // The schema call returns null both for "no achievements" and for any failure
-                // (non-success status, network error, malformed body). Only the availability check
-                // above distinguishes them, and it reports null when it could not tell either. An
-                // indeterminate result must not be written as an achievement-less game.
-                throw new SteamTransientException(
-                    $"[SteamAch] Schema unavailable for appId={appId}; achievement availability is indeterminate.");
+                    AppId = appId,
+                    GameName = game.Name,
+                    ProviderKey = "Steam",
+                    LibrarySourceName = game?.Source?.Name,
+                    LastUpdatedUtc = DateTime.UtcNow,
+                    HasAchievements = false,
+                    PlayniteGameId = game.Id,
+                    Achievements = new List<AchievementDetail>()
+                };
             }
 
-            var unlocked = await FetchUnlockedAsync(appId, game?.Name, steamUserId, accessToken, schema, cancel).ConfigureAwait(false);
+            if (!schemaResult.IsOk)
+            {
+                throw new SteamTransientException(
+                    $"[SteamAch] Schema unavailable for appId={appId}: {schemaResult}.");
+            }
+
+            var schema = schemaResult.Value;
+            var hasAchievements = schema?.Achievements?.Count > 0;
+
+            var unlockResult = await FetchUnlockedAsync(appId, game?.Name, steamUserId, accessToken, schema, cancel).ConfigureAwait(false);
+            var unlocked = unlockResult.Unlocks;
+            schema = unlockResult.Schema ?? schema;
 
             var gameData = new GameAchievementData
             {
@@ -402,10 +413,56 @@ namespace PlayniteAchievements.Providers.Steam
                     gameData.Achievements.Add(detail);
                 }
 
-                await EnrichSteamHuntersCategoriesAsync(appId, gameData.GameName, gameData.Achievements, gameData.PlayniteGameId, cancel).ConfigureAwait(false);
+                await ApplyCategoriesAsync(appId, gameData.GameName, gameData.Achievements, schema, gameData.PlayniteGameId, cancel).ConfigureAwait(false);
             }
 
             return gameData;
+        }
+
+        /// <summary>
+        /// Categories come from Steam's achievement sets, then SteamHunters per the Steam
+        /// setting: Merge leaves achievements in a named Steam set alone, Override lets
+        /// SteamHunters replace everything, Off skips it. Archived achievements end up
+        /// Unobtainable either way.
+        /// </summary>
+        internal async Task ApplyCategoriesAsync(
+            int appId,
+            string gameName,
+            IList<AchievementDetail> achievements,
+            SchemaAndPercentages schema,
+            Guid? playniteGameId,
+            CancellationToken cancel)
+        {
+            var namedSetApiNames = SteamAchievementSetMapper.ApplySets(achievements, schema, gameName);
+
+            if (playniteGameId.HasValue && schema?.HasAchievementSets == true && _categoryArtDownloader != null)
+            {
+                await _categoryArtDownloader
+                    .DownloadAsync(
+                        playniteGameId.Value,
+                        SteamAchievementSetMapper.BuildCategoryImagePlan(schema, gameName, appId),
+                        cancel)
+                    .ConfigureAwait(false);
+            }
+
+            var mode = ProviderRegistry.Settings<SteamSettings>()?.SteamHuntersCategoryMode ?? SteamHuntersCategoryMode.Off;
+            if (_steamHuntersCategoryEnricher == null || mode == SteamHuntersCategoryMode.Off)
+            {
+                return;
+            }
+
+            await _steamHuntersCategoryEnricher
+                .EnrichAsync(
+                    appId,
+                    gameName,
+                    achievements,
+                    playniteGameId,
+                    cancel,
+                    mode == SteamHuntersCategoryMode.Merge ? namedSetApiNames : null)
+                .ConfigureAwait(false);
+
+            // SteamHunters grouping resets types, so archived flags are applied again.
+            SteamAchievementSetMapper.ApplyArchived(achievements, schema);
         }
 
         private GameAchievementData TryBuildGameDataFromLocal(Game game, string steamUserId)
@@ -504,38 +561,200 @@ namespace PlayniteAchievements.Providers.Steam
             return result;
         }
 
-        private Task EnrichSteamHuntersCategoriesAsync(
-            int appId,
-            string gameName,
-            IList<AchievementDetail> achievements,
-            Guid? playniteGameId,
-            CancellationToken cancel)
-        {
-            if (_steamHuntersCategoryEnricher == null ||
-                !ShouldUseSteamHuntersForCategories())
-            {
-                return Task.CompletedTask;
-            }
-
-            return _steamHuntersCategoryEnricher.EnrichAsync(appId, gameName, achievements, playniteGameId, cancel);
-        }
-
-        private static bool ShouldUseSteamHuntersForCategories()
-        {
-            return ProviderRegistry.Settings<SteamSettings>()?.UseSteamHuntersForCategories == true;
-        }
+        private string ResolveLanguage() =>
+            string.IsNullOrWhiteSpace(_settings.Persisted.GlobalLanguage) ? "english" : _settings.Persisted.GlobalLanguage.Trim();
 
         internal Task<SchemaAndPercentages> FetchSchemaAsync(string accessToken, int appId, CancellationToken cancel)
         {
-            var language = string.IsNullOrWhiteSpace(_settings.Persisted.GlobalLanguage) ? "english" : _settings.Persisted.GlobalLanguage.Trim();
             return _steamApiClient.GetSchemaForGameDetailedAsync(
                 accessToken,
                 appId,
-                language,
+                ResolveLanguage(),
                 cancel);
         }
 
-        private async Task<UserUnlockedAchievements> FetchUnlockedAsync(
+        internal Task<SteamApiResult<SchemaAndPercentages>> FetchSchemaResultAsync(string accessToken, int appId, CancellationToken cancel)
+        {
+            return _steamApiClient.GetGameSchemaAsync(accessToken, appId, ResolveLanguage(), cancel);
+        }
+
+        internal sealed class UnlockFetchResult
+        {
+            public UserUnlockedAchievements Unlocks { get; set; }
+
+            // Set when the schema was refetched because the player data referenced
+            // achievements the original schema did not define.
+            public SchemaAndPercentages Schema { get; set; }
+        }
+
+        /// <summary>
+        /// Outcome of reading one player's unlocks by internal key from the Web API, falling back
+        /// to the achievements page. <see cref="Data"/> is null when neither yielded unlocks.
+        /// </summary>
+        internal sealed class UserAchievementsFetch
+        {
+            public SteamUserAchievements Data { get; set; }
+
+            // The achievements page's own schema, when the page was read.
+            public SchemaAndPercentages PageSchema { get; set; }
+
+            public SteamApiOutcome ApiOutcome { get; set; }
+
+            // Both the Web API and a logged-in achievements page declined to show this player's
+            // data: the profile or its game details are private to the viewer.
+            public bool ConfirmedPrivate { get; set; }
+        }
+
+        /// <summary>
+        /// Reads a player's unlocks: IPlayerService/GetUserAchievements first, then the
+        /// achievements page (HTTP, then the logged-in browser session when the HTTP page was not
+        /// logged in, which covers friends-only profiles).
+        /// </summary>
+        internal async Task<UserAchievementsFetch> FetchUserAchievementsAsync(
+            string steamId64,
+            int appId,
+            string accessToken,
+            CancellationToken cancel)
+        {
+            var result = new UserAchievementsFetch();
+
+            var api = await _steamApiClient
+                .GetUserAchievementsAsync(accessToken, steamId64, appId, cancel)
+                .ConfigureAwait(false);
+            result.ApiOutcome = api.Outcome;
+            if (api.IsOk)
+            {
+                result.Data = api.Value;
+                return result;
+            }
+
+            _logger?.Debug($"[SteamAch] GetUserAchievements for appId={appId}, steamId={steamId64}: {api}. Trying the achievements page.");
+
+            var page = await FetchAchievementsPageAsync(steamId64, appId, cancel).ConfigureAwait(false);
+            result.PageSchema = page?.Schema;
+            if (page?.UserAchievementsState == SteamSsrQueryState.Success)
+            {
+                result.Data = page.UserAchievements;
+                return result;
+            }
+
+            result.ConfirmedPrivate =
+                api.Outcome == SteamApiOutcome.AccessDenied &&
+                page != null &&
+                page.ViewerLoggedIn &&
+                page.UserAchievementsState == SteamSsrQueryState.Error;
+            return result;
+        }
+
+        private async Task<SteamSsrAchievementsPage> FetchAchievementsPageAsync(
+            string steamId64,
+            int appId,
+            CancellationToken cancel)
+        {
+            var language = ResolveLanguage();
+            SteamSsrAchievementsPage page = null;
+            try
+            {
+                var http = await _steamClient
+                    .GetAchievementsSsrPageAsync(steamId64, appId, language, cancel)
+                    .ConfigureAwait(false);
+                if ((int)(http?.StatusCode ?? 0) == 429)
+                {
+                    throw new SteamTransientException($"[SteamAch] Achievements page rate limited for appId={appId}.");
+                }
+
+                page = SteamAchievementsSsrParser.Parse(http?.Html, appId);
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { throw; }
+            catch (SteamTransientException) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, $"[SteamAch] Achievements page request failed for appId={appId}.");
+            }
+
+            if (page?.UserAchievementsState == SteamSsrQueryState.Success || page?.ViewerLoggedIn == true)
+            {
+                return page;
+            }
+
+            // The HTTP page was unreadable or not logged in; the browser session renders with the
+            // viewer's visibility.
+            try
+            {
+                var browser = await _steamClient
+                    .GetAchievementsSsrPageViaBrowserAsync(steamId64, appId, language, cancel)
+                    .ConfigureAwait(false);
+                var browserPage = SteamAchievementsSsrParser.Parse(browser?.Html, appId);
+                if (browserPage != null)
+                {
+                    return browserPage;
+                }
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, $"[SteamAch] Browser achievements page failed for appId={appId}.");
+            }
+
+            return page;
+        }
+
+        /// <summary>
+        /// Own unlocks: Web API and achievements page by internal key, then the legacy stats
+        /// page scraper. A schema missing achievements the player has data for (a schema change
+        /// between requests) is refetched once.
+        /// </summary>
+        private async Task<UnlockFetchResult> FetchUnlockedAsync(
+            int appId,
+            string gameName,
+            string steamUserId,
+            string accessToken,
+            SchemaAndPercentages schema,
+            CancellationToken cancel)
+        {
+            if (string.IsNullOrWhiteSpace(steamUserId))
+            {
+                return new UnlockFetchResult { Unlocks = new UserUnlockedAchievements() };
+            }
+
+            var fetch = await FetchUserAchievementsAsync(steamUserId, appId, accessToken, cancel).ConfigureAwait(false);
+            if (fetch.Data != null)
+            {
+                var mapping = SteamAchievementSetMapper.MapUnlocks(appId, schema, fetch.Data, fetch.PageSchema);
+                SchemaAndPercentages refreshed = null;
+                if (mapping.UnknownKeyCount > 0)
+                {
+                    var refetch = await FetchSchemaResultAsync(accessToken, appId, cancel).ConfigureAwait(false);
+                    if (refetch.IsOk)
+                    {
+                        refreshed = refetch.Value;
+                        mapping = SteamAchievementSetMapper.MapUnlocks(appId, refreshed, fetch.Data, fetch.PageSchema);
+                    }
+
+                    if (mapping.UnknownKeyCount > 0)
+                    {
+                        _logger?.Warn($"[SteamAch] appId={appId}: {mapping.UnknownKeyCount} unlock entries reference achievements missing from the schema; skipped.");
+                    }
+                }
+
+                _logger?.Debug($"[SteamAch] appId={appId} source={fetch.Data.Source} unlocked={mapping.Unlocks.UnlockedApiNames.Count}.");
+                return new UnlockFetchResult { Unlocks = mapping.Unlocks, Schema = refreshed };
+            }
+
+            if (fetch.ConfirmedPrivate)
+            {
+                throw new SteamStatsUnavailableException(
+                    $"[SteamAch] Achievements for appId={appId} are not visible to this account (Web API: {fetch.ApiOutcome}, achievements page: no player data).");
+            }
+
+            var legacy = await FetchUnlockedFromStatsPageAsync(appId, gameName, steamUserId, accessToken, schema, cancel).ConfigureAwait(false);
+            return new UnlockFetchResult { Unlocks = legacy };
+        }
+
+        // Legacy community stats page scraper (/profiles/{id}/stats/{appid}/?tab=achievements).
+        // Steam redirected that page to the redesigned achievements page in October 2026; kept
+        // as the last fallback.
+        private async Task<UserUnlockedAchievements> FetchUnlockedFromStatsPageAsync(
             int appId,
             string gameName,
             string steamUserId,
@@ -902,7 +1121,6 @@ namespace PlayniteAchievements.Providers.Steam
         {
             if (res == null || appId <= 0) return;
             if (!res.StatsUnavailable) return;
-            if (string.IsNullOrWhiteSpace(accessToken)) return;
 
             bool? has;
             try
