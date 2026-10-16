@@ -461,30 +461,30 @@ namespace PlayniteAchievements.Steam.Tests
         {
             Assert.AreEqual(
                 "Phantom Liberty",
-                SteamHuntersCategoryEnricher.StripGameNamePrefix("Cyberpunk 2077: Phantom Liberty", "Cyberpunk 2077"));
+                SteamCategoryLabels.StripGameNamePrefix("Cyberpunk 2077: Phantom Liberty", "Cyberpunk 2077"));
             Assert.AreEqual(
                 "Trapped in Limbo",
-                SteamHuntersCategoryEnricher.StripGameNamePrefix("Atomic Heart - Trapped in Limbo", "Atomic Heart"));
+                SteamCategoryLabels.StripGameNamePrefix("Atomic Heart - Trapped in Limbo", "Atomic Heart"));
             Assert.AreEqual(
                 "Endgame",
-                SteamHuntersCategoryEnricher.StripGameNamePrefix("Deep Rock Galactic – Endgame", "deep rock galactic"));
+                SteamCategoryLabels.StripGameNamePrefix("Deep Rock Galactic – Endgame", "deep rock galactic"));
 
             // No separator after the game name: leave the label alone.
             Assert.AreEqual(
                 "Cyberpunk 2077 Ultimate",
-                SteamHuntersCategoryEnricher.StripGameNamePrefix("Cyberpunk 2077 Ultimate", "Cyberpunk 2077"));
+                SteamCategoryLabels.StripGameNamePrefix("Cyberpunk 2077 Ultimate", "Cyberpunk 2077"));
             // Label identical to the game name: leave the label alone.
             Assert.AreEqual(
                 "Cyberpunk 2077",
-                SteamHuntersCategoryEnricher.StripGameNamePrefix("Cyberpunk 2077", "Cyberpunk 2077"));
+                SteamCategoryLabels.StripGameNamePrefix("Cyberpunk 2077", "Cyberpunk 2077"));
             // Nothing left after stripping: leave the label alone.
             Assert.AreEqual(
                 "Cyberpunk 2077:",
-                SteamHuntersCategoryEnricher.StripGameNamePrefix("Cyberpunk 2077:", "Cyberpunk 2077"));
+                SteamCategoryLabels.StripGameNamePrefix("Cyberpunk 2077:", "Cyberpunk 2077"));
             // Missing game name: leave the label alone.
             Assert.AreEqual(
                 "Game: DLC",
-                SteamHuntersCategoryEnricher.StripGameNamePrefix("Game: DLC", null));
+                SteamCategoryLabels.StripGameNamePrefix("Game: DLC", null));
         }
 
         [TestMethod]
