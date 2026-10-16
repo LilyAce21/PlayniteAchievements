@@ -139,6 +139,7 @@ namespace PlayniteAchievements.Providers.Steam
                 var madeWebRequest = false;
                 var localFailures = 0;
                 var hiddenWithoutToken = 0;
+                var authSignals = new AuthSignals();
 
                 var payload = await ProviderRefreshExecutor.RunProviderGamesAsync(
                     gamesToRefresh,
@@ -173,7 +174,7 @@ namespace PlayniteAchievements.Providers.Steam
                         try
                         {
                             data = await rateLimiter.ExecuteWithRetryAsync(
-                                () => FetchGameDataAsync(game, steamUserId, accessToken, token),
+                                () => FetchGameDataAsync(game, steamUserId, accessToken, authSignals, token),
                                 IsTransientError,
                                 token).ConfigureAwait(false);
                         }
@@ -224,8 +225,17 @@ namespace PlayniteAchievements.Providers.Steam
                 // A complete local fallback is a successful offline refresh. Surface auth only
                 // when at least one requested game could use neither the web nor its local files.
                 // Without a token only public data is readable, so a private profile also needs
-                // sign-in.
-                payload.AuthRequired = (!webAvailable && localFailures > 0) || hiddenWithoutToken > 0;
+                // sign-in. A rejected token means the Steam session expired even when anonymous
+                // data kept the refresh going.
+                if (authSignals.Any)
+                {
+                    _logger?.Warn($"[SteamAch] Steam sign-in needed: token rejected on {authSignals.TokenRejectedCount} request(s), hidden data without a signed-in session for {authSignals.SignInNeededCount} game(s).");
+                }
+
+                payload.AuthRequired =
+                    (!webAvailable && localFailures > 0) ||
+                    hiddenWithoutToken > 0 ||
+                    authSignals.Any;
                 return payload;
             }
             finally
@@ -304,6 +314,7 @@ namespace PlayniteAchievements.Providers.Steam
             Game game,
             string steamUserId,
             string accessToken,
+            AuthSignals authSignals,
             CancellationToken cancel)
         {
             if (!TryGetPlatformAppId(game, out var appId))
@@ -316,9 +327,15 @@ namespace PlayniteAchievements.Providers.Steam
             // which is the one definitive "no achievements" signal. Any other failure is
             // indeterminate and must not be written as an achievement-less game.
             var schemaResult = await FetchSchemaResultAsync(accessToken, appId, cancel).ConfigureAwait(false);
+            authSignals?.Record(schemaResult.TokenRejected, signInNeeded: false);
             if (schemaResult.Outcome == SteamApiOutcome.NoAchievements)
             {
-                _logger?.Debug($"[SteamAch] appId={appId} has no achievements (eresult={schemaResult.EResult?.ToString() ?? "-"}).");
+                // EResult 42 is Steam's own "no achievements"; an EResult 1 response with an empty
+                // list (e.g. Dota 2) means the app defines none.
+                var reason = schemaResult.EResult == SteamApiClient.EResultNoMatch
+                    ? "Steam reports no achievement schema (eresult=42)"
+                    : $"schema lists zero achievements (eresult={schemaResult.EResult?.ToString() ?? "-"})";
+                _logger?.Info($"[SteamAch] appId={appId} ({game?.Name}) has no achievements: {reason}.");
                 return new GameAchievementData
                 {
                     AppId = appId,
@@ -341,7 +358,7 @@ namespace PlayniteAchievements.Providers.Steam
             var schema = schemaResult.Value;
             var hasAchievements = schema?.Achievements?.Count > 0;
 
-            var unlockResult = await FetchUnlockedAsync(appId, game?.Name, steamUserId, accessToken, schema, cancel).ConfigureAwait(false);
+            var unlockResult = await FetchUnlockedAsync(appId, game?.Name, steamUserId, accessToken, schema, authSignals, cancel).ConfigureAwait(false);
             var unlocked = unlockResult.Unlocks;
             schema = unlockResult.Schema ?? schema;
 
@@ -603,6 +620,45 @@ namespace PlayniteAchievements.Providers.Steam
             // Both the Web API and a logged-in achievements page declined to show this player's
             // data: the profile or its game details are private to the viewer.
             public bool ConfirmedPrivate { get; set; }
+
+            // Steam refused the supplied access token; any data came from the anonymous retry.
+            public bool TokenRejected { get; set; }
+
+            // The player's data is hidden and no request was made as a signed-in viewer (no
+            // token, a rejected token, and no logged-in achievements page), so privacy cannot be
+            // told apart from a missing sign-in.
+            public bool SignInNeeded { get; set; }
+
+            public bool AuthProblem => TokenRejected || SignInNeeded;
+        }
+
+        /// <summary>
+        /// Auth problems seen during one refresh, reported as AuthRequired at the end so the user
+        /// is asked to sign in again even when anonymous data kept the refresh going.
+        /// </summary>
+        internal sealed class AuthSignals
+        {
+            private int _tokenRejected;
+            private int _signInNeeded;
+
+            public int TokenRejectedCount => Volatile.Read(ref _tokenRejected);
+
+            public int SignInNeededCount => Volatile.Read(ref _signInNeeded);
+
+            public bool Any => TokenRejectedCount > 0 || SignInNeededCount > 0;
+
+            public void Record(bool tokenRejected, bool signInNeeded)
+            {
+                if (tokenRejected)
+                {
+                    Interlocked.Increment(ref _tokenRejected);
+                }
+
+                if (signInNeeded)
+                {
+                    Interlocked.Increment(ref _signInNeeded);
+                }
+            }
         }
 
         /// <summary>
@@ -622,6 +678,7 @@ namespace PlayniteAchievements.Providers.Steam
                 .GetUserAchievementsAsync(accessToken, steamId64, appId, cancel)
                 .ConfigureAwait(false);
             result.ApiOutcome = api.Outcome;
+            result.TokenRejected = api.TokenRejected;
             if (api.IsOk)
             {
                 result.Data = api.Value;
@@ -638,11 +695,16 @@ namespace PlayniteAchievements.Providers.Steam
                 return result;
             }
 
+            var hidden = api.Outcome == SteamApiOutcome.AccessDenied || api.Outcome == SteamApiOutcome.Unauthorized;
+            var viewerLoggedIn = page?.ViewerLoggedIn == true;
             result.ConfirmedPrivate =
-                api.Outcome == SteamApiOutcome.AccessDenied &&
-                page != null &&
-                page.ViewerLoggedIn &&
+                hidden &&
+                viewerLoggedIn &&
                 page.UserAchievementsState == SteamSsrQueryState.Error;
+            result.SignInNeeded =
+                hidden &&
+                !viewerLoggedIn &&
+                (string.IsNullOrWhiteSpace(accessToken) || api.TokenRejected);
             return result;
         }
 
@@ -710,6 +772,7 @@ namespace PlayniteAchievements.Providers.Steam
             string steamUserId,
             string accessToken,
             SchemaAndPercentages schema,
+            AuthSignals authSignals,
             CancellationToken cancel)
         {
             if (string.IsNullOrWhiteSpace(steamUserId))
@@ -718,6 +781,14 @@ namespace PlayniteAchievements.Providers.Steam
             }
 
             var fetch = await FetchUserAchievementsAsync(steamUserId, appId, accessToken, cancel).ConfigureAwait(false);
+            authSignals?.Record(fetch.TokenRejected, fetch.SignInNeeded);
+            if (fetch.SignInNeeded && fetch.Data == null)
+            {
+                // Without a signed-in viewer, a hidden profile cannot be read and the old stats
+                // page redirects to the same achievements page, so skip the legacy scrape.
+                throw new SteamStatsUnavailableException(
+                    $"[SteamAch] Achievements for appId={appId} are hidden and Steam is not signed in (Web API: {fetch.ApiOutcome}).");
+            }
             if (fetch.Data != null)
             {
                 var mapping = SteamAchievementSetMapper.MapUnlocks(appId, schema, fetch.Data, fetch.PageSchema);
