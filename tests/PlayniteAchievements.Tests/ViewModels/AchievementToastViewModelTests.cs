@@ -1370,6 +1370,84 @@ namespace PlayniteAchievements.Tests.ViewModels
             Assert.IsNull(viewModel.FriendAvatar, "Notifications never fetch over the network.");
         }
 
+        [DataTestMethod]
+        [DataRow("Default")]
+        [DataRow("default")]
+        public void DefaultCategory_IsHiddenOnToastAndFrame(string category)
+        {
+            var viewModel = CategoryToast(category);
+
+            Assert.IsFalse(viewModel.ShowCategory);
+            Assert.IsFalse(viewModel.FrameShowCategory);
+            Assert.IsFalse(viewModel.ShowGameCategorySeparator);
+        }
+
+        [TestMethod]
+        public void NamedCategory_IsShownOnToastAndFrame()
+        {
+            var viewModel = CategoryToast("Story");
+
+            Assert.IsTrue(viewModel.ShowCategory);
+            Assert.IsTrue(viewModel.FrameShowCategory);
+        }
+
+        private static AchievementToastViewModel CategoryToast(string category)
+        {
+            return new AchievementToastViewModel(
+                new AchievementUnlockedEventArgs { GameName = "Some Game", Category = category },
+                new PersistedSettings
+                {
+                    NotificationStyle = new NotificationStyleSettings
+                    {
+                        Toast = new NotificationSurfaceStyle { ShowCategory = true, ShowGameName = true },
+                        Frame = new NotificationSurfaceStyle { ShowCategory = true, ShowGameName = true }
+                    }
+                });
+        }
+
+        [TestMethod]
+        public void PlatinumCapstone_DrawsThePlatinumTrophyBadge()
+        {
+            LocalizationAssemblyInitializer.RunOnSta(() =>
+            {
+                var settings = new PersistedSettings();
+                var platinum = new AchievementToastViewModel(
+                    new AchievementUnlockedEventArgs { IsCapstone = true, TrophyType = "platinum", RarityTier = "Rare" },
+                    settings);
+                var plain = new AchievementToastViewModel(
+                    new AchievementUnlockedEventArgs { IsCapstone = true, RarityTier = "Rare" },
+                    settings);
+
+                var trophyPixels = RenderPixels(RarityAppearanceHelper.CreateTrophyPreview("TrophyPlatinum", settings));
+                var completedPixels = RenderPixels(RarityAppearanceHelper.CreateCompletedBadgePreview(settings));
+
+                CollectionAssert.AreEqual(trophyPixels, RenderPixels(platinum.BadgeImage));
+                CollectionAssert.AreEqual(completedPixels, RenderPixels(plain.BadgeImage));
+                CollectionAssert.AreNotEqual(trophyPixels, completedPixels);
+
+                // The swap is the badge only: the platinum capstone keeps the capstone's colors and sound.
+                Assert.IsTrue(platinum.UsesCompletionColors);
+                Assert.AreEqual(UnlockSoundTier.Capstone, platinum.SoundTier);
+            });
+        }
+
+        private static byte[] RenderPixels(ImageSource source)
+        {
+            Assert.IsNotNull(source);
+            const int size = 32;
+            var visual = new DrawingVisual();
+            using (var context = visual.RenderOpen())
+            {
+                context.DrawImage(source, new Rect(0, 0, size, size));
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            var pixels = new byte[size * size * 4];
+            bitmap.CopyPixels(pixels, size * 4, 0);
+            return pixels;
+        }
+
         [TestMethod]
         public void ScaleVignetteStopAlpha_OutOfRangeStrengthClamps()
         {
