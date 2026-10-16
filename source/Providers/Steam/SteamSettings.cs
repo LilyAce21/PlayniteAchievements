@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using PlayniteAchievements.Providers.Settings;
 using System;
 using System.Collections.Generic;
@@ -13,7 +15,7 @@ namespace PlayniteAchievements.Providers.Steam
     {
         private string _steamUserId;
         private string _steamInstallPathOverride;
-        private bool _useSteamHuntersForCategories;
+        private SteamHuntersCategoryMode _steamHuntersCategoryMode = SteamHuntersCategoryMode.Merge;
         private ObservableCollection<SteamIgnoredFriend> _ignoredFriends =
             new ObservableCollection<SteamIgnoredFriend>();
 
@@ -39,11 +41,22 @@ namespace PlayniteAchievements.Providers.Steam
             set => SetValue(ref _steamInstallPathOverride, value);
         }
 
-        public bool UseSteamHuntersForCategories
+        /// <summary>
+        /// Whether and how SteamHunters categories combine with Steam's own achievement sets.
+        /// </summary>
+        [JsonConverter(typeof(StringEnumConverter))]
+        public SteamHuntersCategoryMode SteamHuntersCategoryMode
         {
-            get => _useSteamHuntersForCategories;
-            set => SetValue(ref _useSteamHuntersForCategories, value);
+            get => _steamHuntersCategoryMode;
+            set
+            {
+                SetValue(ref _steamHuntersCategoryMode, value);
+                OnPropertyChanged(nameof(UseSteamHuntersForCategories));
+            }
         }
+
+        [JsonIgnore]
+        public bool UseSteamHuntersForCategories => SteamHuntersCategoryMode != SteamHuntersCategoryMode.Off;
 
         public ObservableCollection<SteamIgnoredFriend> IgnoredFriends
         {
@@ -127,6 +140,21 @@ namespace PlayniteAchievements.Providers.Steam
 
             return removed;
         }
+    }
+
+    public enum SteamHuntersCategoryMode
+    {
+        /// <summary>SteamHunters is not used; categories come from Steam's achievement sets only.</summary>
+        Off = 0,
+
+        /// <summary>
+        /// Steam's named achievement sets keep their category; SteamHunters categorizes the
+        /// rest and adds obtainability.
+        /// </summary>
+        Merge = 1,
+
+        /// <summary>SteamHunters categories replace Steam's achievement sets.</summary>
+        Override = 2
     }
 
     public sealed class SteamIgnoredFriend
