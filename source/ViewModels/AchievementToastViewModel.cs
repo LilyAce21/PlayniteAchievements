@@ -1011,12 +1011,15 @@ namespace PlayniteAchievements.ViewModels
         }
 
         // Secondary rarity/trophy/capstone badge. Completion notifications resolve to null
-        // naturally (no capstone, trophy, or rarity data on them).
+        // naturally (no capstone, trophy, or rarity data on them). A capstone that is the
+        // platinum trophy draws the platinum, matching the grids' completion spot.
         public ImageSource BadgeImage => CreateBadge(IsCapstone);
+
+        private bool IsPlatinumCapstone => IsCapstone && TrophyType == "Platinum";
 
         private ImageSource CreateBadge(bool completed)
         {
-            if (completed)
+            if (completed && !IsPlatinumCapstone)
             {
                 return RarityAppearanceHelper.CreateCompletedBadgePreview(_settings);
             }
