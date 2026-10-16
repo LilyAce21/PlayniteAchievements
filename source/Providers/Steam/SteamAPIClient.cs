@@ -84,9 +84,10 @@ namespace PlayniteAchievements.Providers.Steam
         }
 
         /// <summary>
-        /// Fetches a player's unlocks through IPlayerService/GetUserAchievements. Public
-        /// profiles answer without a token; the viewer's token is needed for profiles that are
-        /// private or friends-only to that viewer. A successful response with no achievements
+        /// Fetches a player's unlocks through IPlayerService/GetUserAchievements. Public game
+        /// details answer with or without a token. Private and friends-only game details answer
+        /// EResult 15 even with the community session's token, including for the user's own
+        /// profile; callers read those from the achievements page. A successful response with no achievements
         /// means nothing is unlocked (including games the player does not own).
         /// </summary>
         public async Task<SteamApiResult<SteamUserAchievements>> GetUserAchievementsAsync(
