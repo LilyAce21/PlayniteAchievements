@@ -433,6 +433,51 @@ namespace PlayniteAchievements.Providers.Steam
                     authRequired: token.AuthRequired);
             }
 
+            // Web API, then the friend's achievements page in the viewer's session (friends-only
+            // profiles), both keyed by internal key; the legacy stats-page scrape is the fallback.
+            SteamScanner.UserAchievementsFetch fetch = null;
+            try
+            {
+                fetch = await _scanner
+                    .FetchUserAchievementsAsync(friend.ExternalUserId, appId, token.WebApiToken, cancel)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, $"Steam friend achievements request failed for friend={friend.ExternalUserId}, appId={appId}.");
+            }
+
+            if (fetch?.Data != null)
+            {
+                var rows = await BuildRowsFromUserAchievementsAsync(token.WebApiToken, appId, fetch, cancel)
+                    .ConfigureAwait(false);
+                if (rows != null)
+                {
+                    return FriendsProviderResult<FriendGameAchievements>.FromData(new FriendGameAchievements
+                    {
+                        Friend = friend,
+                        AppId = appId,
+                        LastUpdatedUtc = DateTime.UtcNow,
+                        DetailCode = SteamScrapeDetail.Scraped,
+                        Rows = rows
+                    });
+                }
+            }
+
+            if (fetch?.ConfirmedPrivate == true)
+            {
+                return FriendsProviderResult<FriendGameAchievements>.FromData(new FriendGameAchievements
+                {
+                    Friend = friend,
+                    AppId = appId,
+                    LastUpdatedUtc = DateTime.UtcNow,
+                    StatsUnavailable = true,
+                    DetailCode = SteamScrapeDetail.ProfilePrivate,
+                    Rows = new List<FriendAchievementRow>()
+                });
+            }
+
             AchievementsScrapeResponse scrape;
             try
             {
@@ -508,7 +553,14 @@ namespace PlayniteAchievements.Providers.Steam
                     .GetSchemaForGameDetailedAsync(token.WebApiToken, appId, "english", cancel)
                     .ConfigureAwait(false);
                 var achievements = MapSchemaAchievements(schema);
-                await EnrichSteamHuntersCategoriesAsync(appId, gameName, achievements, cancel).ConfigureAwait(false);
+
+                // Friends refreshes never download default category art (playniteGameId: null):
+                // provider-only friend games have no Playnite id to key art files by, and mapped
+                // games get their art from the owner's own library scan. The category labels/types
+                // set here do persist for mapped games (seed/backfill at definition-save time).
+                await _scanner
+                    .ApplyCategoriesAsync(appId, gameName, achievements, schema, playniteGameId: null, cancel)
+                    .ConfigureAwait(false);
 
                 var status = achievements.Count > 0
                     ? FriendGameDefinitionStatus.Ok
@@ -532,30 +584,6 @@ namespace PlayniteAchievements.Providers.Steam
                     "Steam game definition fetch failed.",
                     transientFailure: true);
             }
-        }
-
-        private Task EnrichSteamHuntersCategoriesAsync(
-            int appId,
-            string gameName,
-            IList<AchievementDetail> achievements,
-            CancellationToken cancel)
-        {
-            if (_steamHuntersCategoryEnricher == null ||
-                !ShouldUseSteamHuntersForCategories())
-            {
-                return Task.CompletedTask;
-            }
-
-            // Friends refreshes never download default category art (playniteGameId: null):
-            // provider-only friend games have no Playnite id to key art files by, and mapped
-            // games get their art from the owner's own library scan. The category labels/types
-            // set here do persist for mapped games (seed/backfill at definition-save time).
-            return _steamHuntersCategoryEnricher.EnrichAsync(appId, gameName, achievements, playniteGameId: null, cancel);
-        }
-
-        private static bool ShouldUseSteamHuntersForCategories()
-        {
-            return ProviderRegistry.Settings<SteamSettings>()?.UseSteamHuntersForCategories == true;
         }
 
         private static bool IsUsableCommunityPage(SteamPageResult page)
@@ -756,6 +784,61 @@ namespace PlayniteAchievements.Providers.Steam
             {
                 _friendRefreshSchemaTasks?.Remove(appId);
             }
+        }
+
+        /// <summary>
+        /// One row per schema achievement, unlocked or not, matching what the stats-page scrape
+        /// produced with locked rows included. Returns null when no schema is available to name
+        /// the achievements.
+        /// </summary>
+        private async Task<List<FriendAchievementRow>> BuildRowsFromUserAchievementsAsync(
+            string accessToken,
+            int appId,
+            SteamScanner.UserAchievementsFetch fetch,
+            CancellationToken cancel)
+        {
+            SchemaAndPercentages schema = null;
+            try
+            {
+                schema = await FetchFriendRefreshSchemaAsync(accessToken, appId, cancel).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                RemoveCachedFriendRefreshSchemaTask(appId);
+                _logger?.Debug(ex, $"Steam friend schema fetch failed for appId={appId}; using the achievements page schema.");
+            }
+
+            schema = schema ?? fetch.PageSchema;
+            if (schema?.Achievements == null || schema.Achievements.Count == 0)
+            {
+                return null;
+            }
+
+            var unlocks = SteamAchievementSetMapper.MapUnlocks(appId, schema, fetch.Data, fetch.PageSchema).Unlocks;
+            return schema.Achievements
+                .Where(definition => !string.IsNullOrWhiteSpace(definition?.Name))
+                .Select(definition =>
+                {
+                    var apiName = definition.Name.Trim();
+                    var unlocked = unlocks.UnlockedApiNames.Contains(apiName);
+                    unlocks.ProgressNum.TryGetValue(apiName, out var progressNum);
+                    unlocks.ProgressDenom.TryGetValue(apiName, out var progressDenom);
+                    return new FriendAchievementRow
+                    {
+                        ApiName = apiName,
+                        DisplayName = string.IsNullOrWhiteSpace(definition.DisplayName) ? apiName : definition.DisplayName,
+                        Description = definition.Description ?? string.Empty,
+                        IconUrl = unlocked || string.IsNullOrWhiteSpace(definition.IconGray)
+                            ? definition.Icon
+                            : definition.IconGray,
+                        Unlocked = unlocked,
+                        UnlockTimeUtc = unlocks.UnlockTimesUtc.TryGetValue(apiName, out var time) ? time : (DateTime?)null,
+                        ProgressNum = progressNum,
+                        ProgressDenom = progressDenom
+                    };
+                })
+                .ToList();
         }
 
         private static List<FriendAchievementRow> MapRows(
