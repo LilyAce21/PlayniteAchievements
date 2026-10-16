@@ -46,7 +46,8 @@ namespace PlayniteAchievements.Providers.Steam.Models
         /// <summary>
         /// A supplied access token was refused (HTTP 401/403) and the call was answered without
         /// it. Data that Steam serves anonymously still arrives, but the Steam session needs to be
-        /// renewed.
+        /// renewed. Steam also answers some invalid tokens as anonymous requests without a 401,
+        /// so false here does not prove the token is valid.
         /// </summary>
         public bool TokenRejected { get; }
 
