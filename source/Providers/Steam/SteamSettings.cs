@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 using PlayniteAchievements.Providers.Settings;
 using System;
 using System.Collections.Generic;
@@ -57,6 +58,44 @@ namespace PlayniteAchievements.Providers.Steam
 
         [JsonIgnore]
         public bool UseSteamHuntersForCategories => SteamHuntersCategoryMode != SteamHuntersCategoryMode.Off;
+
+        /// <inheritdoc />
+        public override void DeserializeFromJson(string json)
+        {
+            base.DeserializeFromJson(json);
+            ApplyLegacySteamHuntersSetting(json);
+        }
+
+        // Settings saved before the mode existed carry the checkbox UseSteamHuntersForCategories
+        // (default off). Unchecked maps to Off and checked to Merge; JSON that already has a mode
+        // keeps it.
+        private void ApplyLegacySteamHuntersSetting(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            JObject obj;
+            try
+            {
+                obj = JObject.Parse(json);
+            }
+            catch (JsonException)
+            {
+                return;
+            }
+
+            if (obj[nameof(SteamHuntersCategoryMode)] != null ||
+                obj[nameof(UseSteamHuntersForCategories)]?.Type != JTokenType.Boolean)
+            {
+                return;
+            }
+
+            SteamHuntersCategoryMode = obj.Value<bool>(nameof(UseSteamHuntersForCategories))
+                ? SteamHuntersCategoryMode.Merge
+                : SteamHuntersCategoryMode.Off;
+        }
 
         public ObservableCollection<SteamIgnoredFriend> IgnoredFriends
         {
