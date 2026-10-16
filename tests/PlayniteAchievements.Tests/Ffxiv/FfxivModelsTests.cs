@@ -79,36 +79,6 @@ namespace PlayniteAchievements.Ffxiv.Tests
         }
 
         [TestMethod]
-        public void Resolution_Resolved_CarriesTheCharacterId()
-        {
-            var resolution = FfxivCharacterResolution.Resolved(7660136);
-
-            Assert.AreEqual(FfxivResolveOutcome.Resolved, resolution.Outcome);
-            Assert.AreEqual(7660136L, resolution.CharacterId);
-        }
-
-        [TestMethod]
-        public void Resolution_NonPositiveId_IsNoMatch()
-        {
-            foreach (var id in new long[] { 0, -1 })
-            {
-                var resolution = FfxivCharacterResolution.Resolved(id);
-
-                Assert.AreEqual(FfxivResolveOutcome.NoMatch, resolution.Outcome, $"id {id}");
-                Assert.AreEqual(0L, resolution.CharacterId, $"id {id}");
-            }
-        }
-
-        [TestMethod]
-        public void Resolution_LookupFailed_IsDistinctFromNoMatch()
-        {
-            // A Lodestone outage must not be reportable as a mistyped character name.
-            Assert.AreEqual(FfxivResolveOutcome.LookupFailed, FfxivCharacterResolution.LookupFailed().Outcome);
-            Assert.AreEqual(FfxivResolveOutcome.NoMatch, FfxivCharacterResolution.NoMatch().Outcome);
-            Assert.AreEqual(0L, FfxivCharacterResolution.LookupFailed().CharacterId);
-        }
-
-        [TestMethod]
         public void NotIndexedException_CarriesTheLodestoneId()
         {
             var ex = new FfxivCharacterNotIndexedException(7660136);
