@@ -26,12 +26,13 @@ namespace PlayniteAchievements.Providers.Steam.Models
 
     internal sealed class SteamApiResult<T>
     {
-        private SteamApiResult(SteamApiOutcome outcome, T value, int? eResult, int statusCode)
+        private SteamApiResult(SteamApiOutcome outcome, T value, int? eResult, int statusCode, bool tokenRejected)
         {
             Outcome = outcome;
             Value = value;
             EResult = eResult;
             StatusCode = statusCode;
+            TokenRejected = tokenRejected;
         }
 
         public SteamApiOutcome Outcome { get; }
@@ -42,19 +43,29 @@ namespace PlayniteAchievements.Providers.Steam.Models
 
         public int StatusCode { get; }
 
+        /// <summary>
+        /// A supplied access token was refused (HTTP 401/403) and the call was answered without
+        /// it. Data that Steam serves anonymously still arrives, but the Steam session needs to be
+        /// renewed.
+        /// </summary>
+        public bool TokenRejected { get; }
+
         public bool IsOk => Outcome == SteamApiOutcome.Ok;
 
         public static SteamApiResult<T> Ok(T value, int? eResult = 1, int statusCode = 200) =>
-            new SteamApiResult<T>(SteamApiOutcome.Ok, value, eResult, statusCode);
+            new SteamApiResult<T>(SteamApiOutcome.Ok, value, eResult, statusCode, false);
 
         public static SteamApiResult<T> Fail(SteamApiOutcome outcome, int? eResult = null, int statusCode = 0) =>
-            new SteamApiResult<T>(outcome, default(T), eResult, statusCode);
+            new SteamApiResult<T>(outcome, default(T), eResult, statusCode, false);
 
         public SteamApiResult<TOther> As<TOther>(TOther value = default(TOther)) =>
-            new SteamApiResult<TOther>(Outcome, value, EResult, StatusCode);
+            new SteamApiResult<TOther>(Outcome, value, EResult, StatusCode, TokenRejected);
+
+        public SteamApiResult<T> WithTokenRejected() =>
+            new SteamApiResult<T>(Outcome, Value, EResult, StatusCode, true);
 
         public override string ToString() =>
-            $"{Outcome} (eresult={EResult?.ToString() ?? "-"}, status={StatusCode})";
+            $"{Outcome} (eresult={EResult?.ToString() ?? "-"}, status={StatusCode}{(TokenRejected ? ", token rejected" : string.Empty)})";
     }
 
     /// <summary>
