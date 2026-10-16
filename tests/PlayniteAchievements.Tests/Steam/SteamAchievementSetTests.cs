@@ -118,6 +118,54 @@ namespace PlayniteAchievements.Steam.Tests
             Assert.AreEqual(SteamSsrQueryState.Error, page.UserAchievementsState);
         }
 
+        [TestMethod]
+        public void SsrParser_FriendPage_ReadsTargetNotViewer_InEitherOrder()
+        {
+            // A signed-in viewer's page for a friend carries both players' unlocks (the
+            // "compare to your progress" toggle); the loader's targetSteamId picks the friend.
+            const string viewer = "76561198000000001";
+            const string friend = "76561198000000002";
+            object UserQuery(string steamId, int key) => new
+            {
+                state = new
+                {
+                    status = "success",
+                    data = new
+                    {
+                        appid = 620,
+                        steamid = steamId,
+                        achievements = new Dictionary<string, object>
+                        {
+                            [key.ToString()] = new { internal_key = key, unlocked = true, unlock_time = 1511385775 }
+                        }
+                    }
+                },
+                queryKey = new object[] { "achievements", 620, "user_achievements", steamId }
+            };
+
+            foreach (var order in new[] { new[] { friend, viewer }, new[] { viewer, friend } })
+            {
+                var queryData = JsonConvert.SerializeObject(new
+                {
+                    queries = order.Select(id => UserQuery(id, id == friend ? 30 : 1)).ToArray()
+                });
+                var json = JsonConvert.SerializeObject(new
+                {
+                    loaderData = new[] { "{\"steamid\":\"" + viewer + "\"}", "{\"appid\":620,\"targetSteamId\":\"" + friend + "\"}" },
+                    UserConfig = new { logged_in = true, steamid = viewer },
+                    renderContext = new { queryData }
+                });
+
+                var page = SteamAchievementsSsrParser.Parse(
+                    $"<script type=\"application/json\" id=\"valve-ssr-data\">{json}</script>", 620);
+
+                Assert.IsNotNull(page);
+                Assert.AreEqual(friend, page.TargetSteamId);
+                Assert.AreEqual(SteamSsrQueryState.Success, page.UserAchievementsState);
+                CollectionAssert.AreEquivalent(new[] { 30 }, page.UserAchievements.ByInternalKey.Keys.ToArray());
+            }
+        }
+
         // ------------------------------------------------------------------
         // Web API payloads and unlock mapping
         // ------------------------------------------------------------------
@@ -463,8 +511,35 @@ namespace PlayniteAchievements.Steam.Tests
             var result = await client.GetUserAchievementsAsync("expired", TestSteamId, 620, CancellationToken.None).ConfigureAwait(false);
 
             Assert.IsTrue(result.IsOk);
+            Assert.IsTrue(result.TokenRejected);
             Assert.AreEqual(2, requests.Count);
             Assert.IsFalse(requests[1].Query.Contains("access_token"));
+        }
+
+        [TestMethod]
+        public async Task SendService_RejectedToken_OnHiddenProfile_StaysFlagged()
+        {
+            var client = Client(request => request.RequestUri.Query.Contains("access_token")
+                ? Response(HttpStatusCode.Forbidden, string.Empty)
+                : Response(HttpStatusCode.OK, "{\"response\":{}}", eResult: 15));
+
+            var user = await client.GetUserAchievementsAsync("expired", TestSteamId, 620, CancellationToken.None).ConfigureAwait(false);
+            var schema = await client.GetGameSchemaAsync("expired", 620, "english", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.AreEqual(SteamApiOutcome.AccessDenied, user.Outcome);
+            Assert.IsTrue(user.TokenRejected);
+            Assert.IsTrue(schema.TokenRejected);
+        }
+
+        [TestMethod]
+        public async Task SendService_AcceptedToken_IsNotFlagged()
+        {
+            var client = Client(_ => Response(HttpStatusCode.OK, LoadFixture("api_user_achievements_620.json"), eResult: 1));
+
+            var result = await client.GetUserAchievementsAsync("valid", TestSteamId, 620, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.IsTrue(result.IsOk);
+            Assert.IsFalse(result.TokenRejected);
         }
 
         [TestMethod]
