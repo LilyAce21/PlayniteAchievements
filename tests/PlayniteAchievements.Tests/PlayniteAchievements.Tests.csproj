@@ -408,6 +408,11 @@
     <Compile Include="..\..\source\Providers\PSN\PsnSettings.cs" Link="Source\Providers\PSN\PsnSettings.cs" />
     <Compile Include="..\..\source\Providers\Steam\Models\SteamApiResponseModels.cs" Link="Source\Providers\Steam\Models\SteamApiResponseModels.cs" />
     <Compile Include="..\..\source\Providers\Steam\Models\SteamResponseModels.cs" Link="Source\Providers\Steam\Models\SteamResponseModels.cs" />
+    <Compile Include="..\..\source\Providers\Steam\Models\SteamApiResult.cs" Link="Source\Providers\Steam\Models\SteamApiResult.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamAchievementsSsrParser.cs" Link="Source\Providers\Steam\SteamAchievementsSsrParser.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamAchievementSetMapper.cs" Link="Source\Providers\Steam\SteamAchievementSetMapper.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamCategoryLabels.cs" Link="Source\Providers\Steam\SteamCategoryLabels.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamCategoryArtDownloader.cs" Link="Source\Providers\Steam\SteamCategoryArtDownloader.cs" />
     <Compile Include="..\..\source\Common\ObservableObject.cs" Link="Source\Common\ObservableObject.cs" />
     <Compile Include="..\..\source\Common\BulkObservableCollection.cs" Link="Source\Common\BulkObservableCollection.cs" />
     <Compile Include="..\..\source\Common\AsyncCommand.cs" Link="Source\Common\AsyncCommand.cs" />
@@ -796,6 +801,9 @@
 
   <ItemGroup>
     <None Include="Fixtures\Steam\*.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Fixtures\Steam\Achievements\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Fixtures\Webm\*.webm">
