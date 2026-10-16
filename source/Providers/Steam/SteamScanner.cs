@@ -142,6 +142,7 @@ namespace PlayniteAchievements.Providers.Steam
                 var localFailures = 0;
                 var hiddenWithoutToken = 0;
                 var authSignals = new AuthSignals();
+                var pageFirst = new PageFirstHint();
 
                 var payload = await ProviderRefreshExecutor.RunProviderGamesAsync(
                     gamesToRefresh,
@@ -176,7 +177,7 @@ namespace PlayniteAchievements.Providers.Steam
                         try
                         {
                             data = await rateLimiter.ExecuteWithRetryAsync(
-                                () => FetchGameDataAsync(game, steamUserId, accessToken, authSignals, token),
+                                () => FetchGameDataAsync(game, steamUserId, accessToken, authSignals, pageFirst, token),
                                 IsTransientError,
                                 token).ConfigureAwait(false);
                         }
@@ -317,6 +318,7 @@ namespace PlayniteAchievements.Providers.Steam
             string steamUserId,
             string accessToken,
             AuthSignals authSignals,
+            PageFirstHint pageFirst,
             CancellationToken cancel)
         {
             if (!TryGetPlatformAppId(game, out var appId))
@@ -360,7 +362,7 @@ namespace PlayniteAchievements.Providers.Steam
             var schema = schemaResult.Value;
             var hasAchievements = schema?.Achievements?.Count > 0;
 
-            var unlockResult = await FetchUnlockedAsync(appId, game?.Name, steamUserId, accessToken, schema, authSignals, cancel).ConfigureAwait(false);
+            var unlockResult = await FetchUnlockedAsync(appId, game?.Name, steamUserId, accessToken, schema, authSignals, pageFirst, cancel).ConfigureAwait(false);
             var unlocked = unlockResult.Unlocks;
             schema = unlockResult.Schema ?? schema;
 
@@ -664,17 +666,50 @@ namespace PlayniteAchievements.Providers.Steam
         }
 
         /// <summary>
+        /// Remembers, for one refresh, that the Web API refused a player's data while the
+        /// achievements page served it. Later games for that player then go to the page first
+        /// instead of spending a refused API call each. Not persisted.
+        /// </summary>
+        internal sealed class PageFirstHint
+        {
+            private int _pageFirst;
+
+            public bool PageFirst => Volatile.Read(ref _pageFirst) != 0;
+
+            public void Set() => Interlocked.Exchange(ref _pageFirst, 1);
+        }
+
+        /// <summary>
         /// Reads a player's unlocks: IPlayerService/GetUserAchievements first, then the
         /// achievements page (HTTP, then the logged-in browser session when the HTTP page was not
-        /// logged in, which covers friends-only profiles).
+        /// logged in). The API serves only data that is public; private and friends-only data
+        /// comes from the page rendered in the viewer's signed-in session. With a set
+        /// <paramref name="pageFirst"/> hint the page is tried before the API.
         /// </summary>
         internal async Task<UserAchievementsFetch> FetchUserAchievementsAsync(
             string steamId64,
             int appId,
             string accessToken,
-            CancellationToken cancel)
+            CancellationToken cancel,
+            PageFirstHint pageFirst = null)
         {
             var result = new UserAchievementsFetch();
+
+            SteamSsrAchievementsPage page = null;
+            if (pageFirst?.PageFirst == true)
+            {
+                page = await FetchAchievementsPageAsync(steamId64, appId, cancel).ConfigureAwait(false);
+                if (page?.UserAchievementsState == SteamSsrQueryState.Success)
+                {
+                    // The API refused this player's data earlier in this refresh.
+                    result.ApiOutcome = SteamApiOutcome.AccessDenied;
+                    result.PageSchema = page.Schema;
+                    result.Data = page.UserAchievements;
+                    return result;
+                }
+
+                // The page failed (for example the session ended mid-refresh); the API decides.
+            }
 
             var api = await _steamApiClient
                 .GetUserAchievementsAsync(accessToken, steamId64, appId, cancel)
@@ -687,12 +722,22 @@ namespace PlayniteAchievements.Providers.Steam
                 return result;
             }
 
-            _logger?.Debug($"[SteamAch] GetUserAchievements for appId={appId}, steamId={steamId64}: {api}. Trying the achievements page.");
+            if (page == null)
+            {
+                _logger?.Debug($"[SteamAch] GetUserAchievements for appId={appId}, steamId={steamId64}: {api}. Trying the achievements page.");
+                page = await FetchAchievementsPageAsync(steamId64, appId, cancel).ConfigureAwait(false);
+            }
 
-            var page = await FetchAchievementsPageAsync(steamId64, appId, cancel).ConfigureAwait(false);
             result.PageSchema = page?.Schema;
             if (page?.UserAchievementsState == SteamSsrQueryState.Success)
             {
+                if (pageFirst != null && !pageFirst.PageFirst &&
+                    (api.Outcome == SteamApiOutcome.AccessDenied || api.Outcome == SteamApiOutcome.Unauthorized))
+                {
+                    pageFirst.Set();
+                    _logger?.Info($"[SteamAch] Web API refuses data for steamId={steamId64} ({api}); reading the achievements page first for the rest of this refresh.");
+                }
+
                 result.Data = page.UserAchievements;
                 return result;
             }
@@ -778,6 +823,7 @@ namespace PlayniteAchievements.Providers.Steam
             string accessToken,
             SchemaAndPercentages schema,
             AuthSignals authSignals,
+            PageFirstHint pageFirst,
             CancellationToken cancel)
         {
             if (string.IsNullOrWhiteSpace(steamUserId))
@@ -785,7 +831,7 @@ namespace PlayniteAchievements.Providers.Steam
                 return new UnlockFetchResult { Unlocks = new UserUnlockedAchievements() };
             }
 
-            var fetch = await FetchUserAchievementsAsync(steamUserId, appId, accessToken, cancel).ConfigureAwait(false);
+            var fetch = await FetchUserAchievementsAsync(steamUserId, appId, accessToken, cancel, pageFirst).ConfigureAwait(false);
             authSignals?.Record(fetch.TokenRejected, fetch.SignInNeeded);
             if (fetch.SignInNeeded && fetch.Data == null)
             {
