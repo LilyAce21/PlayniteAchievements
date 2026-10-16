@@ -137,7 +137,7 @@ namespace PlayniteAchievements.Providers.Steam
                 }
             }
 
-            return SteamApiResult<SteamUserAchievements>.Ok(data, response.EResult, response.StatusCode);
+            return response.As(data);
         }
 
         /// <summary>
@@ -173,7 +173,7 @@ namespace PlayniteAchievements.Providers.Steam
                 }
             }
 
-            return SteamApiResult<Dictionary<int, double>>.Ok(percentages, response.EResult, response.StatusCode);
+            return response.As(percentages);
         }
 
         public async Task<IReadOnlyList<SteamOwnedGame>> GetOwnedGamesAsync(
@@ -265,13 +265,14 @@ namespace PlayniteAchievements.Providers.Steam
             var schema = MapSchema(appId, response.Value?.Response);
             if (schema == null)
             {
-                return SteamApiResult<SchemaAndPercentages>.Fail(
+                var empty = SteamApiResult<SchemaAndPercentages>.Fail(
                     SteamApiOutcome.NoAchievements,
                     response.EResult,
                     response.StatusCode);
+                return response.TokenRejected ? empty.WithTokenRejected() : empty;
             }
 
-            return SteamApiResult<SchemaAndPercentages>.Ok(schema, response.EResult, response.StatusCode);
+            return response.As(schema);
         }
 
         internal static SchemaAndPercentages MapSchema(int appId, GetGameAchievementsResponse response)
@@ -404,8 +405,10 @@ namespace PlayniteAchievements.Providers.Steam
                         {
                             // An expired or rejected token should not block data Steam serves
                             // anonymously (public profiles, every schema), so retry without it.
-                            _logger?.Debug($"[SteamApi] {method} rejected the access token (status={statusCode}); retrying without it.");
-                            return await SendServiceAsync<TRoot>(method, null, parameters, ct).ConfigureAwait(false);
+                            // The result carries TokenRejected so callers can ask for a new sign-in.
+                            _logger?.Warn($"[SteamApi] {method} rejected the access token (status={statusCode}); retrying without it.");
+                            var anonymous = await SendServiceAsync<TRoot>(method, null, parameters, ct).ConfigureAwait(false);
+                            return anonymous.WithTokenRejected();
                         }
 
                         return SteamApiResult<TRoot>.Fail(SteamApiOutcome.Unauthorized, eResult, statusCode);
