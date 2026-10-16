@@ -8,50 +8,44 @@ namespace PlayniteAchievements.Providers.Ffxiv
     /// </summary>
     public class FfxivSettings : ProviderSettingsBase
     {
-        private string _characterName;
-        private string _world;
-        private string _region = "na";
+        private string _characterProfile;
         private long _resolvedCharacterId;
 
         /// <inheritdoc />
         public override string ProviderKey => "FFXIV";
 
         /// <summary>
-        /// In-game character name (e.g. "Raelys Skyborn").
+        /// Lodestone or FFXIV Collect character profile URL, or a bare Lodestone id.
         /// </summary>
-        public string CharacterName
+        public string CharacterProfile
         {
-            get => _characterName;
-            set => SetValue(ref _characterName, value);
+            get => _characterProfile;
+            set => SetValue(ref _characterProfile, value);
         }
 
         /// <summary>
-        /// Home world name (e.g. "Behemoth"). Used to disambiguate the Lodestone
-        /// character search.
-        /// </summary>
-        public string World
-        {
-            get => _world;
-            set => SetValue(ref _world, value);
-        }
-
-        /// <summary>
-        /// Lodestone region subdomain used for character search: na, eu, de, fr, jp.
-        /// </summary>
-        public string Region
-        {
-            get => _region;
-            set => SetValue(ref _region, string.IsNullOrWhiteSpace(value) ? "na" : value.Trim().ToLowerInvariant());
-        }
-
-        /// <summary>
-        /// Cached Lodestone character id resolved from <see cref="CharacterName"/>
-        /// and <see cref="World"/>. Zero when not yet resolved.
+        /// Lodestone character id resolved by earlier versions from a name and world
+        /// search. Used only while <see cref="CharacterProfile"/> is empty, so a
+        /// character configured that way keeps refreshing. Zero when not set.
         /// </summary>
         public long ResolvedCharacterId
         {
             get => _resolvedCharacterId;
             set => SetValue(ref _resolvedCharacterId, value);
+        }
+
+        /// <summary>
+        /// The configured Lodestone character id, or null when none is configured or
+        /// <see cref="CharacterProfile"/> does not contain one.
+        /// </summary>
+        public long? GetCharacterId()
+        {
+            if (!string.IsNullOrWhiteSpace(CharacterProfile))
+            {
+                return FfxivParsing.ParseCharacterId(CharacterProfile);
+            }
+
+            return ResolvedCharacterId > 0 ? ResolvedCharacterId : (long?)null;
         }
     }
 }

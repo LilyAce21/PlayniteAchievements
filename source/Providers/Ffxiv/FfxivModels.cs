@@ -150,7 +150,7 @@ namespace PlayniteAchievements.Providers.Ffxiv
     }
 
     /// <summary>
-    /// The character resolves on the Lodestone but FFXIV Collect has no record of it.
+    /// The character exists on the Lodestone but FFXIV Collect has no record of it.
     /// FFXIV Collect indexes characters on demand: one has to be added there once,
     /// via the Add button on its search result, before the character endpoint answers.
     /// </summary>
@@ -163,56 +163,5 @@ namespace PlayniteAchievements.Providers.Ffxiv
         }
 
         public long LodestoneId { get; }
-    }
-
-    /// <summary>
-    /// Outcome of a Lodestone character lookup.
-    /// </summary>
-    internal enum FfxivResolveOutcome
-    {
-        /// <summary>The search returned a character id.</summary>
-        Resolved,
-
-        /// <summary>The search ran and the name, world, and region matched nothing.</summary>
-        NoMatch,
-
-        /// <summary>The search could not be completed, so match status is unknown.</summary>
-        LookupFailed
-    }
-
-    /// <summary>
-    /// Result of <c>FfxivApiClient.ResolveCharacterIdAsync</c>. Keeps "matched nothing"
-    /// distinct from "could not ask", so a Lodestone outage is not reported as a
-    /// mistyped character name.
-    /// </summary>
-    internal sealed class FfxivCharacterResolution
-    {
-        private FfxivCharacterResolution(FfxivResolveOutcome outcome, long characterId)
-        {
-            Outcome = outcome;
-            CharacterId = characterId;
-        }
-
-        public FfxivResolveOutcome Outcome { get; }
-
-        /// <summary>The resolved id, or 0 for any outcome other than <see cref="FfxivResolveOutcome.Resolved"/>.</summary>
-        public long CharacterId { get; }
-
-        public static FfxivCharacterResolution Resolved(long characterId)
-        {
-            return characterId > 0
-                ? new FfxivCharacterResolution(FfxivResolveOutcome.Resolved, characterId)
-                : NoMatch();
-        }
-
-        public static FfxivCharacterResolution NoMatch()
-        {
-            return new FfxivCharacterResolution(FfxivResolveOutcome.NoMatch, 0);
-        }
-
-        public static FfxivCharacterResolution LookupFailed()
-        {
-            return new FfxivCharacterResolution(FfxivResolveOutcome.LookupFailed, 0);
-        }
     }
 }

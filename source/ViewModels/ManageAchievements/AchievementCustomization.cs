@@ -60,7 +60,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 Tuple.Create(AchievementCustomizationFacet.TrophyType, "LOCPlayAch_Column_Trophy"),
                 Tuple.Create(AchievementCustomizationFacet.UnlockTime, "LOCPlayAch_Common_UnlockTime"),
                 Tuple.Create(AchievementCustomizationFacet.Category, "LOCCategoryLabel"),
-                Tuple.Create(AchievementCustomizationFacet.CategoryType, "LOCPlayAch_ManageAchievements_Category_TypeSelectorLabel"),
+                Tuple.Create(AchievementCustomizationFacet.CategoryType, "LOCTypeLabel"),
                 Tuple.Create(AchievementCustomizationFacet.Hidden, "LOCPlayAch_Filter_Hidden"),
                 Tuple.Create(AchievementCustomizationFacet.Note, "LOCPlayAch_ManageAchievements_Notes_Note"),
                 Tuple.Create(AchievementCustomizationFacet.FilterScope, "LOCPlayAch_Menu_Filters"),
