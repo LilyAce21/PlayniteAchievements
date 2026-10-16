@@ -126,7 +126,9 @@ namespace PlayniteAchievements.Providers.Steam
                 }
 
                 // Steam's achievement services answer without a token for public profiles, so the
-                // web path needs only the account id. The token adds private-profile access.
+                // web path needs only the account id. Private and friends-only data is read from
+                // the achievements page in the signed-in session; the API refused it even with the
+                // session's token (EResult 15 for the user's own private profile, 2026-10-16).
                 webAvailable = !string.IsNullOrWhiteSpace(steamUserId);
                 if (webAvailable && string.IsNullOrWhiteSpace(accessToken))
                 {
@@ -224,7 +226,7 @@ namespace PlayniteAchievements.Providers.Steam
 
                 // A complete local fallback is a successful offline refresh. Surface auth only
                 // when at least one requested game could use neither the web nor its local files.
-                // Without a token only public data is readable, so a private profile also needs
+                // Signed out, only public data is readable, so a private profile also needs
                 // sign-in. A rejected token means the Steam session expired even when anonymous
                 // data kept the refresh going.
                 if (authSignals.Any)
