@@ -1,4 +1,3 @@
-using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -12,8 +11,8 @@ namespace PlayniteAchievements.Providers.Ffxiv
     /// </summary>
     internal static class FfxivParsing
     {
-        private static readonly Regex LodestoneIdRegex =
-            new Regex("/lodestone/character/(\\d+)/", RegexOptions.Compiled);
+        private static readonly Regex CharacterIdRegex =
+            new Regex("/(?:lodestone/character|characters)/(\\d+)(?:[/?#]|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// FFXIV Collect categories whose achievements are only obtainable during a
@@ -27,58 +26,24 @@ namespace PlayniteAchievements.Providers.Ffxiv
             };
 
         /// <summary>
-        /// Extracts the Lodestone character id for an exact name + world match from a
-        /// Lodestone character search results page. Returns null when there is no
-        /// exact match. The Lodestone search is a partial match (e.g. "Mal Reynolds"
-        /// also returns "Malynor Reynolds"), so the first result link cannot be used.
+        /// Extracts a Lodestone character id from a Lodestone profile URL
+        /// (".../lodestone/character/123/"), an FFXIV Collect profile URL
+        /// (".../characters/123") or a bare id. Returns null for anything else.
         /// </summary>
-        public static long? ParseLodestoneCharacterId(string html, string name, string world)
+        public static long? ParseCharacterId(string input)
         {
-            if (string.IsNullOrWhiteSpace(html) ||
-                string.IsNullOrWhiteSpace(name) ||
-                string.IsNullOrWhiteSpace(world))
+            if (string.IsNullOrWhiteSpace(input))
             {
                 return null;
             }
 
-            var wantName = HtmlEntity.DeEntitize(name).Trim();
-            var wantWorld = world.Trim();
+            var trimmed = input.Trim();
+            var match = CharacterIdRegex.Match(trimmed);
+            var digits = match.Success ? match.Groups[1].Value : trimmed;
 
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
-            var entries = doc.DocumentNode.SelectNodes("//a[contains(@class, 'entry__link')]");
-            if (entries == null)
-            {
-                return null;
-            }
-
-            foreach (var entry in entries)
-            {
-                var href = entry.GetAttributeValue("href", string.Empty);
-                var idMatch = LodestoneIdRegex.Match(href);
-                if (!idMatch.Success)
-                {
-                    continue;
-                }
-
-                var nameNode = entry.SelectSingleNode(".//p[contains(@class, 'entry__name')]");
-                var worldNode = entry.SelectSingleNode(".//p[contains(@class, 'entry__world')]");
-
-                var entryName = HtmlEntity.DeEntitize(nameNode?.InnerText ?? string.Empty).Trim();
-                var entryWorldText = HtmlEntity.DeEntitize(worldNode?.InnerText ?? string.Empty);
-                // entry__world reads like "Gilgamesh [Aether]"; keep the world.
-                var entryWorld = entryWorldText.Split('[')[0].Replace(' ', ' ').Trim();
-
-                if (string.Equals(entryName, wantName, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(entryWorld, wantWorld, StringComparison.OrdinalIgnoreCase) &&
-                    long.TryParse(idMatch.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
-                {
-                    return id;
-                }
-            }
-
-            return null;
+            return long.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var id) && id > 0
+                ? id
+                : (long?)null;
         }
 
         /// <summary>
