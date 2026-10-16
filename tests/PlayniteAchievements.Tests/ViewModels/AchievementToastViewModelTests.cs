@@ -1391,6 +1391,15 @@ namespace PlayniteAchievements.Tests.ViewModels
             Assert.IsTrue(viewModel.FrameShowCategory);
         }
 
+        [TestMethod]
+        public void NestedCategory_ShowsOnlyItsLeaf()
+        {
+            var viewModel = CategoryToast("DLC::Season Pass");
+
+            Assert.AreEqual("Season Pass", viewModel.Category);
+            Assert.IsTrue(viewModel.ShowCategory);
+        }
+
         private static AchievementToastViewModel CategoryToast(string category)
         {
             return new AchievementToastViewModel(
