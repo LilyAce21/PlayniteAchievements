@@ -181,6 +181,47 @@ namespace PlayniteAchievements.Providers.Steam
         public Task<SteamPageResult> GetAchievementsPageAsync(string steamId64, int appId, string language, CancellationToken ct)
             => GetSteamPageAsync($"https://steamcommunity.com/profiles/{steamId64}/stats/{appId}/?tab=achievements&l={language ?? "english"}", true, ct);
 
+        internal static string BuildAchievementsSsrPageUrl(string steamId64, int appId, string language)
+            => $"https://steamcommunity.com/profiles/{steamId64?.Trim()}/achievements/{appId}?l={language ?? "english"}";
+
+        /// <summary>
+        /// Fetches the redesigned achievements page over HTTP with the cookie jar. The page reads
+        /// as logged in only when the jar holds a valid session; callers that need the viewer's
+        /// session (friends-only profiles) check <see cref="SteamSsrAchievementsPage.ViewerLoggedIn"/>
+        /// and use <see cref="GetAchievementsSsrPageViaBrowserAsync"/> when it is false.
+        /// </summary>
+        public Task<SteamPageResult> GetAchievementsSsrPageAsync(string steamId64, int appId, string language, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(steamId64) || appId <= 0)
+            {
+                return Task.FromResult(new SteamPageResult());
+            }
+
+            return GetSteamPageAsync(BuildAchievementsSsrPageUrl(steamId64, appId, language), true, ct);
+        }
+
+        /// <summary>
+        /// Loads the redesigned achievements page in the logged-in browser session, which renders
+        /// with the viewer's visibility (friends-only profiles included). Returns null when the
+        /// browser yields no page data.
+        /// </summary>
+        public async Task<SteamPageResult> GetAchievementsSsrPageViaBrowserAsync(string steamId64, int appId, string language, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(steamId64) || appId <= 0)
+            {
+                return null;
+            }
+
+            var url = BuildAchievementsSsrPageUrl(steamId64, appId, language);
+            var result = new SteamPageResult { RequestedUrl = url, FinalUrl = url, Html = string.Empty };
+            if (!await TryGetSteamPageFromCefAsync(url, result, requireAchievementRows: false, ct).ConfigureAwait(false))
+            {
+                return null;
+            }
+
+            return SteamAchievementsSsrParser.HasSsrData(result.Html) ? result : null;
+        }
+
         public Task<SteamPageResult> GetFriendsPageAsync(string steamId64, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(steamId64))
