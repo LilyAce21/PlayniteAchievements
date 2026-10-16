@@ -381,14 +381,10 @@ namespace PlayniteAchievements.ViewModels
 
         // A category that just repeats the game name (common for single-list providers) reads as
         // a duplicate, so it is force-hidden in both the toast and the frame. The Default bucket
-        // names no category at all, so it is hidden the same way the grid cells blank it.
+        // reads as blank (see Category), so it is hidden the same way the grid cells blank it.
         private bool HasDistinctCategory =>
-            !string.IsNullOrWhiteSpace(_args.Category) &&
-            !string.Equals(_args.Category?.Trim(), _args.GameName?.Trim(), StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(
-                Services.Achievements.CategoryPathHelper.NormalizePath(_args.Category),
-                Services.Achievements.AchievementCategoryTypeHelper.DefaultCategoryLabel,
-                StringComparison.OrdinalIgnoreCase);
+            !string.IsNullOrWhiteSpace(Category) &&
+            !string.Equals(Category, _args.GameName?.Trim(), StringComparison.OrdinalIgnoreCase);
 
         // Unlock timestamp bindings (local time, current-culture formatting like the grids'
         // UnlockTimeText). A midnight time-of-day means a date-only provider timestamp, so the
@@ -688,7 +684,10 @@ namespace PlayniteAchievements.ViewModels
         // clicked. The line is kept (see MaskedDescription) so the card's rows sit where they
         // would for any other achievement.
         public string Description => IsDescriptionMasked ? MaskedDescription : _args.Description;
-        public string Category => _args.Category;
+        // The category's leaf name, as the grid cells show it: "DLC::Season Pass" reads as
+        // "Season Pass", and the Default bucket reads as blank.
+        public string Category =>
+            Services.Achievements.AchievementCategoryTypeHelper.ToCategoryLabelCellText(_args.Category);
         public string GameName => _args.GameName;
 
         // Absolute local paths to the Playnite game's icon and cover art; null when the game has
