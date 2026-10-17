@@ -155,6 +155,16 @@ namespace PlayniteAchievements.Services.Sound
         /// </summary>
         public bool PlayFile(string path)
         {
+            return PlayFile(path, SafeMaxSeconds());
+        }
+
+        /// <summary>
+        /// Plays one named file at the configured volume for at most <paramref name="maxSeconds"/>
+        /// (0 for the whole file), independent of the toast display time. Always forced and never
+        /// preloaded. Returns whether the host took it.
+        /// </summary>
+        public bool PlayFile(string path, double maxSeconds)
+        {
             lock (_gate)
             {
                 if (_disposed || string.IsNullOrWhiteSpace(path))
@@ -163,7 +173,7 @@ namespace PlayniteAchievements.Services.Sound
                 }
 
                 var gain = (_settings?.Persisted?.UnlockSoundVolumePercent ?? 0) / 100.0;
-                return _host.Play(path, gain, SafeMaxSeconds(), out _).HasValue;
+                return _host.Play(path, gain, maxSeconds > 0 ? maxSeconds : 0.0, out _).HasValue;
             }
         }
 
