@@ -597,12 +597,14 @@ namespace PlayniteAchievements.Services.UI
         /// Resolved focus-first: a wave fires while the player is in the game, so the window they
         /// are looking at is the one to photograph and to place the notification over. This is not
         /// the same choice the video recorder makes — it has to pick a target during launch and
-        /// keep it — so the two ask the tracker different questions on purpose.
+        /// keep it — so the two ask the tracker different questions on purpose. Either way the
+        /// answer is the game's presentation window, which may be a layer the game stacks above
+        /// its focus window.
         /// </summary>
         private IntPtr ResolveWaveWindowHandle()
         {
             return _activeWaveGameId.HasValue && _windowTracker != null
-                ? _windowTracker.TryGetFocusedWindowHandle(_activeWaveGameId.Value)
+                ? _windowTracker.ResolvePresentationWindow(_activeWaveGameId.Value, focusFirst: true)
                 : IntPtr.Zero;
         }
 
