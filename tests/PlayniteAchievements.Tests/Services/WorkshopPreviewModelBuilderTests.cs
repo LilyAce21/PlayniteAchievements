@@ -200,6 +200,7 @@ namespace PlayniteAchievements.Services.Tests
                     RowCount = 3,
                     ColumnCount = 0,
                     GridSize = 4,
+                    RowWeights = new List<double> { 2d, 1d, 1d },
                     Blocks = new List<ShowcaseBlockSettings>
                     {
                         new ShowcaseBlockSettings { Row = 0, Column = 0, RowSpan = 2, ColumnSpan = 1, WidgetInstanceId = "profile" },
@@ -227,7 +228,11 @@ namespace PlayniteAchievements.Services.Tests
             Assert.AreEqual("Shared page", model.PageName);
             Assert.AreEqual(3, model.Rows);
             Assert.AreEqual(4, model.Columns, "an unset count falls back to the legacy grid size");
-            Assert.AreEqual(2, model.Blocks.Count, "a block whose widget is not in the file is left out");
+            Assert.AreEqual(3, model.Blocks.Count, "a block whose widget is not in the file stays as an empty cell");
+            Assert.IsNull(model.Blocks[2].WidgetKind);
+            Assert.AreEqual(2, model.Blocks[2].Row);
+            CollectionAssert.AreEqual(new[] { 2d, 1d, 1d }, model.RowWeights.ToArray());
+            CollectionAssert.AreEqual(new[] { 1d, 1d, 1d, 1d }, model.ColumnWeights.ToArray(), "null weights are equal shares");
             Assert.AreEqual(ShowcaseWidgetKind.Profile, model.Blocks[0].WidgetKind);
             Assert.IsNull(model.Blocks[0].Title);
             Assert.AreEqual(2, model.Blocks[0].RowSpan);
