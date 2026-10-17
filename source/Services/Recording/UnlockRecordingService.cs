@@ -606,7 +606,7 @@ namespace PlayniteAchievements.Services.Recording
                 System.Drawing.Rectangle? bounds = null;
                 while (!token.IsCancellationRequested)
                 {
-                    var trackedHwnd = _windowTracker?.TryGetWindowHandle(session.OwnerGameId) ?? IntPtr.Zero;
+                    var trackedHwnd = _windowTracker?.ResolvePresentationWindow(session.OwnerGameId, focusFirst: false) ?? IntPtr.Zero;
                     var processId = _getGameProcessId?.Invoke(session.OwnerGameId);
                     mainWindowResolved = trackedHwnd != IntPtr.Zero ||
                                          (processId.HasValue && ProcessHasMainWindow(processId.Value));
@@ -728,7 +728,7 @@ namespace PlayniteAchievements.Services.Recording
                 // a captured snapshot, so a foreground switch to another running game redirects the
                 // per-window capture without a restart) — never a foreground fallback, so it follows
                 // the actual game once known instead of whatever window is on top at capture start.
-                Func<IntPtr> resolveHwnd = () => _windowTracker?.TryGetWindowHandle(session.OwnerGameId) ?? IntPtr.Zero;
+                Func<IntPtr> resolveHwnd = () => _windowTracker?.ResolvePresentationWindow(session.OwnerGameId, focusFirst: false) ?? IntPtr.Zero;
 
                 var recorder = new WgcVideoRecorder(
                     resolveHwnd, session.BufferDirectory, persisted.RecordingFps, SegmentSeconds,
