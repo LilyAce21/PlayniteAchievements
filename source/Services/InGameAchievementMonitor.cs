@@ -81,6 +81,11 @@ namespace PlayniteAchievements.Services
             public GameAchievementData CachedSchema;
             public bool QueryInFlight;
             /// <summary>
+            /// Set when the fast source first exhausts its retries this session, so the drop to the
+            /// slow cadence is logged at Info once rather than on every degraded read.
+            /// </summary>
+            public bool DegradedLogged;
+            /// <summary>
             /// Counters plus the observed unlock set as of the last logged read, so an unchanged
             /// read can be recognised and dropped. See <see cref="ProgressLogHeartbeat"/>.
             /// </summary>
@@ -1016,6 +1021,7 @@ namespace PlayniteAchievements.Services
 
         private void ScheduleSourceFailure(GamePollState state, string reason)
         {
+            var firstDegrade = false;
             lock (_stateLock)
             {
                 if (!_games.TryGetValue(state.Game.Id, out var tracked) ||
@@ -1028,6 +1034,19 @@ namespace PlayniteAchievements.Services
                     CaptureTimelineClock.UtcNow,
                     StableReadRetryMilliseconds,
                     GetPollInterval());
+                if (state.Schedule.Degraded && !state.DegradedLogged)
+                {
+                    state.DegradedLogged = true;
+                    firstDegrade = true;
+                }
+            }
+
+            if (firstDegrade)
+            {
+                _logger?.Info(
+                    $"[InGameMonitor] Fast progress reads for {state.Game?.Name} keep failing ({reason ?? "unknown"}); " +
+                    $"reading every {GetPollInterval().TotalSeconds:0} s instead.");
+                return;
             }
 
             _logger?.Debug(
