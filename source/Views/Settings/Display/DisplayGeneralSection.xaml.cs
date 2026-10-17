@@ -1,13 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using Playnite.SDK;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Views.Helpers;
 using PlayniteAchievements.Views.Settings.Controls;
+using PlayniteAchievements.Views.Showcase;
 
 namespace PlayniteAchievements.Views.Settings.Display
 {
@@ -46,6 +49,29 @@ namespace PlayniteAchievements.Views.Settings.Display
                 OnSettingsReloaded);
 
             UpdateGlowTierTexts();
+            UpdateScoreCardNames();
+        }
+
+        /// <summary>The first Overview score card's type name, labeling its show toggle.</summary>
+        public static readonly DependencyProperty ScoreCard1NameProperty =
+            DependencyProperty.Register(nameof(ScoreCard1Name), typeof(string),
+                typeof(DisplayGeneralSection), new PropertyMetadata(string.Empty));
+
+        public string ScoreCard1Name
+        {
+            get => (string)GetValue(ScoreCard1NameProperty);
+            set => SetValue(ScoreCard1NameProperty, value);
+        }
+
+        /// <summary>The second Overview score card's type name, labeling its show toggle.</summary>
+        public static readonly DependencyProperty ScoreCard2NameProperty =
+            DependencyProperty.Register(nameof(ScoreCard2Name), typeof(string),
+                typeof(DisplayGeneralSection), new PropertyMetadata(string.Empty));
+
+        public string ScoreCard2Name
+        {
+            get => (string)GetValue(ScoreCard2NameProperty);
+            set => SetValue(ScoreCard2NameProperty, value);
         }
 
         /// <summary>Summary text for the soft-glow tier selector button.</summary>
@@ -104,6 +130,16 @@ namespace PlayniteAchievements.Views.Settings.Display
         private void OnSettingsReloaded()
         {
             UpdateGlowTierTexts();
+            UpdateScoreCardNames();
+        }
+
+        private void UpdateScoreCardNames()
+        {
+            var persisted = _settings?.Persisted;
+            ScoreCard1Name = ShowcaseUiText.ScoreCardTypeName(
+                ShowcaseWidgetOptions.GetScoreCardType(persisted?.OverviewScoreCard1));
+            ScoreCard2Name = ShowcaseUiText.ScoreCardTypeName(
+                ShowcaseWidgetOptions.GetScoreCardType(persisted?.OverviewScoreCard2));
         }
 
         private void OnPersistedPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -112,6 +148,11 @@ namespace PlayniteAchievements.Views.Settings.Display
                 e.PropertyName == nameof(PersistedSettings.TintMissableLocks))
             {
                 RarityAppearanceHelper.ApplyBadgeApplicationResources(_settings?.Persisted);
+            }
+            else if (e.PropertyName == nameof(PersistedSettings.OverviewScoreCard1) ||
+                     e.PropertyName == nameof(PersistedSettings.OverviewScoreCard2))
+            {
+                UpdateScoreCardNames();
             }
         }
 

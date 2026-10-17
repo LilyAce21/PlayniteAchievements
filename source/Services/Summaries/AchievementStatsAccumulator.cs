@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PlayniteAchievements.Models.Achievements;
+using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.ViewModels;
 using PlayniteAchievements.ViewModels.Items;
 
@@ -48,6 +49,9 @@ namespace PlayniteAchievements.Services.Summaries
                 stats.PrestigeScoreTotal,
                 achievement.PrestigeScore);
             AddTrophyTotal(stats, achievement.TrophyType);
+            stats.PlatformScorePointsTotal = AchievementGameStats.AddClamped(
+                stats.PlatformScorePointsTotal,
+                achievement.Points ?? 0);
 
             if (!achievement.Unlocked)
             {
@@ -61,6 +65,7 @@ namespace PlayniteAchievements.Services.Summaries
                 achievement.CollectionScore,
                 achievement.PrestigeScore,
                 achievement.Points ?? 0,
+                AchievementCategoryTypeHelper.IsSoftcore(achievement.CategoryType),
                 achievement.UnlockTimeUtc);
         }
 
@@ -83,6 +88,9 @@ namespace PlayniteAchievements.Services.Summaries
                 stats.PrestigeScoreTotal,
                 achievement.PrestigeScore);
             AddTrophyTotal(stats, achievement.TrophyType);
+            stats.PlatformScorePointsTotal = AchievementGameStats.AddClamped(
+                stats.PlatformScorePointsTotal,
+                achievement.Points);
 
             if (!treatItemAsUnlocked && !achievement.Unlocked)
             {
@@ -96,6 +104,7 @@ namespace PlayniteAchievements.Services.Summaries
                 achievement.CollectionScore,
                 achievement.PrestigeScore,
                 achievement.Points,
+                AchievementCategoryTypeHelper.IsSoftcore(achievement.CategoryType),
                 achievement.UnlockTimeUtc);
         }
 
@@ -118,6 +127,7 @@ namespace PlayniteAchievements.Services.Summaries
             int collectionScore,
             int prestigeScore,
             int points,
+            bool softcore,
             DateTime? unlockTimeUtc)
         {
             stats.UnlockedAchievements++;
@@ -126,6 +136,10 @@ namespace PlayniteAchievements.Services.Summaries
             stats.CollectionScore = AchievementGameStats.AddClamped(stats.CollectionScore, collectionScore);
             stats.PrestigeScore = AchievementGameStats.AddClamped(stats.PrestigeScore, prestigeScore);
             stats.Points = AchievementGameStats.AddClamped(stats.Points, points);
+            if (!softcore)
+            {
+                stats.PlatformScorePoints = AchievementGameStats.AddClamped(stats.PlatformScorePoints, points);
+            }
 
             if (!unlockTimeUtc.HasValue)
             {

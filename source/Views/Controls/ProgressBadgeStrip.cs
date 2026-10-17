@@ -259,6 +259,11 @@ namespace PlayniteAchievements.Views.Controls
             }
 
             var specs = item.HasTrophyTypes && PreferTrophyBadges ? TrophySpecs : RaritySpecs;
+            if (specs == RaritySpecs && !item.ShowsRarity)
+            {
+                yield break;
+            }
+
             var count = specs.Length;
             for (var step = 0; step < count; step++)
             {

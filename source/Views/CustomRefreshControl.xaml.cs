@@ -462,7 +462,7 @@ namespace PlayniteAchievements.Views
             _recentLimitOverrideText = (_settings?.Persisted?.RecentRefreshGamesCount ?? 10).ToString();
             _placeholderPreset = new CustomRefreshPreset
             {
-                Name = L("LOCPlayAch_Common_None"),
+                Name = L("LOCNone"),
                 Options = null
             };
 
@@ -527,20 +527,15 @@ namespace PlayniteAchievements.Views
 
         private static void EnsureThemeResources(PlayniteAchievementsSettings settings)
         {
-            var resources = Application.Current?.Resources;
-            if (resources != null)
-            {
-                PlayAchResourceService.Apply(
-                    resources,
-                    settings?.Persisted?.ResourceOverrides,
-                    settings?.Persisted);
-            }
+            PlayAchResourceService.ApplyToApplication(
+                settings?.Persisted?.ResourceOverrides,
+                settings?.Persisted);
         }
 
         private void InitializeScopeOptions()
         {
             ScopeOptions.Clear();
-            ScopeOptions.Add(new ScopeOptionItem { Scope = CustomGameScope.All, DisplayName = L("LOCPlayAch_CustomRefresh_Scope_All") });
+            ScopeOptions.Add(new ScopeOptionItem { Scope = CustomGameScope.All, DisplayName = L("LOCPlayAch_Showcase_GameMosaicSource_All") });
             ScopeOptions.Add(new ScopeOptionItem { Scope = CustomGameScope.Installed, DisplayName = L("LOCPlayAch_RefreshModeShort_Installed") });
             ScopeOptions.Add(new ScopeOptionItem { Scope = CustomGameScope.Favorites, DisplayName = L("LOCPlayAch_RefreshModeShort_Favorites") });
             ScopeOptions.Add(new ScopeOptionItem { Scope = CustomGameScope.Recent, DisplayName = L("LOCPlayAch_RefreshModeShort_Recent") });
@@ -555,7 +550,7 @@ namespace PlayniteAchievements.Views
             _providersByKey.Clear();
 
             var readyText = L("LOCPlayAch_CustomRefresh_ProviderStatus_Ready");
-            var disabledText = L("LOCPlayAch_Common_Status_Disabled");
+            var disabledText = L("LOCDisabledTitle");
             var noAuthText = L("LOCPlayAch_Common_NotAuthenticated");
 
             foreach (var provider in _refreshService.Providers)
@@ -636,8 +631,7 @@ namespace PlayniteAchievements.Views
         private void InitializePresets()
         {
             var normalizedPresets = CustomRefreshPreset.NormalizePresets(
-                _settings?.Persisted?.CustomRefreshPresets,
-                CustomRefreshPreset.MaxPresetCount);
+                _settings?.Persisted?.CustomRefreshPresets);
 
             PresetOptions.Clear();
             PresetOptions.Add(_placeholderPreset);
@@ -656,9 +650,7 @@ namespace PlayniteAchievements.Views
             var previousSelectedName = SelectedPreset?.Options != null
                 ? SelectedPreset.Name
                 : null;
-            var normalized = CustomRefreshPreset.NormalizePresets(
-                presets,
-                CustomRefreshPreset.MaxPresetCount);
+            var normalized = CustomRefreshPreset.NormalizePresets(presets);
 
             PresetOptions.Clear();
             PresetOptions.Add(_placeholderPreset);
@@ -692,8 +684,7 @@ namespace PlayniteAchievements.Views
             try
             {
                 var normalized = CustomRefreshPreset.NormalizePresets(
-                    PresetOptions.Where(preset => preset?.Options != null),
-                    CustomRefreshPreset.MaxPresetCount);
+                    PresetOptions.Where(preset => preset?.Options != null));
                 _settings.Persisted.CustomRefreshPresets = new List<CustomRefreshPreset>(normalized);
                 _persistSettingsForUi();
             }
@@ -1158,7 +1149,7 @@ namespace PlayniteAchievements.Views
                 .ToList();
 
             var providerDisplay = selectedProviderNames.Count == 0
-                ? L("LOCPlayAch_Common_None")
+                ? L("LOCNone")
                 : string.Join(", ", selectedProviderNames);
 
             var request = BuildSummaryEstimateRequest(selectedProviders);
@@ -1428,17 +1419,6 @@ namespace PlayniteAchievements.Views
                 .ToList();
             var existingPreset = savedPresets.FirstOrDefault(preset =>
                 string.Equals(preset.Name, presetName, StringComparison.OrdinalIgnoreCase));
-            if (existingPreset == null && savedPresets.Count >= CustomRefreshPreset.MaxPresetCount)
-            {
-                _api.Dialogs.ShowMessage(
-                    string.Format(
-                        L("LOCPlayAch_Presets_MaxReached"),
-                        CustomRefreshPreset.MaxPresetCount),
-                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
 
             if (existingPreset != null && !ConfirmDialog(
                 string.Format(

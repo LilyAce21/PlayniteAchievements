@@ -24,6 +24,7 @@ using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.Refresh;
+using PlayniteAchievements.Services.Rules;
 using PlayniteAchievements.Services.Summaries;
 using PlayniteAchievements.ViewModels.Items;
 using AsyncCommand = PlayniteAchievements.Common.AsyncCommand;
@@ -31,7 +32,7 @@ using RelayCommand = PlayniteAchievements.Common.RelayCommand;
 
 namespace PlayniteAchievements.ViewModels.ManageAchievements
 {
-    public sealed class ManageAchievementsViewModel : PlayniteAchievements.Common.ObservableObject
+    public sealed partial class ManageAchievementsViewModel : PlayniteAchievements.Common.ObservableObject
     {
         private const string ProviderOverrideNoneKey = "None";
 
@@ -92,6 +93,8 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         private string _currentCapstoneName;
         private bool _isExcluded;
         private bool _isExcludedFromSummaries;
+        private bool _isExclusionSetByFilter;
+        private bool _isExclusionOverridingFilter;
         private bool _hasManualTrackingLink;
         private string _manualTrackingSummary;
         private bool _hasAchievementData;
@@ -127,12 +130,15 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         public RelayCommand ClearProviderOverrideCommand { get; }
         public RelayCommand ApplyExophaseEnrichmentSlugCommand { get; }
         public RelayCommand ClearExophaseEnrichmentSlugCommand { get; }
+        public RelayCommand FollowSavedFiltersCommand { get; }
         public RelayCommand UnlinkManualTrackingCommand { get; }
         public RelayCommand RefreshStateCommand { get; }
         public AsyncCommand RefreshGameCommand { get; }
         public RelayCommand ClearGameDataCommand { get; }
         public RelayCommand ExportCustomCommand { get; }
         public RelayCommand ImportCustomJsonCommand { get; }
+        public RelayCommand ImportFromWorkshopCommand { get; }
+        public RelayCommand ShareToWorkshopCommand { get; }
         public RelayCommand ClearCustomDataCommand { get; }
 
         public ManageAchievementsViewModel(
@@ -166,13 +172,17 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             ClearProviderOverrideCommand = new RelayCommand(_ => ClearProviderOverride(), _ => HasGame && HasProviderOverride);
             ApplyExophaseEnrichmentSlugCommand = new RelayCommand(_ => ApplyExophaseEnrichmentSlug(), _ => HasGame);
             ClearExophaseEnrichmentSlugCommand = new RelayCommand(_ => ClearExophaseEnrichmentSlug(), _ => HasGame && HasExophaseEnrichmentSlugOverride);
+            FollowSavedFiltersCommand = new RelayCommand(_ => FollowSavedFilters(), _ => HasGame && IsExclusionOverridingFilter);
             UnlinkManualTrackingCommand = new RelayCommand(_ => UnlinkManualTracking(), _ => HasGame && HasManualTrackingLink);
             RefreshStateCommand = new RelayCommand(_ => Reload());
             RefreshGameCommand = new AsyncCommand(_ => RefreshGameAsync(), _ => HasGame && !IsRefreshing && !(_refreshService?.IsRebuilding ?? false));
             ClearGameDataCommand = new RelayCommand(_ => ClearGameData(), _ => HasGame);
             ExportCustomCommand = new RelayCommand(_ => ExportCustom(), _ => HasGame && CanExportCustomJson);
             ImportCustomJsonCommand = new RelayCommand(_ => ImportCustomJson(), _ => HasGame);
+            ImportFromWorkshopCommand = new RelayCommand(_ => _plugin?.OpenWorkshopWindow(_gameId), _ => HasGame && _plugin != null);
+            ShareToWorkshopCommand = new RelayCommand(_ => ShareToWorkshop(), _ => HasGame && CanExportCustomJson && _plugin != null);
             ClearCustomDataCommand = new RelayCommand(_ => ClearCustomData(), _ => HasGame && CanClearCustomData);
+            InitializeWorkshopSource();
 
             Reload();
         }
@@ -202,6 +212,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 }
 
                 SetValue(ref _selectedTab, value);
+                QueueSidebarScopeRefresh();
             }
         }
 
@@ -275,7 +286,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     return L("LOCPlayAch_ManageAchievements_Overrides_LockedIcons_StatusSettings");
                 }
 
-                return L("LOCPlayAch_Common_Status_Disabled");
+                return L("LOCDisabledTitle");
             }
         }
 
@@ -436,7 +447,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         public string ExophaseEnrichmentSlugStatusText =>
             HasExophaseEnrichmentSlugOverride
                 ? string.Format(
-                    L("LOCPlayAch_ManageAchievements_Overrides_ExophaseEnrichmentStatusValue"),
+                    L("LOCPlayAch_ManageAchievements_Overrides_ProviderStatusNoValue"),
                     _exophaseEnrichmentSlugValue)
                 : L("LOCPlayAch_Common_Status_NoOverrideSet");
 
@@ -596,9 +607,26 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
         }
 
+        /// <summary>True when a saved filter, not the user, set the game's current exclusion.</summary>
+        public bool IsExclusionSetByFilter
+        {
+            get => _isExclusionSetByFilter;
+            private set => SetValue(ref _isExclusionSetByFilter, value);
+        }
+
+        /// <summary>
+        /// True when the user included the game although a saved filter would exclude it, so the
+        /// filters can be handed the choice back.
+        /// </summary>
+        public bool IsExclusionOverridingFilter
+        {
+            get => _isExclusionOverridingFilter;
+            private set => SetValue(ref _isExclusionOverridingFilter, value);
+        }
+
         public IReadOnlyList<GameExclusionOption> ExclusionModeOptions { get; } = new[]
         {
-            new GameExclusionOption(GameExclusionMode.None, L("LOCPlayAch_Common_None")),
+            new GameExclusionOption(GameExclusionMode.None, L("LOCNone")),
             new GameExclusionOption(GameExclusionMode.Refreshes, L("LOCPlayAch_ManageAchievements_Status_ExcludedFromRefreshes")),
             new GameExclusionOption(GameExclusionMode.Summaries, L("LOCPlayAch_ManageAchievements_Status_ExcludedFromSummaries"))
         };
@@ -658,28 +686,29 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         // through the sidebar's right-click menu, which hides it for every game.
 
         public bool SidebarCapstonesVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Capstones) && OverviewSummary.Capstones.IsVisible;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Capstones) && SidebarSummary.Capstones.IsVisible;
 
         public bool SidebarRarityVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Rarity) && OverviewSummary.HasRarity;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Rarity) && SidebarSummary.HasRarity;
 
         public bool SidebarTrophiesVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Trophies) && OverviewSummary.HasTrophies;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Trophies) && SidebarSummary.HasTrophies;
 
         public bool SidebarPointsVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Points) && OverviewSummary.Points.IsVisible;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Points) && SidebarSummary.Points.IsVisible;
 
         public bool SidebarGoalsVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Goals) && OverviewSummary.Goals.IsVisible;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Goals) && SidebarSummary.Goals.IsVisible;
 
         public bool SidebarCategorizedVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Categorized) && OverviewSummary.Categorized.IsVisible;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Categorized) && SidebarSummary.Categorized.IsVisible &&
+            !IsSidebarCategoryScoped;
 
         public bool SidebarFilteredVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Filtered) && OverviewSummary.Filtered.IsVisible;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Filtered) && SidebarSummary.Filtered.IsVisible;
 
         public bool SidebarNotesVisible =>
-            IsSidebarStatGroupShown(ManageSidebarStatGroups.Notes) && OverviewSummary.Notes.IsVisible;
+            IsSidebarStatGroupShown(ManageSidebarStatGroups.Notes) && SidebarSummary.Notes.IsVisible;
 
         public bool SidebarOtherStatsVisible =>
             SidebarPointsVisible || SidebarGoalsVisible || SidebarCategorizedVisible ||
@@ -898,13 +927,16 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     ? capstone.DisplayName.Trim()
                     : !string.IsNullOrWhiteSpace(capstone?.ApiName)
                         ? capstone.ApiName.Trim()
-                        : L("LOCPlayAch_Common_None");
+                        : L("LOCNone");
                 HasAchievementData = (gameData?.HasAchievements ?? false) && list.Count > 0;
 
                 var currentCustomData = TryLoadStoredCustomData(_plugin?.GameCustomDataStore);
-                OverviewSummary = BuildOverviewSummary(list, currentCustomData);
+                _showsRarity = gameData?.ShowsRarity ?? true;
+                OverviewSummary = BuildOverviewSummary(list, currentCustomData, _showsRarity);
+                _sidebarSourceAchievements = list;
                 IsExcluded = isExcluded;
                 IsExcludedFromSummaries = GameCustomDataLookup.IsExcludedFromSummaries(_gameId, _settings?.Persisted);
+                ReloadExclusionFilterState(currentCustomData);
                 SetValue(
                     ref _useSeparateLockedIconsOverride,
                     currentCustomData?.UseSeparateLockedIconsOverride == true);
@@ -918,6 +950,8 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     new AchievementPageLinkContext(game, gameData, rawGameData, manualLink));
 
                 RefreshCustomDataState();
+                RefreshWorkshopSource();
+                RebuildSidebarStats();
 
                 if (!HasAchievementData && ManageAchievementsTabs.RequireAchievementData.Contains(SelectedTab))
                 {
@@ -934,19 +968,23 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
         }
 
+        // Whether the loaded game's provider supplied any rarity; its Common counts are defaults otherwise.
+        private bool _showsRarity = true;
+
         private static ManageOverviewSummary BuildOverviewSummary(
             IReadOnlyList<AchievementDetail> achievements,
-            GameCustomDataFile customData)
+            GameCustomDataFile customData,
+            bool showsRarity)
         {
             var breakdown = ManageOverviewSummaryBuilder.BuildBreakdown(achievements);
             var stats = breakdown.Stats;
 
             return new ManageOverviewSummary
             {
-                RarityCommon = Stat(stats.CommonCount, stats.TotalCommonPossible),
-                RarityUncommon = Stat(stats.UncommonCount, stats.TotalUncommonPossible),
-                RarityRare = Stat(stats.RareCount, stats.TotalRarePossible),
-                RarityUltraRare = Stat(stats.UltraRareCount, stats.TotalUltraRarePossible),
+                RarityCommon = showsRarity ? Stat(stats.CommonCount, stats.TotalCommonPossible) : ManageOverviewStat.None,
+                RarityUncommon = showsRarity ? Stat(stats.UncommonCount, stats.TotalUncommonPossible) : ManageOverviewStat.None,
+                RarityRare = showsRarity ? Stat(stats.RareCount, stats.TotalRarePossible) : ManageOverviewStat.None,
+                RarityUltraRare = showsRarity ? Stat(stats.UltraRareCount, stats.TotalUltraRarePossible) : ManageOverviewStat.None,
                 Capstones = breakdown.CapstoneCount > 0
                     ? new ManageOverviewStat(
                         FormatProgress(breakdown.UnlockedCapstoneCount, breakdown.CapstoneCount),
@@ -1058,6 +1096,36 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 MessageBoxImage.Information);
         }
 
+        private void ReloadExclusionFilterState(GameCustomDataFile customData)
+        {
+            IsExclusionSetByFilter =
+                RuleReconciler.FindClaim(customData, RuleFields.ExcludedFromRefreshes) != null ||
+                RuleReconciler.FindClaim(customData, RuleFields.ExcludedFromSummaries) != null;
+
+            var pinnedRefresh = RuleReconciler.IsPinned(customData, RuleFields.ExcludedFromRefreshes) && !IsExcluded;
+            var pinnedSummary = RuleReconciler.IsPinned(customData, RuleFields.ExcludedFromSummaries) && !IsExcludedFromSummaries;
+            var rules = _plugin?.FilterExclusionRules;
+            if (!(pinnedRefresh || pinnedSummary) || rules?.HasRules != true)
+            {
+                IsExclusionOverridingFilter = false;
+                return;
+            }
+
+            var matches = rules.GetMatches(_gameId);
+            IsExclusionOverridingFilter = (pinnedRefresh && matches.Refresh) || (pinnedSummary && matches.Summary);
+        }
+
+        private void FollowSavedFilters()
+        {
+            if (!HasGame)
+            {
+                return;
+            }
+
+            _plugin?.FilterExclusionRules?.FollowFilters(_gameId);
+            Reload();
+        }
+
         private void ApplyExclusionMode(GameExclusionMode mode)
         {
             if (!HasGame || _achievementOverridesService == null || mode == ExclusionMode)
@@ -1097,10 +1165,10 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 return;
             }
 
-            if (!TryCreateProviderOverride(providerKey, ProviderOverrideInput, out var providerOverride, out var validationMessageKey))
+            if (!TryCreateProviderOverride(providerKey, ProviderOverrideInput, out var providerOverride, out var validationMessage))
             {
                 _playniteApi?.Dialogs?.ShowMessage(
-                    L(validationMessageKey),
+                    validationMessage,
                     L("LOCPlayAch_Title_PluginName"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -1247,6 +1315,19 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             ImportPortable();
         }
 
+        private void ShareToWorkshop()
+        {
+            if (!HasGame || _plugin == null)
+            {
+                return;
+            }
+
+            _plugin.OpenWorkshopShare(
+                Services.Workshop.WorkshopItemKind.GameCustomData,
+                _plugin.PlayniteApi?.Dialogs?.GetCurrentAppWindow(),
+                gameId: _gameId);
+        }
+
         /// <summary>
         /// The one Import for this game's .pa files, shared by the Overview and Editor tabs. A
         /// whole-game package replaces the game's custom data; a custom-achievements package is
@@ -1255,9 +1336,13 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         /// </summary>
         /// <param name="mergeCustomAchievements">Receives a custom-achievements package's parsed
         /// definitions instead of the stored merge.</param>
+        /// <param name="mergeCsv">Receives a plain CSV's path, so its relative icon paths read
+        /// against its folder. Only the editor has the rows a CSV edits, so without it .csv is
+        /// not offered.</param>
         /// <param name="beforeReplace">Runs just before a whole-game package is written.</param>
         public void ImportPortable(
             Action<CustomAchievementTextImportResult> mergeCustomAchievements = null,
+            Action<string> mergeCsv = null,
             Action beforeReplace = null)
         {
             if (!HasGame)
@@ -1269,7 +1354,9 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             {
                 var dialog = new OpenFileDialog
                 {
-                    Filter = "Playnite Achievements Portable (*.pa)|*.pa;*.pa.zip",
+                    Filter = mergeCsv != null
+                        ? "Playnite Achievements (*.pa, *.csv)|*.pa;*.pa.zip;*.csv"
+                        : "Playnite Achievements Portable (*.pa)|*.pa;*.pa.zip",
                     CheckFileExists = true,
                     Multiselect = false
                 };
@@ -1283,6 +1370,12 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 if (store == null)
                 {
                     throw new InvalidOperationException("Game custom data store is not available.");
+                }
+
+                if (mergeCsv != null && dialog.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    mergeCsv(dialog.FileName);
+                    return;
                 }
 
                 if (store.IsCustomAchievementsPackage(dialog.FileName))
@@ -1300,6 +1393,14 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     return;
                 }
 
+                // A .pa names the game it came from. Importing it onto a different game is
+                // allowed (the same game on another platform, say) but never silent, because
+                // overrides keyed by another game's achievement ids would land here unseen.
+                if (!ConfirmGameMatches(store, dialog.FileName))
+                {
+                    return;
+                }
+
                 beforeReplace?.Invoke();
                 ReplaceFromPortablePackage(store, dialog.FileName);
             }
@@ -1312,6 +1413,49 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// True when the package was exported from this game (by provider identity or by name),
+        /// carries no game keys at all, or the user confirms the cross-game import.
+        /// </summary>
+        private bool ConfirmGameMatches(GameCustomDataStore store, string packagePath)
+        {
+            IReadOnlyList<Models.Settings.PortableGameKey> keys;
+            try
+            {
+                keys = store.ReadPortableGameKeys(packagePath);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "Could not read the game keys of a portable package; importing without the check.");
+                return true;
+            }
+
+            if (keys == null || keys.Count == 0)
+            {
+                return true;
+            }
+
+            var matcher = _plugin?.CreateWorkshopGameMatcher();
+            if (matcher == null)
+            {
+                return true;
+            }
+
+            if (matcher.Match(keys)?.PlayniteGameId == _gameId
+                || matcher.Candidates(keys).Any(game => game.Id == _gameId))
+            {
+                return true;
+            }
+
+            var source = keys.Select(key => key.Name).FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)) ?? "?";
+            var target = _playniteApi?.Database?.Games?.Get(_gameId)?.Name ?? _gameId.ToString();
+            return _playniteApi?.Dialogs?.ShowMessage(
+                       string.Format(L("LOCPlayAch_ManageAchievements_Overrides_ImportGameMismatch"), source, target),
+                       L("LOCPlayAch_Title_PluginName"),
+                       MessageBoxButton.YesNo,
+                       MessageBoxImage.Warning) == MessageBoxResult.Yes;
         }
 
         private void MergeCustomAchievementsIntoStore(GameCustomDataStore store, CustomAchievementTextImportResult parsed)
@@ -1362,6 +1506,9 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             {
                 throw new InvalidOperationException("Imported custom game data was empty.");
             }
+
+            // The file replaced what the Workshop item put there: the game no longer follows it.
+            RemoveWorkshopSource();
 
             var transitionEffects = AnalyzeCustomDataTransition(previousData, currentData);
             NotifyCustomDataChanged(transitionEffects.RequiresRefresh, transitionEffects.ForceIconRefresh);
@@ -1447,6 +1594,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 }
 
                 store.Delete(_gameId);
+                RemoveWorkshopSource();
                 var transitionEffects = AnalyzeCustomDataTransition(currentData, null);
                 NotifyCustomDataChanged(transitionEffects.RequiresRefresh, transitionEffects.ForceIconRefresh);
 
@@ -1650,6 +1798,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                     _refreshService?.Cache?.RemoveGameCache(_gameId);
                 }
 
+                RemoveWorkshopSource();
                 _playniteApi?.Dialogs?.ShowMessage(
                     L("LOCPlayAch_Status_Succeeded"),
                     L("LOCPlayAch_Title_PluginName"),
@@ -1679,13 +1828,16 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             ClearProviderOverrideCommand?.RaiseCanExecuteChanged();
             ApplyExophaseEnrichmentSlugCommand?.RaiseCanExecuteChanged();
             ClearExophaseEnrichmentSlugCommand?.RaiseCanExecuteChanged();
+            FollowSavedFiltersCommand?.RaiseCanExecuteChanged();
             UnlinkManualTrackingCommand?.RaiseCanExecuteChanged();
             RefreshStateCommand?.RaiseCanExecuteChanged();
             RefreshGameCommand?.RaiseCanExecuteChanged();
             ClearGameDataCommand?.RaiseCanExecuteChanged();
             ExportCustomCommand?.RaiseCanExecuteChanged();
+            ShareToWorkshopCommand?.RaiseCanExecuteChanged();
             ImportCustomJsonCommand?.RaiseCanExecuteChanged();
             ClearCustomDataCommand?.RaiseCanExecuteChanged();
+            RaiseWorkshopSourceCommandStates();
         }
 
         private void RefreshCustomDataState()
@@ -1700,7 +1852,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         internal void NotifyCapstoneChanged(string displayName)
         {
             CurrentCapstoneName = string.IsNullOrWhiteSpace(displayName)
-                ? L("LOCPlayAch_Common_None")
+                ? L("LOCNone")
                 : displayName.Trim();
             RefreshCustomDataState();
             // The sidebar's capstone chip comes from OverviewSummary, which only the shell reload
@@ -1813,17 +1965,22 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             Reload();
         }
 
-        internal void NotifyIconOverridesChanged(IReadOnlyCollection<string> changedApiNames)
+        /// <returns>
+        /// The apply, which completes on the dispatcher after its cache write has been announced;
+        /// null when there was nothing to apply.
+        /// </returns>
+        internal Task NotifyIconOverridesChanged(IReadOnlyCollection<string> changedApiNames)
         {
             if (changedApiNames == null || changedApiNames.Count == 0)
             {
-                return;
+                return null;
             }
 
             // Chain onto the previous apply so overlapping edit bursts run one at a time;
             // each run re-reads the override store, so the final run converges to the
             // last persisted state.
             _iconOverridesApplyChain = ApplyIconOverridesAsync(_iconOverridesApplyChain, changedApiNames);
+            return _iconOverridesApplyChain;
         }
 
         private async Task ApplyIconOverridesAsync(
@@ -1988,23 +2145,25 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             string providerKey,
             string value,
             out ProviderOverrideData providerOverride,
-            out string validationMessageKey)
+            out string validationMessage)
         {
             providerOverride = null;
-            validationMessageKey = null;
+            validationMessage = null;
 
             var normalizedKey = NormalizeProviderOverrideSelection(providerKey);
             var descriptor = GetProviderOverrideDescriptor(normalizedKey);
             if (descriptor == null)
             {
-                validationMessageKey = "LOCPlayAch_ManageAchievements_Overrides_ProviderInvalid";
+                validationMessage = L("LOCPlayAch_ManageAchievements_Overrides_ProviderInvalid");
                 return false;
             }
 
             var result = descriptor.Validate(value);
             if (!result.IsValid)
             {
-                validationMessageKey = result.ErrorMessageKey ?? "LOCPlayAch_ManageAchievements_Overrides_ProviderInvalid";
+                validationMessage = result.ErrorExample != null
+                    ? string.Format(L(result.ErrorMessageKey), L(descriptor.InputLabelKey), result.ErrorExample)
+                    : L(result.ErrorMessageKey ?? "LOCPlayAch_ManageAchievements_Overrides_ProviderInvalid");
                 return false;
             }
 
@@ -2023,7 +2182,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 new ProviderOverrideOption
                 {
                     ProviderKey = ProviderOverrideNoneKey,
-                    DisplayName = L("LOCPlayAch_Common_None"),
+                    DisplayName = L("LOCNone"),
                     Descriptor = null
                 }
             };
@@ -2061,7 +2220,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             var normalizedKey = NormalizeProviderOverrideSelection(providerKey);
             if (string.Equals(normalizedKey, ProviderOverrideNoneKey, StringComparison.OrdinalIgnoreCase))
             {
-                return L("LOCPlayAch_Common_None");
+                return L("LOCNone");
             }
 
             return ProviderRegistry.GetLocalizedName(normalizedKey);
@@ -2088,13 +2247,6 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
 
             return FindProviderOverrideOption(normalized)?.ProviderKey ?? ProviderOverrideNoneKey;
-        }
-
-        private bool ProviderOverrideUsesOptionalValue(string providerKey)
-        {
-            var descriptor = GetProviderOverrideDescriptor(NormalizeProviderOverrideSelection(providerKey));
-            return descriptor != null &&
-                   (descriptor.ValueKind == ProviderOverrideValueKind.None || descriptor.ValueOptional);
         }
 
         private static string L(string key)
@@ -2177,28 +2329,12 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             return normalized + extension;
         }
 
-        private static bool StoredDataRequiresRefresh(GameCustomDataFile data)
-        {
-            return data?.ManualLink != null ||
-                   data?.ProviderOverride != null ||
-                   data?.RetroAchievementsGameIdOverride.HasValue == true ||
-                   !string.IsNullOrWhiteSpace(data?.XeniaTitleIdOverride) ||
-                   !string.IsNullOrWhiteSpace(data?.ShadPS4MatchIdOverride) ||
-                   data?.ForceUseExophase == true ||
-                   !string.IsNullOrWhiteSpace(data?.ExophaseSlugOverride) ||
-                   !string.IsNullOrWhiteSpace(data?.ExophaseEnrichmentSlugOverride);
-        }
-
+        // Shared with the Workshop installer, which writes custom data through the same stores.
         private static CustomDataTransitionEffects AnalyzeCustomDataTransition(
             GameCustomDataFile previousData,
             GameCustomDataFile currentData)
         {
-            var forceIconRefresh = HaveIconOverridesChanged(previousData, currentData);
-            return new CustomDataTransitionEffects(
-                StoredDataRequiresRefresh(previousData) ||
-                StoredDataRequiresRefresh(currentData) ||
-                forceIconRefresh,
-                forceIconRefresh);
+            return CustomDataTransition.Analyze(previousData, currentData);
         }
 
         private GameCustomDataFile TryLoadStoredCustomData(GameCustomDataStore store)
@@ -2213,81 +2349,6 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 : null;
         }
 
-        private static bool HaveIconOverridesChanged(
-            GameCustomDataFile previousData,
-            GameCustomDataFile currentData)
-        {
-            return !AreStringMapsEqual(
-                       previousData?.AchievementUnlockedIconOverrides,
-                       currentData?.AchievementUnlockedIconOverrides) ||
-                   !AreStringMapsEqual(
-                       previousData?.AchievementLockedIconOverrides,
-                       currentData?.AchievementLockedIconOverrides);
-        }
-
-        private static bool AreStringMapsEqual(
-            IReadOnlyDictionary<string, string> left,
-            IReadOnlyDictionary<string, string> right)
-        {
-            var normalizedLeft = NormalizeStringMap(left);
-            var normalizedRight = NormalizeStringMap(right);
-            if (normalizedLeft.Count != normalizedRight.Count)
-            {
-                return false;
-            }
-
-            foreach (var pair in normalizedLeft)
-            {
-                if (!normalizedRight.TryGetValue(pair.Key, out var value) ||
-                    !string.Equals(pair.Value, value, StringComparison.Ordinal))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private static Dictionary<string, string> NormalizeStringMap(IReadOnlyDictionary<string, string> source)
-        {
-            var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (source == null)
-            {
-                return normalized;
-            }
-
-            foreach (var pair in source)
-            {
-                var key = NormalizeOverrideValue(pair.Key);
-                var value = NormalizeOverrideValue(pair.Value);
-                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
-                {
-                    continue;
-                }
-
-                normalized[key] = value;
-            }
-
-            return normalized;
-        }
-
-        private static string NormalizeOverrideValue(string value)
-        {
-            var normalized = (value ?? string.Empty).Trim();
-            return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
-        }
-
-        private readonly struct CustomDataTransitionEffects
-        {
-            public CustomDataTransitionEffects(bool requiresRefresh, bool forceIconRefresh)
-            {
-                RequiresRefresh = requiresRefresh;
-                ForceIconRefresh = forceIconRefresh;
-            }
-
-            public bool RequiresRefresh { get; }
-            public bool ForceIconRefresh { get; }
-        }
     }
 }
 

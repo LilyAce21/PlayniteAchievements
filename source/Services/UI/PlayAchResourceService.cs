@@ -64,14 +64,15 @@ namespace PlayniteAchievements.Services.UI
         {
             Brush("PlayAch.Brush.Text", "LOCPlayAch_Settings_Appearance_Resource_Text", "TextBrush"),
             Brush("PlayAch.Brush.Text.Secondary", "LOCPlayAch_Settings_Appearance_Resource_TextSecondary", "TextBrushDarker", "TextBrush"),
-            Brush("PlayAch.Brush.Text.Tertiary", "LOCPlayAch_Settings_Appearance_Resource_TextTertiary", "TextBrushDark", "TextBrushDarker", "TextBrush"),
+            // TextBrushDark is pure black in Playnite's default theme (it is the brush for text on light accents), so a muted-text token must not fall to it.
+            Brush("PlayAch.Brush.Text.Tertiary", "LOCPlayAch_Settings_Appearance_Resource_TextTertiary", "TextBrushDarker", "TextBrush"),
             Brush("PlayAch.Brush.Surface", "LOCPlayAch_Settings_Appearance_Resource_Surface", "ControlBackgroundBrush"),
             Brush("PlayAch.Brush.Panel", "LOCPlayAch_Settings_Appearance_Resource_Panel", "PanelBackgroundBrush", "ControlBackgroundBrush"),
             Brush("PlayAch.Brush.WindowSurface", "LOCPlayAch_Settings_Appearance_Resource_WindowSurface", "WindowBackgourndBrush", "ControlBackgroundBrush"),
             Brush("PlayAch.Brush.GridSurface", "LOCPlayAch_Settings_Appearance_Resource_GridSurface", "GridItemBackgroundBrush", "ControlBackgroundBrush"),
             Brush("PlayAch.Brush.Border", "LOCPlayAch_Settings_Appearance_Resource_Border", "NormalBorderBrush", "ControlBackgroundBrush"),
             Brush("PlayAch.Brush.ControlBorder", "LOCPlayAch_Settings_Appearance_Resource_ControlBorder", "NormalBrush", "SelectionLightBrush"),
-            Brush("PlayAch.Brush.Glyph", "LOCPlayAch_Settings_Appearance_Resource_Glyph", "GlyphBrush"),
+            Brush("PlayAch.Brush.Glyph", "LOCPlayAch_ManageAchievements_Tab_CustomIcons", "GlyphBrush"),
             Brush("PlayAch.Brush.Accent", "LOCPlayAch_Settings_Appearance_Resource_Accent", "HighlightGlyphBrush", "GlyphBrush"),
             Brush("PlayAch.Brush.Selection", "LOCPlayAch_Settings_Appearance_Resource_Selection", "SelectionLightBrush", "GlyphBrush"),
             Brush("PlayAch.Brush.ControlSurface", "LOCPlayAch_Settings_Appearance_Resource_ControlSurface", "ButtonBackgroundBrush", "ControlBackgroundBrush"),
@@ -129,6 +130,14 @@ namespace PlayniteAchievements.Services.UI
                     token.FallbackPlayniteResourceKeys.ToArray()))
                 .ToList()
                 .AsReadOnly();
+
+        /// <summary>Applies the tokens at application scope as one resource change.</summary>
+        public static void ApplyToApplication(
+            IDictionary<string, ResourceOverrideSetting> overrides,
+            PersistedSettings settings = null)
+        {
+            PlayAchRuntimeResources.Update(resources => Apply(resources, overrides, settings));
+        }
 
         public static void Apply(
             ResourceDictionary resources,

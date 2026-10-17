@@ -1,6 +1,11 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using PlayniteAchievements.Models.Achievements;
+using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.ViewModels;
+using PlayniteAchievements.Views.Dialogs;
 
 namespace PlayniteAchievements.Views.Controls
 {
@@ -41,10 +46,69 @@ namespace PlayniteAchievements.Views.Controls
                 typeof(ScoreCardControl),
                 new PropertyMetadata(false));
 
+        public static readonly DependencyProperty BadgePositionProperty =
+            DependencyProperty.Register(
+                nameof(BadgePosition),
+                typeof(ScoreCardBadgePosition),
+                typeof(ScoreCardControl),
+                new PropertyMetadata(ScoreCardBadgePosition.Left));
+
+        private bool _pressed;
+
         public ScoreCardControl()
         {
             InitializeComponent();
+
+            // Every host's card recolors from here when the badge appearance settings change. The
+            // static event roots its handlers, so the hook lives only while the card is loaded.
+            Loaded += (_, __) =>
+            {
+                RarityAppearanceHelper.AppearanceChanged -= OnAppearanceChanged;
+                RarityAppearanceHelper.AppearanceChanged += OnAppearanceChanged;
+            };
+            Unloaded += (_, __) => RarityAppearanceHelper.AppearanceChanged -= OnAppearanceChanged;
         }
+
+        private void OnAppearanceChanged(object sender, EventArgs e)
+        {
+            var card = ScoreCard;
+            card?.RefreshBadgeStyle(
+                PlayniteAchievementsPlugin.Instance?.Settings?.Persisted?.UseUniformRarityBadges
+                ?? card.UseUniformRarityBadges);
+        }
+
+        // Collection and Prestige cards open the score-info dialog, on release over the card they
+        // were pressed on. A points card has no rank to explain, so it is not clickable.
+        private void Panel_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ScoreCard?.IsPoints == true)
+            {
+                return;
+            }
+
+            _pressed = PanelBorder.CaptureMouse();
+            e.Handled = _pressed;
+        }
+
+        private void Panel_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_pressed)
+            {
+                return;
+            }
+
+            _pressed = false;
+            PanelBorder.ReleaseMouseCapture();
+            var position = e.GetPosition(PanelBorder);
+            if (position.X >= 0 && position.Y >= 0 &&
+                position.X <= PanelBorder.ActualWidth && position.Y <= PanelBorder.ActualHeight)
+            {
+                e.Handled = true;
+                ScoreInfoDialogPresenter.Show();
+            }
+        }
+
+        private void Panel_LostMouseCapture(object sender, MouseEventArgs e) => _pressed = false;
 
         public ScoreCardViewModel ScoreCard
         {
@@ -80,12 +144,23 @@ namespace PlayniteAchievements.Views.Controls
 
         /// <summary>
         /// Shows only the badge (and mastery line), with the tier and points moved into the
-        /// tooltip, for hosts too narrow for the text.
+        /// tooltip, for hosts too narrow for the text. A points card has no badge, so it keeps
+        /// its compact text line.
         /// </summary>
         public bool BadgeOnly
         {
             get => (bool)GetValue(BadgeOnlyProperty);
             set => SetValue(BadgeOnlyProperty, value);
+        }
+
+        /// <summary>
+        /// Which side the badge column sits on. Right mirrors the text column against it, so a
+        /// card on the right of a mirrored layout faces its partner.
+        /// </summary>
+        public ScoreCardBadgePosition BadgePosition
+        {
+            get => (ScoreCardBadgePosition)GetValue(BadgePositionProperty);
+            set => SetValue(BadgePositionProperty, value);
         }
     }
 }

@@ -60,7 +60,10 @@ namespace PlayniteAchievements.ViewModels
         private ObservableCollection<string> _highlightedLabels = new ObservableCollection<string>();
         private OverviewPieSmallSliceMode _smallSliceMode = OverviewPieSmallSliceMode.Round;
         private bool _includeLocked = true;
-        private bool _showCenterPercentageRequested = true;
+        private PieCenterMode _centerMode = PieCenterMode.Percentage;
+        private bool _showIcons = true;
+        private bool _showLegend;
+        private PieLegendPosition _legendPosition = PieLegendPosition.Right;
         private int _exactUnlockedCount;
         private int _exactTotalCount;
         private bool _alwaysShowSmallSliceIcons;
@@ -94,22 +97,48 @@ namespace PlayniteAchievements.ViewModels
         }
 
         /// <summary>
-        /// What the host asked for. Hiding the locked slice also hides the centre percentage,
-        /// because the percentage is unlocked-of-total and the pie no longer shows the total.
-        /// Kept separate from <see cref="ShowCenterPercentage"/> so toggling locked back on
+        /// What the host asked for in the center. Hiding the locked slice also hides the centre
+        /// percentage, because the percentage is unlocked-of-total and the pie no longer shows the
+        /// total. Kept separate from <see cref="ShowCenterPercentage"/> so toggling locked back on
         /// restores the host's own choice.
         /// </summary>
-        public bool ShowCenterPercentageRequested
+        public PieCenterMode CenterMode
         {
-            get => _showCenterPercentageRequested;
+            get => _centerMode;
             set => SetValue(
-                ref _showCenterPercentageRequested,
+                ref _centerMode,
                 value,
-                nameof(ShowCenterPercentageRequested),
-                nameof(ShowCenterPercentage));
+                nameof(CenterMode),
+                nameof(ShowCenterPercentage),
+                nameof(IsFilled));
         }
 
-        public bool ShowCenterPercentage => _showCenterPercentageRequested && _includeLocked;
+        public bool ShowCenterPercentage => _centerMode == PieCenterMode.Percentage && _includeLocked;
+
+        public bool IsFilled => _centerMode == PieCenterMode.Filled;
+
+        /// <summary>
+        /// Whether the radial icons are drawn around the slices. A render-only flag: the slices
+        /// and legend are unaffected.
+        /// </summary>
+        public bool ShowIcons
+        {
+            get => _showIcons;
+            set => SetValue(ref _showIcons, value);
+        }
+
+        /// <summary>Whether the chart control draws a legend beside the pie. Render-only, like <see cref="ShowIcons"/>.</summary>
+        public bool ShowLegend
+        {
+            get => _showLegend;
+            set => SetValue(ref _showLegend, value);
+        }
+
+        public PieLegendPosition LegendPosition
+        {
+            get => _legendPosition;
+            set => SetValue(ref _legendPosition, value);
+        }
 
         public int ExactUnlockedCount
         {
@@ -147,6 +176,32 @@ namespace PlayniteAchievements.ViewModels
             return Application.Current?.TryFindResource(LockedSurfaceResourceKey) is SolidColorBrush brush
                 ? brush.Color
                 : LockedFallbackColor;
+        }
+
+        /// <summary>
+        /// A slice's fill: the chart gloss around the slice color. Locked and padding slices stay
+        /// flat so they read as unfilled surface.
+        /// </summary>
+        private static Brush CreateSliceFill(Color color, bool isLocked)
+        {
+            if (isLocked || color.A == 0)
+            {
+                var flat = new SolidColorBrush(color);
+                flat.Freeze();
+                return flat;
+            }
+
+            return ChartGloss.Create(color);
+        }
+
+        private static bool IsSliceFill(Brush brush, Color color, bool isLocked)
+        {
+            if (isLocked || color.A == 0)
+            {
+                return brush is SolidColorBrush solid && solid.Color == color;
+            }
+
+            return ChartGloss.IsGlossOf(brush, color);
         }
 
         private bool _appearanceHooked;
@@ -221,6 +276,16 @@ namespace PlayniteAchievements.ViewModels
         {
             if (string.IsNullOrWhiteSpace(label)) return null;
             return _labelToProviderKey.TryGetValue(label, out var key) ? key : null;
+        }
+
+        /// <summary>The slice label a provider key is drawn under, or null when it has no slice.</summary>
+        public string GetLabelForProviderKey(string providerKey)
+        {
+            if (string.IsNullOrWhiteSpace(providerKey)) return null;
+            return _labelToProviderKey
+                .Where(pair => string.Equals(pair.Value, providerKey, StringComparison.OrdinalIgnoreCase))
+                .Select(pair => pair.Key)
+                .FirstOrDefault();
         }
 
         /// <summary>
@@ -830,7 +895,7 @@ namespace PlayniteAchievements.ViewModels
                     continue;
                 }
 
-                series.Fill = new SolidColorBrush(color);
+                series.Fill = CreateSliceFill(color, chartData?.IsLocked == true);
                 if (chartData != null)
                 {
                     chartData.ColorHex = ToColorHex(color);
@@ -900,13 +965,34 @@ namespace PlayniteAchievements.ViewModels
             // This ensures when CalculatePositions fires after PieSeries changes,
             // LegendItems already contains matching data.
             SynchronizeLegendItems(slices);
-            SynchronizePieSeries(slices);
+            SynchronizePieSeries(slices.Any(slice => slice != null && slice.ChartValue > 0) ? slices : BlankPie());
         }
+
+        /// <summary>
+        /// A pie with nothing to count, as when filters leave no games: one flat slice in the
+        /// empty color, so the pie keeps its ring rather than vanishing. It has no legend row,
+        /// icon or label, and a click on it filters nothing.
+        /// </summary>
+        private static IReadOnlyList<PieSliceData> BlankPie() => new[]
+        {
+            new PieSliceData
+            {
+                Label = string.Empty,
+                Color = GetLockedColor(),
+                IsLocked = true,
+                ChartValue = 1,
+                ShowRadialIcon = false
+            }
+        };
+
+        /// <summary>The separator thickness LiveCharts gives pie slices.</summary>
+        private const double SliceSeparatorThickness = 2.0;
 
         private void SynchronizePieSeries(IReadOnlyList<PieSliceData> slices)
         {
             var sliceCount = slices?.Count ?? 0;
             var targetCount = Math.Max(sliceCount, MinimumSeriesCount);
+            var drawnSlices = (slices ?? Array.Empty<PieSliceData>()).Count(slice => slice != null && slice.ChartValue > 0);
             for (int i = 0; i < targetCount; i++)
             {
                 LiveCharts.Wpf.PieSeries series = null;
@@ -938,11 +1024,20 @@ namespace PlayniteAchievements.ViewModels
                 series.Title = slice?.Label ?? string.Empty;
                 series.DataLabels = false;
 
-                var existingBrush = series.Fill as SolidColorBrush;
+                // A separator belongs between slices. A lone slice is a full turn whose stroke
+                // would still draw its start and end edges as a seam at the start angle, and a
+                // zero-value slice is only a stroked line, so neither gets one.
+                // Set rather than cleared: LiveCharts gives a pie series its 2 px in the
+                // constructor, so clearing the value would drop it to the property's default of 0.
+                series.StrokeThickness = drawnSlices > 1 && slice != null && slice.ChartValue > 0
+                    ? SliceSeparatorThickness
+                    : 0;
+
                 var sliceColor = slice?.Color ?? Colors.Transparent;
-                if (existingBrush == null || existingBrush.Color != sliceColor)
+                var isLocked = slice?.IsLocked == true;
+                if (!IsSliceFill(series.Fill, sliceColor, isLocked))
                 {
-                    series.Fill = new SolidColorBrush(sliceColor);
+                    series.Fill = CreateSliceFill(sliceColor, isLocked);
                 }
 
                 var values = series.Values as ChartValues<PieSliceChartData>;

@@ -47,6 +47,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             normalized.PlayniteGameId = playniteGameId;
             normalized.ExcludedFromRefreshes = normalized.ExcludedFromRefreshes == true ? true : (bool?)null;
             normalized.ExcludedFromSummaries = normalized.ExcludedFromSummaries == true ? true : (bool?)null;
+            normalized.RuleClaims = NormalizeRuleClaims(normalized.RuleClaims);
+            normalized.UserPinnedFields = NormalizeRuleFieldList(normalized.UserPinnedFields);
             normalized.UseSeparateLockedIconsOverride = normalized.UseSeparateLockedIconsOverride == true ? true : (bool?)null;
             normalized.ForceUseExophase = normalized.ForceUseExophase == true ? true : (bool?)null;
             NormalizeCapstones(normalized);
@@ -167,6 +169,9 @@ namespace PlayniteAchievements.Services.GameCustomData
 
             return data.ExcludedFromRefreshes == true ||
                    data.ExcludedFromSummaries == true ||
+                   // A claim alone must survive: it holds the status to restore when the rule lets go.
+                   (data.RuleClaims != null && data.RuleClaims.Count > 0) ||
+                   (data.UserPinnedFields != null && data.UserPinnedFields.Count > 0) ||
                    data.UseSeparateLockedIconsOverride == true ||
                    !string.IsNullOrWhiteSpace(data.ManualCapstoneApiName) ||
                    data.CapstonesMaterialized ||
@@ -194,6 +199,9 @@ namespace PlayniteAchievements.Services.GameCustomData
                    data.ForceUseExophase == true ||
                    !string.IsNullOrWhiteSpace(data.ExophaseSlugOverride) ||
                    data.NotificationAppearanceOverride != null ||
+                   data.UnlockSounds != null ||
+                   data.NotificationBehaviorOverride != null ||
+                   data.CaptureOverride != null ||
                    data.ManualLink != null ||
                    (data.CustomAchievements != null && data.CustomAchievements.Count > 0) ||
                    !string.IsNullOrWhiteSpace(data.CustomProviderId);
@@ -294,6 +302,12 @@ namespace PlayniteAchievements.Services.GameCustomData
                 PlayniteGameId = existing.PlayniteGameId != Guid.Empty ? existing.PlayniteGameId : legacy.PlayniteGameId,
                 ExcludedFromRefreshes = existing.ExcludedFromRefreshes ?? legacy.ExcludedFromRefreshes,
                 ExcludedFromSummaries = existing.ExcludedFromSummaries ?? legacy.ExcludedFromSummaries,
+                RuleClaims = GameCustomDataFile.CloneRuleClaims(existing.RuleClaims ?? legacy.RuleClaims),
+                UserPinnedFields = existing.UserPinnedFields != null
+                    ? new List<string>(existing.UserPinnedFields)
+                    : legacy.UserPinnedFields != null
+                        ? new List<string>(legacy.UserPinnedFields)
+                        : null,
                 UseSeparateLockedIconsOverride = existing.UseSeparateLockedIconsOverride ?? legacy.UseSeparateLockedIconsOverride,
                 ManualCapstoneApiName = !string.IsNullOrWhiteSpace(existing.ManualCapstoneApiName)
                     ? existing.ManualCapstoneApiName
@@ -365,6 +379,10 @@ namespace PlayniteAchievements.Services.GameCustomData
                 NotificationAppearanceOverride =
                     NormalizeNotificationAppearanceOverride(existing.NotificationAppearanceOverride) ??
                     NormalizeNotificationAppearanceOverride(legacy.NotificationAppearanceOverride),
+                UnlockSounds = existing.UnlockSounds?.Clone() ?? legacy.UnlockSounds?.Clone(),
+                NotificationBehaviorOverride = existing.NotificationBehaviorOverride?.Clone() ??
+                    legacy.NotificationBehaviorOverride?.Clone(),
+                CaptureOverride = existing.CaptureOverride?.Clone() ?? legacy.CaptureOverride?.Clone(),
                 ProviderOverride = ResolveEffectiveProviderOverride(existing) ??
                     ResolveEffectiveProviderOverride(legacy),
                 ExophaseEnrichmentSlugOverride = !string.IsNullOrWhiteSpace(existing.ExophaseEnrichmentSlugOverride)
@@ -383,6 +401,62 @@ namespace PlayniteAchievements.Services.GameCustomData
             };
         }
 
+        /// <summary>
+        /// Keeps one claim per field, last one winning, and drops claims with no field.
+        /// </summary>
+        private static List<RuleClaim> NormalizeRuleClaims(IEnumerable<RuleClaim> claims)
+        {
+            if (claims == null)
+            {
+                return null;
+            }
+
+            var byField = new Dictionary<string, RuleClaim>(StringComparer.Ordinal);
+            var order = new List<string>();
+            foreach (var claim in claims)
+            {
+                var field = NormalizeString(claim?.Field);
+                if (field == null)
+                {
+                    continue;
+                }
+
+                if (!byField.ContainsKey(field))
+                {
+                    order.Add(field);
+                }
+
+                byField[field] = new RuleClaim
+                {
+                    Field = field,
+                    Written = NormalizeString(claim.Written),
+                    Prior = NormalizeString(claim.Prior)
+                };
+            }
+
+            return order.Count > 0 ? order.ConvertAll(field => byField[field]) : null;
+        }
+
+        private static List<string> NormalizeRuleFieldList(IEnumerable<string> fields)
+        {
+            if (fields == null)
+            {
+                return null;
+            }
+
+            var normalized = new List<string>();
+            foreach (var field in fields)
+            {
+                var value = NormalizeString(field);
+                if (value != null && !normalized.Contains(value))
+                {
+                    normalized.Add(value);
+                }
+            }
+
+            return normalized.Count > 0 ? normalized : null;
+        }
+
         private static GameNotificationAppearanceOverride NormalizeNotificationAppearanceOverride(
             GameNotificationAppearanceOverride value)
         {
@@ -394,6 +468,12 @@ namespace PlayniteAchievements.Services.GameCustomData
             return value.Clone();
         }
 
+        /// <summary>
+        /// Canonicalizes the providers whose override values have a stored shape to enforce, and
+        /// keeps every other provider's override as entered: its value was validated by the
+        /// provider's override descriptor when it was set, and the provider parses it again when it
+        /// refreshes. This runs on every read too, before providers exist, so it cannot consult them.
+        /// </summary>
         internal static ProviderOverrideData NormalizeProviderOverride(ProviderOverrideData providerOverride)
         {
             var providerKey = NormalizeProviderKey(providerOverride?.ProviderKey);
@@ -413,6 +493,17 @@ namespace PlayniteAchievements.Services.GameCustomData
                         {
                             ProviderKey = providerKey,
                             Value = id.ToString(CultureInfo.InvariantCulture)
+                        }
+                        : null;
+
+                case "Meta":
+                    // Meta app ids are 15-16 digits, past the int range of the case above.
+                    return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var metaAppId) &&
+                           metaAppId > 0
+                        ? new ProviderOverrideData
+                        {
+                            ProviderKey = providerKey,
+                            Value = metaAppId.ToString(CultureInfo.InvariantCulture)
                         }
                         : null;
 
@@ -464,7 +555,11 @@ namespace PlayniteAchievements.Services.GameCustomData
                     };
 
                 default:
-                    return null;
+                    return new ProviderOverrideData
+                    {
+                        ProviderKey = providerKey,
+                        Value = value
+                    };
             }
         }
 
@@ -668,7 +763,13 @@ namespace PlayniteAchievements.Services.GameCustomData
                 return "Hypixel";
             }
 
-            return null;
+            if (string.Equals(normalized, "Meta", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Meta";
+            }
+
+            // Any other provider's key is kept as written; lookups compare keys case-insensitively.
+            return normalized;
         }
 
         private static bool TryNormalizePositiveInteger(string value, out int id)
@@ -829,7 +930,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                     }
                 }
 
-                var normalizedCategoryTypes = AchievementCategoryTypeHelper.Combine(categoryTypes);
+                var normalizedCategoryTypes = AchievementCategoryTypeHelper.StripDerivedTypes(AchievementCategoryTypeHelper.Combine(categoryTypes));
                 if (!string.IsNullOrWhiteSpace(normalizedCategoryTypes))
                 {
                     categoryTypeOverrides[apiName] = normalizedCategoryTypes;
@@ -902,7 +1003,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             foreach (var pair in values)
             {
                 var apiName = NormalizeString(pair.Key);
-                var categoryType = AchievementCategoryTypeHelper.Normalize(pair.Value);
+                // Softcore/Hardcore come only from RetroAchievements refreshes, never an override.
+                var categoryType = AchievementCategoryTypeHelper.StripDerivedTypes(pair.Value);
                 if (string.IsNullOrWhiteSpace(apiName) || string.IsNullOrWhiteSpace(categoryType))
                 {
                     continue;
@@ -975,7 +1077,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                     Category = !string.IsNullOrWhiteSpace(category)
                         ? CategoryPathHelper.NormalizePath(category)
                         : null,
-                    CategoryType = AchievementCategoryTypeHelper.Normalize(pair.Value.CategoryType),
+                    CategoryType = AchievementCategoryTypeHelper.StripDerivedTypes(pair.Value.CategoryType),
                     Note = AchievementNoteHelper.NormalizeNote(pair.Value.Note),
                     UnlockedIconPath = NormalizeString(pair.Value.UnlockedIconPath),
                     LockedIconPath = NormalizeString(pair.Value.LockedIconPath),
@@ -1484,7 +1586,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                     Points = NormalizeNonNegativeInt(definition.Points),
                     ScaledPoints = NormalizeNonNegativeInt(definition.ScaledPoints),
                     Category = AchievementCategoryTypeHelper.NormalizeCategoryOrDefault(definition.Category),
-                    CategoryType = AchievementCategoryTypeHelper.NormalizeOrDefault(definition.CategoryType),
+                    CategoryType = AchievementCategoryTypeHelper.NormalizeOrDefault(AchievementCategoryTypeHelper.StripDerivedTypes(definition.CategoryType)),
                     TrophyType = NormalizeTrophyType(definition.TrophyType),
                     Hidden = definition.Hidden,
                     IsAutoCapstone = definition.IsAutoCapstone,

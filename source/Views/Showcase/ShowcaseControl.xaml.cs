@@ -16,6 +16,7 @@ using PlayniteAchievements.Services.Overview;
 using PlayniteAchievements.Services.Showcase;
 using PlayniteAchievements.ViewModels;
 using PlayniteAchievements.Views.Controls;
+using PlayniteAchievements.Views.Helpers;
 using static PlayniteAchievements.Services.Showcase.ShowcaseGeometry;
 using static PlayniteAchievements.Views.Showcase.ShowcaseUiText;
 
@@ -28,7 +29,8 @@ namespace PlayniteAchievements.Views.Showcase
             Services.Logging.PluginLogger.GetLogger(nameof(ShowcaseControl));
         private readonly OverviewViewModel _overview;
         private readonly PlayniteAchievementsSettings _settings;
-        private readonly Action _persist;
+        private readonly ShowcaseLayoutHost _host;
+        private readonly bool _ownsHost;
         private readonly IPlayniteAPI _api;
         private bool _updatingPageSelector;
         private bool _publishingConfigurationChange;
@@ -138,13 +140,35 @@ namespace PlayniteAchievements.Views.Showcase
             PlayniteAchievementsSettings settings,
             Action persist,
             IPlayniteAPI api)
+            : this(overview, settings, new GlobalShowcaseLayoutHost(overview, settings, persist), api, ownsHost: true)
+        {
+        }
+
+        /// <summary>
+        /// Renders and edits the layout <paramref name="host"/> owns. The host is disposed with
+        /// this control only when <paramref name="ownsHost"/> is set.
+        /// </summary>
+        internal ShowcaseControl(
+            OverviewViewModel overview,
+            PlayniteAchievementsSettings settings,
+            ShowcaseLayoutHost host,
+            IPlayniteAPI api,
+            bool ownsHost)
         {
             using var perf = PerfScope.Start(Logger, "Showcase.Ctor", thresholdMs: 30);
             InitializeComponent();
             _overview = overview ?? throw new ArgumentNullException(nameof(overview));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            _persist = persist ?? throw new ArgumentNullException(nameof(persist));
+            _host = host ?? throw new ArgumentNullException(nameof(host));
+            _ownsHost = ownsHost;
             _api = api;
+            if (_host.IsStrip)
+            {
+                HeaderBar.Visibility = Visibility.Collapsed;
+                ContextMenu = new ContextMenu();
+                ContextMenuOpening += StripContextMenuOpening;
+            }
+
             // Widgets' control bar choices are saved in their own options across restarts.
             PlayniteAchievements.ViewModels.Showcase.Widgets.ShowcaseControlBarStates.Store =
                 ShowcaseControlBarStateStore.Instance;
@@ -162,7 +186,7 @@ namespace PlayniteAchievements.Views.Showcase
             };
             _trackRulerTimer.Tick += TrackRulerTimer_Tick;
             DashboardGrid.SizeChanged += (_, __) => ScheduleTrackRulerUpdate();
-            _overview.SnapshotChanged += Overview_SnapshotChanged;
+            _host.DataChanged += Host_DataChanged;
             ShowcaseConfigurationEvents.Changed += ShowcaseConfigurationEvents_Changed;
             // Rolling windows (the Timeline, Scores, Activity Calendar and played-within filters)
             // end at today; re-project after local midnight so they move with the calendar.
@@ -195,6 +219,24 @@ namespace PlayniteAchievements.Views.Showcase
         public void FocusInitialTarget()
         {
             PageSelector?.Focus();
+        }
+
+        /// <summary>Shows the page with the given id; false when no page has it.</summary>
+        public bool SelectPageById(string pageId)
+        {
+            var page = Layout.Pages.FirstOrDefault(candidate =>
+                string.Equals(candidate?.PageId, pageId, StringComparison.OrdinalIgnoreCase));
+            if (page == null)
+            {
+                return false;
+            }
+
+            if (!ReferenceEquals(page, CurrentPage))
+            {
+                SelectPage(page);
+            }
+
+            return true;
         }
 
         public bool MovePage(int direction)
@@ -234,12 +276,43 @@ namespace PlayniteAchievements.Views.Showcase
             }
 
             _hostCache.Clear();
-            _overview.SnapshotChanged -= Overview_SnapshotChanged;
+            _host.DataChanged -= Host_DataChanged;
             ShowcaseConfigurationEvents.Changed -= ShowcaseConfigurationEvents_Changed;
             Common.LocalDayRollover.Unsubscribe(LocalDayRollover_DayChanged);
+            if (_ownsHost)
+            {
+                _host.Dispose();
+            }
         }
 
-        private ShowcaseSettings Layout => _settings.Persisted.Showcase;
+        /// <summary>Whether the layout is being edited; a strip host enters and leaves edit mode through this.</summary>
+        public bool IsEditing
+        {
+            get => EditLayoutButton.IsChecked == true;
+            set => EditLayoutButton.IsChecked = value;
+        }
+
+        /// <summary>Raised after edit mode is entered or left.</summary>
+        public event EventHandler EditingChanged;
+
+        // A strip has no header bar, so its right-click menu is how edit mode is entered and
+        // left. It offers only that: whether the strip shows at all is a main settings choice.
+        private void StripContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            if (_disposed || !(ContextMenu is ContextMenu menu))
+            {
+                e.Handled = true;
+                return;
+            }
+
+            menu.Items.Clear();
+            var editing = IsEditing;
+            menu.Items.Add(MenuItem(
+                Localize(editing ? "LOCPlayAch_Common_View" : "LOCPlayAch_Common_Edit"),
+                () => IsEditing = !editing));
+        }
+
+        private ShowcaseSettings Layout => _host.Layout;
 
         private ShowcasePageSettings CurrentPage =>
             Layout.Pages.FirstOrDefault(page =>
@@ -251,7 +324,7 @@ namespace PlayniteAchievements.Views.Showcase
 
         private void EnsureLayout()
         {
-            ShowcaseLayoutService.Normalize(Layout);
+            _host.Normalize();
         }
 
         private void Rebuild()
@@ -385,8 +458,53 @@ namespace PlayniteAchievements.Views.Showcase
                 }
             }
 
+            if (_host.IsStrip)
+            {
+                AddOverlay(CreateStripHeightGripper(nearEdge: true));
+                AddOverlay(CreateStripHeightGripper(nearEdge: false));
+            }
+
             AddTrackRulers();
             UpdateTrackGripperVisibility();
+        }
+
+        // The strip's height handles: a row gripper's pill on the top corners, since the strip
+        // grows upward from the bottom of its host. The drag is measured against the window
+        // rather than the thumb, which moves with the edge it resizes.
+        private System.Windows.Controls.Primitives.Thumb CreateStripHeightGripper(bool nearEdge)
+        {
+            var thumb = new System.Windows.Controls.Primitives.Thumb
+            {
+                Cursor = Cursors.SizeNS,
+                Focusable = false,
+                Template = TrackGripperTemplateHorizontal,
+                Width = TrackGripperSize,
+                Height = 22,
+                VerticalAlignment = VerticalAlignment.Top,
+                HorizontalAlignment = nearEdge ? HorizontalAlignment.Left : HorizontalAlignment.Right,
+                Margin = nearEdge
+                    ? new Thickness(-TrackGripperSize / 2, -11, 0, 0)
+                    : new Thickness(0, -11, -TrackGripperSize / 2, 0)
+            };
+            Grid.SetRow(thumb, 0);
+            Grid.SetColumn(thumb, nearEdge ? 0 : PageColumnCount - 1);
+            Panel.SetZIndex(thumb, 40);
+            var startHeight = 0d;
+            var startY = 0d;
+            thumb.DragStarted += (_, __) =>
+            {
+                startHeight = _host.StripHeight;
+                startY = Mouse.GetPosition(Window.GetWindow(this)).Y;
+            };
+            thumb.DragDelta += (_, __) =>
+            {
+                var y = Mouse.GetPosition(Window.GetWindow(this)).Y;
+                _host.StripHeight = startHeight - (y - startY);
+                ScheduleTrackRulerUpdate();
+            };
+            thumb.DragCompleted += (_, __) => _host.Persist();
+            _trackGrippers.Add(thumb);
+            return thumb;
         }
 
         // How far the labels hang past the grid's top and left edges: the control's own 10px
@@ -532,7 +650,11 @@ namespace PlayniteAchievements.Views.Showcase
             // The label sits on its track's edge strip, so it answers hover and right-click the
             // same way instead of offering the text box's Cut/Copy/Paste menu.
             editor.ContextMenuOpening += (_, args) => args.Handled = true;
-            AttachTrackMenu(ruler, vertical, index);
+            if (vertical || !_host.IsStrip)
+            {
+                AttachTrackMenu(ruler, vertical, index);
+            }
+
             _trackRulers.Add(ruler);
             box = editor;
             return ruler;
@@ -566,6 +688,16 @@ namespace PlayniteAchievements.Views.Showcase
             var digits = new string((text ?? string.Empty).Where(char.IsDigit).ToArray());
             if (!int.TryParse(digits, out var target) || target <= 0)
             {
+                ScheduleTrackRulerUpdate();
+                return;
+            }
+
+            // A strip's row is the strip itself: its size label sets the strip's height, by the
+            // difference so the chrome around the row keeps its share.
+            if (!vertical && _host.IsStrip)
+            {
+                _host.StripHeight += target - Math.Round(ReadTrackSize(vertical: false, index));
+                _host.Persist();
                 ScheduleTrackRulerUpdate();
                 return;
             }
@@ -1136,7 +1268,7 @@ namespace PlayniteAchievements.Views.Showcase
             return template;
         }
 
-        // Scissors cursor for the cut lines, generated once from the Segoe MDL2 "Cut" glyph
+        // Scissors cursor for the cut lines, generated once from the IcoFont "cut" glyph
         // (WPF ships no scissors cursor). Falls back to the crosshair if anything fails.
         private static readonly Lazy<Cursor> CutCursor =
             new Lazy<Cursor>(CreateCutCursor);
@@ -1146,7 +1278,13 @@ namespace PlayniteAchievements.Views.Showcase
             try
             {
                 const int size = 24;
-                var typeface = new System.Windows.Media.Typeface("Segoe MDL2 Assets");
+                if (!(Application.Current?.TryFindResource("PlayAch.FontFamily.Icon") is System.Windows.Media.FontFamily iconFont))
+                {
+                    return Cursors.Cross;
+                }
+
+                var typeface = new System.Windows.Media.Typeface(
+                    iconFont, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
                 var visual = new System.Windows.Media.DrawingVisual();
                 using (var context = visual.RenderOpen())
                 {
@@ -1211,7 +1349,7 @@ namespace PlayniteAchievements.Views.Showcase
             System.Windows.Media.Brush brush)
         {
             return new System.Windows.Media.FormattedText(
-                "\uE8C6",
+                "\uEDEB",
                 System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight,
                 typeface,
@@ -1755,7 +1893,7 @@ namespace PlayniteAchievements.Views.Showcase
             // move/swap fast path just re-resolves visibility.
             var blockId = block.BlockId;
             var settingsButton = CreateBlockActionButton(
-                "\uE713",
+                "\uEF3A",
                 "LOCPlayAch_Showcase_WidgetSettings",
                 HorizontalAlignment.Left);
             settingsButton.Click += (_, __) =>
@@ -1770,7 +1908,7 @@ namespace PlayniteAchievements.Views.Showcase
             };
             layers.Children.Add(settingsButton);
             var deleteButton = CreateBlockActionButton(
-                "\uE74D",
+                "\uEE09",
                 "LOCPlayAch_Showcase_DeleteWidget",
                 HorizontalAlignment.Right);
             deleteButton.Click += (_, __) =>
@@ -1868,8 +2006,25 @@ namespace PlayniteAchievements.Views.Showcase
                 _hostCache.Remove(staleId);
             }
 
-            // Deleted widgets' control bar state goes with them.
-            PlayniteAchievements.ViewModels.Showcase.Widgets.ShowcaseControlBarStates.RemoveExcept(live);
+            // Deleted widgets' control bar state goes with them. Start page widgets share the
+            // adapter registry, so their instances stay live too. A strip's widgets carry no
+            // control bar, and its layout cannot vouch for the Showcase page's instances.
+            if (_host.IsStrip)
+            {
+                return;
+            }
+
+            var liveControlBars = new HashSet<string>(live, StringComparer.OrdinalIgnoreCase);
+            foreach (var widget in (Layout.StartPageInstances ??
+                new Dictionary<string, ShowcaseWidgetInstanceSettings>()).Values)
+            {
+                if (!string.IsNullOrWhiteSpace(widget?.InstanceId))
+                {
+                    liveControlBars.Add(widget.InstanceId);
+                }
+            }
+
+            PlayniteAchievements.ViewModels.Showcase.Widgets.ShowcaseControlBarStates.RemoveExcept(liveControlBars);
         }
 
         // Reuses the cached control for this widget when there is one, otherwise builds a fresh
@@ -1919,7 +2074,7 @@ namespace PlayniteAchievements.Views.Showcase
             // new for it. Every SnapshotChanged publishes a fresh snapshot instance, so
             // reference identity is the data identity (the projection service's per-snapshot
             // cache relies on the same fact). Configuration changes never take this exit.
-            if (snapshotOnly && IsProjectedFrom(host, _overview.LatestSnapshot))
+            if (snapshotOnly && IsProjectedFrom(host, _host.SnapshotFor(widget)))
             {
                 return;
             }
@@ -1998,7 +2153,7 @@ namespace PlayniteAchievements.Views.Showcase
                         continue;
                     }
 
-                    var snapshot = _overview.LatestSnapshot;
+                    var snapshot = _host.SnapshotFor(request.Widget);
                     if (request.SnapshotOnly && IsProjectedFrom(request.Host, snapshot))
                     {
                         continue;
@@ -2020,7 +2175,13 @@ namespace PlayniteAchievements.Views.Showcase
                     ApplyWidgetProjection(request.Host, request.Widget, snapshot);
                     _applyPassEndedTicks = System.Diagnostics.Stopwatch.GetTimestamp();
                     _applyDrainApplied++;
-                    break;
+                    // A strip holds a few light charts that change together (one filter click
+                    // moves several); one per pass would ripple across the row, so they land in
+                    // one pass instead.
+                    if (!_host.IsStrip)
+                    {
+                        break;
+                    }
                 }
             }
             finally
@@ -2054,9 +2215,9 @@ namespace PlayniteAchievements.Views.Showcase
                    ReferenceEquals(live, request.Host);
         }
 
-        private static bool IsProjectedFrom(ShowcaseWidgetControl host, OverviewDataSnapshot snapshot)
+        private bool IsProjectedFrom(ShowcaseWidgetControl host, OverviewDataSnapshot snapshot)
         {
-            return snapshot != null && ReferenceEquals(host?.Projection?.Snapshot, snapshot);
+            return _host.IsProjectionCurrent(host?.Projection, snapshot);
         }
 
         private void ClearApplyQueue()
@@ -2095,7 +2256,10 @@ namespace PlayniteAchievements.Views.Showcase
                     snapshot,
                     Layout,
                     widget,
-                    gridOptions: _settings.Persisted?.GridOptions);
+                    gridOptions: _settings.Persisted?.GridOptions,
+                    // A strip's calendar spans only the weeks its unlocks cover, not the run up to today.
+                    trimCalendarToUnlocks: _host.IsStrip);
+                _host.Decorate(projection);
                 build?.SetContext(context + " " + DescribeProjection(projection));
             }
 
@@ -2154,13 +2318,13 @@ namespace PlayniteAchievements.Views.Showcase
         {
             var addGlyph = new TextBlock
             {
-                Text = "\uE710",
+                Text = "\uEFC2",
                 FontSize = 34,
-                FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 Opacity = 0.85
             };
+            addGlyph.SetResourceReference(TextBlock.FontFamilyProperty, "PlayAch.FontFamily.Icon");
             addGlyph.SetResourceReference(TextBlock.ForegroundProperty, "PlayAch.Brush.Accent");
             // A fixed-size centered target instead of a block-filling one: clicking anywhere
             // else in the empty block only selects it, keeping the cut lines reachable.
@@ -2216,7 +2380,8 @@ namespace PlayniteAchievements.Views.Showcase
         private void OpenWidgetPicker(ShowcaseBlockSettings block, FrameworkElement target)
         {
             var menu = new ContextMenu();
-            foreach (var definition in ShowcaseWidgetCatalog.Definitions.Where(definition => !definition.Hidden))
+            foreach (var definition in ShowcaseWidgetCatalog.Definitions.Where(definition =>
+                         !definition.Hidden && _host.IsKindAllowed(definition.Kind)))
             {
                 var captured = definition;
                 var item = WidgetPickerItem(
@@ -2612,7 +2777,7 @@ namespace PlayniteAchievements.Views.Showcase
                 {
                     state.Glow.BeginAnimation(
                         UIElement.OpacityProperty,
-                        new DoubleAnimation
+                        AnimationFrameRate.Apply(new DoubleAnimation
                         {
                             From = 0.12,
                             To = 0.30,
@@ -2623,7 +2788,7 @@ namespace PlayniteAchievements.Views.Showcase
                             {
                                 EasingMode = EasingMode.EaseInOut
                             }
-                        },
+                        }),
                         HandoffBehavior.SnapshotAndReplace);
                 }
 
@@ -2857,11 +3022,22 @@ namespace PlayniteAchievements.Views.Showcase
         private void SaveAndPublish()
         {
             RecordHistoryPoint();
-            ShowcaseLayoutService.Normalize(Layout);
+            _host.Normalize();
             ShowcaseLayoutService.PruneOrphanedWidgets(Layout);
-            ShowcaseGridSurfaces.PruneOrphaned(_settings.Persisted?.GridOptions, Layout);
+            if (!_host.IsStrip)
+            {
+                ShowcaseGridSurfaces.PruneOrphaned(_settings.Persisted?.GridOptions, Layout);
+            }
+
             PruneHostCache();
-            _persist();
+            _host.Persist();
+            // A strip holds none of the Showcase page's shared state, and nothing else listens
+            // to its layout, so it neither prunes that state nor broadcasts.
+            if (_host.IsStrip)
+            {
+                return;
+            }
+
             // Stored profile images are shared by content, so a file goes only once no widget
             // (on any page or the start page) refers to it any more.
             PlayniteAchievementsPlugin.Instance?.ShowcaseImageStore?.Prune(Layout);
@@ -3005,7 +3181,7 @@ namespace PlayniteAchievements.Views.Showcase
             }
         }
 
-        private void Overview_SnapshotChanged(object sender, EventArgs e)
+        private void Host_DataChanged(object sender, EventArgs e)
         {
             Dispatcher.BeginInvoke(new Action(QueueSnapshotRefresh));
         }
@@ -3014,6 +3190,15 @@ namespace PlayniteAchievements.Views.Showcase
         {
             if (_disposed)
             {
+                return;
+            }
+
+            // A strip's data changes come from the user's own filter clicks, so they apply now:
+            // the window that batches the page's library refresh bursts would hold a second
+            // click for up to a second. A widget whose view did not change is skipped cheaply.
+            if (_host.IsStrip)
+            {
+                RefreshWidgetData(includeCachedHosts: true);
                 return;
             }
 
@@ -3270,7 +3455,7 @@ namespace PlayniteAchievements.Views.Showcase
         {
             // The button shows the mode a click switches to: pencil (edit) or eye (view).
             var switchingToEdit = EditLayoutButton.IsChecked != true;
-            EditLayoutButton.Content = switchingToEdit ? "\uE70F" : "\uE890";
+            EditLayoutButton.Content = switchingToEdit ? "\uEC55" : "\uEF24";
             EditLayoutButton.ToolTip = Localize(switchingToEdit
                 ? "LOCPlayAch_Common_Edit"
                 : "LOCPlayAch_Common_View");
@@ -3282,6 +3467,7 @@ namespace PlayniteAchievements.Views.Showcase
             if (_blockVisuals.Count == 0)
             {
                 BuildDashboard();
+                EditingChanged?.Invoke(this, EventArgs.Empty);
                 return;
             }
 
@@ -3309,6 +3495,7 @@ namespace PlayniteAchievements.Views.Showcase
             // + button in favor of the overlay copy, and the loop above resets visibility.
             UpdateLayoutHandles();
             FocusSelectedBlock();
+            EditingChanged?.Invoke(this, EventArgs.Empty);
         }
 
         private ShowcaseBlockSettings SelectedBlock => CurrentPage.Blocks.FirstOrDefault(block =>
@@ -3435,12 +3622,20 @@ namespace PlayniteAchievements.Views.Showcase
                 Localize("LOCPlayAch_Showcase_RenamePage"),
                 RenameCurrentPage));
             menu.Items.Add(new Separator());
-            menu.Items.Add(MenuItem(
-                Localize("LOCPlayAch_Showcase_ExportPage"),
-                ExportCurrentPage));
-            menu.Items.Add(MenuItem(
-                Localize("LOCPlayAch_Showcase_ImportPage"),
-                ImportPageFromFile));
+            var exportPage = new MenuItem { Header = Localize("LOCPlayAch_Showcase_ExportPage"), Icon = ImportExportGlyph("\uF01C") };
+            foreach (var item in Helpers.WorkshopMenus.ExportItems(ExportCurrentPage, SharePageToWorkshop))
+            {
+                exportPage.Items.Add(item);
+            }
+
+            menu.Items.Add(exportPage);
+            var importPage = new MenuItem { Header = Localize("LOCPlayAch_Showcase_ImportPage"), Icon = ImportExportGlyph("\uEF08") };
+            foreach (var item in Helpers.WorkshopMenus.ImportItems(ImportPageFromFile, ImportPageFromWorkshop))
+            {
+                importPage.Items.Add(item);
+            }
+
+            menu.Items.Add(importPage);
             menu.Items.Add(new Separator());
             menu.Items.Add(MenuItem(
                 Localize("LOCPlayAch_Showcase_MovePageLeft"),
@@ -3482,14 +3677,18 @@ namespace PlayniteAchievements.Views.Showcase
 
         private MenuItem PageTemplateItem(ShowcasePageTemplate template)
         {
+            // Collection reuses the score mode's "Collection" rather than a second identical string.
+            var name = template == ShowcasePageTemplate.Collection
+                ? Localize("LOCPlayAch_Showcase_ScoreMode_Collection")
+                : Localize($"LOCPlayAch_Showcase_Template_{template}");
             return MenuItem(
-                Localize($"LOCPlayAch_Showcase_Template_{template}"),
+                name,
                 () =>
                 {
                     ShowcaseLayoutService.AddPage(
                         Layout,
                         template,
-                        Localize($"LOCPlayAch_Showcase_Template_{template}"));
+                        name);
                     SaveAndRebuild();
                 });
         }
@@ -3513,7 +3712,7 @@ namespace PlayniteAchievements.Views.Showcase
 
         private void OpenWidgetSettings(ShowcaseWidgetInstanceSettings widget)
         {
-            if (ShowcaseWidgetSettingsDialog.Show(widget))
+            if (ShowcaseWidgetSettingsDialog.Show(widget, linked: _host.IsStrip))
             {
                 SaveAndPublish();
                 EnsureSnapshotCoversLayout();
@@ -3612,6 +3811,26 @@ namespace PlayniteAchievements.Views.Showcase
 
         // Writes the current page to a .pashowcase package: layout and appearance only, no pin
         // collections or control-bar filter state, and of a profile card only its background.
+        private void SharePageToWorkshop()
+        {
+            var page = CurrentPage;
+            if (page == null)
+            {
+                return;
+            }
+
+            PlayniteAchievementsPlugin.Instance?.OpenWorkshopShare(
+                Services.Workshop.WorkshopItemKind.ShowcasePage,
+                Window.GetWindow(this),
+                pageId: page.PageId);
+        }
+
+        private void ImportPageFromWorkshop()
+        {
+            PlayniteAchievementsPlugin.Instance?.OpenWorkshopWindow(
+                focusKind: Services.Workshop.WorkshopItemKind.ShowcasePage);
+        }
+
         private void ExportCurrentPage()
         {
             var page = CurrentPage;
@@ -3724,7 +3943,11 @@ namespace PlayniteAchievements.Views.Showcase
                 return;
             }
 
-            ShowcaseLayoutService.DeletePage(Layout, CurrentPage.PageId);
+            var pageId = CurrentPage.PageId;
+            ShowcaseLayoutService.DeletePage(Layout, pageId);
+
+            // A deleted page no longer follows the library item it came from.
+            _settings.Persisted.SetLibraryLink(Services.Library.LibraryTargetKeys.Showcase(pageId), null);
             SaveAndRebuild();
         }
 
@@ -3769,7 +3992,7 @@ namespace PlayniteAchievements.Views.Showcase
                 return;
             }
 
-            if (_clipboardWidget == null)
+            if (_clipboardWidget == null || !_host.IsKindAllowed(_clipboardWidget.Kind))
             {
                 return;
             }
@@ -3931,6 +4154,15 @@ namespace PlayniteAchievements.Views.Showcase
             return widget == null
                 ? Localize("LOCPlayAch_Showcase_Widget")
                 : ShowcaseUiText.GetWidgetName(widget.Kind);
+        }
+
+        /// <summary>The same download and upload glyphs the Import and Export buttons wear elsewhere.</summary>
+        private static Controls.GlyphIcon ImportExportGlyph(string glyph)
+        {
+            var icon = new Controls.GlyphIcon { Glyph = glyph, Size = 14 };
+            icon.SetResourceReference(Controls.GlyphIcon.FontFamilyProperty, "PlayAch.FontFamily.Icon");
+            icon.SetResourceReference(Controls.GlyphIcon.ForegroundProperty, "PlayAch.Brush.Text");
+            return icon;
         }
 
         private static MenuItem MenuItem(string header, Action action)

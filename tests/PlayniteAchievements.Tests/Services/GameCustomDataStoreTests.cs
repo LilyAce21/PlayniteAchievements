@@ -504,6 +504,9 @@ namespace PlayniteAchievements.Services.Tests
                 style.Toast.BadgeImages.RarePath = sourcePaths[3];
                 style.Toast.BadgeImages.UltraRarePath = sourcePaths[4];
                 style.Toast.BadgeImages.CompletionPath = sourcePaths[5];
+                style.FrameBackgroundImagePath = sourcePaths[0];
+                style.Toast.ImageKeyframeMs = 250;
+                style.Frame.ImageKeyframeMs = 400;
                 store.Save(gameId, new GameCustomDataFile
                 {
                     PlayniteGameId = gameId,
@@ -528,7 +531,8 @@ namespace PlayniteAchievements.Services.Tests
                         "notification_badge_uncommon",
                         "notification_badge_rare",
                         "notification_badge_ultrarare",
-                        "notification_badge_completion"
+                        "notification_badge_completion",
+                        "notification_frame_background"
                     })
                     {
                         CollectionAssert.Contains(entryNames, "images/" + stem + ".png");
@@ -544,7 +548,8 @@ namespace PlayniteAchievements.Services.Tests
                     importedStyle.Toast.BadgeImages.UncommonPath,
                     importedStyle.Toast.BadgeImages.RarePath,
                     importedStyle.Toast.BadgeImages.UltraRarePath,
-                    importedStyle.Toast.BadgeImages.CompletionPath
+                    importedStyle.Toast.BadgeImages.CompletionPath,
+                    importedStyle.FrameBackgroundImagePath
                 };
                 var expectedDirectorySuffix = Path.Combine(
                     "notification_images",
@@ -561,6 +566,8 @@ namespace PlayniteAchievements.Services.Tests
                 Assert.IsFalse(imported.NotificationAppearanceOverride.ToastUseThemeStyling);
                 Assert.IsTrue(imported.NotificationAppearanceOverride.FrameUseThemeStyling);
                 Assert.IsFalse(importedStyle.Toast.ShowDescription);
+                Assert.AreEqual(250, importedStyle.Toast.ImageKeyframeMs);
+                Assert.AreEqual(400, importedStyle.Frame.ImageKeyframeMs);
 
                 var staleBadgePath = importedStyle.Toast.BadgeImages.CommonPath;
                 store.Update(importedGameId, data =>

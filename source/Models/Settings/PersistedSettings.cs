@@ -17,13 +17,15 @@ using PlayniteAchievements.Services.Showcase;
 
 using ObservableObject = PlayniteAchievements.Common.ObservableObject;
 
+using PlayniteAchievements.Models.Achievements.Scoring;
+
 namespace PlayniteAchievements.Models.Settings
 {
     /// <summary>
     /// Persisted user settings for PlayniteAchievements plugin.
     /// These settings are serialized to the plugin settings JSON file.
     /// </summary>
-    public partial class PersistedSettings : ObservableObject
+    public partial class PersistedSettings : ObservableObject, IUnlockCaptureRarities
     {
         public const double DefaultAchievementDataGridMaxHeight = 600d;
         public const double MinimumGridRowHeight = 32d;
@@ -45,6 +47,7 @@ namespace PlayniteAchievements.Models.Settings
         public const string DefaultOpenSettingsHotkey = "Ctrl+Alt+P";
         public const string DefaultCategoryModeHotkey = "C";
         public const string DefaultTestUnlockHotkey = "Ctrl+Alt+T";
+        public const string DefaultWorkshopHotkey = "Ctrl+Alt+W";
 
         /// <summary>
         /// Column key of the Progress column in game-summaries grids (matches the XAML ColumnKey and
@@ -63,6 +66,9 @@ namespace PlayniteAchievements.Models.Settings
         private string _globalLanguage = "english";
         private bool _enablePeriodicUpdates = true;
         private bool _includeHiddenGamesInBulkScans = true;
+        private bool _includeHiddenGamesInSummaries = true;
+        private HashSet<Guid> _refreshExclusionFilterPresetIds = new HashSet<Guid>();
+        private HashSet<Guid> _summaryExclusionFilterPresetIds = new HashSet<Guid>();
         private int _periodicUpdateHours = 6;
         private bool _enableFriendsPeriodicUpdates = false;
         private int _friendsPeriodicUpdateHours = 24;
@@ -98,6 +104,7 @@ namespace PlayniteAchievements.Models.Settings
         private bool _allowThemeUnlockSounds = true;
         private int _unlockSoundVolumePercent = 50;
         private UnlockSoundSettings _unlockSounds = UnlockSoundSettings.CreateDefault();
+        private Dictionary<string, UnlockSoundSettings> _providerUnlockSounds;
         private bool _unlockSoundsSeededFromUniPlaySong = false;
         private bool _enableUnlockScreenshots = false;
         private bool _unlockScreenshotClean = false;
@@ -107,6 +114,8 @@ namespace PlayniteAchievements.Models.Settings
         private string _unlockScreenshotSuffixWithToast = "notification";
         private string _unlockScreenshotSuffixFramed = "framed";
         private string _unlockScreenshotDirectory;
+        private Dictionary<string, LibraryLink> _libraryLinks =
+            new Dictionary<string, LibraryLink>(StringComparer.OrdinalIgnoreCase);
         private ScreenshotResolution _screenshotResolution = ScreenshotResolution.Native;
         private RaritySelection _unlockScreenshotCleanRarities = RaritySelection.All;
         private bool _unlockScreenshotCleanAlwaysCaptureCompletion = true;
@@ -136,6 +145,7 @@ namespace PlayniteAchievements.Models.Settings
         private Dictionary<string, ProviderNotificationOverride> _providerNotificationOverrides =
             new Dictionary<string, ProviderNotificationOverride>(StringComparer.OrdinalIgnoreCase);
         private ToastScreenCorner _toastPosition = ToastScreenCorner.BottomRight;
+        private NotificationRenderMode _notificationRenderMode = NotificationRenderMode.Performance;
         private int _recentRefreshGamesCount = 10;
         private RefreshModeType _defaultOverviewRefreshMode = RefreshModeType.Installed;
         private bool _enableAchievementHotkeys = true;
@@ -146,6 +156,7 @@ namespace PlayniteAchievements.Models.Settings
         private bool _enableOpenSettingsHotkey = true;
         private bool _enableCategoryModeHotkey = true;
         private bool _enableTestUnlockHotkey = true;
+        private bool _enableWorkshopHotkey = true;
         private bool _enableCaptureTestFolder = false;
         private string _viewAchievementsHotkey = DefaultViewAchievementsHotkey;
         private string _manageAchievementsHotkey = DefaultManageAchievementsHotkey;
@@ -153,6 +164,7 @@ namespace PlayniteAchievements.Models.Settings
         private string _openSettingsHotkey = DefaultOpenSettingsHotkey;
         private string _categoryModeHotkey = DefaultCategoryModeHotkey;
         private string _testUnlockHotkey = DefaultTestUnlockHotkey;
+        private string _workshopHotkey = DefaultWorkshopHotkey;
         private bool _showHiddenIcon = false;
         private bool _showHiddenTitle = false;
         private bool _showHiddenDescription = false;
@@ -186,20 +198,12 @@ namespace PlayniteAchievements.Models.Settings
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
-        private bool _showOverviewCollectionScoreCard = true;
-        private bool _showOverviewPrestigeScoreCard = true;
-        private bool _showOverviewPieCharts = true;
-        private bool _showOverviewGamesPieChart = true;
-        private bool _showOverviewProviderPieChart = true;
-        private bool _showOverviewRarityPieChart = true;
-        private bool _showOverviewTrophyPieChart = true;
-        private bool _showOverviewPiePercentages = true;
+        private ShowcaseWidgetInstanceSettings _overviewScoreCard1 = CreateOverviewScoreCard(ScoreCardType.Collection);
+        private ShowcaseWidgetInstanceSettings _overviewScoreCard2 = CreateOverviewScoreCard(ScoreCardType.Prestige);
+        private bool _showOverviewScoreCard1 = true;
+        private bool _showOverviewScoreCard2 = true;
         private bool _showFriendSpoilers;
         private int _friendsOverviewRecentUnlockLimit = 200;
-        private OverviewPieSmallSliceMode _overviewPieSmallSliceMode = OverviewPieSmallSliceMode.Round;
-        private bool _overviewPieIncludeLocked = true;
-        private bool _overviewPieChartVisibilityInitializedFromIndividualSettings;
-        private bool _showOverviewBarCharts = true;
         private bool _showTopMenuBarButton = true;
         private bool _showCompletedProgressColoring = true;
         private bool _tintMissableLocks = true;
@@ -231,6 +235,9 @@ namespace PlayniteAchievements.Models.Settings
         private StartPageRecentUnlocksGridSettings _startPageRecentUnlocksGrid;
         private StartPageFriendsRecentUnlocksGridSettings _startPageFriendsRecentUnlocksGrid;
         private ShowcaseSettings _showcase;
+        private ShowcaseSettings _overviewMiniShowcase;
+        private double _overviewMiniShowcaseHeight = OverviewMiniShowcaseLayout.DefaultHeight;
+        private bool _showOverviewMiniShowcase = true;
         private GridOptionsCatalog _gridOptions = new GridOptionsCatalog();
         private GameActivityScope _startPageActivityScope = DefaultStartPageActivityScope;
         private GameProgressScope _startPageProgressScope = DefaultStartPageProgressScope;
@@ -249,8 +256,6 @@ namespace PlayniteAchievements.Models.Settings
         private double _friendsOverviewGameColumnRatio = DefaultFriendsOverviewGameColumnRatio;
         private Dictionary<string, WindowPlacementState> _windowPlacements =
             new Dictionary<string, WindowPlacementState>(StringComparer.OrdinalIgnoreCase);
-        private TimeWindow _overviewTimeWindow = TimeWindow.FromPreset(TimelineRange.OneYear);
-        private TimelineGranularity _overviewTimelineGranularity = TimelineGranularity.Auto;
         private TimeWindow _viewAchievementsTimeWindow = TimeWindow.FromPreset(TimelineRange.OneYear);
         private TimelineGranularity _viewAchievementsTimelineGranularity = TimelineGranularity.Auto;
         private bool _viewAchievementsTimelineVisible = false;
@@ -850,6 +855,37 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// When false, games marked hidden in Playnite are left out of the Overview window,
+        /// showcase widgets and theme library data. Their own views keep working.
+        /// </summary>
+        public bool IncludeHiddenGamesInSummaries
+        {
+            get => _includeHiddenGamesInSummaries;
+            set => SetValue(ref _includeHiddenGamesInSummaries, value);
+        }
+
+        /// <summary>
+        /// Playnite saved filter presets whose matching games are excluded from refreshes. The
+        /// exclusion is written to each game and taken back when the game stops matching; a game
+        /// the user included or excluded by hand keeps the user's choice.
+        /// </summary>
+        public HashSet<Guid> RefreshExclusionFilterPresetIds
+        {
+            get => _refreshExclusionFilterPresetIds ?? (_refreshExclusionFilterPresetIds = new HashSet<Guid>());
+            set => SetValue(ref _refreshExclusionFilterPresetIds, NormalizeGuidSet(value));
+        }
+
+        /// <summary>
+        /// Playnite saved filter presets whose matching games are excluded from summaries, with
+        /// the same ownership rules as <see cref="RefreshExclusionFilterPresetIds"/>.
+        /// </summary>
+        public HashSet<Guid> SummaryExclusionFilterPresetIds
+        {
+            get => _summaryExclusionFilterPresetIds ?? (_summaryExclusionFilterPresetIds = new HashSet<Guid>());
+            set => SetValue(ref _summaryExclusionFilterPresetIds, NormalizeGuidSet(value));
+        }
+
+        /// <summary>
         /// Hours between periodic background updates.
         /// </summary>
         public int PeriodicUpdateHours
@@ -1002,7 +1038,7 @@ namespace PlayniteAchievements.Models.Settings
             set
             {
                 var normalized = new List<CustomRefreshPreset>(
-                    CustomRefreshPreset.NormalizePresets(value, CustomRefreshPreset.MaxPresetCount));
+                    CustomRefreshPreset.NormalizePresets(value));
                 SetValue(ref _customRefreshPresets, normalized);
             }
         }
@@ -1085,6 +1121,15 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// Enables the Workshop shortcut individually. Gated by <see cref="EnableAchievementHotkeys"/>.
+        /// </summary>
+        public bool EnableWorkshopHotkey
+        {
+            get => _enableWorkshopHotkey;
+            set => SetValue(ref _enableWorkshopHotkey, value);
+        }
+
+        /// <summary>
         /// Routes retriggered captures into the shared "Test" subfolder of the capture root instead of
         /// the game's own folder. The capture library hides that subfolder, so retriggers become
         /// throwaway test output rather than part of the game's collection.
@@ -1152,6 +1197,16 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _testUnlockHotkey;
             set => SetValue(ref _testUnlockHotkey, NormalizeHotkeyText(value));
+        }
+
+        /// <summary>
+        /// Shortcut that opens, focuses, or toggles the Workshop window. In-app only: it is never
+        /// registered as a global hotkey.
+        /// </summary>
+        public string WorkshopHotkey
+        {
+            get => _workshopHotkey;
+            set => SetValue(ref _workshopHotkey, NormalizeHotkeyText(value));
         }
 
         #endregion
@@ -1279,6 +1334,16 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// Whether a shown notification takes realtime GPU scheduling (Quality) or leaves the game
+        /// its frame rate (Performance).
+        /// </summary>
+        public NotificationRenderMode NotificationRenderMode
+        {
+            get => _notificationRenderMode;
+            set => SetValue(ref _notificationRenderMode, value);
+        }
+
+        /// <summary>
         /// Pulse connected game controllers when a notification shows.
         /// </summary>
         public bool EnableControllerVibration
@@ -1352,6 +1417,60 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _unlockSounds;
             set => SetValue(ref _unlockSounds, value ?? UnlockSoundSettings.CreateDefault());
+        }
+
+        /// <summary>
+        /// Per-provider whole sound packs keyed by provider key. Only customized providers are
+        /// stored; absent providers follow <see cref="UnlockSounds"/>. Presence means the provider
+        /// owns all six tiers: a blank tier in its pack falls to the theme and bundled sounds,
+        /// never to the global pack.
+        /// </summary>
+        public Dictionary<string, UnlockSoundSettings> ProviderUnlockSounds
+        {
+            get => _providerUnlockSounds ??
+                   (_providerUnlockSounds =
+                       new Dictionary<string, UnlockSoundSettings>(StringComparer.OrdinalIgnoreCase));
+            set => SetValue(ref _providerUnlockSounds, NormalizeProviderUnlockSounds(value));
+        }
+
+        /// <summary>The provider's own sound pack, or null when it follows <see cref="UnlockSounds"/>.</summary>
+        public UnlockSoundSettings GetProviderUnlockSounds(string providerKey)
+        {
+            providerKey = NormalizeProviderKeyToken(providerKey);
+            return providerKey != null &&
+                   ProviderUnlockSounds.TryGetValue(providerKey, out var value)
+                ? value
+                : null;
+        }
+
+        /// <summary>
+        /// Stores a clone of the provider's sound pack, removing the entry when the value is null.
+        /// Reassigns the dictionary so PropertyChanged is raised.
+        /// </summary>
+        public void SetProviderUnlockSounds(string providerKey, UnlockSoundSettings value)
+        {
+            providerKey = NormalizeProviderKeyToken(providerKey);
+            if (string.IsNullOrWhiteSpace(providerKey))
+            {
+                return;
+            }
+
+            var packs = new Dictionary<string, UnlockSoundSettings>(
+                ProviderUnlockSounds,
+                StringComparer.OrdinalIgnoreCase);
+            if (value == null)
+            {
+                if (!packs.Remove(providerKey))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                packs[providerKey] = value.Clone();
+            }
+
+            ProviderUnlockSounds = packs;
         }
 
         /// <summary>
@@ -1443,6 +1562,77 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _unlockScreenshotDirectory;
             set => SetValue(ref _unlockScreenshotDirectory, value);
+        }
+
+        /// <summary>
+        /// The library items that settings-backed targets follow, keyed by target key (colors,
+        /// sounds, toast:global, frame:provider:&lt;key&gt;, showcase:&lt;pageId&gt; and so on).
+        /// Kept here rather than in a file so that Cancel undoes a value and its link together.
+        /// Keys this version does not know are kept.
+        /// </summary>
+        public Dictionary<string, LibraryLink> LibraryLinks
+        {
+            get => _libraryLinks ??
+                   (_libraryLinks = new Dictionary<string, LibraryLink>(StringComparer.OrdinalIgnoreCase));
+            set => SetValue(ref _libraryLinks, NormalizeLibraryLinks(value));
+        }
+
+        /// <summary>The link of a target, or null when the target follows no library item.</summary>
+        public LibraryLink GetLibraryLink(string targetKey)
+        {
+            return !string.IsNullOrWhiteSpace(targetKey) && LibraryLinks.TryGetValue(targetKey, out var link)
+                ? link
+                : null;
+        }
+
+        /// <summary>
+        /// Stores a copy of the link of a target, or removes it when <paramref name="link"/> is
+        /// null. Reassigns the dictionary so PropertyChanged is raised.
+        /// </summary>
+        public void SetLibraryLink(string targetKey, LibraryLink link)
+        {
+            if (string.IsNullOrWhiteSpace(targetKey))
+            {
+                return;
+            }
+
+            var links = new Dictionary<string, LibraryLink>(LibraryLinks, StringComparer.OrdinalIgnoreCase);
+            if (link == null)
+            {
+                if (!links.Remove(targetKey))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                links[targetKey] = link.Clone();
+            }
+
+            LibraryLinks = links;
+        }
+
+        /// <summary>
+        /// The links as stored: a case-insensitive dictionary without blank keys or empty links.
+        /// Every other key is kept, so links written by a newer version survive.
+        /// </summary>
+        private static Dictionary<string, LibraryLink> NormalizeLibraryLinks(IDictionary<string, LibraryLink> links)
+        {
+            var result = new Dictionary<string, LibraryLink>(StringComparer.OrdinalIgnoreCase);
+            if (links == null)
+            {
+                return result;
+            }
+
+            foreach (var pair in links)
+            {
+                if (!string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null)
+                {
+                    result[pair.Key] = pair.Value;
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -2120,140 +2310,74 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
-        /// When true, shows the collection score card in the overview header.
+        /// The overview header's first score card: its type, badge side, show-total and color
+        /// options, stored as a Scores widget's options and edited from the card's right-click
+        /// menu. Replaced on load so the seeded default is not populated. Profiles saved with the
+        /// old card slots are converted by OverviewSettingsMigration.
         /// </summary>
-        public bool ShowOverviewCollectionScoreCard
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+        public ShowcaseWidgetInstanceSettings OverviewScoreCard1
         {
-            get => _showOverviewCollectionScoreCard;
-            set => SetValue(ref _showOverviewCollectionScoreCard, value);
+            get => _overviewScoreCard1;
+            set => SetValue(ref _overviewScoreCard1, NormalizeOverviewScoreCard(value, ScoreCardType.Collection));
         }
 
-        /// <summary>
-        /// When true, shows the prestige score card in the overview header.
-        /// </summary>
-        public bool ShowOverviewPrestigeScoreCard
+        /// <summary>The overview header's second score card; see <see cref="OverviewScoreCard1"/>.</summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+        public ShowcaseWidgetInstanceSettings OverviewScoreCard2
         {
-            get => _showOverviewPrestigeScoreCard;
-            set => SetValue(ref _showOverviewPrestigeScoreCard, value);
+            get => _overviewScoreCard2;
+            set => SetValue(ref _overviewScoreCard2, NormalizeOverviewScoreCard(value, ScoreCardType.Prestige));
         }
 
-        /// <summary>
-        /// Legacy aggregate toggle for overview pie charts.
-        /// New builds use per-chart visibility settings, but this is preserved for migration.
-        /// </summary>
-        public bool ShowOverviewPieCharts
+        /// <summary>When true, the overview header shows its first score card.</summary>
+        public bool ShowOverviewScoreCard1
         {
-            get => _showOverviewPieCharts;
-            set
+            get => _showOverviewScoreCard1;
+            set => SetValue(ref _showOverviewScoreCard1, value);
+        }
+
+        /// <summary>When true, the overview header shows its second score card.</summary>
+        public bool ShowOverviewScoreCard2
+        {
+            get => _showOverviewScoreCard2;
+            set => SetValue(ref _showOverviewScoreCard2, value);
+        }
+
+        /// <summary>The first card's slot key for seeding the default showcase: its card key, or None when hidden.</summary>
+        [JsonIgnore]
+        internal string OverviewScoreCard1SeedKey => GetOverviewScoreCardSeedKey(OverviewScoreCard1, ShowOverviewScoreCard1);
+
+        /// <summary>The second card's slot key for seeding the default showcase.</summary>
+        [JsonIgnore]
+        internal string OverviewScoreCard2SeedKey => GetOverviewScoreCardSeedKey(OverviewScoreCard2, ShowOverviewScoreCard2);
+
+        internal static ShowcaseWidgetInstanceSettings CreateOverviewScoreCard(ScoreCardType type)
+        {
+            var card = new ShowcaseWidgetInstanceSettings { Kind = ShowcaseWidgetKind.Scores };
+            ShowcaseWidgetOptions.SetScoreCardType(card, type);
+            ShowcaseWidgetOptions.SetScoreCardBadgePosition(card, ScoreCardBadgePosition.Left);
+            return card;
+        }
+
+        private static ShowcaseWidgetInstanceSettings NormalizeOverviewScoreCard(
+            ShowcaseWidgetInstanceSettings value,
+            ScoreCardType fallbackType)
+        {
+            if (value == null)
             {
-                if (_showOverviewPieCharts == value)
-                {
-                    return;
-                }
-
-                SetValue(ref _showOverviewPieCharts, value);
-                if (_overviewPieChartVisibilityInitializedFromIndividualSettings)
-                {
-                    return;
-                }
-
-                ShowOverviewGamesPieChart = value;
-                ShowOverviewProviderPieChart = value;
-                ShowOverviewRarityPieChart = value;
-                ShowOverviewTrophyPieChart = value;
+                return CreateOverviewScoreCard(fallbackType);
             }
+
+            value.Kind = ShowcaseWidgetKind.Scores;
+            return value;
         }
 
-        /// <summary>
-        /// When true, shows the completed-games pie chart in the overview.
-        /// </summary>
-        public bool ShowOverviewGamesPieChart
+        private static string GetOverviewScoreCardSeedKey(ShowcaseWidgetInstanceSettings card, bool shown)
         {
-            get => _showOverviewGamesPieChart;
-            set
-            {
-                _overviewPieChartVisibilityInitializedFromIndividualSettings = true;
-                SetValue(ref _showOverviewGamesPieChart, value);
-            }
-        }
-
-        /// <summary>
-        /// When true, shows the platform/provider pie chart in the overview.
-        /// </summary>
-        public bool ShowOverviewProviderPieChart
-        {
-            get => _showOverviewProviderPieChart;
-            set
-            {
-                _overviewPieChartVisibilityInitializedFromIndividualSettings = true;
-                SetValue(ref _showOverviewProviderPieChart, value);
-            }
-        }
-
-        /// <summary>
-        /// When true, shows the rarity pie chart in the overview.
-        /// </summary>
-        public bool ShowOverviewRarityPieChart
-        {
-            get => _showOverviewRarityPieChart;
-            set
-            {
-                _overviewPieChartVisibilityInitializedFromIndividualSettings = true;
-                SetValue(ref _showOverviewRarityPieChart, value);
-            }
-        }
-
-        /// <summary>
-        /// When true, shows the trophy pie chart in the overview.
-        /// </summary>
-        public bool ShowOverviewTrophyPieChart
-        {
-            get => _showOverviewTrophyPieChart;
-            set
-            {
-                _overviewPieChartVisibilityInitializedFromIndividualSettings = true;
-                SetValue(ref _showOverviewTrophyPieChart, value);
-            }
-        }
-
-        /// <summary>
-        /// When true, shows the center percentage text on overview pie charts.
-        /// </summary>
-        public bool ShowOverviewPiePercentages
-        {
-            get => _showOverviewPiePercentages;
-            set => SetValue(ref _showOverviewPiePercentages, value);
-        }
-
-        /// <summary>
-        /// Determines how overview pie charts handle slices below five percent.
-        /// </summary>
-        public OverviewPieSmallSliceMode OverviewPieSmallSliceMode
-        {
-            get => _overviewPieSmallSliceMode;
-            set => SetValue(ref _overviewPieSmallSliceMode, value);
-        }
-
-        /// <summary>
-        /// When true, the overview rarity, provider and trophy pies draw a trailing locked
-        /// slice. The completions pie is unaffected: its trailing slice counts unfinished games,
-        /// not locked achievements. Hiding the locked slice also hides the centre percentage,
-        /// which measures unlocked against a total the pie would no longer show.
-        /// </summary>
-        public bool OverviewPieIncludeLocked
-        {
-            get => _overviewPieIncludeLocked;
-            set => SetValue(ref _overviewPieIncludeLocked, value);
-        }
-
-        /// <summary>
-        /// When true, shows the timeline bar chart at the bottom of the right overview.
-        /// When false, the achievements list takes the full space.
-        /// </summary>
-        public bool ShowOverviewBarCharts
-        {
-            get => _showOverviewBarCharts;
-            set => SetValue(ref _showOverviewBarCharts, value);
+            return shown && card != null
+                ? ShowcaseWidgetOptions.GetScoreCardType(card).Key
+                : ScoreCardSlots.NoneKey;
         }
 
         /// <summary>
@@ -2611,8 +2735,8 @@ namespace PlayniteAchievements.Models.Settings
                 if (_showcase == null)
                 {
                     _showcase = ShowcaseLayoutService.CreateDefault(
-                        ShowOverviewCollectionScoreCard,
-                        ShowOverviewPrestigeScoreCard);
+                    OverviewScoreCard1SeedKey,
+                    OverviewScoreCard2SeedKey);
                     ShowcaseLayoutService.Normalize(_showcase);
                 }
 
@@ -2621,11 +2745,49 @@ namespace PlayniteAchievements.Models.Settings
             set
             {
                 var normalized = value?.Clone() ?? ShowcaseLayoutService.CreateDefault(
-                    ShowOverviewCollectionScoreCard,
-                    ShowOverviewPrestigeScoreCard);
+                    OverviewScoreCard1SeedKey,
+                    OverviewScoreCard2SeedKey);
                 ShowcaseLayoutService.Normalize(normalized);
                 SetValue(ref _showcase, normalized);
             }
+        }
+
+        /// <summary>
+        /// The overview's one-row mini-showcase of linked widgets. Replaced on load for the same
+        /// reason as <see cref="Showcase"/>: the getter seeds a default.
+        /// </summary>
+        [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+        public ShowcaseSettings OverviewMiniShowcase
+        {
+            get
+            {
+                if (_overviewMiniShowcase == null)
+                {
+                    _overviewMiniShowcase = OverviewMiniShowcaseLayout.CreateDefault();
+                }
+
+                return _overviewMiniShowcase;
+            }
+            set
+            {
+                var normalized = value?.Clone() ?? OverviewMiniShowcaseLayout.CreateDefault();
+                OverviewMiniShowcaseLayout.Normalize(normalized);
+                SetValue(ref _overviewMiniShowcase, normalized);
+            }
+        }
+
+        /// <summary>Height of the mini-showcase row in pixels; its widgets fit this height.</summary>
+        public double OverviewMiniShowcaseHeight
+        {
+            get => _overviewMiniShowcaseHeight;
+            set => SetValue(ref _overviewMiniShowcaseHeight, OverviewMiniShowcaseLayout.ClampHeight(value));
+        }
+
+        /// <summary>Shows the mini-showcase row under the overview grids.</summary>
+        public bool ShowOverviewMiniShowcase
+        {
+            get => _showOverviewMiniShowcase;
+            set => SetValue(ref _showOverviewMiniShowcase, value);
         }
 
         public GridOptionsCatalog GridOptions
@@ -2758,24 +2920,6 @@ namespace PlayniteAchievements.Models.Settings
 
                 SetValue(ref _windowPlacements, normalized);
             }
-        }
-
-        /// <summary>
-        /// Last selected window for the overview achievements-over-time chart: a rolling preset or
-        /// a custom date range. Legacy integer <c>OverviewTimelineRange</c> values are read by the converter.
-        /// </summary>
-        [JsonConverter(typeof(TimeWindowJsonConverter))]
-        public TimeWindow OverviewTimeWindow
-        {
-            get => _overviewTimeWindow;
-            set => SetValue(ref _overviewTimeWindow, value ?? TimeWindow.FromPreset(TimelineRange.OneYear));
-        }
-
-        /// <summary>Bar-width override for the overview achievements-over-time chart.</summary>
-        public TimelineGranularity OverviewTimelineGranularity
-        {
-            get => _overviewTimelineGranularity;
-            set => SetValue(ref _overviewTimelineGranularity, value);
         }
 
         /// <summary>
@@ -3104,6 +3248,9 @@ namespace PlayniteAchievements.Models.Settings
                 // Update and Refresh Settings
                 EnablePeriodicUpdates = this.EnablePeriodicUpdates,
                 IncludeHiddenGamesInBulkScans = this.IncludeHiddenGamesInBulkScans,
+                IncludeHiddenGamesInSummaries = this.IncludeHiddenGamesInSummaries,
+                RefreshExclusionFilterPresetIds = new HashSet<Guid>(this.RefreshExclusionFilterPresetIds),
+                SummaryExclusionFilterPresetIds = new HashSet<Guid>(this.SummaryExclusionFilterPresetIds),
                 PeriodicUpdateHours = this.PeriodicUpdateHours,
                 EnableFriendsPeriodicUpdates = this.EnableFriendsPeriodicUpdates,
                 FriendsPeriodicUpdateHours = this.FriendsPeriodicUpdateHours,
@@ -3122,7 +3269,7 @@ namespace PlayniteAchievements.Models.Settings
                 RecentRefreshGamesCount = this.RecentRefreshGamesCount,
                 DefaultOverviewRefreshMode = this.DefaultOverviewRefreshMode,
                 CustomRefreshPresets = this.CustomRefreshPresets != null
-                    ? new List<CustomRefreshPreset>(CustomRefreshPreset.NormalizePresets(this.CustomRefreshPresets, CustomRefreshPreset.MaxPresetCount))
+                    ? new List<CustomRefreshPreset>(CustomRefreshPreset.NormalizePresets(this.CustomRefreshPresets))
                     : new List<CustomRefreshPreset>(),
 
                 // Hotkey Settings
@@ -3134,12 +3281,14 @@ namespace PlayniteAchievements.Models.Settings
                 EnableOpenSettingsHotkey = this.EnableOpenSettingsHotkey,
                 EnableCategoryModeHotkey = this.EnableCategoryModeHotkey,
                 EnableTestUnlockHotkey = this.EnableTestUnlockHotkey,
+                EnableWorkshopHotkey = this.EnableWorkshopHotkey,
                 ViewAchievementsHotkey = this.ViewAchievementsHotkey,
                 ManageAchievementsHotkey = this.ManageAchievementsHotkey,
                 OverviewHotkey = this.OverviewHotkey,
                 OpenSettingsHotkey = this.OpenSettingsHotkey,
                 CategoryModeHotkey = this.CategoryModeHotkey,
                 TestUnlockHotkey = this.TestUnlockHotkey,
+                WorkshopHotkey = this.WorkshopHotkey,
                 EnableCaptureTestFolder = this.EnableCaptureTestFolder,
 
                 HiddenManageSidebarStatGroups = this.HiddenManageSidebarStatGroups,
@@ -3163,6 +3312,7 @@ namespace PlayniteAchievements.Models.Settings
                 CaptureDelaySeconds = this.CaptureDelaySeconds,
                 MaxConcurrentToasts = this.MaxConcurrentToasts,
                 ToastPosition = this.ToastPosition,
+                NotificationRenderMode = this.NotificationRenderMode,
                 EnableControllerVibration = this.EnableControllerVibration,
                 ControllerVibrationStrengthPercent = this.ControllerVibrationStrengthPercent,
                 ControllerVibrationDurationMs = this.ControllerVibrationDurationMs,
@@ -3171,6 +3321,10 @@ namespace PlayniteAchievements.Models.Settings
                 AllowThemeUnlockSounds = this.AllowThemeUnlockSounds,
                 UnlockSoundVolumePercent = this.UnlockSoundVolumePercent,
                 UnlockSounds = this.UnlockSounds?.Clone() ?? UnlockSoundSettings.CreateDefault(),
+                ProviderUnlockSounds = this.ProviderUnlockSounds.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value?.Clone(),
+                    StringComparer.OrdinalIgnoreCase),
                 UnlockSoundsSeededFromUniPlaySong = this.UnlockSoundsSeededFromUniPlaySong,
                 EnableUnlockScreenshots = this.EnableUnlockScreenshots,
                 UnlockScreenshotClean = this.UnlockScreenshotClean,
@@ -3180,6 +3334,7 @@ namespace PlayniteAchievements.Models.Settings
                 UnlockScreenshotSuffixWithToast = this.UnlockScreenshotSuffixWithToast,
                 UnlockScreenshotSuffixFramed = this.UnlockScreenshotSuffixFramed,
                 UnlockScreenshotDirectory = this.UnlockScreenshotDirectory,
+                LibraryLinks = LibraryLink.CloneAll(this.LibraryLinks),
                 ScreenshotResolution = this.ScreenshotResolution,
                 UnlockScreenshotCleanRarities = this.UnlockScreenshotCleanRarities,
                 UnlockScreenshotCleanAlwaysCaptureCompletion = this.UnlockScreenshotCleanAlwaysCaptureCompletion,
@@ -3247,17 +3402,10 @@ namespace PlayniteAchievements.Models.Settings
                         StringComparer.OrdinalIgnoreCase)
                     : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
                 IncludeUnplayedGames = this.IncludeUnplayedGames,
-                ShowOverviewCollectionScoreCard = this.ShowOverviewCollectionScoreCard,
-                ShowOverviewPrestigeScoreCard = this.ShowOverviewPrestigeScoreCard,
-                ShowOverviewPieCharts = this.ShowOverviewPieCharts,
-                ShowOverviewGamesPieChart = this.ShowOverviewGamesPieChart,
-                ShowOverviewProviderPieChart = this.ShowOverviewProviderPieChart,
-                ShowOverviewRarityPieChart = this.ShowOverviewRarityPieChart,
-                ShowOverviewTrophyPieChart = this.ShowOverviewTrophyPieChart,
-                ShowOverviewPiePercentages = this.ShowOverviewPiePercentages,
-                OverviewPieSmallSliceMode = this.OverviewPieSmallSliceMode,
-                OverviewPieIncludeLocked = this.OverviewPieIncludeLocked,
-                ShowOverviewBarCharts = this.ShowOverviewBarCharts,
+                OverviewScoreCard1 = this.OverviewScoreCard1?.Clone(),
+                OverviewScoreCard2 = this.OverviewScoreCard2?.Clone(),
+                ShowOverviewScoreCard1 = this.ShowOverviewScoreCard1,
+                ShowOverviewScoreCard2 = this.ShowOverviewScoreCard2,
                 ShowTopMenuBarButton = this.ShowTopMenuBarButton,
                 ShowCompletedProgressColoring = this.ShowCompletedProgressColoring,
                 TintMissableLocks = this.TintMissableLocks,
@@ -3293,8 +3441,11 @@ namespace PlayniteAchievements.Models.Settings
                 CompactLockedListSortMode = this.CompactLockedListSortMode,
                 CompactLockedListSortDescending = this.CompactLockedListSortDescending,
                 Showcase = this.Showcase?.Clone() ?? ShowcaseLayoutService.CreateDefault(
-                    this.ShowOverviewCollectionScoreCard,
-                    this.ShowOverviewPrestigeScoreCard),
+                    this.OverviewScoreCard1SeedKey,
+                    this.OverviewScoreCard2SeedKey),
+                OverviewMiniShowcase = this.OverviewMiniShowcase?.Clone() ?? OverviewMiniShowcaseLayout.CreateDefault(),
+                OverviewMiniShowcaseHeight = this.OverviewMiniShowcaseHeight,
+                ShowOverviewMiniShowcase = this.ShowOverviewMiniShowcase,
                 GridOptions = this.GridOptions?.Clone() ?? new GridOptionsCatalog(),
                 StartPageActivityScope = this.StartPageActivityScope,
                 StartPageProgressScope = this.StartPageProgressScope,
@@ -3318,8 +3469,6 @@ namespace PlayniteAchievements.Models.Settings
                         kvp => kvp.Value?.Clone(),
                         StringComparer.OrdinalIgnoreCase)
                     : new Dictionary<string, WindowPlacementState>(StringComparer.OrdinalIgnoreCase),
-                OverviewTimeWindow = this.OverviewTimeWindow,
-                OverviewTimelineGranularity = this.OverviewTimelineGranularity,
                 ViewAchievementsTimeWindow = this.ViewAchievementsTimeWindow,
                 ViewAchievementsTimelineGranularity = this.ViewAchievementsTimelineGranularity,
                 ViewAchievementsTimelineVisible = this.ViewAchievementsTimelineVisible,
@@ -3418,17 +3567,13 @@ namespace PlayniteAchievements.Models.Settings
             ProviderColorOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ResourceOverrides = CreateDefaultResourceOverrides();
 
-            ShowOverviewCollectionScoreCard = defaults.ShowOverviewCollectionScoreCard;
-            ShowOverviewPrestigeScoreCard = defaults.ShowOverviewPrestigeScoreCard;
-            ShowOverviewPieCharts = defaults.ShowOverviewPieCharts;
-            ShowOverviewGamesPieChart = defaults.ShowOverviewGamesPieChart;
-            ShowOverviewProviderPieChart = defaults.ShowOverviewProviderPieChart;
-            ShowOverviewRarityPieChart = defaults.ShowOverviewRarityPieChart;
-            ShowOverviewTrophyPieChart = defaults.ShowOverviewTrophyPieChart;
-            ShowOverviewPiePercentages = defaults.ShowOverviewPiePercentages;
-            OverviewPieSmallSliceMode = defaults.OverviewPieSmallSliceMode;
-            OverviewPieIncludeLocked = defaults.OverviewPieIncludeLocked;
-            ShowOverviewBarCharts = defaults.ShowOverviewBarCharts;
+            // The colors are the defaults now, not the library item they followed.
+            SetLibraryLink(Services.Library.LibraryTargetKeys.Colors, null);
+
+            OverviewScoreCard1 = defaults.OverviewScoreCard1;
+            OverviewScoreCard2 = defaults.OverviewScoreCard2;
+            ShowOverviewScoreCard1 = defaults.ShowOverviewScoreCard1;
+            ShowOverviewScoreCard2 = defaults.ShowOverviewScoreCard2;
             ShowTopMenuBarButton = defaults.ShowTopMenuBarButton;
             ShowCompletedProgressColoring = defaults.ShowCompletedProgressColoring;
             TintMissableLocks = defaults.TintMissableLocks;
@@ -3463,8 +3608,11 @@ namespace PlayniteAchievements.Models.Settings
 
 
             Showcase = ShowcaseLayoutService.CreateDefault(
-                defaults.ShowOverviewCollectionScoreCard,
-                defaults.ShowOverviewPrestigeScoreCard);
+                    defaults.OverviewScoreCard1SeedKey,
+                    defaults.OverviewScoreCard2SeedKey);
+            OverviewMiniShowcase = OverviewMiniShowcaseLayout.CreateDefault();
+            OverviewMiniShowcaseHeight = defaults.OverviewMiniShowcaseHeight;
+            ShowOverviewMiniShowcase = defaults.ShowOverviewMiniShowcase;
             GridOptions = new GridOptionsCatalog();
             StartPageActivityScope = defaults.StartPageActivityScope;
             StartPageProgressScope = defaults.StartPageProgressScope;
@@ -3641,6 +3789,41 @@ namespace PlayniteAchievements.Models.Settings
                 }
 
                 normalized[key] = pair.Value;
+            }
+
+            return normalized;
+        }
+
+        private static Dictionary<string, UnlockSoundSettings> NormalizeProviderUnlockSounds(
+            IEnumerable<KeyValuePair<string, UnlockSoundSettings>> value)
+        {
+            var normalized = new Dictionary<string, UnlockSoundSettings>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in value ?? Enumerable.Empty<KeyValuePair<string, UnlockSoundSettings>>())
+            {
+                var key = NormalizeProviderKeyToken(pair.Key);
+                if (key == null || pair.Value == null)
+                {
+                    continue;
+                }
+
+                normalized[key] = pair.Value;
+            }
+
+            return normalized;
+        }
+
+        private static HashSet<Guid> NormalizeGuidSet(IEnumerable<Guid> value)
+        {
+            var normalized = new HashSet<Guid>();
+            if (value != null)
+            {
+                foreach (var id in value)
+                {
+                    if (id != Guid.Empty)
+                    {
+                        normalized.Add(id);
+                    }
+                }
             }
 
             return normalized;

@@ -22,6 +22,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
         private readonly PlayniteAchievementsSettings _settings;
         private readonly PlayniteAchievementsPlugin _plugin;
         private readonly PersistedSettingsSubscription _persistedSubscription;
+        private readonly GameNotificationOverrideScope<GameCaptureOverride> _gameScope;
 
         public NotificationCapturesSection()
         {
@@ -42,6 +43,83 @@ namespace PlayniteAchievements.Views.Settings.Notifications
                 UpdateRarityTexts);
 
             UpdateRarityTexts();
+        }
+
+        /// <summary>
+        /// Game mode: edits the game's own <see cref="GameCaptureOverride"/> for
+        /// <paramref name="gameId"/>, with its own capture folder, and hides the settings that stay
+        /// app-wide (file naming, resolutions, folders, clip length, quality and audio sources).
+        /// </summary>
+        internal NotificationCapturesSection(
+            PlayniteAchievementsSettings settings,
+            PlayniteAchievementsPlugin plugin,
+            ILogger logger,
+            Guid gameId,
+            string providerKey)
+            : this(settings, plugin)
+        {
+            _gameScope = new GameNotificationOverrideScope<GameCaptureOverride>(
+                plugin.GameCustomDataStore,
+                gameId,
+                data => data.CaptureOverride,
+                (data, value) => data.CaptureOverride = value,
+                () => GameCaptureOverride.FromEffective(
+                    settings.Persisted,
+                    settings.Persisted?.GetProviderNotificationOverride(providerKey)),
+                value => value.Clone(),
+                plugin.PlayniteApi,
+                logger);
+            _gameScope.Changed += (s, e) => ApplyGameScope();
+
+            ContentPanel.Margin = new Thickness(0);
+            GameCustomizeCheckBox.Visibility = Visibility.Visible;
+            GameFolderPanel.Visibility = Visibility.Visible;
+            ScreenshotGlobalPanel.Visibility = Visibility.Collapsed;
+            RecordingGlobalPanel.Visibility = Visibility.Collapsed;
+            AudioGlobalPanel.Visibility = Visibility.Collapsed;
+
+            _gameScope.Load();
+        }
+
+        /// <summary>The rarity filters the selectors edit: the game's own in game mode, else the globals.</summary>
+        private IUnlockCaptureRarities RarityTarget =>
+            _gameScope != null ? (IUnlockCaptureRarities)_gameScope.Current : _settings?.Persisted;
+
+        /// <summary>Re-reads the game's capture settings after its custom data changed elsewhere.</summary>
+        internal void RefreshGameData()
+        {
+            _gameScope?.Load();
+        }
+
+        private void ApplyGameScope()
+        {
+            SettingsBody.DataContext = new GameNotificationOverrideContext<GameCaptureOverride>(_gameScope.Current);
+            SettingsBody.IsEnabled = _gameScope.IsCustomized;
+            GameCustomizeCheckBox.IsChecked = _gameScope.IsCustomized;
+            UpdateRarityTexts();
+        }
+
+        private void GameCustomizeCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (_gameScope != null && !_gameScope.SetCustomized(GameCustomizeCheckBox.IsChecked == true))
+            {
+                GameCustomizeCheckBox.IsChecked = _gameScope.IsCustomized;
+            }
+        }
+
+        private void GameCaptureDirectory_Browse_Click(object sender, RoutedEventArgs e)
+        {
+            var target = _gameScope?.IsCustomized == true ? _gameScope.Current : null;
+            if (target == null)
+            {
+                return;
+            }
+
+            var selected = _plugin?.PlayniteApi?.Dialogs?.SelectFolder();
+            if (!string.IsNullOrWhiteSpace(selected))
+            {
+                target.CaptureDirectory = selected;
+            }
         }
 
         public static readonly DependencyProperty CleanRaritiesTextProperty =
@@ -123,48 +201,48 @@ namespace PlayniteAchievements.Views.Settings.Notifications
         {
             OpenRaritySelector(
                 sender as Button,
-                () => _settings?.Persisted?.UnlockScreenshotCleanRarities ?? RaritySelection.All,
-                value => { if (_settings?.Persisted != null) { _settings.Persisted.UnlockScreenshotCleanRarities = value; } });
+                () => RarityTarget?.UnlockScreenshotCleanRarities ?? RaritySelection.All,
+                value => { if (RarityTarget != null) { RarityTarget.UnlockScreenshotCleanRarities = value; } });
         }
 
         private void WithToastRaritiesButton_Click(object sender, RoutedEventArgs e)
         {
             OpenRaritySelector(
                 sender as Button,
-                () => _settings?.Persisted?.UnlockScreenshotWithToastRarities ?? RaritySelection.All,
-                value => { if (_settings?.Persisted != null) { _settings.Persisted.UnlockScreenshotWithToastRarities = value; } });
+                () => RarityTarget?.UnlockScreenshotWithToastRarities ?? RaritySelection.All,
+                value => { if (RarityTarget != null) { RarityTarget.UnlockScreenshotWithToastRarities = value; } });
         }
 
         private void FramedRaritiesButton_Click(object sender, RoutedEventArgs e)
         {
             OpenRaritySelector(
                 sender as Button,
-                () => _settings?.Persisted?.UnlockScreenshotFramedRarities ?? RaritySelection.All,
-                value => { if (_settings?.Persisted != null) { _settings.Persisted.UnlockScreenshotFramedRarities = value; } });
+                () => RarityTarget?.UnlockScreenshotFramedRarities ?? RaritySelection.All,
+                value => { if (RarityTarget != null) { RarityTarget.UnlockScreenshotFramedRarities = value; } });
         }
 
         private void RecordingRaritiesButton_Click(object sender, RoutedEventArgs e)
         {
             OpenRaritySelector(
                 sender as Button,
-                () => _settings?.Persisted?.UnlockRecordingRarities ?? RaritySelection.All,
-                value => { if (_settings?.Persisted != null) { _settings.Persisted.UnlockRecordingRarities = value; } });
+                () => RarityTarget?.UnlockRecordingRarities ?? RaritySelection.All,
+                value => { if (RarityTarget != null) { RarityTarget.UnlockRecordingRarities = value; } });
         }
 
         private void RecordingCleanRaritiesButton_Click(object sender, RoutedEventArgs e)
         {
             OpenRaritySelector(
                 sender as Button,
-                () => _settings?.Persisted?.UnlockRecordingCleanRarities ?? RaritySelection.All,
-                value => { if (_settings?.Persisted != null) { _settings.Persisted.UnlockRecordingCleanRarities = value; } });
+                () => RarityTarget?.UnlockRecordingCleanRarities ?? RaritySelection.All,
+                value => { if (RarityTarget != null) { RarityTarget.UnlockRecordingCleanRarities = value; } });
         }
 
         private void RecordingFramedRaritiesButton_Click(object sender, RoutedEventArgs e)
         {
             OpenRaritySelector(
                 sender as Button,
-                () => _settings?.Persisted?.UnlockRecordingFramedRarities ?? RaritySelection.All,
-                value => { if (_settings?.Persisted != null) { _settings.Persisted.UnlockRecordingFramedRarities = value; } });
+                () => RarityTarget?.UnlockRecordingFramedRarities ?? RaritySelection.All,
+                value => { if (RarityTarget != null) { RarityTarget.UnlockRecordingFramedRarities = value; } });
         }
 
         private void OpenRaritySelector(Button button, Func<RaritySelection> get, Action<RaritySelection> set)
@@ -174,7 +252,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
 
         private void UpdateRarityTexts()
         {
-            var persisted = _settings?.Persisted;
+            var persisted = RarityTarget;
             CleanRaritiesText = FormatRarities(persisted?.UnlockScreenshotCleanRarities ?? RaritySelection.All);
             WithToastRaritiesText = FormatRarities(persisted?.UnlockScreenshotWithToastRarities ?? RaritySelection.All);
             FramedRaritiesText = FormatRarities(persisted?.UnlockScreenshotFramedRarities ?? RaritySelection.All);
@@ -221,6 +299,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
         public void Dispose()
         {
             _persistedSubscription?.Dispose();
+            _gameScope?.Dispose();
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
 
 namespace PlayniteAchievements.Models
@@ -74,7 +75,7 @@ namespace PlayniteAchievements.Models
             new List<ShowcaseWidgetDefinition>
             {
                 Define(ShowcaseWidgetKind.Profile, "LOCPlayAch_Showcase_Widget_Profile", false, true),
-                Define(ShowcaseWidgetKind.Scores, "LOCPlayAch_Showcase_Widget_Scores", false, false),
+                Define(ShowcaseWidgetKind.Scores, "LOCPlayAch_Showcase_Widget_Scores", true, false),
                 Define(ShowcaseWidgetKind.Pie, "LOCPlayAch_Showcase_Widget_Pie", true, false),
                 Define(ShowcaseWidgetKind.Timeline, "LOCPlayAch_Showcase_Widget_Timeline", true, false),
                 Define(ShowcaseWidgetKind.Statistics, "LOCPlayAch_Showcase_Widget_Statistics", true, false),
@@ -83,7 +84,9 @@ namespace PlayniteAchievements.Models
                 Define(ShowcaseWidgetKind.ScreenshotSlideshow, "LOCPlayAch_Showcase_Widget_ScreenshotSlideshow", true, false),
                 Define(ShowcaseWidgetKind.RecentAchievements, "LOCPlayAch_Showcase_Widget_RecentAchievements", true, false),
                 Define(ShowcaseWidgetKind.GameSummaries, "LOCPlayAch_Showcase_Widget_GameSummaries", true, false),
-                Define(ShowcaseWidgetKind.ActivityCalendar, "LOCPlayAch_Showcase_Widget_ActivityCalendar", true, false)
+                Define(ShowcaseWidgetKind.ActivityCalendar, "LOCPlayAch_Showcase_Widget_ActivityCalendar", true, false),
+                Define(ShowcaseWidgetKind.Image, "LOCPlayAch_Showcase_Widget_Image", true, false),
+                Define(ShowcaseWidgetKind.Text, "LOCPlayAch_Showcase_Widget_Text", true, false)
             };
 
         public static IReadOnlyList<ShowcaseWidgetDefinition> Definitions => DefinitionsValue;
@@ -277,8 +280,9 @@ namespace PlayniteAchievements.Models
     /// </summary>
     public static class ShowcaseTimelineOptions
     {
-        private const string RangeOption = "TimelineRange";
-        private const string GranularityOption = "TimelineGranularity";
+        /// <summary>Option keys, for a widget's own controls to save their choices under.</summary>
+        public const string RangeOption = "TimelineRange";
+        public const string GranularityOption = "TimelineGranularity";
         private const string LegacyRangeDaysOption = "RangeDays";
 
         public static readonly TimeWindow DefaultWindow = TimeWindow.FromPreset(TimelineRange.ThreeMonths);
@@ -327,6 +331,15 @@ namespace PlayniteAchievements.Models
 
         public static void SetGranularity(ShowcaseWidgetInstanceSettings instance, TimelineGranularity value) =>
             instance?.SetOption(GranularityOption, value);
+
+        /// <summary>Splits each Timeline bar into one stacked segment per platform.</summary>
+        public static bool GetSplitByPlatform(ShowcaseWidgetInstanceSettings instance) =>
+            instance?.GetOption(SplitByPlatformOption, false) ?? false;
+
+        public static void SetSplitByPlatform(ShowcaseWidgetInstanceSettings instance, bool value) =>
+            instance?.SetOption(SplitByPlatformOption, value);
+
+        public const string SplitByPlatformOption = "TimelineSplitByPlatform";
     }
 
     /// <summary>
@@ -351,14 +364,27 @@ namespace PlayniteAchievements.Models
         private const string ShowControlBar = "ShowControlBar";
         private const string UseCoverImages = "UseCoverImages";
         private const string ShowCompletionGlow = "ShowCompletionGlow";
-        private const string ShowCenterPercentage = "ShowCenterPercentage";
+        private const string ShowCompletionFrame = "ShowCompletionFrame";
+        private const string CenterMode = "CenterMode";
+        private const string LegacyShowCenterPercentage = "ShowCenterPercentage";
         private const string ShowLegend = "ShowLegend";
+        private const string ShowIcons = "ShowIcons";
+        private const string LegendPosition = "LegendPosition";
+        // Legacy Scores keys: read only to migrate a widget saved before the card slots existed.
+        private const string CollectionBadgePosition = "CollectionBadgePosition";
+        private const string PrestigeBadgePosition = "PrestigeBadgePosition";
+        private const string ScoreCard = "ScoreCard";
+        private const string ScoreCardBadgePositionKey = "ScoreCardBadgePosition";
+        private const string ScoreHistoryShown = "ScoreHistoryShown";
+        private const string ScoreCardUseCustomColors = "ScoreCardUseCustomColors";
+        private const string ScoreCardShowTotal = "ScoreCardShowTotal";
         private const string IncludeLocked = "IncludeLocked";
         private const string SmallSliceMode = "SmallSliceMode";
         private const string ActivityScope = "ActivityScope";
-        private const string PinCollectionId = "PinCollectionId";
+        internal const string PinCollectionId = "PinCollectionId";
         private const string Content = "Content";
         private const string ProfileStats = "ProfileStats";
+        private const string StatisticsStats = "StatisticsStats";
         private const string ProfileMedals = "ProfileMedals";
         private const string ProfileFullBleed = "ProfileFullBleed";
         private const string ProfileLayoutOption = "ProfileLayout";
@@ -377,6 +403,18 @@ namespace PlayniteAchievements.Models
         private const string MaxPerGame = "MaxPerGame";
         private const string IncludeHiddenAchievements = "IncludeHiddenAchievements";
         private const string InfoPanel = "InfoPanel";
+        private const string ImagePath = "ImagePath";
+        private const string TextContent = "Text";
+        private const string HorizontalAlign = "HorizontalAlignment";
+        private const string TitleAlign = "TitleAlignment";
+        private const string ShowBackground = "ShowBackground";
+        private const string VerticalAlign = "VerticalAlignment";
+        private const string TextSizeOption = "TextSize";
+        private const string TextPixelSizeOption = "TextPixelSize";
+        private const string FontFamilyOption = "FontFamily";
+
+        /// <summary>Option key of the Image widget's stored file, which travels as a bundled file rather than as an option value.</summary>
+        public const string ImagePathKey = ImagePath;
 
         /// <summary>Stat keys the profile stat slots show when the option is unset.</summary>
         public static readonly IReadOnlyList<string> DefaultProfileStatKeys = new[]
@@ -429,6 +467,33 @@ namespace PlayniteAchievements.Models
                     .Select(key => key.Trim()));
         }
 
+        /// <summary>
+        /// Keys of the statistics a Statistics widget shows, in order; null while unset, which
+        /// means every statistic.
+        /// </summary>
+        public static IReadOnlyList<string> GetStatisticsKeys(ShowcaseWidgetInstanceSettings settings)
+        {
+            if (settings?.Options == null || !settings.Options.TryGetValue(StatisticsStats, out var raw))
+            {
+                return null;
+            }
+
+            return (raw ?? string.Empty)
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(key => key.Trim())
+                .Where(key => key.Length > 0)
+                .ToList();
+        }
+
+        public static void SetStatisticsKeys(ShowcaseWidgetInstanceSettings settings, IEnumerable<string> keys)
+        {
+            settings?.SetOption(
+                StatisticsStats,
+                string.Join(",", (keys ?? Enumerable.Empty<string>())
+                    .Where(key => !string.IsNullOrWhiteSpace(key))
+                    .Select(key => key.Trim())));
+        }
+
         public static string GetPinCollectionId(ShowcaseWidgetInstanceSettings settings)
         {
             if (settings?.Options == null ||
@@ -463,34 +528,173 @@ namespace PlayniteAchievements.Models
             settings.Options[PinCollectionId] = collectionId.Trim();
         }
 
-        public static ShowcaseScoreMode GetScoreMode(ShowcaseWidgetInstanceSettings settings) =>
-            GetEnum(settings, Mode, ShowcaseScoreMode.Dual);
+        /// <summary>
+        /// The score a Scores widget shows. A widget saved before the card option existed has
+        /// only the legacy Mode: Prestige reads as Prestige, anything else as Collection. Layouts
+        /// split a legacy Both widget in two on load (see ShowcaseLayoutService.Normalize).
+        /// </summary>
+        public static ScoreCardType GetScoreCardType(ShowcaseWidgetInstanceSettings settings)
+        {
+            if (HasOption(settings, ScoreCard))
+            {
+                return ScoreCardType.ParseOrDefault(settings.Options[ScoreCard], ScoreCardType.Collection);
+            }
 
-        public static void SetScoreMode(ShowcaseWidgetInstanceSettings settings, ShowcaseScoreMode value) =>
-            settings?.SetOption(Mode, value);
+            return GetEnum(settings, Mode, ShowcaseScoreMode.Dual) == ShowcaseScoreMode.Prestige
+                ? ScoreCardType.Prestige
+                : ScoreCardType.Collection;
+        }
+
+        public static void SetScoreCardType(ShowcaseWidgetInstanceSettings settings, ScoreCardType value) =>
+            settings?.SetOption(ScoreCard, value.Key);
 
         /// <summary>
-        /// Which cards show the score-over-time line. Unset means both, so a layout saved before
-        /// the option existed keeps the chart it already had.
+        /// Which side the card's badge sits on. A widget saved before the option existed keeps the
+        /// legacy Collection or Prestige badge side of the score it shows.
         /// </summary>
-        public static ShowcaseScoreHistoryMode GetScoreHistoryMode(ShowcaseWidgetInstanceSettings settings) =>
-            GetEnum(settings, ScoreHistory, ShowcaseScoreHistoryMode.Dual);
+        public static ScoreCardBadgePosition GetScoreCardBadgePosition(ShowcaseWidgetInstanceSettings settings)
+        {
+            if (HasOption(settings, ScoreCardBadgePositionKey))
+            {
+                return GetEnum(settings, ScoreCardBadgePositionKey, ScoreCardBadgePosition.Left);
+            }
 
-        public static void SetScoreHistoryMode(
+            return GetEnum(
+                settings,
+                GetScoreCardType(settings) == ScoreCardType.Prestige ? PrestigeBadgePosition : CollectionBadgePosition,
+                ScoreCardBadgePosition.Left);
+        }
+
+        public static void SetScoreCardBadgePosition(
             ShowcaseWidgetInstanceSettings settings,
-            ShowcaseScoreHistoryMode value) => settings?.SetOption(ScoreHistory, value);
+            ScoreCardBadgePosition value) => settings?.SetOption(ScoreCardBadgePositionKey, value);
 
+        /// <summary>
+        /// Whether the card carries the score-over-time line. A widget saved before the option
+        /// existed shows it when the legacy choice was Both or named the score it shows; unset
+        /// everywhere means shown, so a layout saved before either option keeps its chart.
+        /// </summary>
+        public static bool GetScoreHistoryShown(ShowcaseWidgetInstanceSettings settings)
+        {
+            if (HasOption(settings, ScoreHistoryShown))
+            {
+                return settings.GetOption(ScoreHistoryShown, true);
+            }
+
+            switch (GetEnum(settings, ScoreHistory, ShowcaseScoreHistoryMode.Dual))
+            {
+                case ShowcaseScoreHistoryMode.None:
+                    return false;
+                case ShowcaseScoreHistoryMode.Collection:
+                    return GetScoreCardType(settings) == ScoreCardType.Collection;
+                case ShowcaseScoreHistoryMode.Prestige:
+                    return GetScoreCardType(settings) == ScoreCardType.Prestige;
+                default:
+                    return true;
+            }
+        }
+
+        public static void SetScoreHistoryShown(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ScoreHistoryShown, value);
+
+        /// <summary>Whether the card uses the configured rarity colors; unset means the shipped ones.</summary>
+        public static bool GetScoreCardUseCustomColors(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ScoreCardUseCustomColors, false) ?? false;
+
+        public static void SetScoreCardUseCustomColors(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ScoreCardUseCustomColors, value);
+
+        /// <summary>Whether a points card shows earned out of total; unset means shown. Earned alone otherwise.</summary>
+        public static bool GetScoreCardShowTotal(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ScoreCardShowTotal, true) ?? true;
+
+        public static void SetScoreCardShowTotal(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ScoreCardShowTotal, value);
+
+        /// <summary>True for a Scores widget saved with the legacy Mode of Both and no card option.</summary>
+        public static bool IsLegacyDualScores(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.Kind == ShowcaseWidgetKind.Scores &&
+            !HasOption(settings, ScoreCard) &&
+            GetEnum(settings, Mode, ShowcaseScoreMode.Dual) == ShowcaseScoreMode.Dual;
+
+        /// <summary>
+        /// Writes a Scores widget's legacy options out as the one-card options (card, badge side,
+        /// chart) and removes the legacy keys. A legacy Both widget becomes its Collection card.
+        /// </summary>
+        public static void MigrateLegacyScoreOptions(ShowcaseWidgetInstanceSettings settings)
+        {
+            if (settings?.Kind != ShowcaseWidgetKind.Scores)
+            {
+                return;
+            }
+
+            var type = GetScoreCardType(settings);
+            SetScoreCardType(settings, type);
+            SetScoreCardBadgePosition(settings, GetScoreCardBadgePosition(settings));
+            SetScoreHistoryShown(settings, GetScoreHistoryShown(settings));
+            foreach (var key in new[] { Mode, ScoreHistory, CollectionBadgePosition, PrestigeBadgePosition })
+            {
+                settings.Options?.Remove(key);
+            }
+        }
+
+        /// <summary>
+        /// Splits a legacy Both widget: this widget becomes its Collection card and the returned
+        /// copy, under a new instance id, its Prestige card, each with that score's badge side and
+        /// chart choice. Null for any other widget.
+        /// </summary>
+        public static ShowcaseWidgetInstanceSettings SplitLegacyDualScores(ShowcaseWidgetInstanceSettings settings)
+        {
+            if (!IsLegacyDualScores(settings))
+            {
+                return null;
+            }
+
+            var prestige = settings.Clone();
+            prestige.InstanceId = Guid.NewGuid().ToString("N");
+            SetScoreCardType(prestige, ScoreCardType.Prestige);
+            MigrateLegacyScoreOptions(prestige);
+            MigrateLegacyScoreOptions(settings);
+            return prestige;
+        }
+
+        private static bool HasOption(ShowcaseWidgetInstanceSettings settings, string key) =>
+            settings?.Options != null &&
+            settings.Options.TryGetValue(key, out var raw) &&
+            !string.IsNullOrWhiteSpace(raw);
         public static ShowcasePieMode GetPieMode(ShowcaseWidgetInstanceSettings settings) =>
             GetEnum(settings, Mode, ShowcasePieMode.CompletedGames);
 
         public static void SetPieMode(ShowcaseWidgetInstanceSettings settings, ShowcasePieMode value) =>
             settings?.SetOption(Mode, value);
 
-        public static bool GetPieShowCenterPercentage(ShowcaseWidgetInstanceSettings settings) =>
-            settings?.GetOption(ShowCenterPercentage, true) ?? true;
+        /// <summary>
+        /// Falls back to the legacy show-percentage toggle for widgets saved before the center
+        /// mode existed: on reads as <see cref="PieCenterMode.Percentage"/>, off as
+        /// <see cref="PieCenterMode.Empty"/>.
+        /// </summary>
+        public static PieCenterMode GetPieCenterMode(ShowcaseWidgetInstanceSettings settings)
+        {
+            if (settings?.Options != null && settings.Options.ContainsKey(CenterMode))
+            {
+                return GetEnum(settings, CenterMode, PieCenterMode.Percentage);
+            }
 
-        public static void SetPieShowCenterPercentage(ShowcaseWidgetInstanceSettings settings, bool value) =>
-            settings?.SetOption(ShowCenterPercentage, value);
+            return settings?.GetOption(LegacyShowCenterPercentage, true) ?? true
+                ? PieCenterMode.Percentage
+                : PieCenterMode.Empty;
+        }
+
+        public static void SetPieCenterMode(ShowcaseWidgetInstanceSettings settings, PieCenterMode value)
+        {
+            if (settings == null)
+            {
+                return;
+            }
+
+            settings.SetOption(CenterMode, value);
+            settings.Options?.Remove(LegacyShowCenterPercentage);
+        }
 
         /// <summary>
         /// Whether the pie draws its trailing locked slice. Ignored by the completions mode,
@@ -508,12 +712,45 @@ namespace PlayniteAchievements.Models
         public static void SetPieShowLegend(ShowcaseWidgetInstanceSettings settings, bool value) =>
             settings?.SetOption(ShowLegend, value);
 
+        public static PieLegendPosition GetPieLegendPosition(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, LegendPosition, PieLegendPosition.Right);
+
+        public static void SetPieLegendPosition(ShowcaseWidgetInstanceSettings settings, PieLegendPosition value) =>
+            settings?.SetOption(LegendPosition, value);
+
+        public static bool GetPieShowIcons(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ShowIcons, true) ?? true;
+
+        public static void SetPieShowIcons(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ShowIcons, value);
+
         public static OverviewPieSmallSliceMode GetPieSmallSliceMode(ShowcaseWidgetInstanceSettings settings) =>
             GetEnum(settings, SmallSliceMode, OverviewPieSmallSliceMode.Round);
 
         public static void SetPieSmallSliceMode(
             ShowcaseWidgetInstanceSettings settings,
             OverviewPieSmallSliceMode value) => settings?.SetOption(SmallSliceMode, value);
+
+        /// <summary>
+        /// Whether the pie shows a game control bar above the chart. Its filters narrow the games
+        /// the pie's totals are computed from, and stay in effect while the bar is hidden.
+        /// </summary>
+        public static bool GetPieShowControlBar(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ShowControlBar, false) ?? false;
+
+        public static void SetPieShowControlBar(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ShowControlBar, value);
+
+        /// <summary>
+        /// Whether a Timeline or Activity Calendar widget shows its own controls (the time window,
+        /// and for the timeline its bar width and platform split) above the chart. Shares the
+        /// pie's option, so one widget has one Show Control Bar setting whatever its kind.
+        /// </summary>
+        public static bool GetShowControls(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ShowControlBar, false) ?? false;
+
+        public static void SetShowControls(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ShowControlBar, value);
 
         /// <summary>
         /// Which counts the profile medal row shows. Trophy is only meaningful for a library
@@ -900,6 +1137,115 @@ namespace PlayniteAchievements.Models
             ShowcaseWidgetInstanceSettings settings,
             bool value) => settings?.SetOption(ShowCompletionGlow, value);
 
+        /// <summary>
+        /// Whether completed games' tiles get the completion frame: a band in the completed brush
+        /// and the completion badge on the cover's bottom edge.
+        /// </summary>
+        public static bool GetGameMosaicShowCompletionFrame(ShowcaseWidgetInstanceSettings settings) =>
+            settings?.GetOption(ShowCompletionFrame, false) ?? false;
+
+        public static void SetGameMosaicShowCompletionFrame(
+            ShowcaseWidgetInstanceSettings settings,
+            bool value) => settings?.SetOption(ShowCompletionFrame, value);
+
+        /// <summary>The Image widget's stored file, or null while none is picked.</summary>
+        public static string GetImagePath(ShowcaseWidgetInstanceSettings settings) =>
+            GetString(settings, ImagePath);
+
+        public static void SetImagePath(ShowcaseWidgetInstanceSettings settings, string value) =>
+            SetString(settings, ImagePath, value);
+
+        /// <summary>The Text widget's text, in inline markdown; null while empty.</summary>
+        public static string GetText(ShowcaseWidgetInstanceSettings settings) =>
+            GetString(settings, TextContent, trim: false);
+
+        public static void SetText(ShowcaseWidgetInstanceSettings settings, string value) =>
+            SetString(settings, TextContent, value, trim: false);
+
+        public static ShowcaseHorizontalAlignment GetHorizontalAlignment(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, HorizontalAlign, ShowcaseHorizontalAlignment.Center);
+
+        public static void SetHorizontalAlignment(
+            ShowcaseWidgetInstanceSettings settings,
+            ShowcaseHorizontalAlignment value) => settings?.SetOption(HorizontalAlign, value);
+
+        /// <summary>Where a widget's custom title sits in its header; unset means left.</summary>
+        public static ShowcaseHorizontalAlignment GetTitleAlignment(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, TitleAlign, ShowcaseHorizontalAlignment.Left);
+
+        public static void SetTitleAlignment(
+            ShowcaseWidgetInstanceSettings settings,
+            ShowcaseHorizontalAlignment value) => settings?.SetOption(TitleAlign, value);
+
+        /// <summary>
+        /// Whether the widget draws its card surface and outline. Unset means the host's default:
+        /// shown on the showcase, hidden on the start page, where widgets sit on the page itself.
+        /// </summary>
+        public static bool GetShowBackground(ShowcaseWidgetInstanceSettings settings, bool hostDefault) =>
+            settings?.GetOption(ShowBackground, hostDefault) ?? hostDefault;
+
+        public static void SetShowBackground(ShowcaseWidgetInstanceSettings settings, bool value) =>
+            settings?.SetOption(ShowBackground, value);
+
+        public static ShowcaseVerticalAlignment GetVerticalAlignment(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, VerticalAlign, ShowcaseVerticalAlignment.Center);
+
+        public static void SetVerticalAlignment(
+            ShowcaseWidgetInstanceSettings settings,
+            ShowcaseVerticalAlignment value) => settings?.SetOption(VerticalAlign, value);
+
+        public static ShowcaseTextSize GetTextSize(ShowcaseWidgetInstanceSettings settings) =>
+            GetEnum(settings, TextSizeOption, ShowcaseTextSize.Normal);
+
+        public static void SetTextSize(ShowcaseWidgetInstanceSettings settings, ShowcaseTextSize value) =>
+            settings?.SetOption(TextSizeOption, value);
+
+        /// <summary>The Text widget's size in pixels while its size is Custom.</summary>
+        public static int GetTextPixelSize(ShowcaseWidgetInstanceSettings settings) =>
+            Clamp(settings?.GetOption(TextPixelSizeOption, 24) ?? 24, 6, 200);
+
+        public static void SetTextPixelSize(ShowcaseWidgetInstanceSettings settings, int value) =>
+            settings?.SetOption(TextPixelSizeOption, Clamp(value, 6, 200));
+
+        /// <summary>The Text widget's font family name; null inherits the theme font.</summary>
+        public static string GetFontFamily(ShowcaseWidgetInstanceSettings settings) =>
+            GetString(settings, FontFamilyOption);
+
+        public static void SetFontFamily(ShowcaseWidgetInstanceSettings settings, string value) =>
+            SetString(settings, FontFamilyOption, value);
+
+        private static string GetString(ShowcaseWidgetInstanceSettings settings, string key, bool trim = true)
+        {
+            if (settings?.Options == null || !settings.Options.TryGetValue(key, out var value))
+            {
+                return null;
+            }
+
+            return string.IsNullOrWhiteSpace(value) ? null : trim ? value.Trim() : value;
+        }
+
+        // A blank value removes the key, so an unset option and a cleared one read the same.
+        private static void SetString(ShowcaseWidgetInstanceSettings settings, string key, string value, bool trim = true)
+        {
+            if (settings == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                settings.Options?.Remove(key);
+                return;
+            }
+
+            if (settings.Options == null)
+            {
+                settings.Options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            settings.Options[key] = trim ? value.Trim() : value;
+        }
+
         private static T GetEnum<T>(
             ShowcaseWidgetInstanceSettings settings,
             string key,
@@ -932,14 +1278,17 @@ namespace PlayniteAchievements.Models
             switch (kind)
             {
                 case ShowcaseWidgetKind.Scores:
-                    ShowcaseWidgetOptions.SetScoreMode(settings, ShowcaseScoreMode.Dual);
-                    ShowcaseWidgetOptions.SetScoreHistoryMode(settings, ShowcaseScoreHistoryMode.Dual);
+                    ShowcaseWidgetOptions.SetScoreCardType(settings, ScoreCardType.Collection);
+                    ShowcaseWidgetOptions.SetScoreCardBadgePosition(settings, ScoreCardBadgePosition.Left);
+                    ShowcaseWidgetOptions.SetScoreHistoryShown(settings, true);
                     ShowcaseTimelineOptions.SetWindow(settings, TimeWindow.FromPreset(TimelineRange.ThreeMonths));
                     break;
                 case ShowcaseWidgetKind.Pie:
                     ShowcaseWidgetOptions.SetPieMode(settings, ShowcasePieMode.CompletedGames);
-                    ShowcaseWidgetOptions.SetPieShowCenterPercentage(settings, true);
+                    ShowcaseWidgetOptions.SetPieCenterMode(settings, PieCenterMode.Percentage);
                     ShowcaseWidgetOptions.SetPieShowLegend(settings, true);
+                    ShowcaseWidgetOptions.SetPieLegendPosition(settings, PieLegendPosition.Right);
+                    ShowcaseWidgetOptions.SetPieShowIcons(settings, true);
                     ShowcaseWidgetOptions.SetPieIncludeLocked(settings, true);
                     ShowcaseWidgetOptions.SetPieSmallSliceMode(settings, OverviewPieSmallSliceMode.Round);
                     break;
@@ -984,11 +1333,61 @@ namespace PlayniteAchievements.Models
                     ShowcaseWidgetOptions.SetGameActivityScope(settings, GameActivityScope.All);
                     break;
                 case ShowcaseWidgetKind.ActivityCalendar:
-                    ShowcaseTimelineOptions.SetWindow(settings, TimeWindow.FromPreset(TimelineRange.OneYear));
+                    ShowcaseTimelineOptions.SetWindow(settings, TimeWindow.All);
+                    break;
+                case ShowcaseWidgetKind.Image:
+                    ShowcaseWidgetOptions.SetImageFitMode(settings, ShowcaseImageFitMode.Fill);
+                    ShowcaseWidgetOptions.SetHorizontalAlignment(settings, ShowcaseHorizontalAlignment.Center);
+                    ShowcaseWidgetOptions.SetVerticalAlignment(settings, ShowcaseVerticalAlignment.Center);
+                    break;
+                case ShowcaseWidgetKind.Text:
+                    ShowcaseWidgetOptions.SetHorizontalAlignment(settings, ShowcaseHorizontalAlignment.Center);
+                    ShowcaseWidgetOptions.SetVerticalAlignment(settings, ShowcaseVerticalAlignment.Center);
+                    ShowcaseWidgetOptions.SetTextSize(settings, ShowcaseTextSize.Normal);
                     break;
             }
 
             return settings;
+        }
+    }
+
+    /// <summary>
+    /// The one image file a widget carries as page content: a profile card's background or an
+    /// Image widget's picture. Export bundles it, import and library updates restore it, and the
+    /// image store keeps it from being pruned. The profile avatar identifies the user and is not
+    /// part of this.
+    /// </summary>
+    public static class ShowcaseWidgetImages
+    {
+        public static string GetFilePath(ShowcaseWidgetInstanceSettings widget)
+        {
+            switch (widget?.Kind)
+            {
+                case ShowcaseWidgetKind.Profile:
+                    return string.IsNullOrWhiteSpace(widget.Profile?.BackgroundPath) ? null : widget.Profile.BackgroundPath;
+                case ShowcaseWidgetKind.Image:
+                    return ShowcaseWidgetOptions.GetImagePath(widget);
+                default:
+                    return null;
+            }
+        }
+
+        public static void SetFilePath(ShowcaseWidgetInstanceSettings widget, string path)
+        {
+            switch (widget?.Kind)
+            {
+                case ShowcaseWidgetKind.Profile:
+                    if (widget.Profile != null || !string.IsNullOrWhiteSpace(path))
+                    {
+                        widget.Profile = widget.Profile ?? new ShowcaseProfileSettings();
+                        widget.Profile.BackgroundPath = path;
+                    }
+
+                    break;
+                case ShowcaseWidgetKind.Image:
+                    ShowcaseWidgetOptions.SetImagePath(widget, path);
+                    break;
+            }
         }
     }
 }

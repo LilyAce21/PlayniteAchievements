@@ -25,10 +25,10 @@ namespace PlayniteAchievements.Tests.Views
                 "Visibility=\"{Binding EnableFriendsFeatures, Converter={StaticResource BoolToVis}}\"");
             StringAssert.Contains(
                 xaml,
-                "Visibility=\"{Binding ShowOverviewCollectionScoreCard, Converter={StaticResource BoolToVis}}\"");
+                "Visibility=\"{Binding ShowOverviewScoreCard1, Converter={StaticResource BoolToVis}}\"");
             StringAssert.Contains(
                 xaml,
-                "Visibility=\"{Binding ShowOverviewPrestigeScoreCard, Converter={StaticResource BoolToVis}}\"");
+                "Visibility=\"{Binding ShowOverviewScoreCard2, Converter={StaticResource BoolToVis}}\"");
             StringAssert.Contains(
                 code,
                 "_lastSelectedSubView == OverviewSubView.Friends");
@@ -160,7 +160,7 @@ namespace PlayniteAchievements.Tests.Views
             StringAssert.Contains(plugin, "InvalidateStartPageData();");
             StringAssert.Contains(editor, "PlayniteUiProvider.CreateExtensionWindow");
             StringAssert.Contains(editor, "LOCPlayAch_Showcase_WidgetSettingsTitle");
-            StringAssert.Contains(profileEditor, "LOCPlayAch_Button_Clear");
+            StringAssert.Contains(profileEditor, "LOCClearLabel");
             StringAssert.Contains(localization, "LOCPlayAch_Showcase_MergeDeleteConfirm");
             StringAssert.Contains(localization, "LOCPlayAch_Showcase_Stat_CurrentStreak");
             StringAssert.Contains(uiText, "Localize(string key)");
@@ -180,25 +180,29 @@ namespace PlayniteAchievements.Tests.Views
             AssertEnumKeys<ShowcasePageTemplate>(
                 localization,
                 "LOCPlayAch_Showcase_Template_",
-                value => value != ShowcasePageTemplate.Showcase);
-            AssertEnumKeys<ShowcaseScoreMode>(localization, "LOCPlayAch_Showcase_ScoreMode_");
-            AssertEnumKeys<ShowcasePieMode>(localization, "LOCPlayAch_Showcase_PieMode_");
-            AssertEnumKeys<ShowcasePointsGrouping>(localization, "LOCPlayAch_Showcase_PointsGrouping_");
+                value => value != ShowcasePageTemplate.Showcase && value != ShowcasePageTemplate.Collection);
+            // Values that reuse another feature's label (ShowcaseUiText) are excluded; the
+            // ScreenshotVariant, MosaicContent and GameGridSource enums reuse labels for every value.
+            AssertEnumKeys<ShowcaseScoreMode>(
+                localization,
+                "LOCPlayAch_Showcase_ScoreMode_",
+                value => value != ShowcaseScoreMode.Dual);
+            AssertEnumKeys<ShowcasePieMode>(
+                localization,
+                "LOCPlayAch_Showcase_PieMode_",
+                value => value != ShowcasePieMode.CompletedGames);
+            AssertEnumKeys<ShowcasePointsGrouping>(
+                localization,
+                "LOCPlayAch_Showcase_PointsGrouping_",
+                value => value != ShowcasePointsGrouping.Game);
             AssertEnumKeys<ShowcaseMosaicSource>(localization, "LOCPlayAch_Showcase_MosaicSource_");
-            AssertEnumKeys<ShowcaseScreenshotVariant>(localization, "LOCPlayAch_Showcase_ScreenshotVariant_");
             AssertEnumKeys<ShowcaseSlideshowSource>(localization, "LOCPlayAch_Showcase_SlideshowSource_");
-            AssertEnumKeys<ShowcaseMosaicContent>(localization, "LOCPlayAch_Showcase_MosaicContent_");
-            // Unlock Next and Finish Next reuse the mosaic's labels (ShowcaseUiText), which the
-            // MosaicSource and GameMosaicSource assertions cover.
             AssertEnumKeys<ShowcaseAchievementGridSource>(
                 localization,
                 "LOCPlayAch_Showcase_AchievementGridSource_",
                 value => value != ShowcaseAchievementGridSource.UnlockNext);
-            AssertEnumKeys<ShowcaseGameGridSource>(
-                localization,
-                "LOCPlayAch_Showcase_GameGridSource_",
-                value => value != ShowcaseGameGridSource.FinishNext);
             AssertEnumKeys<ShowcaseImageFitMode>(localization, "LOCPlayAch_Showcase_ImageFit_");
+            AssertEnumKeys<ShowcaseTextSize>(localization, "LOCPlayAch_Showcase_TextSize_");
             AssertEnumKeys<ShowcaseGameMosaicSource>(localization, "LOCPlayAch_Showcase_GameMosaicSource_");
             AssertEnumKeys<UnlockNextCriterion>(localization, "LOCPlayAch_Showcase_UnlockNextCriterion_");
         }
@@ -345,7 +349,7 @@ namespace PlayniteAchievements.Tests.Views
             StringAssert.Contains(gallery, "{StaticResource PlayAch.Capture.NavButtonStyle}");
             Assert.IsFalse(gallery.Contains("x:Key=\"CaptureNavArrowStyle\""));
             StringAssert.Contains(slideshow, "IReadOnlyList<CaptureItem>");
-            StringAssert.Contains(slideshow, "FullscreenMediaViewerPresenter.Show");
+            StringAssert.Contains(slideshow, "MediaLightboxPresenter.Show");
             StringAssert.Contains(slideshow, "PlayAch.Capture.NavButtonStyle");
             StringAssert.Contains(slideshow, "CreatePlaybackOrder(items)");
             StringAssert.Contains(

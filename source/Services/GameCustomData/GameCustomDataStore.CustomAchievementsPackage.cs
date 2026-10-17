@@ -11,11 +11,11 @@ namespace PlayniteAchievements.Services.GameCustomData
 {
     /// <summary>
     /// The custom-achievements form of the .pa package: a zip holding one CSV of custom
-    /// achievement definitions (<see cref="CustomAchievementCsvFormat"/>) and, when any
-    /// definition has an icon, the bundled icon files under the package images folder. It has
+    /// achievement definitions (<see cref="CustomAchievementCsvFormat"/>, plus Unlocked Icon and
+    /// Locked Icon columns) and the bundled icon files under the package images folder. It has
     /// no <see cref="PortablePackageManifestEntryName"/> entry, which is what tells it apart from
-    /// a whole-game package. A template is the same package with a header-only CSV. Neither
-    /// direction carries unlock state or progress (<see cref="PortablePersonalState"/>).
+    /// a whole-game package. Nothing in the plugin writes one; a package that exists still
+    /// imports, and never brings unlock state or progress (<see cref="PortablePersonalState"/>).
     /// </summary>
     public sealed partial class GameCustomDataStore
     {
@@ -48,57 +48,6 @@ namespace PlayniteAchievements.Services.GameCustomData
                    names.Contains(CustomAchievementsPackageCsvEntryName);
         }
 
-        public void ExportCustomAchievementsPackage(
-            Guid playniteGameId,
-            IReadOnlyList<CustomAchievementDefinition> definitions,
-            string destinationPath)
-        {
-            EnsurePortablePackageExtension(destinationPath);
-
-            var clones = (definitions ?? Array.Empty<CustomAchievementDefinition>())
-                .Where(definition => definition != null)
-                .Select(definition => definition.Clone())
-                .ToList();
-            clones.ForEach(PortablePersonalState.Strip);
-            var fileStems = AchievementIconCachePathBuilder.BuildFileStems(
-                clones.Select(definition => CustomAchievementProjectionService.BuildApiName(definition.Id)));
-            var imageSources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            RewritePortableCustomAchievementIconsForPackage(playniteGameId, clones, fileStems, imageSources);
-
-            EnsureDestinationDirectory(destinationPath);
-            if (File.Exists(destinationPath))
-            {
-                File.Delete(destinationPath);
-            }
-
-            using (var archive = ZipFile.Open(destinationPath, ZipArchiveMode.Create))
-            {
-                var csvEntry = archive.CreateEntry(CustomAchievementsPackageCsvEntryName, CompressionLevel.Optimal);
-                using (var writer = new StreamWriter(csvEntry.Open()))
-                {
-                    foreach (var line in CustomAchievementCsvFormat.BuildLines(clones))
-                    {
-                        writer.WriteLine(line);
-                    }
-                }
-
-                foreach (var pair in imageSources.OrderBy(a => a.Key, StringComparer.OrdinalIgnoreCase))
-                {
-                    if (string.IsNullOrWhiteSpace(pair.Value) || !File.Exists(pair.Value))
-                    {
-                        throw new InvalidOperationException($"Missing bundled icon file: {pair.Value ?? pair.Key}");
-                    }
-
-                    var imageEntry = archive.CreateEntry(pair.Key, CompressionLevel.Optimal);
-                    using (var source = File.OpenRead(pair.Value))
-                    using (var destination = imageEntry.Open())
-                    {
-                        source.CopyTo(destination);
-                    }
-                }
-            }
-        }
-
         /// <summary>
         /// Reads the package CSV and copies any bundled icons into this game's managed custom
         /// icon folder, returning definitions whose icon paths point at those managed files.
@@ -113,57 +62,65 @@ namespace PlayniteAchievements.Services.GameCustomData
 
             using (var archive = ZipFile.OpenRead(sourcePath))
             {
-                var entriesByName = archive.Entries
-                    .Select(entry => new { Entry = entry, Name = NormalizeArchiveEntryName(entry.FullName) })
-                    .Where(item => !string.IsNullOrWhiteSpace(item.Entry.Name) && !string.IsNullOrWhiteSpace(item.Name))
-                    .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(group => group.Key, group => group.First().Entry, StringComparer.OrdinalIgnoreCase);
-
-                if (!entriesByName.TryGetValue(CustomAchievementsPackageCsvEntryName, out var csvEntry))
-                {
-                    throw new InvalidOperationException(
-                        "Package does not contain " + CustomAchievementsPackageCsvEntryName + ".");
-                }
-
-                string csvText;
-                using (var reader = new StreamReader(csvEntry.Open()))
-                {
-                    csvText = reader.ReadToEnd();
-                }
-
-                var result = new CustomAchievementTextImportService().Import(csvText);
-                if (result.HasErrors || result.Definitions.Count == 0)
-                {
-                    return result;
-                }
-
-                foreach (var definition in result.Definitions)
-                {
-                    PortablePersonalState.Strip(definition);
-                }
-
-                var fileStems = AchievementIconCachePathBuilder.BuildFileStems(
-                    result.Definitions.Select(definition => CustomAchievementProjectionService.BuildApiName(definition?.Id)));
-                foreach (var definition in result.Definitions)
-                {
-                    var apiName = CustomAchievementProjectionService.BuildApiName(definition?.Id);
-                    if (definition == null || string.IsNullOrWhiteSpace(apiName))
-                    {
-                        continue;
-                    }
-
-                    definition.UnlockedIconPath = ImportPackagedCustomAchievementIcon(
-                        playniteGameId, entriesByName, fileStems, apiName, definition.UnlockedIconPath, AchievementIconVariant.Unlocked);
-                    definition.LockedIconPath = ImportPackagedCustomAchievementIcon(
-                        playniteGameId, entriesByName, fileStems, apiName, definition.LockedIconPath, AchievementIconVariant.Locked);
-                }
-
-                return result;
+                return ReadCustomAchievementsPackage(
+                    new ManagedPackageImageSink(this, playniteGameId),
+                    IndexPackageEntries(archive));
             }
         }
 
-        private string ImportPackagedCustomAchievementIcon(
-            Guid playniteGameId,
+        /// <summary>
+        /// Parses the package CSV, strips personal state, and hands each bundled icon to the sink,
+        /// returning definitions whose icon paths point at the files the sink wrote. Returns the
+        /// parse result untouched when it has errors or no definitions.
+        /// </summary>
+        private static CustomAchievementTextImportResult ReadCustomAchievementsPackage(
+            IPackageImageSink sink,
+            IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName)
+        {
+            if (!entriesByName.TryGetValue(CustomAchievementsPackageCsvEntryName, out var csvEntry))
+            {
+                throw new InvalidOperationException(
+                    "Package does not contain " + CustomAchievementsPackageCsvEntryName + ".");
+            }
+
+            string csvText;
+            using (var reader = new StreamReader(csvEntry.Open()))
+            {
+                csvText = reader.ReadToEnd();
+            }
+
+            var result = new CustomAchievementTextImportService().Import(csvText);
+            if (result.HasErrors || result.Definitions.Count == 0)
+            {
+                return result;
+            }
+
+            foreach (var definition in result.Definitions)
+            {
+                PortablePersonalState.Strip(definition);
+            }
+
+            var fileStems = AchievementIconCachePathBuilder.BuildFileStems(
+                result.Definitions.Select(definition => CustomAchievementProjectionService.BuildApiName(definition?.Id)));
+            foreach (var definition in result.Definitions)
+            {
+                var apiName = CustomAchievementProjectionService.BuildApiName(definition?.Id);
+                if (definition == null || string.IsNullOrWhiteSpace(apiName))
+                {
+                    continue;
+                }
+
+                definition.UnlockedIconPath = ImportPackagedCustomAchievementIcon(
+                    sink, entriesByName, fileStems, apiName, definition.UnlockedIconPath, AchievementIconVariant.Unlocked);
+                definition.LockedIconPath = ImportPackagedCustomAchievementIcon(
+                    sink, entriesByName, fileStems, apiName, definition.LockedIconPath, AchievementIconVariant.Locked);
+            }
+
+            return result;
+        }
+
+        private static string ImportPackagedCustomAchievementIcon(
+            IPackageImageSink sink,
             IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
             IReadOnlyDictionary<string, string> fileStems,
             string apiName,
@@ -177,7 +134,7 @@ namespace PlayniteAchievements.Services.GameCustomData
             }
 
             return RewritePackageCustomAchievementImage(
-                playniteGameId,
+                sink,
                 entriesByName,
                 fileStems,
                 apiName,

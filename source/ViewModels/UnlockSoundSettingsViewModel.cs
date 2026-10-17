@@ -1,6 +1,5 @@
 using System;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -15,10 +14,11 @@ using PlayniteAchievements.Services.UI;
 namespace PlayniteAchievements.ViewModels
 {
     /// <summary>
-    /// The six per-tier rows of the unlock sound table: each shows where its sound currently comes
-    /// from and lets the user point it at their own file. Edits write straight into the live
-    /// persisted settings (the section's Cancel restores them) and, debounced, re-apply the sound
-    /// service so the host preloads the new set.
+    /// The six per-tier rows of the unlock sound table for one scope (global, a platform or a
+    /// game): each shows where its sound currently comes from and lets the user point it at their
+    /// own file. A scope that follows an inherited pack shows that pack read-only. Edits write
+    /// through the scope (a settings scope into the live persisted settings, which the section's
+    /// Cancel restores) and, debounced, re-apply the sound service so the host preloads the new set.
     /// </summary>
     internal sealed class UnlockSoundSettingsViewModel : ObservableObject, IDisposable
     {
@@ -26,15 +26,27 @@ namespace PlayniteAchievements.ViewModels
         private readonly UnlockSoundService _sounds;
         private readonly ILogger _logger;
         private readonly DispatcherTimer _applyDebounceTimer;
+        private readonly Func<string, string> _importFile;
+        private readonly Action<UnlockSoundSettings> _pruneUnreferenced;
+        private UnlockSoundScope _scope;
+        private bool _isEditable = true;
+        private string _testProviderKey;
+        private Guid _testGameId;
 
+        /// <param name="importFile">Copies a picked file into managed storage and returns the copy's path; null stores picks as they are.</param>
+        /// <param name="pruneUnreferenced">Removes managed copies no pack references after the given pack was written; null keeps them.</param>
         public UnlockSoundSettingsViewModel(
             PlayniteAchievementsSettings settings,
             UnlockSoundService sounds,
-            ILogger logger)
+            ILogger logger,
+            Func<string, string> importFile = null,
+            Action<UnlockSoundSettings> pruneUnreferenced = null)
         {
             _settings = settings;
             _sounds = sounds;
             _logger = logger;
+            _importFile = importFile;
+            _pruneUnreferenced = pruneUnreferenced;
             _applyDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _applyDebounceTimer.Tick += (s, e) =>
             {
@@ -53,20 +65,50 @@ namespace PlayniteAchievements.ViewModels
 
         public ObservableCollection<UnlockSoundRowItem> Rows { get; }
 
+        /// <summary>False while the scope follows an inherited pack, which the rows then show read-only.</summary>
+        public bool IsEditable
+        {
+            get => _isEditable;
+            private set => SetValue(ref _isEditable, value);
+        }
+
         /// <summary>
-        /// Re-reads every row's custom path from settings and re-resolves its source, its badge and
-        /// the theme files it could be tested against. Cheap enough to run whole: six tiers, and
-        /// the only disk work is the existence probes the resolution already does.
+        /// Points the rows at a scope. <paramref name="testProviderKey"/> and
+        /// <paramref name="testGameId"/> are what the Test button resolves through, so it plays
+        /// what an unlock in this scope would.
+        /// </summary>
+        public void SetScope(UnlockSoundScope scope, bool editable, string testProviderKey, Guid testGameId)
+        {
+            _scope = scope;
+            _testProviderKey = testProviderKey;
+            _testGameId = testGameId;
+            IsEditable = editable;
+            Refresh();
+        }
+
+        /// <summary>The pack the rows show: the scope's effective pack, or the global pack without a scope.</summary>
+        public UnlockSoundSettings CurrentSounds => _scope?.EffectiveSounds ?? _settings?.Persisted?.UnlockSounds;
+
+        /// <summary>What each tier of the shown pack plays now.</summary>
+        public System.Collections.Generic.IReadOnlyList<ResolvedUnlockSound> ResolveAll()
+        {
+            return _sounds?.Resolver?.ResolveAll(CurrentSounds);
+        }
+
+        /// <summary>
+        /// Re-reads every row's custom path from the scope and re-resolves its source, its badge
+        /// and the theme files it could be tested against. Cheap enough to run whole: six tiers,
+        /// and the only disk work is the existence probes the resolution already does.
         /// </summary>
         public void Refresh()
         {
-            var sounds = _settings?.Persisted?.UnlockSounds;
+            var sounds = CurrentSounds;
             var resolver = _sounds?.Resolver;
             foreach (var row in Rows)
             {
                 row.Load(
                     sounds?.GetPath(row.Tier),
-                    resolver?.Resolve(row.Tier),
+                    resolver?.Resolve(row.Tier, sounds),
                     resolver?.FindThemeCandidates(row.Tier),
                     CreateBadge(row.Tier));
             }
@@ -82,7 +124,7 @@ namespace PlayniteAchievements.ViewModels
 
             try
             {
-                _sounds.Play(row.Tier, force: true);
+                _sounds.Play(row.Tier, _testProviderKey, _testGameId, force: true);
             }
             catch (Exception ex)
             {
@@ -111,11 +153,60 @@ namespace PlayniteAchievements.ViewModels
             }
         }
 
+        /// <summary>Raised after a row's file changed the scope's pack.</summary>
+        public event EventHandler SoundsChanged;
+
+        /// <summary>
+        /// Sets the tier to a file the user picked: a copy in managed storage, so the tier keeps
+        /// playing after the original moves. Throws when the file is not a usable sound.
+        /// </summary>
+        internal void PickFile(UnlockSoundTier tier, string path)
+        {
+            if (!IsEditable || string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            SetCustomPath(tier, _importFile != null ? _importFile(path) : path);
+        }
+
         internal void SetCustomPath(UnlockSoundTier tier, string path)
         {
-            _settings?.Persisted?.UnlockSounds?.SetPath(tier, path);
+            if (!IsEditable)
+            {
+                Refresh();
+                return;
+            }
+
+            if (_scope == null)
+            {
+                _settings?.Persisted?.UnlockSounds?.SetPath(tier, path);
+            }
+            else
+            {
+                var pack = _scope.OwnSounds?.Clone();
+                if (pack == null)
+                {
+                    Refresh();
+                    return;
+                }
+
+                pack.SetPath(tier, path);
+                _scope.Write(pack);
+            }
+
+            try
+            {
+                _pruneUnreferenced?.Invoke(CurrentSounds);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, "Removing unreferenced unlock sound copies failed.");
+            }
+
             Refresh();
             ScheduleApply();
+            SoundsChanged?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>Volume and path edits re-apply the service after the user pauses typing.</summary>
@@ -231,7 +322,6 @@ namespace PlayniteAchievements.ViewModels
         private readonly UnlockSoundSettingsViewModel _owner;
         private string _customPath;
         private string _sourceLabel;
-        private string _resolvedPath;
         private ImageSource _badgeImage;
 
         public UnlockSoundRowItem(UnlockSoundSettingsViewModel owner, UnlockSoundTier tier)
@@ -271,27 +361,12 @@ namespace PlayniteAchievements.ViewModels
             private set => SetValue(ref _sourceLabel, value);
         }
 
-        public string ResolvedPath
-        {
-            get => _resolvedPath;
-            private set => SetValue(ref _resolvedPath, value);
-        }
-
         /// <summary>The tier's rarity badge, so the table reads as the rarities it configures.</summary>
         public ImageSource BadgeImage
         {
             get => _badgeImage;
             private set => SetValue(ref _badgeImage, value);
         }
-
-        /// <summary>
-        /// The file name a blank row will actually play, shown in place of the empty path box so an
-        /// unconfigured tier reads as the theme's or built-in sound rather than as nothing at all.
-        /// </summary>
-        public string ResolvedFileName => SafeFileName(ResolvedPath);
-
-        /// <summary>Whether to show <see cref="ResolvedFileName"/> where the user's path would go.</summary>
-        public bool ShowResolvedFileName => !HasCustomPath && !string.IsNullOrWhiteSpace(ResolvedFileName);
 
         /// <summary>Theme files this tier can be tested against, across both Playnite modes.</summary>
         public ObservableCollection<ThemeUnlockSoundTestItem> ThemeCandidates { get; }
@@ -308,7 +383,6 @@ namespace PlayniteAchievements.ViewModels
             OnPropertyChanged(nameof(CustomPath));
             OnPropertyChanged(nameof(HasCustomPath));
             SourceLabel = ResourceProvider.GetString(SourceLabelKey(resolved?.Source ?? UnlockSoundSource.None));
-            ResolvedPath = resolved?.Path;
             BadgeImage = badgeImage;
 
             ThemeCandidates.Clear();
@@ -317,29 +391,11 @@ namespace PlayniteAchievements.ViewModels
                 ThemeCandidates.Add(new ThemeUnlockSoundTestItem(candidate.ModeName, candidate.Path));
             }
 
-            OnPropertyChanged(nameof(ResolvedFileName));
-            OnPropertyChanged(nameof(ShowResolvedFileName));
             OnPropertyChanged(nameof(HasThemeCandidates));
         }
 
-        private static string SafeFileName(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return null;
-            }
-
-            try
-            {
-                return Path.GetFileName(path);
-            }
-            catch (ArgumentException)
-            {
-                return null;
-            }
-        }
-
-        private static string TierLabelKey(UnlockSoundTier tier)
+        /// <summary>The localization key naming a sound tier, shared with the Workshop sound pack preview.</summary>
+        internal static string TierLabelKey(UnlockSoundTier tier)
         {
             switch (tier)
             {
@@ -356,10 +412,10 @@ namespace PlayniteAchievements.ViewModels
         {
             switch (source)
             {
-                case UnlockSoundSource.Custom: return "LOCPlayAch_Common_Custom";
+                case UnlockSoundSource.Custom: return "LOCCustomLabel";
                 case UnlockSoundSource.Theme: return "LOCPlayAch_Settings_Style_FireTheme";
-                case UnlockSoundSource.Default: return "LOCPlayAch_Common_Default";
-                default: return "LOCPlayAch_Common_None";
+                case UnlockSoundSource.Default: return "LOCDefault";
+                default: return "LOCNone";
             }
         }
     }

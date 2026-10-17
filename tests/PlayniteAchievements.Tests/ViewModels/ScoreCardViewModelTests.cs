@@ -1,7 +1,10 @@
 using System.Linq;
+using System.Windows;
 using System.Windows.Media;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Achievements.Scoring;
+using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.ViewModels;
 
 namespace PlayniteAchievements.Tests.ViewModels
@@ -26,6 +29,90 @@ namespace PlayniteAchievements.Tests.ViewModels
             Assert.AreEqual("Prestige Score", prestige.Label);
         }
 
+        [TestMethod]
+        public void Labels_NameThePlatformScores()
+        {
+            Assert.AreEqual("Gamerscore", new ScoreCardViewModel(ScoreCardType.Gamerscore).Label);
+            Assert.AreEqual("Epic XP", new ScoreCardViewModel(ScoreCardType.EpicXp).Label);
+            Assert.AreEqual("RetroAchievements Points", new ScoreCardViewModel(ScoreCardType.RetroPoints).Label);
+        }
+
+        [TestMethod]
+        public void ApplyFor_PointsCardShowsEarnedOutOfTotalAndNoRank()
+        {
+            var card = new ScoreCardViewModel(ScoreCardType.Collection);
+            var snapshot = new PlayniteAchievements.Services.Overview.OverviewDataSnapshot
+            {
+                CollectorScore = 10000
+            };
+            var totals = new PlatformScoreTotals();
+            totals.Add("Xbox", 10000, 40000);
+            totals.Add("RetroAchievements", 400, 1200);
+            snapshot.ApplyPlatformScores(totals);
+
+            card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
+            Assert.AreEqual(ScoreCardType.Collection, card.ScoreType);
+            Assert.IsFalse(card.IsPoints);
+            Assert.AreEqual(AchievementLevelCalculator.CalculateModern(10000).Rank, card.Rank);
+
+            card.ApplyFor(ScoreCardType.Gamerscore, snapshot, useUniformRarityBadges: false);
+            Assert.AreEqual(ScoreCardType.Gamerscore, card.ScoreType);
+            Assert.IsTrue(card.IsPoints);
+            Assert.AreEqual("Gamerscore", card.Label);
+            Assert.AreEqual(10000, card.Score);
+            Assert.AreEqual(40000, card.Total);
+            Assert.AreEqual("10,000/40,000", card.TierText);
+            Assert.AreEqual(1, card.Segments.Count, "a points card has one bar cell, filled to earned out of total");
+            Assert.AreEqual("Gamerscore", card.TooltipTitleText);
+            Assert.AreEqual(0, card.Level);
+            Assert.IsFalse(card.HasMastery);
+
+            card.ApplyFor(ScoreCardType.RetroPoints, snapshot, useUniformRarityBadges: false);
+            Assert.AreEqual(400, card.Score);
+            Assert.AreEqual(1200, card.Total);
+
+            card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
+            Assert.IsFalse(card.IsPoints);
+            Assert.AreEqual(0, card.Total);
+            Assert.IsTrue(card.Segments.Count > 1, "Collection is back on its levels");
+            Assert.AreEqual(AchievementLevelCalculator.CalculateModern(10000).Rank, card.Rank);
+        }
+
+        [TestMethod]
+        public void ApplyFor_PointsCardTakesItsPlatformIconAndColorAndCanHideTheTotal()
+        {
+            var card = new ScoreCardViewModel(ScoreCardType.Collection);
+            var snapshot = new PlayniteAchievements.Services.Overview.OverviewDataSnapshot { CollectorScore = 10000 };
+            var totals = new PlatformScoreTotals();
+            totals.Add("Xbox", 10000, 40000);
+            snapshot.ApplyPlatformScores(totals);
+
+            card.ApplyFor(ScoreCardType.Collection, snapshot, useUniformRarityBadges: false);
+            Assert.IsNull(card.PlatformIconKey, "Collection and Prestige have no platform");
+            Assert.IsNull(card.PlatformColorHex);
+
+            card.ApplyFor(ScoreCardType.Gamerscore, snapshot, useUniformRarityBadges: false);
+            var (iconKey, colorHex) = PlayniteAchievements.Providers.ProviderRegistry.ResolveProviderVisualsOrFallback("Xbox");
+            Assert.AreEqual(iconKey, card.PlatformIconKey);
+            Assert.AreEqual(colorHex, card.PlatformColorHex);
+            var platformColor = (Color)ColorConverter.ConvertFromString(colorHex);
+            Assert.AreEqual(platformColor, ((SolidColorBrush)card.AccentBrush).Color);
+
+            card.SetShowTotal(false);
+            Assert.AreEqual("10,000", card.TierText, "earned alone");
+            Assert.AreEqual(1, card.Segments.Count);
+            Assert.AreNotSame(card.AccentTrackBrush, card.Segments[0].Fill, "the bar still fills to earned out of total");
+
+            // Every point earned keeps the platform color rather than switching to the completed color.
+            totals = new PlatformScoreTotals();
+            totals.Add("Xbox", 40000, 40000);
+            snapshot.ApplyPlatformScores(totals);
+            card.ApplyFor(ScoreCardType.Gamerscore, snapshot, useUniformRarityBadges: false);
+            Assert.AreEqual(platformColor, ((SolidColorBrush)card.AccentBrush).Color);
+
+            card.SetShowTotal(true);
+            Assert.AreEqual("40,000/40,000", card.TierText);
+        }
         [TestMethod]
         public void Apply_FormatsPointsTierAndLevel()
         {
@@ -182,14 +269,16 @@ namespace PlayniteAchievements.Tests.ViewModels
             Assert.AreEqual(4, snapshot.LevelsCompletedInRank);
             Assert.AreEqual(snapshot.LevelsInRank, card.Segments.Count);
 
+            var completedFill = card.Segments[0].Fill;
+            Assert.AreEqual(SolidColor(card.AccentBrush), GlossColor(completedFill));
             for (var i = 0; i < snapshot.LevelsCompletedInRank; i++)
             {
-                Assert.AreSame(card.AccentBrush, card.Segments[i].Fill, $"segment {i}");
+                Assert.AreSame(completedFill, card.Segments[i].Fill, $"segment {i}");
             }
 
             Assert.IsInstanceOfType(
                 card.Segments[snapshot.LevelsCompletedInRank].Fill,
-                typeof(LinearGradientBrush));
+                typeof(DrawingBrush));
 
             for (var i = snapshot.LevelsCompletedInRank + 1; i < card.Segments.Count; i++)
             {
@@ -218,6 +307,81 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             Assert.AreEqual(10, card.Segments.Count);
             Assert.IsTrue(card.Segments.All(segment => ReferenceEquals(segment.Fill, card.AccentTrackBrush)));
+        }
+
+        [TestMethod]
+        public void Accents_FollowTheRarityColorSettings()
+        {
+            ApplyColors(new RarityColorSettings { Rare = "#123456" });
+            try
+            {
+                var card = new ScoreCardViewModel(ScoreCardType.Collection);
+
+                card.Apply(12345, 42, 67, "Gold3", useUniformRarityBadges: false);
+
+                Assert.AreEqual(Color.FromRgb(0x12, 0x34, 0x56), SolidColor(card.AccentBrush));
+                Assert.AreEqual(Color.FromArgb(0x3A, 0x12, 0x34, 0x56), SolidColor(card.AccentTrackBrush));
+                Assert.AreEqual(Color.FromArgb(0x24, 0x12, 0x34, 0x56), SolidColor(card.AccentBackgroundBrush));
+            }
+            finally
+            {
+                ApplyColors(null);
+            }
+        }
+
+        [TestMethod]
+        public void Accents_OfAMasterRankSweepTheCompletedColors()
+        {
+            ApplyColors(new RarityColorSettings { CompletedStart = "#FF0000", CompletedEnd = "#0000FF" });
+            try
+            {
+                var card = new ScoreCardViewModel(ScoreCardType.Collection);
+
+                card.ApplyFromScore(PassLength, useUniformRarityBadges: false);
+
+                Assert.AreEqual("ScoreBadgeCompletedGame", card.BadgeIconKey);
+                var first = GlossColor(card.Segments[0].Fill);
+                var beforeLast = GlossColor(card.Segments[card.Segments.Count - 2].Fill);
+                Assert.IsTrue(first.R > first.B, "first segment leans to the start color");
+                Assert.IsTrue(beforeLast.B > beforeLast.R, "late segments lean to the end color");
+            }
+            finally
+            {
+                ApplyColors(null);
+            }
+        }
+
+        [TestMethod]
+        public void RefreshBadgeStyle_RaisesTheBadgeAndAccentsWhenOnlyColorsChanged()
+        {
+            var card = new ScoreCardViewModel(ScoreCardType.Collection);
+            card.Apply(12345, 42, 67, "Gold3", useUniformRarityBadges: false);
+            var raised = new System.Collections.Generic.List<string>();
+            card.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+            card.RefreshBadgeStyle(useUniformRarityBadges: false);
+
+            CollectionAssert.Contains(raised, nameof(ScoreCardViewModel.BadgeIconKey));
+            CollectionAssert.Contains(raised, nameof(ScoreCardViewModel.AccentBrush));
+        }
+
+        private static void ApplyColors(RarityColorSettings colors)
+        {
+            var settings = colors == null ? null : new PersistedSettings { RarityColors = colors };
+            RarityAppearanceHelper.ApplyBadgeApplicationResources(new ResourceDictionary(), settings);
+        }
+
+        private static Color SolidColor(Brush brush)
+        {
+            Assert.IsInstanceOfType(brush, typeof(SolidColorBrush));
+            return ((SolidColorBrush)brush).Color;
+        }
+
+        /// <summary>The accent a glossed segment is built around, at the middle of its gradient.</summary>
+        private static Color GlossColor(Brush brush)
+        {
+            Assert.IsInstanceOfType(brush, typeof(LinearGradientBrush));
+            return ((LinearGradientBrush)brush).GradientStops.Single(stop => stop.Offset == 0.55).Color;
         }
     }
 }

@@ -13,6 +13,12 @@ namespace PlayniteAchievements.Models.Settings
         Bottom,
 
         /// <summary>No darkening at all.</summary>
-        None
+        None,
+
+        /// <summary>
+        /// The style's frame background image, stretched over the whole shot, in place of both
+        /// vignette layers; no darkening when no image is set.
+        /// </summary>
+        Image
     }
 }

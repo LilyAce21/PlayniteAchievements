@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Playnite.SDK.Models;
 using PlayniteAchievements.Models;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using Playnite.SDK;
 using PlayniteAchievements.Services;
 using PlayniteAchievements.Models.Settings;
@@ -63,13 +64,17 @@ namespace PlayniteAchievements
 
             EnsureAchievementResourcesLoaded();
 
-            var sharedSettings = definition.ShowcaseWidgetKind.HasValue
-                ? GetOrCreateStartPageWidgetSettings(
-                    viewId,
-                    instanceId,
-                    definition.ShowcaseWidgetKind.Value)
-                : null;
-            var viewModel = CreateStartPageViewModel(definition, sharedSettings);
+            // Seed the instance now; the view model re-resolves it per projection because a
+            // settings cancel replaces Persisted, and with it every StartPageInstances value.
+            Func<ShowcaseWidgetInstanceSettings> resolveSettings = null;
+            if (definition.ShowcaseWidgetKind.HasValue)
+            {
+                var kind = definition.ShowcaseWidgetKind.Value;
+                resolveSettings = () => GetOrCreateStartPageWidgetSettings(viewId, instanceId, kind);
+                resolveSettings();
+            }
+
+            var viewModel = CreateStartPageViewModel(definition, resolveSettings);
             if (viewModel == null)
             {
                 return null;
@@ -103,27 +108,35 @@ namespace PlayniteAchievements
                 viewId,
                 instanceId,
                 definition.ShowcaseWidgetKind.Value);
-            if (settings.Kind != ShowcaseWidgetKind.Profile)
+            // The custom title, then (for the profile card) its identity, then the display
+            // options, as in the Showcase widget dialog; each persists on edit.
+            var panel = new StackPanel { Margin = new Thickness(16) };
+            ShowcaseProfileSettingsEditor.AddTextBox(
+                panel,
+                L("LOCPlayAch_Showcase_CustomTitle"),
+                settings.CustomTitle,
+                value => settings.CustomTitle = value,
+                () =>
+                {
+                    PersistSettingsForUi();
+                    ShowcaseConfigurationEvents.RaiseChanged();
+                });
+            if (settings.Kind == ShowcaseWidgetKind.Profile)
             {
-                return new ShowcaseWidgetOptionsControl(
-                    settings,
-                    PersistSettingsForUi);
+                var profile = settings.Profile ?? (settings.Profile = new ShowcaseProfileSettings());
+                panel.Children.Add(new ShowcaseProfileSettingsEditor(profile, () =>
+                {
+                    PersistSettingsForUi();
+                    ShowcaseConfigurationEvents.RaiseChanged();
+                }));
             }
 
-            // The profile card's identity (name, avatar, links) sits above its display options,
-            // as in the Showcase widget dialog; both persist on each edit.
-            var profile = settings.Profile ?? (settings.Profile = new ShowcaseProfileSettings());
-            var panel = new StackPanel { Margin = new Thickness(16) };
-            panel.Children.Add(new ShowcaseProfileSettingsEditor(profile, () =>
-            {
-                PersistSettingsForUi();
-                ShowcaseConfigurationEvents.RaiseChanged();
-            }));
             panel.Children.Add(new ShowcaseWidgetOptionsControl(
                 settings,
                 PersistSettingsForUi,
                 margin: new Thickness(0),
-                loadStyles: false));
+                loadStyles: false,
+                backgroundDefault: false));
             var host = new UserControl { Content = panel };
             host.Resources.MergedDictionaries.Add(new ResourceDictionary
             {
@@ -172,26 +185,18 @@ namespace PlayniteAchievements
 
         private IDisposable CreateStartPageViewModel(
             StartPageViewDefinition definition,
-            ShowcaseWidgetInstanceSettings sharedSettings)
+            Func<ShowcaseWidgetInstanceSettings> resolveSettings)
         {
-            var widgetKind = definition.WidgetKind;
             if (definition.ShowcaseWidgetKind.HasValue)
             {
                 return new StartPageShowcaseWidgetViewModel(
-                    sharedSettings,
+                    resolveSettings,
                     GetStartPageDataCoordinator(),
                     Settings,
                     _logger);
             }
 
-            switch (widgetKind)
-            {
-                case StartPageWidgetKind.CollectionScoreCard:
-                case StartPageWidgetKind.PrestigeScoreCard:
-                    return new StartPageScoreCardWidgetViewModel(widgetKind, GetStartPageDataCoordinator(), Settings, _logger);
-                default:
-                    return null;
-            }
+            return null;
         }
 
         private static Control CreateStartPageView(StartPageViewDefinition definition)
@@ -201,15 +206,7 @@ namespace PlayniteAchievements
                 return new StartPageShowcaseWidgetView();
             }
 
-            var widgetKind = definition.WidgetKind;
-            switch (widgetKind)
-            {
-                case StartPageWidgetKind.CollectionScoreCard:
-                case StartPageWidgetKind.PrestigeScoreCard:
-                    return new StartPageScoreCardWidgetView();
-                default:
-                    return null;
-            }
+            return null;
         }
 
         private StartPageDataCoordinator GetStartPageDataCoordinator()
@@ -730,12 +727,7 @@ namespace PlayniteAchievements
                     showcase.DefaultGamePinCollectionId);
             }
 
-            // The four pie views share the showcase Pie kind; each seeds the distribution
-            // its view id has always shown.
-            if (kind == ShowcaseWidgetKind.Pie)
-            {
-                ShowcaseWidgetOptions.SetPieMode(settings, ResolvePieModeForView(viewId));
-            }
+            StartPageViewCatalog.SeedViewOptions(viewId, settings);
 
             // Migration: StartPage-hosted grid widgets used to share the fixed StartPage
             // surfaces edited on the Display tab. Seed each new per-instance surface from
@@ -743,6 +735,10 @@ namespace PlayniteAchievements
             // display options and column layout.
             var catalog = Settings.Persisted.GridOptions;
             var surfaceKey = ShowcaseGridSurfaces.ResolveWidgetSurface(kind, settings.InstanceId);
+            _logger?.Info(
+                $"Start page widget {key}: no saved settings (stored {showcase.StartPageInstances.Count}, " +
+                $"kind match {(existing == null ? "n/a" : (existing.Kind == kind).ToString())}); " +
+                $"creating defaults, grid surface already present {catalog.GameSummaries?.ContainsKey(surfaceKey ?? string.Empty) == true}.");
             if (kind == ShowcaseWidgetKind.RecentAchievements)
             {
                 catalog.SeedAchievementFrom(surfaceKey, GridOptionKeys.Achievement.StartPageRecent);
@@ -755,21 +751,6 @@ namespace PlayniteAchievements
             showcase.StartPageInstances[key] = settings;
             PersistSettingsForUi();
             return settings;
-        }
-
-        private static ShowcasePieMode ResolvePieModeForView(string viewId)
-        {
-            switch (viewId)
-            {
-                case StartPageViewCatalog.ProviderPieViewId:
-                    return ShowcasePieMode.Provider;
-                case StartPageViewCatalog.RarityPieViewId:
-                    return ShowcasePieMode.Rarity;
-                case StartPageViewCatalog.TrophyPieViewId:
-                    return ShowcasePieMode.Trophy;
-                default:
-                    return ShowcasePieMode.CompletedGames;
-            }
         }
 
         private static string L(string key)

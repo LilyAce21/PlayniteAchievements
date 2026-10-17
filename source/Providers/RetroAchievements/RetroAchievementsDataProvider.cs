@@ -32,8 +32,7 @@ namespace PlayniteAchievements.Providers.RetroAchievements
                     return ProviderOverrideValidation.Valid(gameId.ToString(CultureInfo.InvariantCulture));
                 }
 
-                return ProviderOverrideValidation.Invalid(
-                    "LOCPlayAch_Menu_RaGameId_InvalidId");
+                return ProviderOverrideValidation.InvalidId("1446");
             });
 
         private readonly ILogger _logger;
@@ -69,7 +68,7 @@ namespace PlayniteAchievements.Providers.RetroAchievements
         /// solely by the feed, and the throttle for the same feed running as a backstop alongside
         /// emulator-log tailing.
         /// </summary>
-        private static readonly TimeSpan RecentFeedInterval = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan RecentFeedInterval = TimeSpan.FromSeconds(15);
 
         /// <summary>
         /// Last feed read. Unsynchronized: the in-game monitor runs at most one QueryAsync per

@@ -2062,7 +2062,6 @@ namespace PlayniteAchievements.Models
 
         // === SuccessStory Compatibility ===
 
-
         [DontSerialize]
         public AchievementRarityStats NoCommon => Uncommon;
 
@@ -2241,6 +2240,55 @@ namespace PlayniteAchievements.Models
         {
             get => ModernTheme.PrestigeMastery;
             set => ModernTheme.PrestigeMastery = value;
+        }
+
+        [DontSerialize]
+        public int GamerscoreScore
+        {
+            get => ModernTheme.GamerscoreScore;
+            set => ModernTheme.GamerscoreScore = value;
+        }
+
+        [DontSerialize]
+        public int GamerscoreTotal
+        {
+            get => ModernTheme.GamerscoreTotal;
+            set => ModernTheme.GamerscoreTotal = value;
+        }
+
+        [DontSerialize]
+        public int EpicXpScore
+        {
+            get => ModernTheme.EpicXpScore;
+            set => ModernTheme.EpicXpScore = value;
+        }
+
+        [DontSerialize]
+        public int EpicXpTotal
+        {
+            get => ModernTheme.EpicXpTotal;
+            set => ModernTheme.EpicXpTotal = value;
+        }
+
+        [DontSerialize]
+        public int RetroPointsScore
+        {
+            get => ModernTheme.RetroPointsScore;
+            set => ModernTheme.RetroPointsScore = value;
+        }
+
+        [DontSerialize]
+        public int RetroPointsTotal
+        {
+            get => ModernTheme.RetroPointsTotal;
+            set => ModernTheme.RetroPointsTotal = value;
+        }
+
+        [DontSerialize]
+        public List<PointsScoreItem> PointsScores
+        {
+            get => ModernTheme.PointsScores;
+            set => ModernTheme.PointsScores = value;
         }
 
         [DontSerialize]

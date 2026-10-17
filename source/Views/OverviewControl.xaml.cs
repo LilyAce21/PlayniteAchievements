@@ -83,6 +83,7 @@ namespace PlayniteAchievements.Views
         private bool _committingOverviewSelection;
         private FriendsOverviewControl _friendsOverview;
         private ShowcaseControl _showcase;
+        private ShowcaseControl _miniShowcase;
         private readonly DispatcherTimer _showcaseDatabaseRefreshTimer;
         private bool _showcaseDatabaseRefreshPending;
         private volatile bool _isDisposed;
@@ -91,6 +92,47 @@ namespace PlayniteAchievements.Views
         public OverviewControl()
         {
             InitializeComponent();
+        }
+
+        private readonly Common.KeySequenceMatcher _keySequence = new Common.KeySequenceMatcher("jeshibu");
+        private Window _keySequenceWindow;
+
+        /// <summary>
+        /// Listens on the hosting window rather than the control, so keys count while the overview
+        /// is shown even when nothing inside it has focus.
+        /// </summary>
+        private void AttachKeySequenceWindow(object sender, RoutedEventArgs e)
+        {
+            DetachKeySequenceWindow(sender, e);
+            _keySequenceWindow = Window.GetWindow(this);
+            if (_keySequenceWindow != null)
+            {
+                _keySequenceWindow.PreviewKeyDown += OverviewControl_PreviewKeySequence;
+            }
+        }
+
+        private void DetachKeySequenceWindow(object sender, RoutedEventArgs e)
+        {
+            if (_keySequenceWindow != null)
+            {
+                _keySequenceWindow.PreviewKeyDown -= OverviewControl_PreviewKeySequence;
+                _keySequenceWindow = null;
+            }
+        }
+
+        private void OverviewControl_PreviewKeySequence(object sender, KeyEventArgs e)
+        {
+            if (!_keySequence.Push(e.Key))
+            {
+                return;
+            }
+
+            var plugin = PlayniteAchievementsPlugin.Instance;
+            var directory = UnlockSoundResolver.GetBundledSoundsDirectory(plugin?.GetPluginInstallDirectory());
+            if (directory != null)
+            {
+                plugin.UnlockSounds?.PlayFile(System.IO.Path.Combine(directory, "jb.mp3"), 5.0);
+            }
         }
 
         /// <summary>True when the header is too narrow for full score cards.</summary>
@@ -138,6 +180,8 @@ namespace PlayniteAchievements.Views
             _refreshEntryPoint = refreshEntryPoint ?? throw new ArgumentNullException(nameof(refreshEntryPoint));
             _friendsOverviewDataCoordinator = friendsOverviewDataCoordinator;
             _launchContext = launchContext;
+            Loaded += AttachKeySequenceWindow;
+            Unloaded += DetachKeySequenceWindow;
             if (launchContext == OverviewLaunchContext.Popout)
             {
                 HeaderCaptionSpacerRow.Height = new GridLength(0);
@@ -186,6 +230,11 @@ namespace PlayniteAchievements.Views
             {
                 ApplyActiveSubView();
             }
+
+            using (Common.PerfScope.Start(logger, "OverviewControl.CreateMiniShowcase", thresholdMs: 30))
+            {
+                CreateMiniShowcase();
+            }
             // Open/close is its own memory question, separate from refresh churn: if either of
             // these stays live after Dispose, the window's whole visual tree, view model, and
             // row set are still rooted and closing the overview cannot return memory.
@@ -200,7 +249,11 @@ namespace PlayniteAchievements.Views
                 _persistedSubscription = new PersistedSettingsSubscription(
                     _settings,
                     Persisted_PropertyChanged,
-                    LeaveFriendsSubViewIfDisabled);
+                    () =>
+                    {
+                        LeaveFriendsSubViewIfDisabled();
+                        ApplyMiniShowcaseLayoutState();
+                    });
             }
 
             if (_playniteApi?.Database?.Games != null)
@@ -261,6 +314,23 @@ namespace PlayniteAchievements.Views
             }
 
             UpdateFriendsClearSelectionState();
+        }
+
+        /// <summary>
+        /// Switches to the Showcase on the given page. Before the Showcase exists the page is
+        /// chosen up front, so it is built once, on that page.
+        /// </summary>
+        internal void ShowShowcasePage(string pageId)
+        {
+            var showcase = _settings?.Persisted?.Showcase;
+            if (_showcase == null
+                && showcase?.Pages?.Any(page => string.Equals(page?.PageId, pageId, StringComparison.OrdinalIgnoreCase)) == true)
+            {
+                showcase.LastSelectedPageId = pageId;
+            }
+
+            ActiveSubView = OverviewSubView.Showcase;
+            _showcase?.SelectPageById(pageId);
         }
 
         private void EnsureShowcaseCreated()
@@ -332,6 +402,11 @@ namespace PlayniteAchievements.Views
             if (e?.PropertyName == nameof(PersistedSettings.EnableFriendsFeatures))
             {
                 LeaveFriendsSubViewIfDisabled();
+            }
+            else if (e?.PropertyName == nameof(PersistedSettings.ShowOverviewMiniShowcase) ||
+                     e?.PropertyName == nameof(PersistedSettings.OverviewMiniShowcaseHeight))
+            {
+                ApplyMiniShowcaseLayoutState();
             }
         }
 
@@ -469,6 +544,7 @@ namespace PlayniteAchievements.Views
                 GameAchievementsGrid?.Dispose();
                 _friendsOverview?.Dispose();
                 _showcase?.Dispose();
+                _miniShowcase?.Dispose();
                 _showcaseDatabaseRefreshTimer?.Stop();
                 if (_playniteApi?.Database?.Games != null)
                 {
@@ -499,7 +575,6 @@ namespace PlayniteAchievements.Views
             ApplyOverviewColumnRatio();
             ResetOverviewSortDirection();
             ResetAchievementsSortDirection();
-            UpdatePieChartLayout();
         }
 
         private void Plugin_SettingsSaved(object sender, EventArgs e)
@@ -531,8 +606,8 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
-            var count = (_viewModel.ShowOverviewCollectionScoreCard ? 1 : 0) +
-                        (_viewModel.ShowOverviewPrestigeScoreCard ? 1 : 0);
+            var count = (_viewModel.ShowOverviewScoreCard1 ? 1 : 0) +
+                        (_viewModel.ShowOverviewScoreCard2 ? 1 : 0);
             if (count == 0)
             {
                 return;
@@ -565,19 +640,9 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
-            if (e.PropertyName == nameof(OverviewViewModel.ShowOverviewGamesPieChart)
-                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewProviderPieChart)
-                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewRarityPieChart)
-                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewTrophyPieChart)
-                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewPieCharts)
-                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewBarCharts))
-            {
-                UpdatePieChartLayout();
-            }
-
             if (string.IsNullOrEmpty(e.PropertyName)
-                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewCollectionScoreCard)
-                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewPrestigeScoreCard))
+                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewScoreCard1)
+                || e.PropertyName == nameof(OverviewViewModel.ShowOverviewScoreCard2))
             {
                 UpdateScoreCardsBadgeOnly();
             }
@@ -1713,70 +1778,58 @@ namespace PlayniteAchievements.Views
             ResetRecentAchievementsSortDirection();
         }
 
-        private void OnProviderPieChartSliceClick(object sender, string providerName)
+        // The mini-showcase is part of the Overview sub-view, so it is built with the control
+        // and lives as long as it does.
+        private void CreateMiniShowcase()
         {
-            _viewModel?.ToggleProviderFilterFromPieChart(providerName);
+            _miniShowcase = new ShowcaseControl(
+                _viewModel,
+                _settings,
+                new OverviewMiniShowcaseHost(_viewModel, _settings, _persistSettingsForUi),
+                _playniteApi,
+                ownsHost: true);
+            MiniShowcaseHost.Content = _miniShowcase;
+            MiniShowcaseHost.AddHandler(
+                ShowcaseWidgetControl.LinkedClickEvent,
+                new ShowcaseLinkedClickEventHandler(MiniShowcase_LinkedClick));
+            ApplyMiniShowcaseLayoutState();
         }
 
-        private void OnGamesPieChartSliceClick(object sender, string completenessLabel)
+        // Visibility is the main settings toggle alone: an empty strip stays, so its right-click
+        // menu can still open the editor.
+        private void ApplyMiniShowcaseLayoutState()
         {
-            _viewModel?.ToggleCompletenessFilterFromPieChart(completenessLabel);
+            var persisted = _settings?.Persisted;
+            if (persisted == null || MiniShowcaseStrip == null)
+            {
+                return;
+            }
+
+            MiniShowcaseStrip.Visibility = persisted.ShowOverviewMiniShowcase ? Visibility.Visible : Visibility.Collapsed;
+            MiniShowcaseHost.Height = persisted.OverviewMiniShowcaseHeight;
+            if (!persisted.ShowOverviewMiniShowcase && _miniShowcase != null)
+            {
+                _miniShowcase.IsEditing = false;
+            }
         }
 
-        private void UpdatePieChartLayout()
+        private void MiniShowcase_LinkedClick(object sender, ShowcaseLinkedClickEventArgs e)
         {
-            if (_viewModel == null || OverviewPieChartsGrid == null) return;
-
-            var panels = new List<(FrameworkElement Element, bool IsVisible)>
+            e.Handled = true;
+            // Tracing only: the grids and widgets this click re-filters lay out and plot in later
+            // dispatcher passes, which no scope around the handler would cover.
+            if (Common.PerfScope.PerfTracingEnabled)
             {
-                (GamesPieChartPanel, _viewModel.ShowOverviewGamesPieChart),
-                (ProviderPieChartPanel, _viewModel.ShowOverviewProviderPieChart),
-                (RarityPieChartPanel, _viewModel.ShowOverviewRarityPieChart),
-                (TrophyPieChartPanel, _viewModel.ShowOverviewTrophyPieChart)
-            };
-
-            var visibleIndex = 0;
-            foreach (var (element, isVisible) in panels)
-            {
-                if (element == null) continue;
-
-                if (isVisible)
-                {
-                    element.Visibility = Visibility.Visible;
-                    Grid.SetColumn(element, visibleIndex);
-                    // Add spacing to all but last visible panel
-                    element.Margin = new Thickness(0, 0, 8, 0);
-                    visibleIndex++;
-                }
-                else
-                {
-                    element.Visibility = Visibility.Collapsed;
-                }
+                Common.DispatcherOperationProbe.Arm(_logger, "overview-linked-click", TimeSpan.FromSeconds(2));
             }
 
-            // Remove margin from last visible panel
-            if (visibleIndex > 0)
+            if (e.Span.HasValue)
             {
-                var lastVisible = panels.Where(p => p.IsVisible).Last().Element;
-                lastVisible.Margin = new Thickness(0);
+                _viewModel?.ToggleUnlockSpanFilter(e.Span.Value);
             }
-
-            // Update column definitions: visible get star, hidden get 0
-            for (var i = 0; i < OverviewPieChartsGrid.ColumnDefinitions.Count; i++)
+            else if (e.PieMode.HasValue)
             {
-                OverviewPieChartsGrid.ColumnDefinitions[i].Width = i < visibleIndex
-                    ? new GridLength(1, GridUnitType.Star)
-                    : new GridLength(0);
-            }
-
-            // Update parent grid column widths based on visible pie count
-            // Formula: pie_width = visible_pies * 0.5, bar_width = 1
-            // This gives: 1 pie = 33%/67%, 2 pies = 50%/50%, 3 pies = 60%/40%, 4 pies = 67%/33%
-            if (ChartsRowGrid != null && visibleIndex > 0)
-            {
-                var pieWidth = visibleIndex * 0.5;
-                ChartsRowGrid.ColumnDefinitions[0].Width = new GridLength(pieWidth, GridUnitType.Star);
-                ChartsRowGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
+                _viewModel?.ApplyLinkedSliceClick(e.PieMode.Value, e.SliceKey);
             }
         }
 
@@ -1864,6 +1917,61 @@ namespace PlayniteAchievements.Views
         private static bool IsValidOverviewColumnRatio(double ratio)
         {
             return !double.IsNaN(ratio) && !double.IsInfinity(ratio) && ratio > 0d && ratio < 1d;
+        }
+
+        #endregion
+
+        #region Score Card Context Menu
+
+        private void ScoreCard_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!(sender is FrameworkElement card))
+            {
+                return;
+            }
+
+            var second = ReferenceEquals(card, ScoreCard2Control);
+            var menu = new ContextMenu();
+            menu.Items.Add(GameRowContextMenuBuilder.CreateMenuItem(
+                this,
+                "LOCPlayAch_Showcase_WidgetSettings",
+                () => OpenScoreCardSettings(second)));
+            ContextMenuStyleHelper.ApplyAchievementContextMenuStyle(this, menu);
+            menu.PlacementTarget = card;
+            menu.IsOpen = true;
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Edits one header card's options in the showcase widget settings dialog, without the
+        /// title and history rows the header has no use for. Saving replaces the stored card, which
+        /// raises the change the view model reapplies the cards from.
+        /// </summary>
+        private void OpenScoreCardSettings(bool second)
+        {
+            var persisted = _settings?.Persisted;
+            if (persisted == null)
+            {
+                return;
+            }
+
+            var working = (second ? persisted.OverviewScoreCard2 : persisted.OverviewScoreCard1)?.Clone();
+            if (working == null ||
+                !ShowcaseWidgetSettingsDialog.Show(working, linked: true, includeScoreHistory: false))
+            {
+                return;
+            }
+
+            if (second)
+            {
+                persisted.OverviewScoreCard2 = working;
+            }
+            else
+            {
+                persisted.OverviewScoreCard1 = working;
+            }
+
+            _persistSettingsForUi();
         }
 
         #endregion

@@ -134,6 +134,7 @@ namespace PlayniteAchievements.Providers.Exophase
                 // Emulators fold into the console family they emulate.
                 case "rpcs3":
                 case "shadps4":
+                case "vita3k":
                     return "PSN";
                 case "xenia":
                     return "Xbox";

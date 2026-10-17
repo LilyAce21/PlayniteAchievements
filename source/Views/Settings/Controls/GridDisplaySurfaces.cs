@@ -106,8 +106,8 @@ namespace PlayniteAchievements.Views.Settings.Controls
                 [GridOptionKeys.Achievement.SingleGame] = new GridDisplayRowCapabilities(
                     showCoverImagesRow: false,
                     showCategoryModeRow: true),
-                [GridOptionKeys.Achievement.OverviewRecent] = new GridDisplayRowCapabilities(
-                    showSortRow: false),
+                // The overview's Achievements grid holds every unlock, so it sorts like the others.
+                [GridOptionKeys.Achievement.OverviewRecent] = AllRows,
                 [GridOptionKeys.Achievement.OverviewSelectedGame] = new GridDisplayRowCapabilities(
                     showCoverImagesRow: false,
                     showCategoryModeRow: true),
@@ -190,13 +190,14 @@ namespace PlayniteAchievements.Views.Settings.Controls
                 [GridOptionKeys.CategorySummaries.OverviewSelectedGame] = AllRows,
                 [GridOptionKeys.CategorySummaries.FriendsOverview] = AllRows,
                 [GridOptionKeys.CategorySummaries.ViewFriendsAchievements] = AllRows,
-                [GridOptionKeys.CategorySummaries.DesktopTheme] = AllRows
+                [GridOptionKeys.CategorySummaries.DesktopTheme] = AllRows,
+                [GridOptionKeys.CategorySummaries.WorkshopPreview] = AllRows
             };
 
         private static readonly Dictionary<string, string> AchievementTitleKeys =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [GridOptionKeys.Achievement.OverviewRecent] = "LOCPlayAch_Settings_OverviewRecentAchievementsGrid",
+                [GridOptionKeys.Achievement.OverviewRecent] = "LOCPlayAch_Showcase_Widget_RecentAchievements",
                 [GridOptionKeys.Achievement.OverviewSelectedGame] = "LOCPlayAch_Settings_SelectedGameGridSort",
                 [GridOptionKeys.Achievement.SingleGame] = "LOCPlayAch_Settings_SelectedGameGridSort"
             };
@@ -204,7 +205,7 @@ namespace PlayniteAchievements.Views.Settings.Controls
         private static readonly Dictionary<string, string> GameSummaryTitleKeys =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [GridOptionKeys.GameSummaries.Overview] = "LOCPlayAch_Settings_GameSummariesGridSort"
+                [GridOptionKeys.GameSummaries.Overview] = "LOCPlayAch_Showcase_Widget_GameSummaries"
             };
 
         /// <summary>

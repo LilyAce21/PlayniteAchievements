@@ -154,6 +154,7 @@ namespace PlayniteAchievements.Providers.PSN
             {
                 ProviderKey = "PSN",
                 ProviderGameKey = PsnTrophySetResolutionHelper.BuildProviderGameKey(sets),
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game?.Source?.Name,
                 GameName = game?.Name,
                 PlayniteGameId = game?.Id,

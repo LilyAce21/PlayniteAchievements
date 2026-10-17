@@ -63,6 +63,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             var allGames = new List<GameAchievementSummary>();
             var collectorScore = 0;
             var prestigeScore = 0;
+            var platformScores = new PlatformScoreTotals();
 
             foreach (var data in allData)
             {
@@ -98,6 +99,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 var providerName = ProviderRegistry.GetLocalizedName(providerKey);
                 collectorScore = AddScore(collectorScore, stats.CollectionScore);
                 prestigeScore = AddScore(prestigeScore, stats.PrestigeScore);
+                platformScores.Add(providerKey, stats.PlatformScorePoints, stats.PlatformScorePointsTotal);
 
                 var summary = new GameAchievementSummary(
                     data.PlayniteGameId.Value,
@@ -140,7 +142,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 state.SilverTrophies,
                 state.BronzeTrophies);
             scoreSnapshot.LegacyLevel = AchievementLevelCalculator.CalculateLegacy(scoreSnapshot.LegacyScore);
-            ApplyScores(state, scoreSnapshot);
+            ApplyScores(state, scoreSnapshot, platformScores);
 
             PopulateAchievementLists(state, allData, token, includeHeavyAchievementLists);
             return state;
@@ -174,6 +176,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             var allGames = new List<GameAchievementSummary>();
             var collectorScore = 0;
             var prestigeScore = 0;
+            var platformScores = new PlatformScoreTotals();
 
             for (var i = 0; i < summaryData.Games.Count; i++)
             {
@@ -236,6 +239,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
 
                 collectorScore = AddScore(collectorScore, game.CollectionScore);
                 prestigeScore = AddScore(prestigeScore, game.PrestigeScore);
+                platformScores.Add(providerKey, game.PlatformScorePoints, game.PlatformScorePointsTotal);
             }
 
             ApplySummaryListsAndTotals(state, allGames);
@@ -248,7 +252,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 state.SilverTrophies,
                 state.BronzeTrophies);
             scoreSnapshot.LegacyLevel = AchievementLevelCalculator.CalculateLegacy(scoreSnapshot.LegacyScore);
-            ApplyScores(state, scoreSnapshot);
+            ApplyScores(state, scoreSnapshot, platformScores);
 
             PopulateRecentLists(
                 state,
@@ -300,7 +304,10 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 state.BronzeTrophies;
         }
 
-        private static void ApplyScores(LibraryRuntimeState state, AchievementScoreSnapshot scoreSnapshot)
+        private static void ApplyScores(
+            LibraryRuntimeState state,
+            AchievementScoreSnapshot scoreSnapshot,
+            PlatformScoreTotals platformScores)
         {
             if (state == null || scoreSnapshot == null)
             {
@@ -323,6 +330,34 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             state.PrestigeRank = scoreSnapshot.PrestigeLevel?.Rank ?? "Bronze5";
             state.CollectorMastery = scoreSnapshot.CollectorLevel?.Mastery ?? 0;
             state.PrestigeMastery = scoreSnapshot.PrestigeLevel?.Mastery ?? 0;
+
+            platformScores ??= new PlatformScoreTotals();
+            state.GamerscoreScore = platformScores.Gamerscore;
+            state.GamerscoreTotal = platformScores.GamerscoreTotal;
+            state.EpicXpScore = platformScores.EpicXp;
+            state.EpicXpTotal = platformScores.EpicXpTotal;
+            state.RetroPointsScore = platformScores.RetroPoints;
+            state.RetroPointsTotal = platformScores.RetroPointsTotal;
+
+            state.PointsScores = BuildPointsScores(platformScores);
+            ScoreCardChoices.PublishFamiliesWithPoints(platformScores);
+        }
+
+        private static List<PointsScoreItem> BuildPointsScores(PlatformScoreTotals platformScores)
+        {
+            var items = new List<PointsScoreItem>();
+            foreach (var family in platformScores.Families)
+            {
+                items.Add(new PointsScoreItem
+                {
+                    FamilyKey = family,
+                    Name = PointsFamilyNames.GetLabel(family),
+                    Score = platformScores.Get(family),
+                    Total = platformScores.GetPossible(family)
+                });
+            }
+
+            return items;
         }
 
         private static int GetDisplayLevel(AchievementLevelSnapshot snapshot)
@@ -763,43 +798,6 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 : current + value;
         }
 
-        private static void AccumulateGameRarityStats(
-            GameAchievementData data,
-            AchievementRarityStats common,
-            AchievementRarityStats uncommon,
-            AchievementRarityStats rare,
-            AchievementRarityStats ultraRare)
-        {
-            if (data?.Achievements == null)
-            {
-                return;
-            }
-
-            foreach (var achievement in data.Achievements)
-            {
-                if (!TryGetEffectiveRarityTier(achievement, out var tier))
-                {
-                    continue;
-                }
-
-                var target = GetStatsForTier(tier, common, uncommon, rare, ultraRare);
-                if (target == null)
-                {
-                    continue;
-                }
-
-                target.Total++;
-                if (achievement.Unlocked)
-                {
-                    target.Unlocked++;
-                }
-                else
-                {
-                    target.Locked++;
-                }
-            }
-        }
-
         private static void AddRarityStats(AchievementRarityStats target, AchievementRarityStats source)
         {
             if (target == null || source == null)
@@ -810,38 +808,6 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             target.Total += source.Total;
             target.Unlocked += source.Unlocked;
             target.Locked += source.Locked;
-        }
-
-        private static bool TryGetEffectiveRarityTier(AchievementDetail achievement, out RarityTier tier)
-        {
-            tier = RarityTier.Common;
-            if (achievement == null)
-            {
-                return false;
-            }
-
-            tier = achievement.Rarity;
-            return true;
-        }
-
-        private static AchievementRarityStats GetStatsForTier(
-            RarityTier tier,
-            AchievementRarityStats common,
-            AchievementRarityStats uncommon,
-            AchievementRarityStats rare,
-            AchievementRarityStats ultraRare)
-        {
-            switch (tier)
-            {
-                case RarityTier.UltraRare:
-                    return ultraRare;
-                case RarityTier.Rare:
-                    return rare;
-                case RarityTier.Uncommon:
-                    return uncommon;
-                default:
-                    return common;
-            }
         }
 
         private static DateTime NormalizeUtc(DateTime timestamp)

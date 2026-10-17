@@ -200,6 +200,77 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
+        public void NormalizeInternal_KeepsTheGameSoundPack_AndItAloneKeepsTheRecord()
+        {
+            var gameId = Guid.NewGuid();
+            var data = new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                UnlockSounds = new UnlockSoundSettings { Capstone = "capstone.wav" }
+            };
+
+            var normalized = GameCustomDataNormalizer.NormalizeInternal(data, gameId);
+
+            Assert.AreEqual("capstone.wav", normalized.UnlockSounds?.Capstone);
+            Assert.IsTrue(GameCustomDataNormalizer.HasInternalData(normalized));
+            Assert.AreEqual(
+                "capstone.wav",
+                GameCustomDataNormalizer.MergePreferExisting(new GameCustomDataFile { PlayniteGameId = gameId }, data).UnlockSounds?.Capstone);
+        }
+
+        [TestMethod]
+        public void NormalizeInternal_KeepsTheGameNotificationOverrides_AndTheyAloneKeepTheRecord()
+        {
+            var gameId = Guid.NewGuid();
+            var data = new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride { NotificationDelaySeconds = 9 },
+                CaptureOverride = new GameCaptureOverride { EnableUnlockRecordings = true, UnlockRecordingFramedSeconds = 4 }
+            };
+
+            var normalized = GameCustomDataNormalizer.NormalizeInternal(data, gameId);
+
+            Assert.AreEqual(9, normalized.NotificationBehaviorOverride?.NotificationDelaySeconds);
+            Assert.AreEqual(true, normalized.CaptureOverride?.EnableUnlockRecordings);
+            Assert.AreEqual(4, normalized.CaptureOverride?.UnlockRecordingFramedSeconds);
+            Assert.IsTrue(GameCustomDataNormalizer.HasInternalData(new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                CaptureOverride = new GameCaptureOverride()
+            }));
+            Assert.IsTrue(GameCustomDataNormalizer.HasInternalData(new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride()
+            }));
+
+            var merged = GameCustomDataNormalizer.MergePreferExisting(new GameCustomDataFile { PlayniteGameId = gameId }, data);
+            Assert.AreEqual(9, merged.NotificationBehaviorOverride?.NotificationDelaySeconds);
+            Assert.AreEqual(4, merged.CaptureOverride?.UnlockRecordingFramedSeconds);
+        }
+
+        [TestMethod]
+        public void PortablePackage_DoesNotCarryTheGameNotificationOverrides_AndImportKeepsTheLocalOnes()
+        {
+            var gameId = Guid.NewGuid();
+            var local = new GameCustomDataFile
+            {
+                PlayniteGameId = gameId,
+                NotificationBehaviorOverride = new GameNotificationBehaviorOverride { EnableUnlockToasts = true },
+                CaptureOverride = new GameCaptureOverride { EnableUnlockScreenshots = true }
+            };
+
+            var imported = GameCustomDataFile.FromPortable(local.ToPortable(), gameId, null, null);
+            Assert.IsNull(imported.NotificationBehaviorOverride);
+            Assert.IsNull(imported.CaptureOverride);
+
+            PortablePersonalState.CarryLocal(local, imported);
+            Assert.AreEqual(true, imported.NotificationBehaviorOverride?.EnableUnlockToasts);
+            Assert.AreEqual(true, imported.CaptureOverride?.EnableUnlockScreenshots);
+        }
+
+        [TestMethod]
         public void NormalizeInternal_ManualLink_PreservesDisplayPlatformOverride()
         {
             // NormalizeManualLink rebuilds the link field by field on every save, so an omitted
@@ -344,6 +415,29 @@ namespace PlayniteAchievements.Services.Tests
             Assert.AreEqual("second note\nline", normalized.AchievementNotes["ach_one"]);
             Assert.AreEqual(AchievementNoteHelper.MaxNoteLength, normalized.AchievementNotes["ach_long"].Length);
             Assert.IsTrue(GameCustomDataNormalizer.HasVisibleCustomization(normalized));
+        }
+
+        [TestMethod]
+        public void NormalizeInternal_CategoryTypeOverrides_DropSoftcoreAndHardcore()
+        {
+            var gameId = Guid.NewGuid();
+            var normalized = GameCustomDataNormalizer.NormalizeInternal(
+                new GameCustomDataFile
+                {
+                    PlayniteGameId = gameId,
+                    AchievementCategoryTypeOverrides = new Dictionary<string, string>
+                    {
+                        ["mixed"] = "Base|Hardcore|Missable",
+                        ["derived_only"] = "Hardcore",
+                        ["legacy"] = "SideProgression|Softcore"
+                    }
+                },
+                gameId);
+
+            Assert.AreEqual("Base|Missable", normalized.AchievementCategoryTypeOverrides["mixed"]);
+            Assert.AreEqual("SideQuest", normalized.AchievementCategoryTypeOverrides["legacy"]);
+            Assert.IsFalse(normalized.AchievementCategoryTypeOverrides.ContainsKey("derived_only"));
+            Assert.AreEqual("Base|Missable", normalized.AchievementOverrides["mixed"].CategoryType);
         }
 
         [TestMethod]
@@ -903,6 +997,55 @@ namespace PlayniteAchievements.Services.Tests
                 gameId);
 
             AssertProviderOverride(normalized, "Exophase", null);
+        }
+
+        [DataTestMethod]
+        [DataRow("Ubisoft", " 7021 ", "7021")]
+        [DataRow("EA", "Origin.OFR.50.0002694", "Origin.OFR.50.0002694")]
+        [DataRow("Epic", "fn", "fn")]
+        [DataRow("GOG", "1207658924", "1207658924")]
+        [DataRow("PSN", "NPWR12345_00", "NPWR12345_00")]
+        [DataRow("Xbox", "1915865634", "1915865634")]
+        [DataRow("BattleNet", "wow", "wow")]
+        [DataRow("Hoyoverse", "genshin", "genshin")]
+        public void NormalizeInternal_DescriptorValidatedProviderOverride_SurvivesWithTrimmedValue(
+            string providerKey,
+            string value,
+            string expected)
+        {
+            var gameId = Guid.NewGuid();
+            var normalized = GameCustomDataNormalizer.NormalizeInternal(
+                new GameCustomDataFile
+                {
+                    PlayniteGameId = gameId,
+                    ProviderOverride = new ProviderOverrideData
+                    {
+                        ProviderKey = providerKey,
+                        Value = value
+                    }
+                },
+                gameId);
+
+            // These providers validate through their override descriptor when the value is set;
+            // the normalizer must not drop a key it has no special case for.
+            AssertProviderOverride(normalized, providerKey, expected);
+        }
+
+        [DataTestMethod]
+        [DataRow("None")]
+        [DataRow("  ")]
+        public void NormalizeInternal_NoneOrBlankProviderOverride_DropsOverride(string providerKey)
+        {
+            var gameId = Guid.NewGuid();
+            var normalized = GameCustomDataNormalizer.NormalizeInternal(
+                new GameCustomDataFile
+                {
+                    PlayniteGameId = gameId,
+                    ProviderOverride = new ProviderOverrideData { ProviderKey = providerKey, Value = "1" }
+                },
+                gameId);
+
+            Assert.IsNull(normalized.ProviderOverride);
         }
 
         [TestMethod]

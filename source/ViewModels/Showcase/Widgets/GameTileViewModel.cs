@@ -36,8 +36,10 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
             bool useCovers = true,
             bool showCompletionGlow = false,
             int spacing = 6,
-            bool showRarityBar = false)
+            bool showRarityBar = false,
+            bool showCompletionFrame = false)
         {
+            Game = game;
             _gameId = game.PlayniteGameId;
             _pinCollectionId = pinCollectionId;
             // Icon tiles keep Uniform stretch (HasCover false) so icons are never cropped;
@@ -64,6 +66,7 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
             IsCompleted = game.IsCompleted;
             ShowCompletionGlow = showCompletionGlow && game.IsCompleted;
             _rarityBarEnabled = showRarityBar;
+            ShowCompletionFrame = showCompletionFrame && game.ShowCompletionBadge;
             GlowSpacing = showCompletionGlow;
             TileMargin = new Thickness(showCompletionGlow ? Math.Max(spacing, GlowClearance) : spacing);
             IsSeamless = spacing == 0 && !showCompletionGlow;
@@ -75,6 +78,12 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 
         /// <summary>The tile's Playnite game, which a click opens in the library.</summary>
         public Guid? GameId => _gameId;
+
+        /// <summary>
+        /// The game's summary row, which the completion frame's badge binds to for the same badge
+        /// choice and capstone count the game summaries grid shows.
+        /// </summary>
+        public GameSummaryItem Game { get; }
 
         public string CoverPath { get; }
 
@@ -103,6 +112,12 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 
         /// <summary>True when the tile's game is completed and the widget shows the glow.</summary>
         public bool ShowCompletionGlow { get; }
+
+        /// <summary>
+        /// True when the widget shows the completion frame and the game shows the completion badge
+        /// (the game summaries grid's condition for the same frame).
+        /// </summary>
+        public bool ShowCompletionFrame { get; }
 
         /// <summary>
         /// Global unlock percent of the game's capstone (or, with no capstone, its rarest
@@ -139,7 +154,8 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 
         /// <summary>
         /// Space around the tile: the widget's spacing option, raised to the glow's clearance
-        /// while the completion glow is on (see <see cref="GlowSpacing"/>).
+        /// while the completion glow is on (see <see cref="GlowSpacing"/>). The completion frame
+        /// draws inside the art, so it needs none.
         /// </summary>
         public Thickness TileMargin { get; }
 

@@ -1583,6 +1583,8 @@ namespace PlayniteAchievements.Services.Refresh
                 _logger?.Debug(ex, "Failed to backfill provider key on refreshed game data.");
             }
 
+            data.RaritySource = RaritySourceResolver.ResolveRefreshed(data.RaritySource, data.Achievements);
+
             var key = data.PlayniteGameId.Value.ToString();
 
             GameAchievementData previous = null;
@@ -2340,9 +2342,7 @@ namespace PlayniteAchievements.Services.Refresh
                 total,
                 friendName,
                 "LOCPlayAch_FriendsRefresh_Progress_Libraries",
-                "Refreshing friend libraries {0}/{1}",
-                "LOCPlayAch_FriendsRefresh_Progress_LibrariesNamed",
-                "Refreshing friend libraries {0}/{1}: {2}");
+                "Refreshing friend libraries {0}/{1}");
         }
 
         public void InitializeDefinitionChecksTotal(int total)
@@ -2410,9 +2410,7 @@ namespace PlayniteAchievements.Services.Refresh
                 total,
                 detail,
                 "LOCPlayAch_FriendsRefresh_Progress_GameChecks",
-                "Refreshing friend games {0}/{1}",
-                "LOCPlayAch_FriendsRefresh_Progress_GameChecksNamed",
-                "Refreshing friend games {0}/{1}: {2}");
+                "Refreshing friend games {0}/{1}");
         }
 
         // Achievement-icon and game-image downloads are sub-steps of the game-definition check for a given
@@ -2443,9 +2441,7 @@ namespace PlayniteAchievements.Services.Refresh
                 total,
                 detail,
                 "LOCPlayAch_FriendsRefresh_Progress_GameChecks",
-                "Refreshing friend games {0}/{1}",
-                "LOCPlayAch_FriendsRefresh_Progress_GameChecksNamed",
-                "Refreshing friend games {0}/{1}: {2}");
+                "Refreshing friend games {0}/{1}");
         }
 
         private void ReportImageProgress(int completed, int total, string detail)
@@ -2474,8 +2470,6 @@ namespace PlayniteAchievements.Services.Refresh
             var message = FormatCount(
                 "LOCPlayAch_FriendsRefresh_Progress_GameChecks",
                 "Refreshing friend games {0}/{1}",
-                "LOCPlayAch_FriendsRefresh_Progress_GameChecksNamed",
-                "Checking friend games {0}/{1}: {2}",
                 definitionsCompleted,
                 definitionTotal,
                 detail);
@@ -2489,14 +2483,12 @@ namespace PlayniteAchievements.Services.Refresh
             int total,
             string detail,
             string resourceKey,
-            string fallback,
-            string namedResourceKey,
-            string namedFallback)
+            string fallback)
         {
             total = Math.Max(1, total);
             completed = Math.Max(0, Math.Min(completed, total));
             var localUnits = start + (int)((long)(end - start) * completed / total);
-            var message = FormatCount(resourceKey, fallback, namedResourceKey, namedFallback, completed, total, detail);
+            var message = FormatCount(resourceKey, fallback, completed, total, detail);
             ReportAt(localUnits, message);
         }
 
@@ -2534,18 +2526,14 @@ namespace PlayniteAchievements.Services.Refresh
         private static string FormatCount(
             string resourceKey,
             string fallback,
-            string namedResourceKey,
-            string namedFallback,
             int current,
             int total,
             string detail)
         {
-            if (!string.IsNullOrWhiteSpace(detail))
-            {
-                return Format(namedResourceKey, namedFallback, current, total, detail.Trim());
-            }
-
-            return Format(resourceKey, fallback, current, total);
+            var count = Format(resourceKey, fallback, current, total);
+            return string.IsNullOrWhiteSpace(detail)
+                ? count
+                : Format("LOCPlayAch_Format_Pair", "{0} · {1}", count, detail.Trim());
         }
 
         private static string Format(string resourceKey, string fallback, params object[] args)

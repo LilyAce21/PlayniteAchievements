@@ -29,6 +29,7 @@ namespace PlayniteAchievements.Services.Achievements
                 nameof(PersistedSettings.UseSeparateLockedIconsWhenAvailable),
                 nameof(PersistedSettings.SeparateLockedIconEnabledGameIds),
                 nameof(PersistedSettings.ExcludedFromSummariesGameIds),
+                nameof(PersistedSettings.IncludeHiddenGamesInSummaries),
                 nameof(PersistedSettings.ManualCapstones),
                 nameof(PersistedSettings.AchievementCategoryOverrides),
                 nameof(PersistedSettings.AchievementCategoryTypeOverrides)
@@ -270,6 +271,22 @@ namespace PlayniteAchievements.Services.Achievements
             }
         }
 
+        /// <summary>
+        /// Every cached game as stored, without hydration: enough for identity lookups (provider
+        /// key, app id, Playnite id, name) at a fraction of <see cref="GetAllGameAchievementData"/>.
+        /// </summary>
+        public List<GameAchievementData> GetAllCachedGameDataForLookup()
+        {
+            try
+            {
+                return LoadAllCachedGameData();
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Failed to load cached game identities");
+                return new List<GameAchievementData>();
+            }
+        }
         public List<GameAchievementData> GetAllGameAchievementDataForTheme()
         {
             try
@@ -629,14 +646,53 @@ namespace PlayniteAchievements.Services.Achievements
         private HashSet<Guid> ResolveExcludedSummaryGameIds(
             Func<IReadOnlyDictionary<Guid, GameCustomDataFile>> customDataByGameId)
         {
+            HashSet<Guid> excluded;
             try
             {
-                return GameCustomDataLookup.GetExcludedSummaryGameIds(Persisted, _gameCustomDataStore);
+                excluded = GameCustomDataLookup.GetExcludedSummaryGameIds(Persisted, _gameCustomDataStore);
             }
             catch (Exception ex)
             {
                 _logger?.Warn(ex, "Failed to resolve excluded summary game IDs from custom-data store. Falling back to persisted settings projection.");
-                return BuildExcludedSummaryGameIdsFallback(customDataByGameId?.Invoke());
+                excluded = BuildExcludedSummaryGameIdsFallback(customDataByGameId?.Invoke());
+            }
+
+            AddPlayniteHiddenGameIds(excluded);
+            return excluded;
+        }
+
+        /// <summary>
+        /// With IncludeHiddenGamesInSummaries off, games hidden in Playnite are left out of
+        /// summaries the same way as Excluded from Summaries. They join only this resolved set,
+        /// never the custom-data flag, so the game menu and Manage Achievements keep showing
+        /// the user's own exclusion.
+        /// </summary>
+        private void AddPlayniteHiddenGameIds(HashSet<Guid> excluded)
+        {
+            if (excluded == null || Persisted?.IncludeHiddenGamesInSummaries != false)
+            {
+                return;
+            }
+
+            try
+            {
+                var games = _api?.Database?.Games;
+                if (games == null)
+                {
+                    return;
+                }
+
+                foreach (var game in games)
+                {
+                    if (game?.Hidden == true)
+                    {
+                        excluded.Add(game.Id);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "Failed to resolve Playnite-hidden games for summary exclusion.");
             }
         }
 
@@ -932,6 +988,7 @@ namespace PlayniteAchievements.Services.Achievements
                 ProviderKey = source.ProviderKey,
                 ProviderPlatformKey = source.ProviderPlatformKey,
                 LibrarySourceName = source.LibrarySourceName,
+                RaritySource = source.RaritySource,
                 HasAchievements = source.HasAchievements && visibleAchievements.Count > 0,
                 ExcludedByUser = source.ExcludedByUser,
                 IsAppIdOverridden = source.IsAppIdOverridden,
@@ -1662,6 +1719,21 @@ namespace PlayniteAchievements.Services.Achievements
             }
 
             return entry;
+        }
+
+        /// <summary>
+        /// A Playnite-owned field that decides summary membership (Hidden) changed for these
+        /// games. Nothing in the achievement cache moved, so no store event reaches the memo;
+        /// marking the games dirty makes the next read re-run the exclusion for them.
+        /// </summary>
+        public void InvalidateSummariesForPlayniteGames(IReadOnlyList<Guid> gameIds)
+        {
+            if (gameIds == null || gameIds.Count == 0 || Persisted?.IncludeHiddenGamesInSummaries != false)
+            {
+                return;
+            }
+
+            InvalidateOverviewProjectionCaches(gameIds);
         }
 
         /// <summary>

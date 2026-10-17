@@ -12,10 +12,10 @@ namespace PlayniteAchievements.Providers.Steam
 {
     internal sealed class SteamHuntersCategoryEnricher
     {
-        internal const string BaseCategoryType = "Base";
-        internal const string DlcCategoryType = "DLC";
-        internal const string UpdateCategoryType = "Update";
-        internal const string MultiplayerCategoryType = "Multiplayer";
+        private const string BaseCategoryType = SteamCategoryLabels.BaseCategoryType;
+        private const string DlcCategoryType = SteamCategoryLabels.DlcCategoryType;
+        private const string UpdateCategoryType = SteamCategoryLabels.UpdateCategoryType;
+        private const string MultiplayerCategoryType = SteamCategoryLabels.MultiplayerCategoryType;
 
         // The group name the includeMultiplayerGroup request flag gives base-game achievements
         // tagged Multiplayer.
@@ -28,7 +28,7 @@ namespace PlayniteAchievements.Providers.Steam
 
         private readonly SteamHuntersApiClient _apiClient;
         private readonly ILogger _logger;
-        private readonly Func<DiskImageService> _diskImageServiceResolver;
+        private readonly SteamCategoryArtDownloader _artDownloader;
         private readonly object _cacheLock = new object();
         private readonly Dictionary<int, Task<SteamHuntersAchievementGroupsResponse>> _groupsByAppId =
             new Dictionary<int, Task<SteamHuntersAchievementGroupsResponse>>();
@@ -39,11 +39,11 @@ namespace PlayniteAchievements.Providers.Steam
         public SteamHuntersCategoryEnricher(
             SteamHuntersApiClient apiClient,
             ILogger logger,
-            Func<DiskImageService> diskImageServiceResolver = null)
+            SteamCategoryArtDownloader artDownloader = null)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _logger = logger;
-            _diskImageServiceResolver = diskImageServiceResolver;
+            _artDownloader = artDownloader;
         }
 
         public void ClearCache()
@@ -57,12 +57,17 @@ namespace PlayniteAchievements.Providers.Steam
             Interlocked.Exchange(ref _consecutiveFailures, 0);
         }
 
+        /// <param name="preserveApiNames">
+        /// Achievements whose category another source already assigned and that grouping must
+        /// leave alone. Obtainability still applies to them.
+        /// </param>
         public async Task EnrichAsync(
             int appId,
             string gameName,
             IList<AchievementDetail> achievements,
             Guid? playniteGameId,
-            CancellationToken cancel)
+            CancellationToken cancel,
+            ISet<string> preserveApiNames = null)
         {
             if (appId <= 0 || achievements == null || achievements.Count == 0)
             {
@@ -89,16 +94,20 @@ namespace PlayniteAchievements.Providers.Steam
                 return;
             }
 
-            ApplyGroups(achievements, response.Groups, response.GroupBy, gameName);
+            ApplyGroups(achievements, response.Groups, response.GroupBy, gameName, preserveApiNames);
 
             // After ApplyGroups, which resets every achievement's type, so the Unobtainable tag
             // is re-derived on each refresh rather than accumulating.
             var obtainability = await GetAchievementsAsync(appId, cancel).ConfigureAwait(false);
             ApplyObtainability(achievements, obtainability);
 
-            if (playniteGameId.HasValue && playniteGameId.Value != Guid.Empty)
+            if (_artDownloader != null && playniteGameId.HasValue && playniteGameId.Value != Guid.Empty)
             {
-                await DownloadCategoryArtImagesAsync(playniteGameId.Value, response, gameName, appId, cancel)
+                await _artDownloader
+                    .DownloadAsync(
+                        playniteGameId.Value,
+                        BuildCategoryImagePlan(response.Groups, response.GroupBy, gameName, appId),
+                        cancel)
                     .ConfigureAwait(false);
             }
         }
@@ -166,81 +175,18 @@ namespace PlayniteAchievements.Providers.Steam
             return plan;
         }
 
-        // Downloads default category art (base game + DLC groups) to deterministic per-game
-        // cache paths. Best-effort: failures never fail enrichment and never count toward
-        // the SteamHunters fetch backoff. Existing targets are skipped, so re-scans cost
-        // nothing.
-        private async Task DownloadCategoryArtImagesAsync(
-            Guid playniteGameId,
-            SteamHuntersAchievementGroupsResponse response,
-            string gameName,
-            int appId,
-            CancellationToken cancel)
-        {
-            var diskImageService = _diskImageServiceResolver?.Invoke();
-            if (diskImageService == null)
-            {
-                return;
-            }
-
-            var plan = BuildCategoryImagePlan(response?.Groups, response?.GroupBy, gameName, appId);
-            if (plan.Count == 0)
-            {
-                return;
-            }
-
-            var gameIdText = playniteGameId.ToString("D");
-            foreach (var entry in plan)
-            {
-                cancel.ThrowIfCancellationRequested();
-                var label = entry.Key;
-                var entryAppId = entry.Value;
-                try
-                {
-                    var artTarget = diskImageService.GetDefaultCategoryImagePath(
-                        gameIdText, label);
-                    // Wide banner art is preferred for visual consistency across categories:
-                    // static header, then the appdetails content-hashed header (newer apps
-                    // serve art only from hashed store_item_assets URLs that cannot be derived
-                    // from the appId), then portrait library art as the last downloadable tier.
-                    // decodeSize 0 stores the original bytes: no square crop, original aspect.
-                    var artResult = await diskImageService.GetOrDownloadIconToPathAsync(
-                        SteamImageUrls.Header(entryAppId), artTarget, decodeSize: 0, cancel).ConfigureAwait(false);
-                    if (artResult == null)
-                    {
-                        var storeUrls = await SteamImageUrls
-                            .GetStoreFallbackAsync(entryAppId, cancel, _logger)
-                            .ConfigureAwait(false);
-                        if (!string.IsNullOrWhiteSpace(storeUrls?.CoverUrl))
-                        {
-                            artResult = await diskImageService.GetOrDownloadIconToPathAsync(
-                                storeUrls.CoverUrl, artTarget, decodeSize: 0, cancel).ConfigureAwait(false);
-                        }
-                    }
-
-                    if (artResult == null)
-                    {
-                        await diskImageService.GetOrDownloadIconToPathAsync(
-                            SteamImageUrls.Cover(entryAppId), artTarget, decodeSize: 0, cancel).ConfigureAwait(false);
-                    }
-                }
-                catch (OperationCanceledException) when (cancel.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.Debug(ex, $"[SteamHunters] Default category art download failed for appId={entryAppId}.");
-                }
-            }
-        }
-
         internal static int ApplyGroups(
             IList<AchievementDetail> achievements,
             IList<SteamHuntersAchievementGroup> groups,
             string groupBy = null,
-            string gameName = null)
+            string gameName = null,
+            ISet<string> preserveApiNames = null)
         {
+            bool IsPreserved(AchievementDetail achievement) =>
+                preserveApiNames != null &&
+                !string.IsNullOrWhiteSpace(achievement?.ApiName) &&
+                preserveApiNames.Contains(achievement.ApiName.Trim());
+
             if (achievements == null || achievements.Count == 0)
             {
                 return 0;
@@ -261,7 +207,7 @@ namespace PlayniteAchievements.Providers.Steam
             var updated = 0;
             foreach (var achievement in achievements)
             {
-                if (achievement == null)
+                if (achievement == null || IsPreserved(achievement))
                 {
                     continue;
                 }
@@ -301,6 +247,11 @@ namespace PlayniteAchievements.Providers.Steam
 
                     foreach (var achievement in matches)
                     {
+                        if (IsPreserved(achievement))
+                        {
+                            continue;
+                        }
+
                         if (SetCategory(achievement, type, label))
                         {
                             updated++;
@@ -523,35 +474,10 @@ namespace PlayniteAchievements.Providers.Steam
         // A base-game update has no DlcAppName and stays a single segment, as before.
         private static string NormalizeGroupLabel(SteamHuntersAchievementGroup group, string gameName)
         {
-            var dlc = StripGameNamePrefix(group?.DlcAppName?.Trim(), gameName);
-            var update = StripGameNamePrefix(group?.Name?.Trim(), gameName);
+            var dlc = SteamCategoryLabels.StripGameNamePrefix(group?.DlcAppName?.Trim(), gameName);
+            var update = SteamCategoryLabels.StripGameNamePrefix(group?.Name?.Trim(), gameName);
 
             return CategoryPathHelper.JoinRaw(dlc, update);
-        }
-
-        // Steam store DLC names usually repeat the game name ("Cyberpunk 2077: Phantom
-        // Liberty"); drop that prefix so category labels read as just the DLC/update name.
-        // Only strips when a separator follows the game name, so labels that merely start
-        // with the game name ("Cyberpunk 2077 Ultimate") are left alone.
-        internal static string StripGameNamePrefix(string label, string gameName)
-        {
-            var normalizedGameName = gameName?.Trim();
-            if (string.IsNullOrWhiteSpace(label) ||
-                string.IsNullOrWhiteSpace(normalizedGameName) ||
-                label.Length <= normalizedGameName.Length ||
-                !label.StartsWith(normalizedGameName, StringComparison.OrdinalIgnoreCase))
-            {
-                return label;
-            }
-
-            var remainder = label.Substring(normalizedGameName.Length).TrimStart();
-            if (remainder.Length == 0 || (remainder[0] != ':' && remainder[0] != '-' && remainder[0] != '–' && remainder[0] != '—'))
-            {
-                return label;
-            }
-
-            var stripped = remainder.TrimStart(':', '-', '–', '—', ' ', '\t');
-            return string.IsNullOrWhiteSpace(stripped) ? label : stripped;
         }
     }
 }

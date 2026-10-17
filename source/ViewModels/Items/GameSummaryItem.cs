@@ -177,6 +177,14 @@ namespace PlayniteAchievements.ViewModels.Items
         private int _ultraRareCount;
         public int UltraRareCount { get => _ultraRareCount; set => SetValue(ref _ultraRareCount, value); }
 
+        private bool _showsRarity = true;
+
+        /// <summary>
+        /// False when the game's provider supplied no rarity, so its Common counts are defaults
+        /// and the rarity badges stay hidden.
+        /// </summary>
+        public bool ShowsRarity { get => _showsRarity; set => SetValue(ref _showsRarity, value); }
+
         private int _capstoneTotal;
 
         /// <summary>How many capstones this row has, and how many are earned.</summary>
@@ -319,6 +327,17 @@ namespace PlayniteAchievements.ViewModels.Items
         // Sum of raw provider points (gamerscore, RetroAchievements points, etc.) for unlocked achievements.
         private int _points;
         public int Points { get => _points; set => SetValue(ref _points, value); }
+
+        // Points that count toward the game's points card: the same unlocked sum without
+        // RetroAchievements softcore unlocks.
+        private int _platformScorePoints;
+        public int PlatformScorePoints { get => _platformScorePoints; set => SetValue(ref _platformScorePoints, value); }
+
+        // Points of every achievement, unlocked or not: the most PlatformScorePoints can reach.
+        public int PlatformScorePointsTotal { get; set; }
+
+        // The points family PlatformScorePoints count toward (see PointsFamilies.FromProviderKey); null for none.
+        public string PointsFamily { get; set; }
 
         // Total rarity counts (including locked achievements)
         public int TotalCommonPossible { get; set; }

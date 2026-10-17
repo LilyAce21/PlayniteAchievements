@@ -24,11 +24,11 @@ namespace PlayniteAchievements.Views.Showcase
 {
     public sealed class ScreenshotSlideshowControl : UserControl, IDisposable
     {
-        private static readonly string PreviousGlyph = char.ConvertFromUtf32(0xE76B);
-        private static readonly string NextGlyph = char.ConvertFromUtf32(0xE76C);
-        private static readonly string PlayGlyph = char.ConvertFromUtf32(0xE768);
-        private static readonly string PauseGlyph = char.ConvertFromUtf32(0xE769);
-        private static readonly string FullscreenGlyph = char.ConvertFromUtf32(0xE740);
+        private static readonly string PreviousGlyph = char.ConvertFromUtf32(0xEAB5);
+        private static readonly string NextGlyph = char.ConvertFromUtf32(0xEAB8);
+        private static readonly string PlayGlyph = char.ConvertFromUtf32(0xEC74);
+        private static readonly string PauseGlyph = char.ConvertFromUtf32(0xEC72);
+        private static readonly string FullscreenGlyph = char.ConvertFromUtf32(0xEFD5);
 
         // The info panel takes a share of the widget's width, clamped so it neither shrinks below
         // readability nor eats a wide tile, and gives up entirely on a tile too narrow to leave
@@ -125,7 +125,7 @@ namespace PlayniteAchievements.Views.Showcase
             _fullscreen = CreateGlyphButton(
                 FullscreenGlyph,
                 "PlayAch.Capture.GlyphButtonStyle",
-                "LOCPlayAch_Captures_Fullscreen",
+                "LOCPlayAch_Common_Fullscreen",
                 OpenFullscreen);
 
             _transport = BuildTransport();
@@ -698,7 +698,7 @@ namespace PlayniteAchievements.Views.Showcase
             var current = Current;
             if (current != null)
             {
-                FullscreenMediaViewerPresenter.Show(this, current.FilePath, false);
+                MediaLightboxPresenter.Show(this, current.FilePath, false);
             }
         }
 

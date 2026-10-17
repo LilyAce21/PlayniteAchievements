@@ -62,6 +62,19 @@ namespace PlayniteAchievements.Models.Achievements
         public bool IsAppIdOverridden { get; set; }
 
         /// <summary>
+        /// Where this game's rarity came from, set on every refresh. Null until the first
+        /// refresh that records it.
+        /// </summary>
+        public RaritySource? RaritySource { get; set; }
+
+        /// <summary>
+        /// False only when a refresh recorded that the provider supplied no rarity, so the
+        /// Common tiers are defaults rather than data.
+        /// </summary>
+        [IgnoreDataMember]
+        public bool ShowsRarity => RaritySource != Models.Achievements.RaritySource.None;
+
+        /// <summary>
         /// Computed completion status: every achievement unlocked, or every capstone unlocked.
         /// </summary>
         public bool IsCompleted =>

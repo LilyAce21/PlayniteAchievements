@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -30,7 +29,6 @@ namespace PlayniteAchievements.Views.ManageAchievements
     public partial class ManageAchievementsCategoryTab : UserControl, IFullscreenControllerNavigable
     {
         private const string CategoryDragDataFormat = "PlayniteAchievements.ManageAchievementsCategoryRows";
-        private static readonly Regex HttpUrlRegex = new Regex(@"https?://[^\s""'<>]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private DataGridRow _pendingRightClickRow;
         private DataGridRow _pendingManagerRightClickRow;
@@ -39,6 +37,14 @@ namespace PlayniteAchievements.Views.ManageAchievements
         {
             InitializeComponent();
             DataContext = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+            CategoryManagerDataGrid.SelectionChanged += (_, __) => RaiseSidebarCategoryScopeChanged();
+            viewModel.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(ManageAchievementsCategoryViewModel.SelectedCategoryLabelFilterText))
+                {
+                    RaiseSidebarCategoryScopeChanged();
+                }
+            };
 
             // Live sorting repositions only the rows whose sorted-column value changed (via a
             // Move, not a Reset), and does nothing while no column sort is active. This keeps
@@ -212,7 +218,11 @@ namespace PlayniteAchievements.Views.ManageAchievements
             }
         }
 
-        private void CategoryRenameTextBox_LostFocus(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// On keyboard focus loss rather than logical: switching to another window keeps logical
+        /// focus in the box, so a LostFocus commit waited for a later click in this window.
+        /// </summary>
+        private void CategoryRenameTextBox_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
             ApplyCategoryRenameOverride(sender as TextBox);
         }
@@ -259,18 +269,6 @@ namespace PlayniteAchievements.Views.ManageAchievements
             {
                 await ViewModel.ApplyCategoryLocalFileOverrideAsync(row, dialog.FileName);
             }
-        }
-
-        private void CategoryImageTextBox_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key != Key.Enter || !(sender is TextBox textBox))
-            {
-                return;
-            }
-
-            textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
-            Keyboard.ClearFocus();
-            e.Handled = true;
         }
 
         private void ClearCategoryImageButton_Click(object sender, RoutedEventArgs e)
@@ -348,39 +346,22 @@ namespace PlayniteAchievements.Views.ManageAchievements
             e.Handled = true;
         }
 
-        private void CategoryImageTextBox_PreviewDragOver(object sender, DragEventArgs e)
-        {
-            var hasDropPayload = TryGetFirstImageFilePath(e.Data, out _) || TryGetFirstBrowserUrl(e.Data, out _);
-            e.Effects = hasDropPayload ? DragDropEffects.Copy : DragDropEffects.None;
-            e.Handled = true;
-        }
-
-        private async void CategoryImageTextBox_Drop(object sender, DragEventArgs e)
+        // A dropped or pasted image: a local file is copied into managed storage now, a URL is
+        // stored as the link.
+        private async void CategoryImage_Picked(object sender, FilePickedEventArgs e)
         {
             if (!TryResolveCategoryImageRow(sender as FrameworkElement, out var row))
             {
                 return;
             }
 
-            try
+            if (ImageDropHelper.IsSupportedImageFile(e.PickedSource))
             {
-                if (TryGetFirstImageFilePath(e.Data, out var imagePath))
-                {
-                    e.Handled = true;
-                    await ViewModel.ApplyCategoryLocalFileOverrideAsync(row, imagePath);
-                    return;
-                }
+                await ViewModel.ApplyCategoryLocalFileOverrideAsync(row, e.PickedSource);
+                return;
+            }
 
-                if (TryGetFirstBrowserUrl(e.Data, out var url))
-                {
-                    e.Handled = true;
-                    row.SetOverrideValue(url);
-                }
-            }
-            catch
-            {
-                e.Handled = true;
-            }
+            row.SetOverrideValue(e.PickedSource);
         }
 
         private static bool TryResolveCategoryImageRow(
@@ -586,7 +567,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 () => DuplicateCategoriesFromContext(actionLabels)));
 
             menu.Items.Add(CreateMenuItem(
-                L("LOCPlayAch_Button_Delete"),
+                L("LOCPlayAch_Common_Delete"),
                 () => DeleteCategoriesFromContext(actionLabels)));
 
             return menu;
@@ -970,7 +951,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
             var rows = ResolveActionRows(contextItem);
             var typesMenu = new MenuItem
             {
-                Header = L("LOCPlayAch_Common_Label_Type")
+                Header = L("LOCTypeLabel")
             };
             foreach (var categoryType in AchievementCategoryTypeHelper.AssignableCategoryTypes)
             {
@@ -993,7 +974,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 () => SetLabelFromContext(contextItem)));
 
             menu.Items.Add(CreateMenuItem(
-                L("LOCPlayAch_Button_Clear"),
+                L("LOCClearLabel"),
                 () => ClearRowsFromContext(contextItem)));
 
             return menu;
@@ -1176,7 +1157,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 ViewModel.HasCustomCategoryOrder || ViewModel.HasCustomCategoryNesting,
                 () => ResetCategoryMetadataAspect(ViewModel.ResetCategoryOrder)));
             menu.Items.Add(CreateResetMenuItem(
-                L("LOCPlayAch_Column_Name"),
+                L("LOCNameLabel"),
                 ViewModel.HasCustomCategoryNames,
                 () => ResetCategoryMetadataAspect(ViewModel.ResetCategoryNames)));
             menu.Items.Add(CreateResetMenuItem(
@@ -1313,96 +1294,34 @@ namespace PlayniteAchievements.Views.ManageAchievements
             }
         }
 
+        /// <summary>Raised when the categories this tab scopes the sidebar to may have changed.</summary>
+        public event EventHandler SidebarCategoryScopeChanged;
+
+        /// <summary>
+        /// The categories this tab scopes the sidebar to: the selected category rows, or the
+        /// Category filter's ticks when no row is selected.
+        /// </summary>
+        public IReadOnlyCollection<string> GetSidebarCategoryScope()
+        {
+            var selectedLabels = CategoryManagerDataGrid?.SelectedItems
+                ?.OfType<ManageAchievementsCategoryMetadataItem>()
+                .OrderBy(item => ViewModel?.CategoryRows.IndexOf(item) ?? 0)
+                .Select(item => item.CategoryLabel)
+                .Where(label => !string.IsNullOrWhiteSpace(label))
+                .ToList();
+            return selectedLabels?.Count > 0
+                ? selectedLabels
+                : ViewModel?.SelectedCategoryLabelFilters ?? Array.Empty<string>();
+        }
+
+        private void RaiseSidebarCategoryScopeChanged()
+        {
+            SidebarCategoryScopeChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         private static string L(string key)
         {
             return ResourceProvider.GetString(key);
-        }
-
-        private static bool TryGetFirstImageFilePath(IDataObject data, out string imagePath)
-        {
-            imagePath = null;
-            if (data == null)
-            {
-                return false;
-            }
-
-            try
-            {
-                if (!data.GetDataPresent(DataFormats.FileDrop))
-                {
-                    return false;
-                }
-
-                var files = data.GetData(DataFormats.FileDrop) as string[];
-                imagePath = files?.FirstOrDefault(IsSupportedImageFile);
-                return !string.IsNullOrWhiteSpace(imagePath);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static bool TryGetFirstBrowserUrl(IDataObject data, out string url)
-        {
-            url = null;
-            if (data == null)
-            {
-                return false;
-            }
-
-            try
-            {
-                var text = ReadDroppedText(data, DataFormats.UnicodeText) ??
-                           ReadDroppedText(data, DataFormats.Text) ??
-                           ReadDroppedText(data, DataFormats.Html);
-                if (string.IsNullOrWhiteSpace(text))
-                {
-                    return false;
-                }
-
-                var match = HttpUrlRegex.Match(text);
-                if (!match.Success)
-                {
-                    return false;
-                }
-
-                url = TrimTrailingUrlPunctuation(match.Value);
-                return !string.IsNullOrWhiteSpace(url);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static string ReadDroppedText(IDataObject data, string format)
-        {
-            if (data == null || string.IsNullOrWhiteSpace(format))
-            {
-                return null;
-            }
-
-            try
-            {
-                return data.GetDataPresent(format)
-                    ? data.GetData(format) as string
-                    : null;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static bool IsSupportedImageFile(string path)
-        {
-            return ImageDropHelper.IsSupportedImageFile(path);
-        }
-
-        private static string TrimTrailingUrlPunctuation(string value)
-        {
-            return (value ?? string.Empty).Trim().TrimEnd('.', ',', ';', ')', ']', '}');
         }
 
         private static void OpenSelectorContextMenu(Button button, ContextMenu menu)

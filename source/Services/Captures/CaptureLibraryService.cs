@@ -39,6 +39,10 @@ namespace PlayniteAchievements.Services.Captures
         private Timer _changeDebounce;
         private bool _disposed;
         private readonly bool _watchForChanges;
+        private readonly Func<IReadOnlyDictionary<string, string>> _gameDirectoriesAccessor;
+        // Sanitized game folder name to that game's own capture folder, which holds its captures
+        // directly rather than in a game subfolder. Read once and kept until RefreshGameDirectories.
+        private IReadOnlyDictionary<string, string> _gameDirectories;
 
         /// <param name="watchForChanges">
         /// Whether to watch the capture directories for changes made outside the plugin. Off only
@@ -46,14 +50,134 @@ namespace PlayniteAchievements.Services.Captures
         /// service's back, so a test that changes them out of band is racing the watcher thread
         /// rather than observing the caching behavior it means to assert.
         /// </param>
+        /// <param name="gameDirectoriesAccessor">
+        /// Game name to that game's own capture folder, for games that save there instead of
+        /// under the base directories. Keys are sanitized here.
+        /// </param>
         public CaptureLibraryService(
             Func<PersistedSettings> settingsAccessor,
             ILogger logger,
-            bool watchForChanges = true)
+            bool watchForChanges = true,
+            Func<IReadOnlyDictionary<string, string>> gameDirectoriesAccessor = null)
         {
             _settingsAccessor = settingsAccessor;
             _logger = logger;
             _watchForChanges = watchForChanges;
+            _gameDirectoriesAccessor = gameDirectoriesAccessor;
+        }
+
+        /// <summary>
+        /// Re-reads the games' own capture folders, and when they changed drops every cached scan
+        /// and raises <see cref="CapturesChanged"/>, since a game's captures now come from elsewhere.
+        /// </summary>
+        public void RefreshGameDirectories()
+        {
+            var updated = ReadGameDirectories();
+            bool changed;
+            lock (_lock)
+            {
+                changed = _gameDirectories == null || !SameDirectories(_gameDirectories, updated);
+                _gameDirectories = updated;
+            }
+
+            if (changed)
+            {
+                ClearCaches();
+                SignalChanged();
+            }
+        }
+
+        private IReadOnlyDictionary<string, string> ResolveGameDirectories()
+        {
+            lock (_lock)
+            {
+                if (_gameDirectories != null)
+                {
+                    return _gameDirectories;
+                }
+            }
+
+            var read = ReadGameDirectories();
+            lock (_lock)
+            {
+                if (_gameDirectories == null)
+                {
+                    _gameDirectories = read;
+                }
+
+                return _gameDirectories;
+            }
+        }
+
+        private IReadOnlyDictionary<string, string> ReadGameDirectories()
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            IReadOnlyDictionary<string, string> source = null;
+            try
+            {
+                source = _gameDirectoriesAccessor?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, "Reading the games' own capture folders failed.");
+            }
+
+            if (source == null)
+            {
+                return result;
+            }
+
+            foreach (var pair in source)
+            {
+                var folder = UnlockScreenshotService.SanitizeCaptureGameName(pair.Key);
+                if (!string.IsNullOrEmpty(folder) && !string.IsNullOrWhiteSpace(pair.Value))
+                {
+                    result[folder] = pair.Value.Trim();
+                }
+            }
+
+            return result;
+        }
+
+        private static bool SameDirectories(
+            IReadOnlyDictionary<string, string> first,
+            IReadOnlyDictionary<string, string> second)
+        {
+            return first.Count == second.Count &&
+                first.All(pair => second.TryGetValue(pair.Key, out var other) &&
+                    string.Equals(pair.Value, other, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// The folders one game's captures live in: its subfolder under each base directory, and
+        /// its own capture folder when it has one. Distinct by full path.
+        /// </summary>
+        private IReadOnlyList<string> ResolveGameFolders(string sanitizedFolder)
+        {
+            var folders = ResolveBaseDirectories()
+                .Select(baseDir => Path.Combine(baseDir, sanitizedFolder))
+                .ToList();
+            if (ResolveGameDirectories().TryGetValue(sanitizedFolder, out var own))
+            {
+                folders.Add(own);
+            }
+
+            return folders
+                .GroupBy(NormalizeFullPath, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+        }
+
+        private static string NormalizeFullPath(string path)
+        {
+            try
+            {
+                return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            }
+            catch
+            {
+                return path;
+            }
         }
 
         /// <summary>
@@ -266,11 +390,10 @@ namespace PlayniteAchievements.Services.Captures
 
         private bool ProbeFolderHasCaptures(string sanitizedFolder)
         {
-            foreach (var baseDir in ResolveBaseDirectories())
+            foreach (var folder in ResolveGameFolders(sanitizedFolder))
             {
                 try
                 {
-                    var folder = Path.Combine(baseDir, sanitizedFolder);
                     if (Directory.Exists(folder) && FolderHasCaptureFile(folder))
                     {
                         return true;
@@ -363,6 +486,7 @@ namespace PlayniteAchievements.Services.Captures
 
             var persisted = _settingsAccessor?.Invoke();
             var desired = ResolveBaseDirectories()
+                .Concat(ResolveGameDirectories().Values)
                 .Where(Directory.Exists)
                 .Select(path =>
                 {
@@ -617,6 +741,23 @@ namespace PlayniteAchievements.Services.Captures
                 }
             }
 
+            foreach (var pair in ResolveGameDirectories())
+            {
+                try
+                {
+                    if (!result.Contains(pair.Key) &&
+                        Directory.Exists(pair.Value) &&
+                        FolderHasCaptureFile(pair.Value))
+                    {
+                        result.Add(pair.Key);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Debug(ex, $"Capture folder enumeration failed for '{pair.Value}'.");
+                }
+            }
+
             return result;
         }
 
@@ -684,9 +825,8 @@ namespace PlayniteAchievements.Services.Captures
                 persisted?.UnlockScreenshotSuffixFramed);
             var items = new List<CaptureItem>();
 
-            foreach (var baseDir in ResolveBaseDirectories())
+            foreach (var gameFolder in ResolveGameFolders(sanitizedFolder))
             {
-                var gameFolder = Path.Combine(baseDir, sanitizedFolder);
                 try
                 {
                     if (!Directory.Exists(gameFolder))

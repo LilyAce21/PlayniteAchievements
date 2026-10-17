@@ -98,6 +98,7 @@ namespace PlayniteAchievements.Providers.Hoyoverse
                 ProviderKey = HoyoverseDataProvider.Key,
                 GameName = game?.Name ?? HoyoverseGameCatalog.GetCanonicalName(kind),
                 AppId = HoyoverseGameCatalog.GetAppId(kind),
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game?.Source?.Name,
                 LastUpdatedUtc = DateTime.UtcNow,
                 PlayniteGameId = game?.Id,

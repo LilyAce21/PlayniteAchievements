@@ -6,6 +6,7 @@
              xmlns:models="clr-namespace:PlayniteAchievements.Models"
              xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
              mc:Ignorable="d"
+             x:Name="SyncUpdatesSectionRoot"
              d:DesignHeight="600"
              d:DesignWidth="700">
     <UserControl.Resources>
@@ -92,8 +93,7 @@
                     </StackPanel>
 
                     <!-- Default Overview Refresh Mode -->
-                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_DefaultOverviewRefreshMode}"
-                                         Hint="{DynamicResource LOCPlayAch_Settings_DefaultOverviewRefreshMode_Description}">
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_DefaultOverviewRefreshMode}">
                         <ComboBox SelectedValue="{Binding Persisted.DefaultOverviewRefreshMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   SelectedValuePath="Tag"
                                   MinWidth="140">
@@ -114,6 +114,41 @@
                                  TextAlignment="Right"/>
                     </controls:SettingRow>
 
+                    <!-- Automatic exclusions from Playnite saved filters -->
+                    <TextBlock Text="{DynamicResource LOCSettingsTopPanelFilterPresetsItem}"
+                               Style="{StaticResource SubSectionHeaderStyle}"
+                               Margin="{StaticResource PlayAch.Thickness.Top.Lg}"/>
+                    <TextBlock Text="{DynamicResource LOCPlayAch_Settings_ExclusionFilters_Description}"
+                               Style="{StaticResource MutedTextStyle}"
+                               TextWrapping="Wrap"
+                               Margin="{StaticResource PlayAch.Thickness.Bottom.Sm}"/>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Menu_ExcludeFromRefreshes}">
+                        <Button x:Name="RefreshExclusionFiltersButton"
+                                Style="{StaticResource AchievementSelectorButtonStyle}"
+                                Content="{Binding RefreshExclusionFiltersText, ElementName=SyncUpdatesSectionRoot}"
+                                Click="RefreshExclusionFiltersButton_Click"
+                                MinWidth="180"
+                                Height="{StaticResource PlayAch.Size.Control.Height}">
+                            <Button.ContextMenu>
+                                <ContextMenu Style="{StaticResource AchievementSelectorContextMenuStyle}"
+                                             ItemContainerStyle="{StaticResource AchievementMultiSelectMenuItemStyle}"/>
+                            </Button.ContextMenu>
+                        </Button>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Common_Action_ExcludeFromSummaries}">
+                        <Button x:Name="SummaryExclusionFiltersButton"
+                                Style="{StaticResource AchievementSelectorButtonStyle}"
+                                Content="{Binding SummaryExclusionFiltersText, ElementName=SyncUpdatesSectionRoot}"
+                                Click="SummaryExclusionFiltersButton_Click"
+                                MinWidth="180"
+                                Height="{StaticResource PlayAch.Size.Control.Height}">
+                            <Button.ContextMenu>
+                                <ContextMenu Style="{StaticResource AchievementSelectorContextMenuStyle}"
+                                             ItemContainerStyle="{StaticResource AchievementMultiSelectMenuItemStyle}"/>
+                            </Button.ContextMenu>
+                        </Button>
+                    </controls:SettingRow>
+
                     <!-- Advanced -->
                     <Expander IsExpanded="False"
                               Background="{StaticResource PlayAch.Brush.Overlay.Shade.12}"
@@ -122,7 +157,7 @@
                               Margin="{StaticResource PlayAch.Thickness.Top.Lg}"
                               Padding="12,10,12,12">
                         <Expander.Header>
-                            <TextBlock Text="{DynamicResource LOCPlayAch_Settings_Advanced}"
+                            <TextBlock Text="{DynamicResource LOCSettingsAdvancedLabel}"
                                        Foreground="{DynamicResource PlayAch.Brush.Text}"
                                        FontWeight="SemiBold"/>
                         </Expander.Header>
@@ -133,13 +168,16 @@
                                 <CheckBox IsChecked="{Binding Persisted.IncludeHiddenGamesInBulkScans}"/>
                             </controls:SettingRow>
 
-                            <controls:SettingRow Label="{DynamicResource LOCPlayAch_IncludeUnplayedGames}"
-                                                 Hint="{DynamicResource LOCPlayAch_IncludeUnplayedGames_Help}">
+                            <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_IncludeHiddenGamesInSummaries}"
+                                                 Hint="{DynamicResource LOCPlayAch_Settings_IncludeHiddenGamesInSummaries_Description}">
+                                <CheckBox IsChecked="{Binding Persisted.IncludeHiddenGamesInSummaries}"/>
+                            </controls:SettingRow>
+
+                            <controls:SettingRow Label="{DynamicResource LOCPlayAch_IncludeUnplayedGames}">
                                 <CheckBox IsChecked="{Binding Persisted.IncludeUnplayedGames}"/>
                             </controls:SettingRow>
 
                             <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_EnableParallelProviderRefresh}"
-                                                 Hint="{DynamicResource LOCPlayAch_Settings_EnableParallelProviderRefresh_Help}"
                                                  Margin="0">
                                 <CheckBox IsChecked="{Binding Persisted.EnableParallelProviderRefresh}"/>
                             </controls:SettingRow>

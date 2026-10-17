@@ -1215,6 +1215,12 @@ namespace PlayniteAchievements.Services.Refresh
                 currentUserLabels,
                 limiter,
                 cancel).ConfigureAwait(false);
+            if (augmentedResult != null)
+            {
+                // Exophase only adds games; completeness is still the Steam list's.
+                augmentedResult.IsPartial = ownershipResult.IsPartial;
+            }
+
             return augmentedResult ?? ownershipResult;
         }
 
@@ -1533,7 +1539,10 @@ namespace PlayniteAchievements.Services.Refresh
                 new FriendOwnershipSaveOptions
                 {
                     IncludeProviderOnlyGames = false,
-                    PruneStaleShared = FriendRefreshWorkPolicy.ShouldPruneStaleSharedOwnership(options, ownedGames)
+                    PruneStaleShared = FriendRefreshWorkPolicy.ShouldPruneStaleSharedOwnership(
+                        options,
+                        ownedGames,
+                        ownershipIsPartial: ownershipResult.IsPartial)
                 });
             if (writeOwnership?.Success != true)
             {
@@ -1548,7 +1557,8 @@ namespace PlayniteAchievements.Services.Refresh
 
             _logger?.Debug(
                 $"Saved friend ownership for {providerKey}/{friend.ExternalUserId}: " +
-                $"fetched={ownedGames.Count}, shared={writeOwnership.WrittenCount}, skippedUnshared={writeOwnership.SkippedCount}.");
+                $"fetched={ownedGames.Count}, shared={writeOwnership.WrittenCount}, skippedUnshared={writeOwnership.SkippedCount}" +
+                (ownershipResult.IsPartial ? ", partial list (stale rows kept)." : "."));
             return true;
         }
 

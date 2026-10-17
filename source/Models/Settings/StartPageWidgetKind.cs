@@ -20,6 +20,8 @@ namespace PlayniteAchievements.Models.Settings
         // kinds. Do not reuse the numbers.
         ShowcaseIconMosaic = 16,
         ShowcaseScreenshotSlideshow = 17,
-        ShowcaseActivityCalendar = 18
+        ShowcaseActivityCalendar = 18,
+        ShowcaseImage = 20,
+        ShowcaseText = 21
     }
 }
