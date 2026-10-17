@@ -472,6 +472,35 @@ namespace PlayniteAchievements.Steam.Tests
             Assert.IsTrue(SteamCommunityPageParser.LooksLikeOwnedGamesPayload(html));
         }
 
+        [TestMethod]
+        public void ParseOwnedGames_ReportsWhetherTheListIsComplete()
+        {
+            const string ownedQuery =
+                "{\"queries\":[{\"queryKey\":[\"OwnedGames\",\"76561198000000002\",\"english\"]," +
+                "\"state\":{\"data\":[{\"appid\":620,\"name\":\"Portal 2\",\"playtime_forever\":10}]}}]}";
+            const string renderedRow =
+                "<div class=\"Panel\"><img src=\"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/620/header.jpg\" alt=\"Portal 2\" />" +
+                "<span>TOTAL PLAYED</span><span>5 hours</span></div>";
+            const string recentlyPlayed =
+                "{\"listData\":{\"rgRecentlyPlayedGames\":[{\"appid\":620,\"name\":\"Portal 2\",\"playtime_forever\":10}]}}";
+            const string fullXml = "<gamesList><games><game><appID>620</appID><name>Portal 2</name></game></games></gamesList>";
+            const string mostPlayedXml =
+                "<profile><mostPlayedGames><mostPlayedGame><gameName>Portal 2</gameName>" +
+                "<gameLink>https://steamcommunity.com/app/620</gameLink><hoursOnRecord>1</hoursOnRecord></mostPlayedGame></mostPlayedGames></profile>";
+
+            SteamCommunityPageParser.ParseOwnedGames(SsrPage(ownedQuery), out var fromQuery);
+            SteamCommunityPageParser.ParseOwnedGames(renderedRow, out var fromRows);
+            SteamCommunityPageParser.ParseOwnedGames(SsrPage(null, recentlyPlayed), out var fromRecent);
+            SteamCommunityPageParser.ParseOwnedGames(fullXml, out var fromFullXml);
+            SteamCommunityPageParser.ParseOwnedGames(mostPlayedXml, out var fromMostPlayed);
+
+            Assert.IsTrue(fromQuery, "OwnedGames query lists the whole library.");
+            Assert.IsFalse(fromRows, "Rendered rows are only the first page.");
+            Assert.IsFalse(fromRecent, "Recently played is a subset.");
+            Assert.IsTrue(fromFullXml, "gamesList XML lists the whole library.");
+            Assert.IsFalse(fromMostPlayed, "mostPlayedGames is a subset.");
+        }
+
         // The redesigned pages' server-rendered payload: queryData is a string-encoded query cache
         // and each loaderData entry is a string-encoded JSON object.
         private static string SsrPage(string queryData, params string[] loaderItems)
