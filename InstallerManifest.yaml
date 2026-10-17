@@ -1,6 +1,58 @@
 AddonId: PlayniteAchievements
 Packages:
 
+  - Version: 4.1.0
+    RequiredApiVersion: 6.14.0
+    ReleaseDate: 2026-10-17
+    PackageUrl: https://github.com/justin-delano/PlayniteAchievements/releases/download/v4.1.0/PlayniteAchievements_4_1_0.pext
+    Changelog:
+    - "[Critical Fix] Steam achievements work again after Steam's achievement page redesign."
+    - "[Adjusted] Steam achievement sets show as categories, DLC sets are marked DLC, and retired achievements are marked Unobtainable. Choose whether SteamHunters categories merge with them or replace them."
+    - "[New] Workshop! Browse, preview and install color sets, notification and frame styles, sounds, showcase pages and achievement customizations shared by other players, and share your own in one click, no account needed."
+    - "[New] Library: everything you've saved or added from the Workshop in one place, showing where each item is used. Workshop items are checked for updates every hour, and updates keep the changes you made."
+    - "[New] Bundles: share your colors, sounds, notification and frame together, choosing which saved preset each part comes from."
+    - "[New] Save, export and import color sets and sound packs, like notification styles."
+    - "[New] Meta Quest support."
+    - "[New] Ubisoft Connect support."
+    - "[New] Vita3K support."
+    - "[New] Minecraft: Java Edition support."
+    - "[New] Mini Showcase in the Overview window: build a set of custom widgets for interacting with your overview."
+    - "[New] Image and Text widgets for Showcase and the start page. Text widgets support bold, italic, links and more."
+    - "[New] Filter the Overview's Achievements grid by unlock date, rarity and trophy."
+    - "[New] Split the unlocks-over-time chart by platform."
+    - "[New] Pie chart options: a legend on either side, a full pie or a ring with or without the percentage, and hiding the icons."
+    - "[New] Different unlock sounds for each platform or game, on the new Sounds tab of the notification Styles page."
+    - "[New] Give a game its own notification behavior and capture settings, including its own capture folder, in Manage Achievements."
+    - "[New] Screenshot frames can use your own background image, and animated frame images play in framed clips. Choose which moment of an animated image your screenshots show."
+    - "[New] Quality rendering option keeps notifications smooth while a game keeps the GPU busy."
+    - "[New] Animated WebM images, transparency included, for achievement icons and notifications."
+    - "[New] Edit a game's achievements in a spreadsheet: export them to CSV from the editor, change anything, icons included, and import it back."
+    - "[New] Post Game, Completion, Cumulative and Challenge achievement types. Side Progression is now called Side Quest."
+    - "[New] Option to show the rarity badge next to the game name in notifications."
+    - "[New] Choose how notifications enter and leave the screen: slide, slide from the side, fade or zoom, with your choice of speed and a smooth or bouncy feel."
+    - "[New] Notifications can appear at the bottom center of the screen, and each notification style can carry its own position."
+    - "[New] Points score cards for Gamerscore, Epic XP, RetroAchievements, and every other platform, showing points earned out of the total. Pick any two score cards for the Overview header, and add them to Showcase or the start page."
+    - "[New] Option for score cards to use your custom rarity colors."
+    - "[New] Completion frame: an optional laurel frame on the covers of completed games in game grids and Game Mosaic widgets."
+    - "[New] Option to leave games hidden in Playnite out of the Overview, Showcase and theme totals."
+    - "[New] Automatically exclude games that match your saved Playnite filters, from refreshes or from your stats. Games you include or exclude yourself keep your choice."
+    - "[Adjusted] Games without rarity data no longer show rarity badges or columns (refresh needed)."
+    - "[Adjusted] Choose which side of each score card its badge sits on, from Display settings, the card's right-click menu or the Score Card widget. Clicking a score card opens its score info."
+    - "[Adjusted] Final Fantasy XIV now only needs your Lodestone profile link instead of your name, world and region."
+    - "[Adjusted] Drag and drop or paste images and sound files onto their slots. Sounds you pick are copied in, so moving the original no longer breaks them."
+    - "[Adjusted] The Manage Achievements sidebar shows stats for the categories you've selected."
+    - "[Adjusted] Smoother notification animations, including on variable refresh rate displays and while a game is busy. Animations across the plugin run at your display's refresh rate."
+    - "[Adjusted] Smoother, lighter GIF playback and a faster achievement editor."
+    - "[Adjusted] Sharper, more consistent icons throughout the plugin."
+    - "[Fixed] Better Exophase matching for Xbox, EA, Ubisoft, RPCS3, ShadPS4 and Xenia games."
+    - "[Fixed] Battle.net no longer signs you out after a day."
+    - "[Fixed] Platform overrides for Ubisoft, EA, Epic, GOG, PlayStation, Xbox, Battle.net and HoYoverse are now saved."
+    - "[Fixed] Start page widget options apply right away instead of after a restart."
+    - "[Fixed] Sorting theme achievement lists by rarity keeps percentages in order."
+    - "[Fixed] The 100% notification now shows even when your notification filters hide the final unlock."
+    - "[Fixed] Fixed auto capstone notifications going missing in game, or showing before category capstones."
+    - "As always, many additional improvements and fixes behind the scenes."
+
   - Version: 4.0.1
     RequiredApiVersion: 6.14.0
     ReleaseDate: 2026-09-30
