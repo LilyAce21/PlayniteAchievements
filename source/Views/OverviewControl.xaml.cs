@@ -95,6 +95,30 @@ namespace PlayniteAchievements.Views
         }
 
         private readonly Common.KeySequenceMatcher _keySequence = new Common.KeySequenceMatcher("jeshibu");
+        private Window _keySequenceWindow;
+
+        /// <summary>
+        /// Listens on the hosting window rather than the control, so keys count while the overview
+        /// is shown even when nothing inside it has focus.
+        /// </summary>
+        private void AttachKeySequenceWindow(object sender, RoutedEventArgs e)
+        {
+            DetachKeySequenceWindow(sender, e);
+            _keySequenceWindow = Window.GetWindow(this);
+            if (_keySequenceWindow != null)
+            {
+                _keySequenceWindow.PreviewKeyDown += OverviewControl_PreviewKeySequence;
+            }
+        }
+
+        private void DetachKeySequenceWindow(object sender, RoutedEventArgs e)
+        {
+            if (_keySequenceWindow != null)
+            {
+                _keySequenceWindow.PreviewKeyDown -= OverviewControl_PreviewKeySequence;
+                _keySequenceWindow = null;
+            }
+        }
 
         private void OverviewControl_PreviewKeySequence(object sender, KeyEventArgs e)
         {
@@ -156,7 +180,8 @@ namespace PlayniteAchievements.Views
             _refreshEntryPoint = refreshEntryPoint ?? throw new ArgumentNullException(nameof(refreshEntryPoint));
             _friendsOverviewDataCoordinator = friendsOverviewDataCoordinator;
             _launchContext = launchContext;
-            PreviewKeyDown += OverviewControl_PreviewKeySequence;
+            Loaded += AttachKeySequenceWindow;
+            Unloaded += DetachKeySequenceWindow;
             if (launchContext == OverviewLaunchContext.Popout)
             {
                 HeaderCaptionSpacerRow.Height = new GridLength(0);
