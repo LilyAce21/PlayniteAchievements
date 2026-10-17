@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace PlayniteAchievements.Providers.Steam
 {
@@ -44,15 +43,7 @@ namespace PlayniteAchievements.Providers.Steam
 
     internal static class SteamAchievementsSsrParser
     {
-        private static readonly Regex SsrScriptPattern = new Regex(
-            @"<script\b[^>]*\bid\s*=\s*[""']valve-ssr-data[""'][^>]*>(?<json>.*?)</script>",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
-        public static bool HasSsrData(string html)
-        {
-            return !string.IsNullOrEmpty(html) &&
-                   html.IndexOf("valve-ssr-data", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
+        public static bool HasSsrData(string html) => SteamSsrPayload.HasData(html);
 
         /// <summary>
         /// Parses the page, or returns null when it has no readable valve-ssr-data payload or no
@@ -65,18 +56,8 @@ namespace PlayniteAchievements.Providers.Steam
                 return null;
             }
 
-            JObject root;
-            try
-            {
-                var match = SsrScriptPattern.Match(html);
-                if (!match.Success)
-                {
-                    return null;
-                }
-
-                root = JObject.Parse(match.Groups["json"].Value);
-            }
-            catch
+            var root = SteamSsrPayload.TryParse(html);
+            if (root == null)
             {
                 return null;
             }
@@ -88,9 +69,9 @@ namespace PlayniteAchievements.Providers.Steam
                 ViewerLoggedIn = root["UserConfig"]?["logged_in"]?.Value<bool?>() == true,
                 ViewerSteamId = NormalizeSteamId(root["UserConfig"]?["steamid"]?.ToString())
             };
-            page.TargetSteamId = ReadTargetSteamId(root["loaderData"]);
+            page.TargetSteamId = ReadTargetSteamId(root);
 
-            var queries = ReadQueries(root["renderContext"]?["queryData"]);
+            var queries = SteamSsrPayload.ReadQueries(root);
             if (queries == null)
             {
                 return null;
@@ -159,69 +140,14 @@ namespace PlayniteAchievements.Providers.Steam
             return page;
         }
 
-        private static List<JObject> ReadQueries(JToken queryData)
+        private static string ReadTargetSteamId(JObject root)
         {
-            try
-            {
-                JObject parsed;
-                if (queryData == null)
-                {
-                    return null;
-                }
-
-                if (queryData.Type == JTokenType.String)
-                {
-                    var text = queryData.Value<string>();
-                    if (string.IsNullOrWhiteSpace(text))
-                    {
-                        return null;
-                    }
-
-                    parsed = JObject.Parse(text);
-                }
-                else
-                {
-                    parsed = queryData as JObject;
-                }
-
-                return parsed?["queries"]?.OfType<JObject>().ToList();
-            }
-            catch
-            {
-                return null;
-            }
+            return SteamSsrPayload.ReadLoaderItems(root)
+                .Select(item => NormalizeSteamId(item["targetSteamId"]?.ToString()))
+                .FirstOrDefault(target => target != null);
         }
 
-        private static string ReadTargetSteamId(JToken loaderData)
-        {
-            if (!(loaderData is JArray items))
-            {
-                return null;
-            }
-
-            foreach (var item in items)
-            {
-                try
-                {
-                    var obj = item.Type == JTokenType.String
-                        ? JObject.Parse(item.Value<string>())
-                        : item as JObject;
-                    var target = NormalizeSteamId(obj?["targetSteamId"]?.ToString());
-                    if (target != null)
-                    {
-                        return target;
-                    }
-                }
-                catch
-                {
-                    // Not every loader entry is JSON; skip it.
-                }
-            }
-
-            return null;
-        }
-
-        private static JToken Data(JObject query) => query?["state"]?["data"];
+        private static JToken Data(JObject query) => SteamSsrPayload.Data(query);
 
         private static bool IsSuccess(JObject query) =>
             string.Equals(query?["state"]?["status"]?.ToString(), "success", StringComparison.OrdinalIgnoreCase);
