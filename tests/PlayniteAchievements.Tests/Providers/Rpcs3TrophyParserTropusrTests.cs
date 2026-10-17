@@ -98,6 +98,84 @@ namespace PlayniteAchievements.Providers.Tests
             }
         }
 
+        [TestMethod]
+        public void TryParseTrophyProgress_ReadsUnlockedCachedIds()
+        {
+            var unlockTime = new DateTime(638400000000000000L, DateTimeKind.Utc);
+            var path = WriteTempTropusr(BuildTropusr(
+                (0u, 1u, (ulong)(unlockTime.Ticks / 10)),
+                (1u, 0u, 0ul)));
+
+            try
+            {
+                Assert.IsTrue(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1 }, out var unlocked));
+                CollectionAssert.AreEqual(new[] { 0 }, unlocked.Keys.ToArray());
+                Assert.AreEqual(unlockTime, unlocked[0]);
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
+        [TestMethod]
+        public void TryParseTrophyProgress_IgnoresStateRecordsTheCacheDoesNotList()
+        {
+            var path = WriteTempTropusr(BuildTropusr(
+                (0u, 1u, 0ul),
+                (1u, 0u, 0ul),
+                (2u, 1u, 0ul)));
+
+            try
+            {
+                Assert.IsTrue(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1 }, out var unlocked));
+                CollectionAssert.AreEqual(new[] { 0 }, unlocked.Keys.ToArray());
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
+        [TestMethod]
+        public void TryParseTrophyProgress_MatchesNonContiguousIdsByRecordedId()
+        {
+            var path = WriteTempTropusr(BuildTropusr(
+                (300u, 1u, 0ul),
+                (7u, 0u, 0ul)));
+
+            try
+            {
+                Assert.IsTrue(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 7, 300 }, out var unlocked));
+                CollectionAssert.AreEqual(new[] { 300 }, unlocked.Keys.ToArray());
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
+        [TestMethod]
+        public void TryParseTrophyProgress_MissingCachedIdOrTruncatedFile_Fails()
+        {
+            var bytes = BuildTropusr((0u, 1u, 0ul), (1u, 0u, 0ul));
+            var path = WriteTempTropusr(bytes);
+
+            try
+            {
+                Assert.IsFalse(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1, 2 }, out var unlocked));
+                Assert.AreEqual(0, unlocked.Count);
+
+                File.WriteAllBytes(path, bytes.Take(bytes.Length - 3).ToArray());
+                Assert.IsFalse(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1 }, out unlocked));
+                Assert.AreEqual(0, unlocked.Count);
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
         private static byte[] BuildTropusr(params (uint TrophyId, uint State, ulong Timestamp2)[] records)
         {
             const int headerSize = 0x30;
