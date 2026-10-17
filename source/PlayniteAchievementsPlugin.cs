@@ -681,7 +681,7 @@ namespace PlayniteAchievements
         /// The extension's install directory (where the plugin dll, the bundled sounds and the sound
         /// host exe live), resolved from the assembly location. Null when it cannot be resolved.
         /// </summary>
-        private string GetPluginInstallDirectory()
+        internal string GetPluginInstallDirectory()
         {
             try
             {
