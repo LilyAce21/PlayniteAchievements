@@ -94,6 +94,23 @@ namespace PlayniteAchievements.Views
             InitializeComponent();
         }
 
+        private readonly Common.KeySequenceMatcher _keySequence = new Common.KeySequenceMatcher("jeshibu");
+
+        private void OverviewControl_PreviewKeySequence(object sender, KeyEventArgs e)
+        {
+            if (!_keySequence.Push(e.Key))
+            {
+                return;
+            }
+
+            var plugin = PlayniteAchievementsPlugin.Instance;
+            var directory = UnlockSoundResolver.GetBundledSoundsDirectory(plugin?.GetPluginInstallDirectory());
+            if (directory != null)
+            {
+                plugin.UnlockSounds?.PlayFile(System.IO.Path.Combine(directory, "jb.mp3"), 5.0);
+            }
+        }
+
         /// <summary>True when the header is too narrow for full score cards.</summary>
         public bool ScoreCardsBadgeOnly
         {
@@ -139,6 +156,7 @@ namespace PlayniteAchievements.Views
             _refreshEntryPoint = refreshEntryPoint ?? throw new ArgumentNullException(nameof(refreshEntryPoint));
             _friendsOverviewDataCoordinator = friendsOverviewDataCoordinator;
             _launchContext = launchContext;
+            PreviewKeyDown += OverviewControl_PreviewKeySequence;
             if (launchContext == OverviewLaunchContext.Popout)
             {
                 HeaderCaptionSpacerRow.Height = new GridLength(0);
