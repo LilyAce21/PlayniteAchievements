@@ -92,6 +92,16 @@ namespace PlayniteAchievements.Providers.Steam
 
         public static List<SteamOwnedGame> ParseOwnedGames(string html)
         {
+            return ParseOwnedGames(html, out _);
+        }
+
+        /// <param name="isCompleteList">
+        /// True when the list came from a source that lists the whole library: the games page's
+        /// OwnedGames query or a full gamesList XML. Rendered rows, recently-played lists and the
+        /// profile's mostPlayedGames are partial.
+        /// </param>
+        public static List<SteamOwnedGame> ParseOwnedGames(string html, out bool isCompleteList)
+        {
             var result = new Dictionary<int, SteamOwnedGame>();
 
             var fromXml = TryParseOwnedGamesXml(html);
@@ -104,6 +114,9 @@ namespace PlayniteAchievements.Providers.Steam
             }
 
             var ssrRoot = SteamSsrPayload.TryParse(html);
+            isCompleteList =
+                (fromXml?.Count > 0 && TryExtractXmlPayload(html, "gamesList") != null) ||
+                HasOwnedGamesQueryData(ssrRoot);
             foreach (var game in ParseOwnedGamesSteamSsr(ssrRoot))
             {
                 UpsertLargestPlaytime(result, game);
@@ -122,6 +135,20 @@ namespace PlayniteAchievements.Providers.Steam
             OverlayAchievementProgressFromSsr(result, ssrRoot);
 
             return result.Values.ToList();
+        }
+
+        private static bool HasOwnedGamesQueryData(JObject ssrRoot)
+        {
+            var owned = new Dictionary<int, SteamOwnedGame>();
+            foreach (var query in SteamSsrPayload.ReadQueries(ssrRoot) ?? Enumerable.Empty<JObject>())
+            {
+                if (IsOwnedGamesQuery(query["queryKey"]))
+                {
+                    AddOwnedGamesFromToken(owned, SteamSsrPayload.Data(query));
+                }
+            }
+
+            return owned.Count > 0;
         }
 
         private static void OverlayAchievementProgressFromSsr(Dictionary<int, SteamOwnedGame> result, JObject ssrRoot)
