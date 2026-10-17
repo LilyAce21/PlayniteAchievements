@@ -207,7 +207,9 @@ namespace PlayniteAchievements.Providers.Steam
                 })
                 .ToList();
 
-            return FriendsProviderResult<IReadOnlyList<FriendGameOwnership>>.FromData(result);
+            var ownershipResult = FriendsProviderResult<IReadOnlyList<FriendGameOwnership>>.FromData(result);
+            ownershipResult.IsPartial = !gamesResult.IsCompleteList;
+            return ownershipResult;
         }
 
         private static bool HasSteamAchievementProgressSignal(SteamOwnedGame game)
@@ -357,13 +359,13 @@ namespace PlayniteAchievements.Providers.Steam
                     $"GamesPage={BuildPageSignature(page)}; ProfileXml={profilePageResult?.ErrorMessage ?? "not checked"}");
             }
 
-            var games = SteamCommunityPageParser.ParseOwnedGames(page.Html);
+            var games = SteamCommunityPageParser.ParseOwnedGames(page.Html, out var isCompleteList);
             if (games.Count > 0)
             {
                 _logger?.Debug(
                     $"Steam community owned games parsed for friend {steamId64}: " +
-                    $"renderedGamesPage={games.Count}.");
-                return OwnedGamesPageResult.FromGames(games);
+                    $"games={games.Count}, completeList={isCompleteList}.");
+                return OwnedGamesPageResult.FromGames(games, isCompleteList);
             }
 
             var fallbackProfilePageResult = await GetOwnedGamesFromProfileXmlPageAsync(steamId64, cancel).ConfigureAwait(false);
@@ -410,7 +412,8 @@ namespace PlayniteAchievements.Providers.Steam
                 return OwnedGamesPageResult.Failed(BuildPageSignature(page));
             }
 
-            return OwnedGamesPageResult.FromGames(SteamCommunityPageParser.ParseOwnedGames(page.Html));
+            var xmlGames = SteamCommunityPageParser.ParseOwnedGames(page.Html, out var xmlIsCompleteList);
+            return OwnedGamesPageResult.FromGames(xmlGames, xmlIsCompleteList);
         }
 
         public async Task<FriendsProviderResult<FriendGameAchievements>> GetFriendGameAchievementsAsync(
@@ -982,12 +985,16 @@ namespace PlayniteAchievements.Providers.Steam
             public string ErrorMessage { get; private set; }
             public IReadOnlyList<SteamOwnedGame> Games { get; private set; }
 
-            public static OwnedGamesPageResult FromGames(IReadOnlyList<SteamOwnedGame> games)
+            // The games came from a source that lists the whole library.
+            public bool IsCompleteList { get; private set; }
+
+            public static OwnedGamesPageResult FromGames(IReadOnlyList<SteamOwnedGame> games, bool isCompleteList)
             {
                 return new OwnedGamesPageResult
                 {
                     Success = true,
-                    Games = games ?? Array.Empty<SteamOwnedGame>()
+                    Games = games ?? Array.Empty<SteamOwnedGame>(),
+                    IsCompleteList = isCompleteList
                 };
             }
 
