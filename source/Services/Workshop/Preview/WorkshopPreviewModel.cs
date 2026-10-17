@@ -197,7 +197,7 @@ namespace PlayniteAchievements.Services.Workshop.Preview
     public sealed class ShowcaseBlockPreview
     {
         /// <summary>Creates a block preview.</summary>
-        public ShowcaseBlockPreview(int row, int column, int rowSpan, int columnSpan, ShowcaseWidgetKind widgetKind, string title)
+        public ShowcaseBlockPreview(int row, int column, int rowSpan, int columnSpan, ShowcaseWidgetKind? widgetKind, string title)
         {
             Row = row;
             Column = column;
@@ -219,8 +219,8 @@ namespace PlayniteAchievements.Services.Workshop.Preview
         /// <summary>How many columns the block spans.</summary>
         public int ColumnSpan { get; }
 
-        /// <summary>The kind of the widget in the block.</summary>
-        public ShowcaseWidgetKind WidgetKind { get; }
+        /// <summary>The kind of the widget in the block, or null when the block is empty.</summary>
+        public ShowcaseWidgetKind? WidgetKind { get; }
 
         /// <summary>The widget's custom title, or null when it has none.</summary>
         public string Title { get; }
@@ -239,6 +239,8 @@ namespace PlayniteAchievements.Services.Workshop.Preview
             string pageName,
             int rows,
             int columns,
+            IReadOnlyList<double> rowWeights,
+            IReadOnlyList<double> columnWeights,
             IReadOnlyList<ShowcaseBlockPreview> blocks,
             IReadOnlyList<string> imagePaths)
             : base(WorkshopItemKind.ShowcasePage, packagePath, scratchDirectory)
@@ -247,6 +249,8 @@ namespace PlayniteAchievements.Services.Workshop.Preview
             PageName = pageName;
             Rows = rows;
             Columns = columns;
+            RowWeights = rowWeights ?? Array.Empty<double>();
+            ColumnWeights = columnWeights ?? Array.Empty<double>();
             Blocks = blocks ?? Array.Empty<ShowcaseBlockPreview>();
             ImagePaths = imagePaths ?? Array.Empty<string>();
             Thumbnails = ImagePaths.Cast<object>().ToList();
@@ -261,7 +265,13 @@ namespace PlayniteAchievements.Services.Workshop.Preview
         /// <summary>The page's column count.</summary>
         public int Columns { get; }
 
-        /// <summary>The page's blocks, in the order the page lists them.</summary>
+        /// <summary>The star weight of each row, one per row.</summary>
+        public IReadOnlyList<double> RowWeights { get; }
+
+        /// <summary>The star weight of each column, one per column.</summary>
+        public IReadOnlyList<double> ColumnWeights { get; }
+
+        /// <summary>The page's blocks, in the order the page lists them, empty blocks included.</summary>
         public IReadOnlyList<ShowcaseBlockPreview> Blocks { get; }
 
         /// <summary>The absolute paths of the images the page bundles, extracted to a temporary folder.</summary>
