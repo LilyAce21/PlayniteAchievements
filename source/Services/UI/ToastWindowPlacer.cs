@@ -37,16 +37,6 @@ namespace PlayniteAchievements.Services.UI
         [DllImport("user32.dll")]
         private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
 
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool IsWindowVisible(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
-
         [DllImport("user32.dll", SetLastError = true)]
         private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 
@@ -143,7 +133,6 @@ namespace PlayniteAchievements.Services.UI
         private const uint SWP_NOZORDER = 0x0004;
         private const uint SWP_NOACTIVATE = 0x0010;
         private const uint GW_HWNDPREV = 3;
-        private const int DWMWA_CLOAKED = 14;
         private const int GWL_EXSTYLE = -20;
         private const long WS_EX_TOPMOST = 0x00000008;
         private static readonly IntPtr HWND_TOP = IntPtr.Zero;
@@ -900,13 +889,9 @@ namespace PlayniteAchievements.Services.UI
         /// it after the window currently above the game (skipping the toast itself). When nothing is
         /// above the game it goes to the top of the game's band — matching the game's topmost-ness,
         /// since a non-topmost window can never sit above a topmost (e.g. fullscreen) game window.
-        ///
-        /// "The game" is the highest visible window of the game's process that overlaps
-        /// <paramref name="gameHwnd"/>, not necessarily <paramref name="gameHwnd"/> itself. A game can
-        /// present its frames in a separate window stacked above the one that holds focus: Resident
-        /// Evil 0 (D3D9 fullscreen) shows everything through a topmost, layered, full-screen
-        /// <c>D3DProxyWindow</c> over its focus window, and a toast inserted directly above the focus
-        /// window was drawn under the game's picture.
+        /// <paramref name="gameHwnd"/> is the game's presentation window
+        /// (<see cref="ActiveGameWindowTracker.ResolvePresentationWindow"/>), which can be a layer
+        /// the game stacks above its focus window.
         /// </summary>
         public static bool SetZOrderAbove(Window window, IntPtr gameHwnd)
         {
@@ -918,8 +903,7 @@ namespace PlayniteAchievements.Services.UI
 
             try
             {
-                var top = TopGameSurface(gameHwnd, toast);
-                var above = GetWindow(top, GW_HWNDPREV);
+                var above = GetWindow(gameHwnd, GW_HWNDPREV);
 
                 // Already immediately above the game, which is the entire goal: re-issuing the call
                 // would land it in the same place while giving DWM a reason to re-evaluate the flip
@@ -934,57 +918,8 @@ namespace PlayniteAchievements.Services.UI
 
                 var insertAfter = above != IntPtr.Zero
                     ? above
-                    : (IsTopmost(top) ? HWND_TOPMOST : HWND_TOP);
+                    : (IsTopmost(gameHwnd) ? HWND_TOPMOST : HWND_TOP);
                 return SetWindowPos(toast, insertAfter, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// The highest window above <paramref name="gameHwnd"/> in the z-order that belongs to the
-        /// same process, is visible and uncloaked, and overlaps it; <paramref name="gameHwnd"/> when
-        /// there is none. The toast itself is skipped, so the walk is the same whether the toast
-        /// currently sits below or above the game's other windows.
-        /// </summary>
-        private static IntPtr TopGameSurface(IntPtr gameHwnd, IntPtr toast)
-        {
-            GetWindowThreadProcessId(gameHwnd, out var gamePid);
-            if (gamePid == 0 || !GetWindowRect(gameHwnd, out var gameRect))
-            {
-                return gameHwnd;
-            }
-
-            var top = gameHwnd;
-            for (var hwnd = GetWindow(gameHwnd, GW_HWNDPREV); hwnd != IntPtr.Zero; hwnd = GetWindow(hwnd, GW_HWNDPREV))
-            {
-                if (hwnd == toast)
-                {
-                    continue;
-                }
-
-                GetWindowThreadProcessId(hwnd, out var pid);
-                if (pid != gamePid || !IsWindowVisible(hwnd) || IsCloaked(hwnd) ||
-                    !GetWindowRect(hwnd, out var rect) ||
-                    rect.Left >= gameRect.Right || gameRect.Left >= rect.Right ||
-                    rect.Top >= gameRect.Bottom || gameRect.Top >= rect.Bottom)
-                {
-                    continue;
-                }
-
-                top = hwnd;
-            }
-
-            return top;
-        }
-
-        private static bool IsCloaked(IntPtr hwnd)
-        {
-            try
-            {
-                return DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, out var cloaked, sizeof(int)) == 0 && cloaked != 0;
             }
             catch
             {
