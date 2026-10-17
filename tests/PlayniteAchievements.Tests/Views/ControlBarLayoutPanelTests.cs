@@ -120,6 +120,24 @@ namespace PlayniteAchievements.Tests.Views
             });
         }
 
+        [TestMethod]
+        public void CenteredWrapPanel_ArrangeAFractionShortKeepsOneLine()
+        {
+            RunOnStaThread(() =>
+            {
+                var panel = new CenteredWrapPanel();
+                var last = new Border { Width = 60.3, Height = 20 };
+                panel.Children.Add(new Border { Width = 100, Height = 20 });
+                panel.Children.Add(new Border { Width = 100, Height = 20 });
+                panel.Children.Add(last);
+
+                panel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                panel.Arrange(new Rect(0, 0, panel.DesiredSize.Width - 0.01, panel.DesiredSize.Height));
+
+                Assert.AreEqual(0, LayoutRect(last).Y);
+            });
+        }
+
         private static (ControlBarLayoutPanel, FrameworkElement, ContentControl, FrameworkElement) Create(
             bool wrap,
             bool withSearch,
