@@ -148,27 +148,36 @@ namespace PlayniteAchievements.Services.Workshop.Preview
                     }
                 }
 
+                // A block without a widget in the file stays as an empty cell, as the page shows it.
                 var blocks = new List<ShowcaseBlockPreview>();
                 foreach (var block in page.Blocks ?? new List<ShowcaseBlockSettings>())
                 {
-                    var id = block?.WidgetInstanceId?.Trim();
-                    if (string.IsNullOrEmpty(id) || !widgets.TryGetValue(id, out var widget))
+                    if (block == null)
                     {
                         continue;
                     }
 
-                    var title = widget.CustomTitle?.Trim();
+                    var id = block.WidgetInstanceId?.Trim();
+                    ShowcaseWidgetInstanceSettings widget = null;
+                    if (!string.IsNullOrEmpty(id))
+                    {
+                        widgets.TryGetValue(id, out widget);
+                    }
+
+                    var title = widget?.CustomTitle?.Trim();
                     blocks.Add(new ShowcaseBlockPreview(
                         block.Row,
                         block.Column,
                         block.RowSpan,
                         block.ColumnSpan,
-                        widget.Kind,
+                        widget?.Kind,
                         string.IsNullOrEmpty(title) ? null : title));
                 }
 
                 // An unset count falls back as ShowcaseLayoutService.Normalize resolves it.
                 var legacySize = page.GridSize ?? ShowcaseLayoutService.DefaultTrackCount;
+                var rows = page.RowCount > 0 ? page.RowCount : legacySize;
+                var columns = page.ColumnCount > 0 ? page.ColumnCount : legacySize;
                 var images = (portable.BundledImages ?? new Dictionary<string, string>())
                     .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                     .Select(pair => pair.Value)
@@ -180,8 +189,10 @@ namespace PlayniteAchievements.Services.Workshop.Preview
                     scratch,
                     portable,
                     page.Name,
-                    page.RowCount > 0 ? page.RowCount : legacySize,
-                    page.ColumnCount > 0 ? page.ColumnCount : legacySize,
+                    rows,
+                    columns,
+                    ShowcaseLayoutService.NormalizeTrackWeights(page.RowWeights, rows),
+                    ShowcaseLayoutService.NormalizeTrackWeights(page.ColumnWeights, columns),
                     blocks,
                     images);
             }
