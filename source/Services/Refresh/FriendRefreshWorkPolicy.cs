@@ -99,11 +99,16 @@ namespace PlayniteAchievements.Services.Refresh
                    options?.FriendExternalUserIds?.Any(id => !string.IsNullOrWhiteSpace(id)) == true;
         }
 
+        // Stale shared ownership is deleted only from a complete, non-empty list. A partial list
+        // (for example only the rows a games page rendered) would otherwise delete every shared game
+        // it happens not to show.
         internal static bool ShouldPruneStaleSharedOwnership(
             FriendRefreshOptions options,
-            IReadOnlyList<FriendGameOwnership> ownedGames)
+            IReadOnlyList<FriendGameOwnership> ownedGames,
+            bool ownershipIsPartial = false)
         {
-            return !HasExplicitProviderGameTargets(options) &&
+            return !ownershipIsPartial &&
+                   !HasExplicitProviderGameTargets(options) &&
                    ownedGames != null &&
                    ownedGames.Count > 0;
         }
