@@ -17,13 +17,12 @@ namespace PlayniteAchievements.Providers.Steam
         private const int BodySnippetLength = 120;
 
         // A bulk refresh sent about two requests a second and SteamHunters answered with an error
-        // page after ~150 of them (2026-10-18), so requests are spaced and retried with backoff.
+        // page after ~150 of them (2026-10-18), so unusable responses are retried with backoff.
         private static readonly RateLimiter SharedRateLimiter = new RateLimiter(1000, 3);
 
         private readonly Func<string, CancellationToken, Task<string>> _fetchPageText;
         private readonly ILogger _logger;
         private readonly RateLimiter _rateLimiter;
-        private int _madeRequest;
 
         public SteamHuntersApiClient(
             Func<string, CancellationToken, Task<string>> fetchPageText,
@@ -96,16 +95,11 @@ namespace PlayniteAchievements.Providers.Steam
             }
         }
 
-        // Spaces requests through the rate limiter and retries an empty or non-JSON body (a
-        // navigation timeout or an error page) with its backoff.
+        // Retries an empty or non-JSON body (a navigation timeout or an error page) with the rate
+        // limiter's backoff.
         private async Task<T> FetchJsonAsync<T>(string url, CancellationToken cancel)
             where T : class
         {
-            if (Interlocked.Exchange(ref _madeRequest, 1) == 1)
-            {
-                await _rateLimiter.DelayBeforeNextAsync(cancel).ConfigureAwait(false);
-            }
-
             return await _rateLimiter.ExecuteWithRetryAsync(
                 async () =>
                 {
