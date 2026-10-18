@@ -2,6 +2,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Providers.Steam;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PlayniteAchievements.Steam.Tests
 {
@@ -694,6 +696,47 @@ namespace PlayniteAchievements.Steam.Tests
             Assert.AreEqual(1, plan.Count);
             Assert.AreEqual("Portal 2", plan[0].Key);
             Assert.AreEqual(620, plan[0].Value);
+        }
+
+        [DataTestMethod]
+        [DataRow(null)]
+        [DataRow("")]
+        [DataRow("<html><title>Just a moment...</title></html>")]
+        public async Task EnrichAsync_NoUsableGroups_ReturnsFalseAndLeavesAchievements(string body)
+        {
+            var enricher = CreateEnricher(_ => body);
+            var achievements = new List<AchievementDetail>
+            {
+                new AchievementDetail { ApiName = "ach_1", Category = "Stored", CategoryType = "DLC" }
+            };
+
+            var applied = await enricher.EnrichAsync(620, "Portal 2", achievements, null, CancellationToken.None);
+
+            Assert.IsFalse(applied);
+            Assert.AreEqual("Stored", achievements[0].Category);
+            Assert.AreEqual("DLC", achievements[0].CategoryType);
+        }
+
+        [TestMethod]
+        public async Task EnrichAsync_ValidGroups_ReturnsTrueAndAppliesThem()
+        {
+            var enricher = CreateEnricher(url => url.Contains("GetAchievementGroups")
+                ? "{\"groupBy\":\"dlcandupdate\",\"groups\":[{\"dlcAppId\":2561440,\"dlcAppName\":\"The Pale Reach\",\"achievementApiNames\":[\"ach_1\"]}]}"
+                : null);
+            var achievements = new List<AchievementDetail> { new AchievementDetail { ApiName = "ach_1" } };
+
+            var applied = await enricher.EnrichAsync(1562430, "DREDGE", achievements, null, CancellationToken.None);
+
+            Assert.IsTrue(applied);
+            Assert.AreEqual("The Pale Reach", achievements[0].Category);
+            Assert.AreEqual("DLC", achievements[0].CategoryType);
+        }
+
+        private static SteamHuntersCategoryEnricher CreateEnricher(System.Func<string, string> respond)
+        {
+            return new SteamHuntersCategoryEnricher(
+                new SteamHuntersApiClient((url, ct) => Task.FromResult(respond(url)), null),
+                null);
         }
     }
 }
