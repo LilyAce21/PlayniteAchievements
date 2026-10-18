@@ -11,6 +11,7 @@ using Playnite.SDK.Events;
 using System.Windows.Threading;
 using Playnite.SDK;
 using PlayniteAchievements.Models;
+using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.Manual;
 using PlayniteAchievements.Services;
@@ -59,7 +60,9 @@ namespace PlayniteAchievements.Views.ManageAchievements
         private System.Windows.Threading.DispatcherTimer _iconOverridesChangedDebounce;
         private readonly HashSet<string> _pendingIconOverrideApiNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private bool _pendingIconOverridesFromEditor;
+        private bool _pendingIconOverridesEditorRowsStale;
         private bool _selfWriteMarkerClearQueued;
+        private int _editorIconAppliesInFlight;
         private bool _librarySuspensionHeld;
         private ManageAchievementsEditorViewModel _editorViewModel;
         private ManageAchievementsCategoryViewModel _categoryViewModel;
@@ -68,6 +71,8 @@ namespace PlayniteAchievements.Views.ManageAchievements
         private bool _notificationsRefreshPending;
         private bool _notificationsRefreshDiscardPending;
         private bool _selectManageCategoriesSubTab;
+        // The Notifications tab's surface to show once its section exists: true for the frame.
+        private NotificationSurface? _pendingNotificationsSurface;
         private bool _ensureTabContentQueued;
         private bool _categoryEditsPendingPropagation;
 
@@ -83,7 +88,8 @@ namespace PlayniteAchievements.Views.ManageAchievements
             ILogger logger,
             PlayniteAchievementsSettings settings,
             ManualSourceRegistry manualSourceRegistry,
-            bool selectManageCategoriesSubTab = false)
+            bool selectManageCategoriesSubTab = false,
+            NotificationSurface? notificationsSurface = null)
         {
             _refreshService = refreshRuntime ?? throw new ArgumentNullException(nameof(refreshRuntime));
             _cacheManager = cacheManager ?? throw new ArgumentNullException(nameof(cacheManager));
@@ -97,6 +103,8 @@ namespace PlayniteAchievements.Views.ManageAchievements
             _gameDataSnapshotProvider = new ManageAchievementsDataSnapshotProvider(gameId, _achievementDataService, logger);
             _selectManageCategoriesSubTab =
                 initialTab == ManageAchievementsTab.Category && selectManageCategoriesSubTab;
+            _pendingNotificationsSurface =
+                initialTab == ManageAchievementsTab.Notifications ? notificationsSurface : null;
 
             _viewModel = new ManageAchievementsViewModel(
                 gameId,
@@ -140,7 +148,8 @@ namespace PlayniteAchievements.Views.ManageAchievements
             }
         }
 
-        internal void SelectTab(ManageAchievementsTab tab, bool selectManageCategoriesSubTab = false)
+        /// <param name="notificationsSurface">On the Notifications tab, the Styles tab to show; null keeps it.</param>
+        internal void SelectTab(ManageAchievementsTab tab, bool selectManageCategoriesSubTab = false, NotificationSurface? notificationsSurface = null)
         {
             if (_viewModel == null)
             {
@@ -150,6 +159,11 @@ namespace PlayniteAchievements.Views.ManageAchievements
             if (tab == ManageAchievementsTab.Category && selectManageCategoriesSubTab)
             {
                 _selectManageCategoriesSubTab = true;
+            }
+
+            if (tab == ManageAchievementsTab.Notifications && notificationsSurface.HasValue)
+            {
+                _pendingNotificationsSurface = notificationsSurface;
             }
 
             _viewModel.SelectedTab = tab;
@@ -200,6 +214,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
             if (_viewModel != null)
             {
                 _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+                _viewModel.DetachWorkshopSource();
             }
             if (_refreshService != null)
             {
@@ -345,6 +360,12 @@ namespace PlayniteAchievements.Views.ManageAchievements
             {
                 var hadNotificationsControl = _notificationsControl != null;
                 EnsureNotificationsControl(forceRecreate: false);
+                if (_pendingNotificationsSurface.HasValue && _notificationsControl != null)
+                {
+                    _notificationsControl.Preselect(null, _pendingNotificationsSurface.Value);
+                    _pendingNotificationsSurface = null;
+                }
+
                 if (_notificationsRefreshPending)
                 {
                     if (hadNotificationsControl)
@@ -671,7 +692,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
             Tuple.Create(Models.Settings.ManageSidebarStatGroups.Goals, "LOCPlayAch_ManageAchievements_Editor_Goal"),
             Tuple.Create(Models.Settings.ManageSidebarStatGroups.Categorized, "LOCPlayAch_ManageAchievements_Overview_Categorized"),
             Tuple.Create(Models.Settings.ManageSidebarStatGroups.Filtered, "LOCPlayAch_Menu_Filters"),
-            Tuple.Create(Models.Settings.ManageSidebarStatGroups.Notes, "LOCPlayAch_ManageAchievements_Tab_Notes")
+            Tuple.Create(Models.Settings.ManageSidebarStatGroups.Notes, "LOCNotesLabel")
         };
 
         private void SidebarStatsHost_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -880,14 +901,20 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 showManualLinkDialog: ShowManualLinkDialog,
                 unlinkManualTracking: () => _viewModel.UnlinkManualTrackingCommand?.Execute(null),
                 exportAllCustomData: _viewModel.ExportCustomCommand,
-                importPortable: (mergeCustomAchievements, beforeReplace) =>
-                    _viewModel.ImportPortable(mergeCustomAchievements, beforeReplace));
+                importFromWorkshop: _viewModel.ImportFromWorkshopCommand,
+                shareToWorkshop: _viewModel.ShareToWorkshopCommand,
+                importPortable: (mergeCustomAchievements, mergeCsv, beforeReplace) =>
+                    _viewModel.ImportPortable(mergeCustomAchievements, mergeCsv, beforeReplace));
             _editorViewModel.CustomAchievementsSaved += CustomViewModel_CustomAchievementsSaved;
             _editorViewModel.AssignmentsChanged += EditorViewModel_CustomizationPersisted;
             _editorViewModel.IconOverridesSaved += EditorViewModel_IconOverridesSaved;
             _editorViewModel.CapstoneChanged += CustomViewModel_CapstoneChanged;
+            _editorViewModel.CategoryFilterSelectionChanged += EditorViewModel_CategoryFilterSelectionChanged;
             _editorControl = new ManageAchievementsEditorTab(_editorViewModel);
             EditorHost.Content = _editorControl;
+            _viewModel.RegisterSidebarCategoryScopeSource(
+                ManageAchievementsTab.Editor,
+                () => _editorViewModel?.SelectedCategoryFilterLabels);
 
             Common.LeakWatch.Track("ManageAchievementsEditorViewModel", _editorViewModel);
             Common.LeakWatch.Track("ManageAchievementsEditorTab", _editorControl);
@@ -912,6 +939,16 @@ namespace PlayniteAchievements.Views.ManageAchievements
             _editorRefreshPending = false;
         }
 
+        private void EditorViewModel_CategoryFilterSelectionChanged(object sender, EventArgs e)
+        {
+            _viewModel?.NotifySidebarCategoryScopeChanged(ManageAchievementsTab.Editor);
+        }
+
+        private void CategoryControl_SidebarCategoryScopeChanged(object sender, EventArgs e)
+        {
+            _viewModel?.NotifySidebarCategoryScopeChanged(ManageAchievementsTab.Category);
+        }
+
         private void CleanupEditor()
         {
             if (_iconOverridesChangedDebounce?.IsEnabled == true)
@@ -930,11 +967,13 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 _editorViewModel.AssignmentsChanged -= EditorViewModel_CustomizationPersisted;
                 _editorViewModel.IconOverridesSaved -= EditorViewModel_IconOverridesSaved;
                 _editorViewModel.CapstoneChanged -= CustomViewModel_CapstoneChanged;
+                _editorViewModel.CategoryFilterSelectionChanged -= EditorViewModel_CategoryFilterSelectionChanged;
                 _editorViewModel.Detach();
             }
 
             _editorControl = null;
             _editorViewModel = null;
+            _viewModel?.RegisterSidebarCategoryScopeSource(ManageAchievementsTab.Editor, null);
 
             if (EditorHost != null)
             {
@@ -962,6 +1001,10 @@ namespace PlayniteAchievements.Views.ManageAchievements
             _categoryViewModel.DeferredLibraryRefreshRequired += CategoryViewModel_DeferredLibraryRefreshRequired;
             _categoryControl = new ManageAchievementsCategoryTab(_categoryViewModel);
             CategoryHost.Content = _categoryControl;
+            _categoryControl.SidebarCategoryScopeChanged += CategoryControl_SidebarCategoryScopeChanged;
+            _viewModel.RegisterSidebarCategoryScopeSource(
+                ManageAchievementsTab.Category,
+                () => _categoryControl?.GetSidebarCategoryScope());
             Common.LeakWatch.Track("ManageAchievementsCategoryTab", _categoryControl);
             Common.LeakWatch.Track("ManageAchievementsCategoryTabViewModel", _categoryViewModel);
         }
@@ -1064,7 +1107,18 @@ namespace PlayniteAchievements.Views.ManageAchievements
         /// </summary>
         private void EditorViewModel_IconOverridesSaved(object sender, IconOverridesSavedEventArgs e)
         {
-            _pendingIconOverridesFromEditor = true;
+            // A reset reloaded the editor's rows before the provider icons were written back, so
+            // the flush must not suppress the editor's refresh; it wins over an icon edit queued
+            // in the same debounce window.
+            if (e?.EditorRowsStale == true)
+            {
+                _pendingIconOverridesEditorRowsStale = true;
+            }
+            else
+            {
+                _pendingIconOverridesFromEditor = true;
+            }
+
             HandleIconOverridesSaved(sender, e);
         }
 
@@ -1108,16 +1162,24 @@ namespace PlayniteAchievements.Views.ManageAchievements
             var changedApiNames = _pendingIconOverrideApiNames.ToList();
             _pendingIconOverrideApiNames.Clear();
 
+            var editorRowsStale = _pendingIconOverridesEditorRowsStale;
+            _pendingIconOverridesEditorRowsStale = false;
+            var editorSelfWrite = false;
             if (_pendingIconOverridesFromEditor)
             {
                 _pendingIconOverridesFromEditor = false;
-                if (_editorViewModel != null)
+                if (_editorViewModel != null && !editorRowsStale)
                 {
                     _editorViewModel.SuppressExternalRefresh = true;
+                    editorSelfWrite = true;
                 }
             }
 
-            _viewModel?.NotifyIconOverridesChanged(changedApiNames);
+            var apply = _viewModel?.NotifyIconOverridesChanged(changedApiNames);
+            if (editorSelfWrite && apply != null)
+            {
+                HoldEditorSelfWriteUntil(apply);
+            }
 
             // Custom achievement icons are written into their definitions, which the Custom
             // tab edits; it reloads on its next visit unless it holds unsaved edits.
@@ -1179,6 +1241,11 @@ namespace PlayniteAchievements.Views.ManageAchievements
         /// </remarks>
         private bool ConsumeEditorSelfWrite()
         {
+            if (_editorIconAppliesInFlight > 0)
+            {
+                return true;
+            }
+
             if (_editorViewModel?.SuppressExternalRefresh != true)
             {
                 return false;
@@ -1186,6 +1253,39 @@ namespace PlayniteAchievements.Views.ManageAchievements
 
             ScheduleSelfWriteMarkerClear();
             return true;
+        }
+
+        /// <summary>
+        /// Keeps the editor's icon apply counted as its own write until the apply has finished.
+        /// </summary>
+        /// <remarks>
+        /// The apply writes the cache from a worker thread, seconds after the edit, so its
+        /// cache-updated event lands well after the cascade the Background-priority clear is
+        /// scoped to. Any other leg consuming the marker first -- a second icon burst, or another
+        /// edit's assignment flush -- cleared it before that event arrived, which then reloaded
+        /// the editor as if something outside had changed the game. Released at Background after
+        /// the apply completes on the dispatcher, behind the event it raised, and clearing the
+        /// marker then too, so an apply that never wrote cannot leave it set.
+        /// </remarks>
+        private async void HoldEditorSelfWriteUntil(System.Threading.Tasks.Task apply)
+        {
+            _editorIconAppliesInFlight++;
+            try
+            {
+                await apply;
+            }
+            catch
+            {
+                // Logged by the apply itself.
+            }
+
+            _ = Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    _editorIconAppliesInFlight--;
+                    ScheduleSelfWriteMarkerClear();
+                }),
+                DispatcherPriority.Background);
         }
 
         private void ScheduleSelfWriteMarkerClear()
@@ -1261,8 +1361,14 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 _categoryViewModel.DeferredLibraryRefreshRequired -= CategoryViewModel_DeferredLibraryRefreshRequired;
             }
 
+            if (_categoryControl != null)
+            {
+                _categoryControl.SidebarCategoryScopeChanged -= CategoryControl_SidebarCategoryScopeChanged;
+            }
+
             _categoryControl = null;
             _categoryViewModel = null;
+            _viewModel?.RegisterSidebarCategoryScopeSource(ManageAchievementsTab.Category, null);
 
             if (CategoryHost != null)
             {

@@ -6,6 +6,7 @@
              xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers"
              UseLayoutRounding="True"
              SnapsToDevicePixels="True"
+             helpers:CompletionBadge.PreferTrophyBadges="{Binding PreferTrophyBadges, RelativeSource={RelativeSource Self}}"
              Loaded="OnLoaded"
              Unloaded="OnUnloaded">
     <UserControl.Resources>
@@ -90,6 +91,7 @@
               RowBackground="{DynamicResource PlayAch.Brush.Grid.RowBackground}"
               CanUserSortColumns="True"
               EnableRowVirtualization="True"
+              EnableColumnVirtualization="True"
               VirtualizingStackPanel.IsVirtualizing="True"
               VirtualizingStackPanel.VirtualizationMode="Recycling"
               ColumnHeaderStyle="{StaticResource AchievementColumnHeaderWithMenuStyle}"
@@ -238,13 +240,41 @@
                                     </Image>
                                 </Grid>
                             </Border>
-                            <Border CornerRadius="{StaticResource PlayAch.Radius.Card}"
-                                    ClipToBounds="True"
-                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                    UseLayoutRounding="True"
-                                    SnapsToDevicePixels="True">
-                                <Image Style="{StaticResource GameImageStyle}"/>
-                            </Border>
+                            <!-- Centered and sized to the art, so the completion frame hugs the
+                                 drawn cover even where Uniform stretch leaves the cell wider or
+                                 taller than the art. -->
+                            <Grid HorizontalAlignment="Center"
+                                  VerticalAlignment="Center">
+                                <Border CornerRadius="{StaticResource PlayAch.Radius.Card}"
+                                        ClipToBounds="True"
+                                        RenderOptions.BitmapScalingMode="HighQuality"
+                                        UseLayoutRounding="True"
+                                        SnapsToDevicePixels="True">
+                                    <Image Style="{StaticResource GameImageStyle}"/>
+                                </Border>
+
+                                <!-- Completion frame, drawn on the art itself. Last, so it draws
+                                     over the art and the glow layers. -->
+                                <Control Template="{StaticResource CompletionFrameTemplate}"
+                                         Focusable="False"
+                                         IsTabStop="False"
+                                         helpers:CompletionBadge.FrameBadgeSize="{StaticResource PlayAch.Size.Icon.Tiny}">
+                                    <Control.Style>
+                                        <Style TargetType="Control">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding ShowCompletionBadge}" Value="True"/>
+                                                        <Condition Binding="{Binding ShowCompletionFrame, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}" Value="True"/>
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Control.Style>
+                                </Control>
+                            </Grid>
                         </Grid>
                     </DataTemplate>
                 </DataGridTemplateColumn.CellTemplate>
@@ -318,7 +348,7 @@
             </DataGridTemplateColumn>
 
             <DataGridTemplateColumn Width="44" MinWidth="28" MaxWidth="96"
-                                    Header="{DynamicResource LOCPlayAch_Common_Label_Platform}"
+                                    Header="{DynamicResource LOCPlatformTitle}"
                                     CanUserResize="True"
                                     CanUserSort="False"
                                     helpers:ColumnVisibilityHelper.ColumnKey="GameSummaryPlatform">
@@ -409,7 +439,7 @@
                 </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
 
-            <DataGridTemplateColumn Width="*" MinWidth="22" CanUserResize="True" Header="{DynamicResource LOCPlayAch_Column_LastPlayed}" SortMemberPath="LastPlayed" helpers:ColumnVisibilityHelper.ColumnKey="GameSummaryLastPlayed">
+            <DataGridTemplateColumn Width="*" MinWidth="22" CanUserResize="True" Header="{DynamicResource LOCLastPlayed}" SortMemberPath="LastPlayed" helpers:ColumnVisibilityHelper.ColumnKey="GameSummaryLastPlayed">
                 <DataGridTemplateColumn.CellStyle>
                     <Style TargetType="DataGridCell" BasedOn="{StaticResource GameSummariesGridCellStyle}">
                         <Setter Property="ToolTip">
@@ -655,8 +685,8 @@
                                     helpers:ColumnVisibilityHelper.ColumnKey="Captures">
                 <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate>
-                        <Button Content="&#xF5B0;"
-                                FontFamily="Segoe MDL2 Assets"
+                        <Button Content="&#xEC74;"
+                                FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
                                 FontSize="13"
                                 Style="{StaticResource PlayAch.Button.BaseStyle}"
                                 Foreground="{DynamicResource PlayAch.Brush.Accent}"

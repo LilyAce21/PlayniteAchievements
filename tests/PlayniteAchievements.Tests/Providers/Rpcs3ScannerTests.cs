@@ -9,6 +9,7 @@ using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.EmuLibrary;
 using PlayniteAchievements.Providers.RPCS3;
+using PlayniteAchievements.Providers.PlayStationTrophies;
 using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.Images;
@@ -511,6 +512,51 @@ namespace PlayniteAchievements.Providers.Tests
                     new[] { "Sly 1", "Sly 2" },
                     calls.Select(call => call.SearchName).ToArray());
                 Assert.IsTrue(calls.All(call => call.AchievementCount == 1));
+                // A collection's name belongs to no single set, so per-set searches stop there.
+                Assert.IsTrue(calls.All(call => !call.FallBackToGameName));
+            }
+            finally
+            {
+                DeleteDirectory(tempDir);
+            }
+        }
+
+        [TestMethod]
+        public async Task RefreshAsync_SingleTrophySet_SearchesExophaseBySetTitleThenGameName()
+        {
+            var tempDir = CreateTempDirectory();
+            var rpcs3Root = Path.Combine(tempDir, "rpcs3");
+            var gameRoot = Path.Combine(tempDir, "Sly");
+
+            try
+            {
+                Exophase.ExophaseMetadataEnricher.EnrichCalls.Clear();
+
+                CreateRpcs3TrophyData(rpcs3Root, "NPWR01435_00", "Sly Cooper &amp; the Thievius Raccoonus", "Sly 1 Trophy");
+
+                Directory.CreateDirectory(gameRoot);
+                File.WriteAllText(Path.Combine(gameRoot, "PS3_DISC.SFB"), "SFB");
+                CreateTrpFile(
+                    Path.Combine(gameRoot, "PS3_GAME", "TROPDIR", "NPWR01435_00", "TROPHY.TRP"),
+                    "NPWR01435_00",
+                    "Sly Cooper &amp; the Thievius Raccoonus",
+                    "Sly 1 Disc Trophy");
+
+                var provider = CreateProvider(rpcs3Root, useExophaseForRarity: true);
+                var game = new Game
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Sly 1 (PS3)",
+                    InstallDirectory = gameRoot
+                };
+
+                var data = await RefreshSingleGameAsync(provider, game).ConfigureAwait(false);
+
+                Assert.IsNotNull(data);
+                var calls = Exophase.ExophaseMetadataEnricher.EnrichCalls;
+                Assert.AreEqual(1, calls.Count);
+                Assert.AreEqual("Sly Cooper & the Thievius Raccoonus", calls[0].SearchName);
+                Assert.IsTrue(calls[0].FallBackToGameName);
             }
             finally
             {
@@ -2735,7 +2781,7 @@ BCUS98246: 'D:\RPCS3\Other Collection.iso' # trailing comment
                 var paramSfo = Path.Combine(tempDir, "PARAM.SFO");
                 CreateParamSfo(paramSfo, "Sly 1", "BCUS00001");
 
-                var values = Rpcs3ParamSfoReader.ReadStringValues(paramSfo);
+                var values = ParamSfoReader.ReadStringValues(paramSfo);
 
                 Assert.AreEqual("Sly 1", values["TITLE"]);
                 Assert.AreEqual("BCUS00001", values["TITLE_ID"]);

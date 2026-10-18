@@ -1,5 +1,22 @@
 # Fork maintenance bundle
 
+## v4.1.0 integration — 2026-10-18
+
+The current bundle targets upstream v4.1.0
+(`bd9a01d8a87c82ae90c5278ac82f324f227dafff`). The in-place update retains
+that commit as the pending merge parent; committing and pushing the reviewed
+merge is required before GitHub's behind count changes.
+
+The Release rebuild passed. The regression suite passed 4,997 tests, with eight
+skipped and none failing. The PS5 completion-icon regression script also passed.
+Live Playnite checks remain necessary for notification rendering, Memories
+capture, account switching, and the updated Overview UI.
+
+Export now constructs the shared patch using a temporary index seeded from the
+upstream baseline. This preserves upstream-added files during an uncommitted
+integration without changing the user's staging. The refreshed bundle is checked
+by replaying it into an isolated upstream checkout and comparing project files.
+
 This directory turns the Santodan fork into a repeatable layer over an upstream
 PlayniteAchievements checkout. It intentionally does not modify or package:
 

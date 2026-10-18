@@ -23,10 +23,15 @@ namespace PlayniteAchievements.Services.Achievements
         public static bool IsUnobtainable(string categoryType) =>
             ParseValues(categoryType).Contains(UnobtainableCategoryType);
 
+        /// <summary>True for an achievement earned in RetroAchievements softcore mode.</summary>
+        public static bool IsSoftcore(string categoryType) =>
+            ParseValues(categoryType).Contains(SoftcoreCategoryType);
+
         // Grouped by what the tag says about an achievement: which set it belongs to, which play
-        // mode it needs, what kind of goal it is, whether it can still be earned, and how it was
-        // earned. Every type menu, the joined Type cell text, and the stored pipe-joined value
-        // follow this order.
+        // mode it needs, where it sits in a playthrough, what kind of task it is, what the run
+        // asks of the player, whether it can still be earned, a catch-all, and how it was earned.
+        // Every type menu, the joined Type cell text, and the stored pipe-joined value follow
+        // this order.
         private static readonly string[] CanonicalOrder =
         {
             DefaultCategoryType,
@@ -37,14 +42,18 @@ namespace PlayniteAchievements.Services.Achievements
             "Singleplayer",
             "Multiplayer",
             "Progression",
-            "SideProgression",
+            "SideQuest",
             "WinCondition",
+            "PostGame",
+            "Completion",
             "Collectable",
+            "Cumulative",
+            "Challenge",
             "Difficulty",
-            "Miscellaneous",
+            "Stackable",
             "Missable",
             UnobtainableCategoryType,
-            "Stackable",
+            "Miscellaneous",
             SoftcoreCategoryType,
             HardcoreCategoryType
         };
@@ -101,18 +110,29 @@ namespace PlayniteAchievements.Services.Achievements
                 ["mp"] = "Multiplayer",
                 ["progression"] = "Progression",
                 ["story"] = "Progression",
-                ["sideprogression"] = "SideProgression",
-                ["side progression"] = "SideProgression",
-                ["side-progression"] = "SideProgression",
-                ["side_progression"] = "SideProgression",
-                ["sidequest"] = "SideProgression",
-                ["side quest"] = "SideProgression",
+                ["sidequest"] = "SideQuest",
+                ["side quest"] = "SideQuest",
+                ["side-quest"] = "SideQuest",
+                ["side_quest"] = "SideQuest",
+                ["sideprogression"] = "SideQuest",
+                ["side progression"] = "SideQuest",
+                ["side-progression"] = "SideQuest",
+                ["side_progression"] = "SideQuest",
                 ["wincondition"] = "WinCondition",
                 ["win_condition"] = "WinCondition",
                 ["win condition"] = "WinCondition",
                 ["win-condition"] = "WinCondition",
+                ["postgame"] = "PostGame",
+                ["post game"] = "PostGame",
+                ["post-game"] = "PostGame",
+                ["post_game"] = "PostGame",
+                ["completion"] = "Completion",
+                ["completionist"] = "Completion",
                 ["collectable"] = "Collectable",
                 ["collectible"] = "Collectable",
+                ["cumulative"] = "Cumulative",
+                ["grind"] = "Cumulative",
+                ["challenge"] = "Challenge",
                 ["missable"] = "Missable",
                 ["miss-able"] = "Missable",
                 ["unobtainable"] = UnobtainableCategoryType,
@@ -317,10 +337,58 @@ namespace PlayniteAchievements.Services.Achievements
         /// canonical order. Normalizes to <see cref="DefaultCategoryType"/> when no components
         /// remain. A null/blank <paramref name="categoryType"/> leaves the value unchanged.
         /// </summary>
+        /// <summary>
+        /// The category type override to store for a row, or null when <paramref name="value"/>
+        /// is what the provider already gives it. An override equal to the provider's type changes
+        /// nothing, and storing one (most often "Default" after the last type is unticked on a row
+        /// the provider leaves untyped) only adds an empty override to the game's custom data.
+        /// "Default" stays a real override when the provider does assign a type.
+        /// </summary>
+        public static string OverrideOrNull(string value, string providerValue)
+        {
+            // Derived types are the provider's alone, so neither side of the comparison carries
+            // them and the stored override never does.
+            var normalized = NormalizeOrDefault(StripDerivedTypes(value));
+            return string.Equals(normalized, NormalizeOrDefault(StripDerivedTypes(providerValue)), StringComparison.OrdinalIgnoreCase)
+                ? null
+                : normalized;
+        }
+
+        public static bool IsDerivedCategoryType(string categoryType) =>
+            !string.IsNullOrWhiteSpace(categoryType) && DerivedCategoryTypes.Contains(categoryType.Trim());
+
+        /// <summary>
+        /// <paramref name="rawValue"/> without its derived types (Softcore/Hardcore), normalized;
+        /// null when nothing else remains.
+        /// </summary>
+        public static string StripDerivedTypes(string rawValue)
+        {
+            return Combine(ParseValues(rawValue).Where(value => !DerivedCategoryTypes.Contains(value)));
+        }
+
+        /// <summary>
+        /// The effective category type of an achievement whose provider gives
+        /// <paramref name="providerValue"/> and whose user override is <paramref name="overrideValue"/>.
+        /// The override supplies every type except the derived ones, which always come from the
+        /// provider: only a RetroAchievements refresh says how an achievement was earned.
+        /// </summary>
+        public static string ApplyOverride(string providerValue, string overrideValue)
+        {
+            // An override with nothing left once its derived types are gone overrides nothing.
+            var assigned = StripDerivedTypes(overrideValue);
+            if (assigned == null)
+            {
+                return NormalizeOrDefault(providerValue);
+            }
+
+            var derived = ParseValues(providerValue).Where(DerivedCategoryTypes.Contains);
+            return NormalizeOrDefault(Combine(ParseValues(assigned).Concat(derived)));
+        }
+
         public static string WithCategoryType(string categoryTypeValue, string categoryType, bool include)
         {
             var token = Normalize(categoryType);
-            if (string.IsNullOrWhiteSpace(token))
+            if (string.IsNullOrWhiteSpace(token) || DerivedCategoryTypes.Contains(token))
             {
                 return NormalizeOrDefault(categoryTypeValue);
             }
@@ -405,6 +473,12 @@ namespace PlayniteAchievements.Services.Achievements
         {
             var values = ParseValues(NormalizeOrDefault(categoryType));
             var canonical = values.Count == 0 ? DefaultCategoryType : values[0];
+            // Default reuses the shared "Default" label rather than a second identical string.
+            if (string.Equals(canonical, DefaultCategoryType, StringComparison.OrdinalIgnoreCase))
+            {
+                return L("LOCDefault", canonical);
+            }
+
             return L($"LOCPlayAch_ManageAchievements_Category_Type_{canonical}", canonical);
         }
 
@@ -416,7 +490,7 @@ namespace PlayniteAchievements.Services.Achievements
         {
             var label = CategoryPathHelper.NormalizePath(rawValue);
             return string.Equals(label, DefaultCategoryLabel, StringComparison.OrdinalIgnoreCase)
-                ? L("LOCPlayAch_Common_Default", DefaultCategoryLabel)
+                ? L("LOCDefault", DefaultCategoryLabel)
                 : CategoryPathHelper.ToDisplayPath(label);
         }
 
@@ -429,7 +503,7 @@ namespace PlayniteAchievements.Services.Achievements
         {
             var label = CategoryPathHelper.NormalizePath(rawValue);
             return string.Equals(label, DefaultCategoryLabel, StringComparison.OrdinalIgnoreCase)
-                ? L("LOCPlayAch_Common_Default", DefaultCategoryLabel)
+                ? L("LOCDefault", DefaultCategoryLabel)
                 : CategoryPathHelper.ToDisplayLeaf(label);
         }
 

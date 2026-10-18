@@ -197,6 +197,7 @@ namespace PlayniteAchievements.Providers.GOG
                 AppId = int.TryParse(productId, out var pid) ? pid : 0,
                 GameName = game.Name,
                 ProviderKey = "GOG",
+                RaritySource = RaritySource.Tier,
                 LibrarySourceName = game?.Source?.Name,
                 LastUpdatedUtc = DateTime.UtcNow,
                 HasAchievements = achievements != null && achievements.Count > 0,

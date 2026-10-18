@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using Newtonsoft.Json.Linq;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Models.Tagging;
+using PlayniteAchievements.Services.Showcase;
 
 namespace PlayniteAchievements.Models.Tests
 {
@@ -111,6 +114,112 @@ namespace PlayniteAchievements.Models.Tests
                 Assert.IsFalse(copy.UnlockScreenshotFramedAlwaysCaptureCompletion);
                 Assert.AreEqual(RaritySelection.Common, copy.UnlockRecordingRarities);
             }
+        }
+
+        [TestMethod]
+        public void CloneAndCopyFrom_PreserveExclusionFilterPresets()
+        {
+            var refreshPreset = Guid.NewGuid();
+            var summaryPreset = Guid.NewGuid();
+            var source = new PersistedSettings
+            {
+                RefreshExclusionFilterPresetIds = new HashSet<Guid> { refreshPreset, Guid.Empty },
+                SummaryExclusionFilterPresetIds = new HashSet<Guid> { summaryPreset }
+            };
+
+            var clone = source.Clone();
+            var target = new PersistedSettings();
+            target.CopyFrom(source);
+
+            foreach (var copy in new[] { clone, target })
+            {
+                CollectionAssert.AreEquivalent(new[] { refreshPreset }, copy.RefreshExclusionFilterPresetIds.ToList());
+                CollectionAssert.AreEquivalent(new[] { summaryPreset }, copy.SummaryExclusionFilterPresetIds.ToList());
+                Assert.AreNotSame(source.RefreshExclusionFilterPresetIds, copy.RefreshExclusionFilterPresetIds);
+            }
+        }
+
+        [TestMethod]
+        public void ExclusionFilterPresets_DefaultEmpty()
+        {
+            var settings = new PersistedSettings();
+
+            Assert.AreEqual(0, settings.RefreshExclusionFilterPresetIds.Count);
+            Assert.AreEqual(0, settings.SummaryExclusionFilterPresetIds.Count);
+        }
+
+        [TestMethod]
+        public void CloneAndCopyFrom_PreserveProviderUnlockSounds()
+        {
+            var source = new PersistedSettings();
+            source.SetProviderUnlockSounds("Steam", new UnlockSoundSettings { Rare = "steam-rare.wav" });
+
+            var clone = source.Clone();
+            var target = new PersistedSettings();
+            target.CopyFrom(source);
+
+            foreach (var copy in new[] { clone, target })
+            {
+                Assert.AreEqual("steam-rare.wav", copy.GetProviderUnlockSounds("steam")?.Rare);
+                Assert.AreNotSame(source.GetProviderUnlockSounds("Steam"), copy.GetProviderUnlockSounds("Steam"));
+            }
+        }
+
+        [TestMethod]
+        public void CloneAndCopyFrom_PreserveOverviewMiniShowcase()
+        {
+            var source = new PersistedSettings
+            {
+                OverviewMiniShowcaseHeight = 300,
+                ShowOverviewMiniShowcase = false
+            };
+            var firstPie = source.OverviewMiniShowcase.WidgetInstances.First(widget => widget.Kind == ShowcaseWidgetKind.Pie);
+            ShowcaseWidgetOptions.SetPieMode(firstPie, ShowcasePieMode.Trophy);
+
+            var clone = source.Clone();
+            var target = new PersistedSettings();
+            target.CopyFrom(source);
+
+            foreach (var copy in new[] { clone, target })
+            {
+                Assert.AreEqual(300d, copy.OverviewMiniShowcaseHeight);
+                Assert.IsFalse(copy.ShowOverviewMiniShowcase);
+                Assert.AreNotSame(source.OverviewMiniShowcase, copy.OverviewMiniShowcase);
+                Assert.AreEqual(
+                    ShowcasePieMode.Trophy,
+                    ShowcaseWidgetOptions.GetPieMode(copy.OverviewMiniShowcase.WidgetInstances
+                        .First(widget => widget.InstanceId == firstPie.InstanceId)));
+            }
+        }
+
+        [TestMethod]
+        public void Constructor_DefaultsOverviewMiniShowcaseToTheChartStrip()
+        {
+            var settings = new PersistedSettings();
+            var page = settings.OverviewMiniShowcase.Pages.Single();
+            var kinds = page.Blocks
+                .OrderBy(block => block.Column)
+                .Select(block => settings.OverviewMiniShowcase.WidgetInstances
+                    .Single(widget => widget.InstanceId == block.WidgetInstanceId))
+                .ToList();
+
+            Assert.IsTrue(settings.ShowOverviewMiniShowcase);
+            Assert.AreEqual(225d, settings.OverviewMiniShowcaseHeight);
+            Assert.AreEqual(1, page.RowCount);
+            CollectionAssert.AreEqual(
+                new[] { ShowcasePieMode.CompletedGames, ShowcasePieMode.Provider, ShowcasePieMode.Rarity, ShowcasePieMode.Trophy },
+                kinds.Take(4).Select(ShowcaseWidgetOptions.GetPieMode).ToList());
+            Assert.AreEqual(ShowcaseWidgetKind.Timeline, kinds[4].Kind);
+        }
+
+        [TestMethod]
+        public void OverviewMiniShowcaseHeight_ClampsToItsRange()
+        {
+            var settings = new PersistedSettings { OverviewMiniShowcaseHeight = 10 };
+            Assert.AreEqual(OverviewMiniShowcaseLayout.MinHeight, settings.OverviewMiniShowcaseHeight);
+
+            settings.OverviewMiniShowcaseHeight = 5000;
+            Assert.AreEqual(OverviewMiniShowcaseLayout.MaxHeight, settings.OverviewMiniShowcaseHeight);
         }
 
         [TestMethod]
@@ -515,7 +624,8 @@ namespace PlayniteAchievements.Models.Tests
                 NotificationDelaySeconds = 0.4,
                 CaptureDelaySeconds = 0.7,
                 MaxConcurrentToasts = 4,
-                ToastPosition = ToastScreenCorner.TopLeft
+                ToastPosition = ToastScreenCorner.TopLeft,
+                NotificationRenderMode = NotificationRenderMode.Quality
             };
 
             var clone = source.Clone();
@@ -642,8 +752,14 @@ namespace PlayniteAchievements.Models.Tests
         {
             var settings = new PersistedSettings();
 
-            Assert.IsTrue(settings.ShowOverviewCollectionScoreCard);
-            Assert.IsTrue(settings.ShowOverviewPrestigeScoreCard);
+            Assert.IsTrue(settings.ShowOverviewScoreCard1);
+            Assert.IsTrue(settings.ShowOverviewScoreCard2);
+            Assert.AreEqual(ShowcaseWidgetKind.Scores, settings.OverviewScoreCard1.Kind);
+            Assert.AreEqual(ScoreCardType.Collection, ShowcaseWidgetOptions.GetScoreCardType(settings.OverviewScoreCard1));
+            Assert.AreEqual(ScoreCardType.Prestige, ShowcaseWidgetOptions.GetScoreCardType(settings.OverviewScoreCard2));
+            Assert.AreEqual(ScoreCardBadgePosition.Left, ShowcaseWidgetOptions.GetScoreCardBadgePosition(settings.OverviewScoreCard1));
+            Assert.IsTrue(ShowcaseWidgetOptions.GetScoreCardShowTotal(settings.OverviewScoreCard1));
+            Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(settings.OverviewScoreCard2));
         }
 
         [TestMethod]
@@ -653,8 +769,6 @@ namespace PlayniteAchievements.Models.Tests
 
             Assert.AreEqual(TimeWindow.FromPreset(TimelineRange.OneYear), settings.ViewAchievementsTimeWindow);
             Assert.AreEqual(TimelineGranularity.Auto, settings.ViewAchievementsTimelineGranularity);
-            Assert.AreEqual(TimeWindow.FromPreset(TimelineRange.OneYear), settings.OverviewTimeWindow);
-            Assert.AreEqual(TimelineGranularity.Auto, settings.OverviewTimelineGranularity);
             Assert.IsFalse(settings.ViewAchievementsTimelineVisible);
         }
 
@@ -739,6 +853,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.IsTrue(settings.EnableOpenSettingsHotkey);
             Assert.IsTrue(settings.EnableCategoryModeHotkey);
             Assert.IsTrue(settings.EnableTestUnlockHotkey);
+            Assert.IsTrue(settings.EnableWorkshopHotkey);
 
             // Off by default: a retrigger captures into the game's own folder, and the test folder
             // is the opt-in that turns it into throwaway output instead.
@@ -749,6 +864,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.AreEqual(PersistedSettings.DefaultOpenSettingsHotkey, settings.OpenSettingsHotkey);
             Assert.AreEqual(PersistedSettings.DefaultCategoryModeHotkey, settings.CategoryModeHotkey);
             Assert.AreEqual(PersistedSettings.DefaultTestUnlockHotkey, settings.TestUnlockHotkey);
+            Assert.AreEqual(PersistedSettings.DefaultWorkshopHotkey, settings.WorkshopHotkey);
         }
 
         [TestMethod]
@@ -1112,20 +1228,30 @@ namespace PlayniteAchievements.Models.Tests
         [TestMethod]
         public void CloneAndCopyFrom_PreserveOverviewScoreCardVisibility()
         {
-            var source = new PersistedSettings
-            {
-                ShowOverviewCollectionScoreCard = false,
-                ShowOverviewPrestigeScoreCard = false
-            };
+            var source = new PersistedSettings { ShowOverviewScoreCard2 = false };
+            ShowcaseWidgetOptions.SetScoreCardType(source.OverviewScoreCard1, ScoreCardType.Points("Xbox"));
+            ShowcaseWidgetOptions.SetScoreCardShowTotal(source.OverviewScoreCard1, false);
+            ShowcaseWidgetOptions.SetScoreCardBadgePosition(source.OverviewScoreCard1, ScoreCardBadgePosition.Right);
+            ShowcaseWidgetOptions.SetScoreCardUseCustomColors(source.OverviewScoreCard2, true);
 
             var clone = source.Clone();
             var target = new PersistedSettings();
             target.CopyFrom(source);
 
-            Assert.IsFalse(clone.ShowOverviewCollectionScoreCard);
-            Assert.IsFalse(clone.ShowOverviewPrestigeScoreCard);
-            Assert.IsFalse(target.ShowOverviewCollectionScoreCard);
-            Assert.IsFalse(target.ShowOverviewPrestigeScoreCard);
+            foreach (var copy in new[] { clone, target })
+            {
+                Assert.AreEqual("Points:Xbox", ShowcaseWidgetOptions.GetScoreCardType(copy.OverviewScoreCard1).Key);
+                Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardShowTotal(copy.OverviewScoreCard1));
+                Assert.AreEqual(ScoreCardBadgePosition.Right, ShowcaseWidgetOptions.GetScoreCardBadgePosition(copy.OverviewScoreCard1));
+                Assert.IsTrue(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(copy.OverviewScoreCard2));
+                Assert.IsTrue(copy.ShowOverviewScoreCard1);
+                Assert.IsFalse(copy.ShowOverviewScoreCard2);
+                Assert.AreNotSame(source.OverviewScoreCard1, copy.OverviewScoreCard1);
+            }
+
+            // The copies are deep: editing one leaves the source alone.
+            ShowcaseWidgetOptions.SetScoreCardShowTotal(clone.OverviewScoreCard1, true);
+            Assert.IsFalse(ShowcaseWidgetOptions.GetScoreCardShowTotal(source.OverviewScoreCard1));
         }
 
         [TestMethod]
@@ -1164,13 +1290,15 @@ namespace PlayniteAchievements.Models.Tests
                 EnableOpenSettingsHotkey = false,
                 EnableCategoryModeHotkey = false,
                 EnableTestUnlockHotkey = false,
+                EnableWorkshopHotkey = false,
                 EnableCaptureTestFolder = true,
                 ViewAchievementsHotkey = "F8",
                 ManageAchievementsHotkey = "Shift+F9",
                 OverviewHotkey = "F10",
                 OpenSettingsHotkey = "F11",
                 CategoryModeHotkey = "Shift+G",
-                TestUnlockHotkey = "Ctrl+Alt+K"
+                TestUnlockHotkey = "Ctrl+Alt+K",
+                WorkshopHotkey = "Ctrl+Shift+W"
             };
 
             var clone = source.Clone();
@@ -1185,6 +1313,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.IsFalse(clone.EnableOpenSettingsHotkey);
             Assert.IsFalse(clone.EnableCategoryModeHotkey);
             Assert.IsFalse(clone.EnableTestUnlockHotkey);
+            Assert.IsFalse(clone.EnableWorkshopHotkey);
             Assert.IsTrue(clone.EnableCaptureTestFolder);
             Assert.AreEqual("F8", clone.ViewAchievementsHotkey);
             Assert.AreEqual("Shift+F9", clone.ManageAchievementsHotkey);
@@ -1192,6 +1321,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.AreEqual("F11", clone.OpenSettingsHotkey);
             Assert.AreEqual("Shift+G", clone.CategoryModeHotkey);
             Assert.AreEqual("Ctrl+Alt+K", clone.TestUnlockHotkey);
+            Assert.AreEqual("Ctrl+Shift+W", clone.WorkshopHotkey);
 
             Assert.IsFalse(target.EnableAchievementHotkeys);
             Assert.IsTrue(target.EnableGlobalAchievementHotkeys);
@@ -1201,6 +1331,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.IsFalse(target.EnableOpenSettingsHotkey);
             Assert.IsFalse(target.EnableCategoryModeHotkey);
             Assert.IsFalse(target.EnableTestUnlockHotkey);
+            Assert.IsFalse(target.EnableWorkshopHotkey);
             Assert.IsTrue(target.EnableCaptureTestFolder);
             Assert.AreEqual("F8", target.ViewAchievementsHotkey);
             Assert.AreEqual("Shift+F9", target.ManageAchievementsHotkey);
@@ -1208,6 +1339,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.AreEqual("F11", target.OpenSettingsHotkey);
             Assert.AreEqual("Shift+G", target.CategoryModeHotkey);
             Assert.AreEqual("Ctrl+Alt+K", target.TestUnlockHotkey);
+            Assert.AreEqual("Ctrl+Shift+W", target.WorkshopHotkey);
         }
 
         [TestMethod]
@@ -1556,6 +1688,7 @@ namespace PlayniteAchievements.Models.Tests
                 },
                 EnablePeriodicUpdates = false,
                 IncludeHiddenGamesInBulkScans = false,
+                IncludeHiddenGamesInSummaries = false,
                 PeriodicUpdateHours = 48,
                 RecentRefreshGamesCount = 7,
                 FirstTimeSetupCompleted = true,
@@ -1627,10 +1760,10 @@ namespace PlayniteAchievements.Models.Tests
                 RoundRarityPercentages = true,
                 OverviewGameSummariesUseCoverImages = false,
                 OverviewRecentAchievementsUseCoverImages = false,
-                ShowOverviewCollectionScoreCard = false,
-                ShowOverviewPrestigeScoreCard = false,
-                ShowOverviewPieCharts = false,
-                ShowOverviewBarCharts = false,
+                OverviewScoreCard1 = PersistedSettings.CreateOverviewScoreCard(ScoreCardType.Points("RetroAchievements")),
+                ShowOverviewScoreCard2 = false,
+                ShowOverviewMiniShowcase = false,
+                OverviewMiniShowcaseHeight = 400d,
                 ShowOverviewGameMetadataPlatform = false,
                 ShowOverviewGameMetadataPlaytime = false,
                 ShowOverviewGameMetadataRegion = false,
@@ -1736,14 +1869,12 @@ namespace PlayniteAchievements.Models.Tests
             Assert.AreEqual(defaults.RoundRarityPercentages, settings.RoundRarityPercentages);
             Assert.AreEqual(defaults.OverviewGameSummariesUseCoverImages, settings.OverviewGameSummariesUseCoverImages);
             Assert.AreEqual(defaults.OverviewRecentAchievementsUseCoverImages, settings.OverviewRecentAchievementsUseCoverImages);
-            Assert.AreEqual(defaults.ShowOverviewCollectionScoreCard, settings.ShowOverviewCollectionScoreCard);
-            Assert.AreEqual(defaults.ShowOverviewPrestigeScoreCard, settings.ShowOverviewPrestigeScoreCard);
-            Assert.AreEqual(defaults.ShowOverviewPieCharts, settings.ShowOverviewPieCharts);
-            Assert.AreEqual(defaults.ShowOverviewGamesPieChart, settings.ShowOverviewGamesPieChart);
-            Assert.AreEqual(defaults.ShowOverviewProviderPieChart, settings.ShowOverviewProviderPieChart);
-            Assert.AreEqual(defaults.ShowOverviewRarityPieChart, settings.ShowOverviewRarityPieChart);
-            Assert.AreEqual(defaults.ShowOverviewTrophyPieChart, settings.ShowOverviewTrophyPieChart);
-            Assert.AreEqual(defaults.ShowOverviewBarCharts, settings.ShowOverviewBarCharts);
+            Assert.AreEqual(
+                ShowcaseWidgetOptions.GetScoreCardType(defaults.OverviewScoreCard1),
+                ShowcaseWidgetOptions.GetScoreCardType(settings.OverviewScoreCard1));
+            Assert.AreEqual(defaults.ShowOverviewScoreCard2, settings.ShowOverviewScoreCard2);
+            Assert.AreEqual(defaults.ShowOverviewMiniShowcase, settings.ShowOverviewMiniShowcase);
+            Assert.AreEqual(defaults.OverviewMiniShowcaseHeight, settings.OverviewMiniShowcaseHeight);
             Assert.AreEqual(defaults.ShowOverviewGameMetadataPlatform, settings.ShowOverviewGameMetadataPlatform);
             Assert.AreEqual(defaults.ShowOverviewGameMetadataPlaytime, settings.ShowOverviewGameMetadataPlaytime);
             Assert.AreEqual(defaults.ShowOverviewGameMetadataRegion, settings.ShowOverviewGameMetadataRegion);
@@ -1833,6 +1964,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.AreEqual("secret", settings.ProviderSettings["Steam"]["ApiKey"].Value<string>());
             Assert.IsFalse(settings.EnablePeriodicUpdates);
             Assert.IsFalse(settings.IncludeHiddenGamesInBulkScans);
+            Assert.IsFalse(settings.IncludeHiddenGamesInSummaries);
             Assert.AreEqual(48, settings.PeriodicUpdateHours);
             Assert.AreEqual(7, settings.RecentRefreshGamesCount);
             Assert.IsTrue(settings.FirstTimeSetupCompleted);
@@ -1879,6 +2011,7 @@ namespace PlayniteAchievements.Models.Tests
             Assert.AreEqual(expected.CaptureDelaySeconds, actual.CaptureDelaySeconds);
             Assert.AreEqual(expected.MaxConcurrentToasts, actual.MaxConcurrentToasts);
             Assert.AreEqual(expected.ToastPosition, actual.ToastPosition);
+            Assert.AreEqual(expected.NotificationRenderMode, actual.NotificationRenderMode);
         }
     }
 }

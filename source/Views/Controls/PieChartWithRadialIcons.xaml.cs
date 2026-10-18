@@ -16,6 +16,9 @@ using LiveCharts.Wpf.Points;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
+using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.ViewModels.Items;
+using PlayniteAchievements.Views.Helpers;
 
 namespace PlayniteAchievements.Views.Controls
 {
@@ -28,6 +31,7 @@ namespace PlayniteAchievements.Views.Controls
         private const double IconCollisionPadding = 4.0;
         private const double SliceHighlightOffset = 5.0;
         private const double LiveChartsRotationOffset = 45.0;
+        private const double RingInnerRadius = 30.0;
         private static readonly Duration SliceAnimationDuration = new Duration(TimeSpan.FromMilliseconds(150));
         private static readonly PropertyInfo PiePointViewSliceProperty =
             typeof(PieSlice).Assembly
@@ -40,7 +44,9 @@ namespace PlayniteAchievements.Views.Controls
         private readonly List<PieSeries> subscribedSeries = new List<PieSeries>();
         private readonly List<INotifyPropertyChanged> subscribedLegendItems = new List<INotifyPropertyChanged>();
         private readonly List<INotifyPropertyChanged> subscribedSliceItems = new List<INotifyPropertyChanged>();
+        private const int MaxLegendRows = 8;
         private bool calculationScheduled;
+        private bool legendSyncScheduled;
         private string hoveredSliceLabel;
 
         private sealed class IconCandidate
@@ -59,6 +65,19 @@ namespace PlayniteAchievements.Views.Controls
         /// Provides the label of the clicked slice.
         /// </summary>
         public event EventHandler<string> SliceClick;
+
+        /// <summary>The same click as <see cref="SliceClick"/>, bubbled for hosts outside the control.</summary>
+        public static readonly RoutedEvent SliceClickedEvent = EventManager.RegisterRoutedEvent(
+            "SliceClicked",
+            RoutingStrategy.Bubble,
+            typeof(ChartClickEventHandler),
+            typeof(PieChartWithRadialIcons));
+
+        private void RaiseSliceClick(string label)
+        {
+            SliceClick?.Invoke(this, label);
+            RaiseEvent(new ChartClickEventArgs(SliceClickedEvent, this) { Label = label });
+        }
 
         public static readonly DependencyProperty PieSeriesProperty =
             DependencyProperty.Register(nameof(PieSeries), typeof(SeriesCollection), typeof(PieChartWithRadialIcons),
@@ -95,6 +114,29 @@ namespace PlayniteAchievements.Views.Controls
         public static readonly DependencyProperty ShowCenterPercentageProperty =
             DependencyProperty.Register(nameof(ShowCenterPercentage), typeof(bool), typeof(PieChartWithRadialIcons),
                 new PropertyMetadata(true, OnShowCenterPercentageChanged));
+
+        /// <summary>
+        /// When true, draws a full pie instead of a ring, so there is no center to hold the percentage.
+        /// </summary>
+        public static readonly DependencyProperty IsFilledProperty =
+            DependencyProperty.Register(nameof(IsFilled), typeof(bool), typeof(PieChartWithRadialIcons),
+                new PropertyMetadata(false, OnIsFilledChanged));
+
+        /// <summary>
+        /// When true, draws a legend of up to eight rows beside the pie, on the
+        /// <see cref="LegendPosition"/> side.
+        /// </summary>
+        public static readonly DependencyProperty ShowLegendProperty =
+            DependencyProperty.Register(nameof(ShowLegend), typeof(bool), typeof(PieChartWithRadialIcons),
+                new PropertyMetadata(false, OnLayoutPropertyChanged));
+
+        public static readonly DependencyProperty LegendPositionProperty =
+            DependencyProperty.Register(nameof(LegendPosition), typeof(PieLegendPosition), typeof(PieChartWithRadialIcons),
+                new PropertyMetadata(PieLegendPosition.Right));
+
+        public static readonly DependencyProperty ShowIconsProperty =
+            DependencyProperty.Register(nameof(ShowIcons), typeof(bool), typeof(PieChartWithRadialIcons),
+                new PropertyMetadata(true, OnLayoutPropertyChanged));
 
         private static readonly DependencyPropertyKey CenterPercentageTextPropertyKey =
             DependencyProperty.RegisterReadOnly(nameof(CenterPercentageText), typeof(string), typeof(PieChartWithRadialIcons),
@@ -174,6 +216,32 @@ namespace PlayniteAchievements.Views.Controls
             set => SetValue(ShowCenterPercentageProperty, value);
         }
 
+        public bool IsFilled
+        {
+            get => (bool)GetValue(IsFilledProperty);
+            set => SetValue(IsFilledProperty, value);
+        }
+
+        public bool ShowLegend
+        {
+            get => (bool)GetValue(ShowLegendProperty);
+            set => SetValue(ShowLegendProperty, value);
+        }
+
+        public PieLegendPosition LegendPosition
+        {
+            get => (PieLegendPosition)GetValue(LegendPositionProperty);
+            set => SetValue(LegendPositionProperty, value);
+        }
+
+        public ObservableCollection<PieLegendRowViewModel> LegendRows { get; } = new ObservableCollection<PieLegendRowViewModel>();
+
+        public bool ShowIcons
+        {
+            get => (bool)GetValue(ShowIconsProperty);
+            set => SetValue(ShowIconsProperty, value);
+        }
+
         public string CenterPercentageText
         {
             get => (string)GetValue(CenterPercentageTextProperty);
@@ -211,27 +279,81 @@ namespace PlayniteAchievements.Views.Controls
             InitializeComponent();
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
-            SizeChanged += OnSizeChanged;
+            // The pie's square changes size when the legend appears or changes width, even when
+            // the control itself keeps its size.
+            PieHost.SizeChanged += OnSizeChanged;
+            Chart.UpdaterTick += OnChartUpdated;
+            UpdateIconOverflowInset();
         }
 
         /// <summary>
-        /// Schedule position calculation to run after LiveCharts completes rendering.
-        /// Multiple calls are deduplicated to a single calculation.
+        /// Keeps the radial icons at rest inside this control's width so they do not reach a
+        /// neighboring pie's legend. The panel only shrinks the pie for it when the width, not the
+        /// height, limits the pie.
         /// </summary>
-        private void ScheduleCalculation()
+        private void UpdateIconOverflowInset()
         {
+            var margin = PieMargin;
+            var overflow = IconOffset + (IconSize / 2.0) - Math.Min(margin.Left, margin.Right);
+            LayoutPanel.HorizontalInset = ShowIcons ? Math.Max(0, overflow) : 0;
+        }
+
+        /// <summary>
+        /// Rebuilds the legend rows ahead of the next layout pass, so the legend's new width and the
+        /// pie's new size settle in one pass instead of after the deferred position calculation.
+        /// </summary>
+        private void ScheduleLegendSync()
+        {
+            if (legendSyncScheduled)
+            {
+                return;
+            }
+
+            legendSyncScheduled = true;
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.DataBind, new Action(() =>
+            {
+                legendSyncScheduled = false;
+                SynchronizeLegendRows();
+            }));
+        }
+
+        /// <summary>
+        /// Schedules the icon, center percentage and slice offset positions. Multiple calls are
+        /// deduplicated to a single calculation.
+        /// </summary>
+        /// <remarks>
+        /// Runs at DataBind, ahead of the next render, so new slices, their icons and the center
+        /// percentage appear in the same frame. After new values the chart is redrawn first
+        /// rather than left to LiveCharts' own timer, because the slice offsets are applied to
+        /// the slices it draws. Waiting for an idle pass instead put the icons a frame or more
+        /// behind the slices, and behind any filter pass queued meanwhile.
+        /// </remarks>
+        private void ScheduleCalculation(bool dataChanged = false)
+        {
+            chartDataChanged |= dataChanged;
             if (calculationScheduled)
             {
                 return;
             }
             calculationScheduled = true;
-            // Use ContextIdle to ensure we run after LiveCharts render pass completes
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, new Action(() =>
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.DataBind, new Action(() =>
             {
                 calculationScheduled = false;
+                if (chartDataChanged && IsLoaded)
+                {
+                    chartDataChanged = false;
+                    // The legend rows and the layout they cause come first, so the chart draws
+                    // at the size it keeps rather than full width and then shrinking.
+                    SynchronizeLegendRows();
+                    UpdateLayout();
+                    Chart.Update(false, true);
+                }
+
                 CalculatePositions();
             }));
         }
+
+        private bool chartDataChanged;
 
         private static void OnPieSeriesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
@@ -246,7 +368,7 @@ namespace PlayniteAchievements.Views.Controls
                 newSeries.CollectionChanged += control.OnSeriesCollectionChanged;
                 control.SubscribeToSeries(newSeries);
             }
-            control.ScheduleCalculation();
+            control.ScheduleCalculation(dataChanged: true);
         }
 
         private void UnsubscribeFromSeries()
@@ -290,14 +412,14 @@ namespace PlayniteAchievements.Views.Controls
             if (e.PropertyName == "Values")
             {
                 RefreshSliceDataSubscriptions();
-                ScheduleCalculation();
+                ScheduleCalculation(dataChanged: true);
             }
         }
 
         private void OnChartValuesChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             RefreshSliceDataSubscriptions();
-            ScheduleCalculation();
+            ScheduleCalculation(dataChanged: true);
         }
 
         private static void OnLegendItemsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -319,12 +441,16 @@ namespace PlayniteAchievements.Views.Controls
             {
                 control.UnsubscribeFromLegendItems();
             }
+            control.ScheduleLegendSync();
             control.ScheduleCalculation();
         }
 
         private static void OnLayoutPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            ((PieChartWithRadialIcons)d).ScheduleCalculation();
+            var control = (PieChartWithRadialIcons)d;
+            control.UpdateIconOverflowInset();
+            control.ScheduleLegendSync();
+            control.ScheduleCalculation();
         }
 
         private static void OnHighlightedLabelsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -358,20 +484,129 @@ namespace PlayniteAchievements.Views.Controls
             control.ScheduleCalculation();
         }
 
+        private static void OnIsFilledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var control = (PieChartWithRadialIcons)d;
+            control.Chart.InnerRadius = (bool)e.NewValue ? 0 : RingInnerRadius;
+        }
+
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             AttachCurrentSources();
+            AttachTooltip();
             ScheduleCalculation();
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             DetachCurrentSources();
+            DetachTooltip();
         }
 
+        // The hover tooltip, shown in the window's adorner layer in place of LiveCharts' Popup
+        // (see ChartTooltipAdorner). A window without an adorner layer keeps the Popup.
+        private PieChartTooltip _tooltip;
+        private ChartTooltipAdorner _tooltipAdorner;
+
+        // The layer the adorner was added to. Unloaded can run after the chart has left the
+        // tree, when looking the layer up again finds none.
+        private System.Windows.Documents.AdornerLayer _tooltipLayer;
+
+        /// <summary>How far LiveCharts sets a pie tooltip off the center toward the slice.</summary>
+        private const double TooltipCenterOffset = 15.0;
+
+        private void AttachTooltip()
+        {
+            if (_tooltipAdorner != null || !(System.Windows.Documents.AdornerLayer.GetAdornerLayer(PieHost) is System.Windows.Documents.AdornerLayer layer))
+            {
+                return;
+            }
+
+            _tooltip = _tooltip ?? new PieChartTooltip();
+            _tooltipAdorner = new ChartTooltipAdorner(PieHost, _tooltip) { Visibility = Visibility.Collapsed };
+            layer.Add(_tooltipAdorner);
+            _tooltipLayer = layer;
+            Chart.DataTooltip = null;
+        }
+
+        /// <summary>
+        /// Removes the adorner and frees the tooltip, which the next Loaded hands to a new adorner:
+        /// a chart reloaded in place (switching back to the start page) would otherwise give a
+        /// tooltip that still has a parent to a second one, which WPF rejects.
+        /// </summary>
+        private void DetachTooltip()
+        {
+            if (_tooltipAdorner == null)
+            {
+                return;
+            }
+
+            _tooltipLayer?.Remove(_tooltipAdorner);
+            _tooltipAdorner.ReleaseTooltip();
+            _tooltipAdorner = null;
+            _tooltipLayer = null;
+        }
+
+        /// <summary>
+        /// Shows the hovered slice's tooltip where LiveCharts put its own: a little off the pie's
+        /// center toward the slice, on the side of the center the slice is on. The content and
+        /// the position are set together, so they change in the same frame.
+        /// </summary>
+        private void ShowTooltip(ChartPoint point)
+        {
+            if (_tooltipAdorner == null || !(point?.SeriesView is PieSeries series))
+            {
+                return;
+            }
+
+            var slice = GetPieSlice(series);
+            if (slice == null || !TryGetPieCenter(new[] { series }, out var center))
+            {
+                HideTooltip();
+                return;
+            }
+
+            _tooltip.Points = new List<DataPointViewModel>
+            {
+                new DataPointViewModel
+                {
+                    ChartPoint = point,
+                    Series = new SeriesViewModel { Title = series.Title, Fill = series.Fill, Stroke = series.Stroke }
+                }
+            };
+            // LiveCharts' own placement (PieChart.GetTooltipPosition), from the pie's center. It
+            // shifts by the tooltip's size, so it runs once the new content has been measured.
+            var angle = SliceMidAngle(slice, 0);
+            var radians = (angle + 180.0) * Math.PI / 180.0;
+            _tooltipAdorner.Place(size => new Point(
+                center.X + (angle > 0.0 && angle < 180.0 ? -size.Width : 0) + (Math.Sin(radians) * TooltipCenterOffset),
+                center.Y + (angle > 90.0 && angle < 270.0 ? -size.Height : 0) - (Math.Cos(radians) * TooltipCenterOffset)));
+            _tooltipAdorner.Visibility = Visibility.Visible;
+        }
+
+        private void HideTooltip()
+        {
+            if (_tooltipAdorner != null)
+            {
+                _tooltipAdorner.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // Off the slices (the hole, the gaps, the margin) the tooltip goes, as LiveCharts' did
+        // when the mouse left a slice. Over a slice the topmost element is its hover shape.
+        private void OnPieChartMouseMove(object sender, MouseEventArgs e)
+        {
+            if (!(e.OriginalSource is PieSlice))
+            {
+                HideTooltip();
+            }
+        }
+
+        // A new size redraws the slices now; LiveCharts' own redraw comes on its timer, frames
+        // after the pie's square has already changed.
         private void OnSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            ScheduleCalculation();
+            ScheduleCalculation(dataChanged: true);
         }
 
         private void AttachCurrentSources()
@@ -431,12 +666,13 @@ namespace PlayniteAchievements.Views.Controls
             {
                 SubscribeToSeries(PieSeries);
             }
-            ScheduleCalculation();
+            ScheduleCalculation(dataChanged: true);
         }
 
         private void OnLegendItemsCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             RefreshLegendItemSubscriptions();
+            ScheduleLegendSync();
             ScheduleCalculation();
         }
 
@@ -476,7 +712,7 @@ namespace PlayniteAchievements.Views.Controls
 
         private void OnSliceDataPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            ScheduleCalculation();
+            ScheduleCalculation(dataChanged: true);
         }
 
         private void RefreshLegendItemSubscriptions()
@@ -507,14 +743,17 @@ namespace PlayniteAchievements.Views.Controls
 
         private void OnLegendItemPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
+            ScheduleLegendSync();
             ScheduleCalculation();
         }
 
         private void CalculatePositions()
         {
+            SynchronizeLegendRows();
+
             var margin = Chart?.Margin ?? new Thickness(0);
-            double availableWidth = Math.Max(0, ActualWidth - margin.Left - margin.Right);
-            double availableHeight = Math.Max(0, ActualHeight - margin.Top - margin.Bottom);
+            double availableWidth = Math.Max(0, PieHost.ActualWidth - margin.Left - margin.Right);
+            double availableHeight = Math.Max(0, PieHost.ActualHeight - margin.Top - margin.Bottom);
             double controlSize = Math.Min(availableWidth, availableHeight);
             if (controlSize <= 0)
             {
@@ -576,25 +815,26 @@ namespace PlayniteAchievements.Views.Controls
             for (int i = 0; i < chartValues.Count && i < LegendItems.Count; i++)
             {
                 double sliceArc = (chartValues[i] / totalValue) * 360.0;
-                double midpointAngle = currentAngle + (sliceArc / 2.0);
-                double angleRadians = midpointAngle * Math.PI / 180.0;
-
                 var legend = LegendItems[i];
                 var series = seriesList[i];
+                var slice = GetPieSlice(series);
+                double midpointAngle = SliceMidAngle(slice, currentAngle + (sliceArc / 2.0));
+                double angleRadians = midpointAngle * Math.PI / 180.0;
+
                 var isHighlighted = !string.IsNullOrWhiteSpace(series?.Title) && highlighted.Contains(series.Title);
                 var highlightOffset = isHighlighted ? SliceHighlightOffset : 0.0;
                 var offsetX = highlightOffset * Math.Sin(angleRadians);
                 var offsetY = -highlightOffset * Math.Cos(angleRadians);
 
                 // Collect slice transform data for batch application
-                var slice = GetPieSlice(series);
                 if (slice != null)
                 {
                     sliceTransformData.Add((slice, offsetX, offsetY));
                 }
 
                 // Only show icon if count > 0
-                var shouldShowRadialIcon = legend.Count > 0 &&
+                var shouldShowRadialIcon = ShowIcons &&
+                    legend.Count > 0 &&
                     (i >= sliceData.Count || sliceData[i]?.ShowRadialIcon != false);
                 if (shouldShowRadialIcon)
                 {
@@ -695,63 +935,53 @@ namespace PlayniteAchievements.Views.Controls
 
         private void UpdateCenterPercentageOffset(IReadOnlyList<PieSeries> seriesList)
         {
-            if (!TryGetRenderedPieBounds(seriesList, out var pieBounds))
+            if (!TryGetPieCenter(seriesList, out var center))
             {
                 ClearCenterPercentageOffset();
                 return;
             }
 
-            CenterPercentageOffsetX = (pieBounds.Left + (pieBounds.Width / 2.0)) - (ActualWidth / 2.0);
-            CenterPercentageOffsetY = (pieBounds.Top + (pieBounds.Height / 2.0)) - (ActualHeight / 2.0);
+            CenterPercentageOffsetX = center.X - (PieHost.ActualWidth / 2.0);
+            CenterPercentageOffsetY = center.Y - (PieHost.ActualHeight / 2.0);
+        }
+
+        /// <summary>
+        /// The pie's center in PieHost coordinates: LiveCharts draws every slice around its own
+        /// origin and places that origin, via Canvas.Left and Top, at the center. Unlike the
+        /// slices' rendered bounds, this holds before the redrawn slices render and is not
+        /// pulled toward a popped-out slice.
+        /// </summary>
+        private bool TryGetPieCenter(IReadOnlyList<PieSeries> seriesList, out Point center)
+        {
+            center = default(Point);
+            foreach (var series in seriesList ?? Array.Empty<PieSeries>())
+            {
+                var slice = GetPieSlice(series);
+                var left = slice != null ? Canvas.GetLeft(slice) : double.NaN;
+                var top = slice != null ? Canvas.GetTop(slice) : double.NaN;
+                if (double.IsNaN(left) || double.IsNaN(top) || !(VisualTreeHelper.GetParent(slice) is Visual parent))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    center = parent.TransformToAncestor(PieHost).Transform(new Point(left, top));
+                    return true;
+                }
+                catch (InvalidOperationException)
+                {
+                    // Not under PieHost (between a series swap and the next draw).
+                }
+            }
+
+            return false;
         }
 
         private void ClearCenterPercentageOffset()
         {
             CenterPercentageOffsetX = 0;
             CenterPercentageOffsetY = 0;
-        }
-
-        private bool TryGetRenderedPieBounds(IReadOnlyList<PieSeries> seriesList, out Rect pieBounds)
-        {
-            pieBounds = Rect.Empty;
-            if (seriesList == null || seriesList.Count == 0)
-            {
-                return false;
-            }
-
-            foreach (var series in seriesList)
-            {
-                var slice = GetPieSlice(series);
-                if (slice == null)
-                {
-                    continue;
-                }
-
-                Rect bounds;
-                try
-                {
-                    var localBounds = VisualTreeHelper.GetDescendantBounds(slice);
-                    if (localBounds.IsEmpty)
-                    {
-                        continue;
-                    }
-
-                    bounds = slice.TransformToAncestor(this).TransformBounds(localBounds);
-                }
-                catch
-                {
-                    continue;
-                }
-
-                if (slice.RenderTransform is TranslateTransform translate)
-                {
-                    bounds.Offset(-translate.X, -translate.Y);
-                }
-
-                pieBounds = pieBounds.IsEmpty ? bounds : Rect.Union(pieBounds, bounds);
-            }
-
-            return !pieBounds.IsEmpty;
         }
 
         private void ApplySliceTransformsBatch(List<(PieSlice Slice, double OffsetX, double OffsetY)> transformData)
@@ -804,13 +1034,25 @@ namespace PlayniteAchievements.Views.Controls
             // Get the label from the PieSeries that was clicked
             if (chartPoint.SeriesView is PieSeries series && !string.IsNullOrEmpty(series.Title))
             {
-                SliceClick?.Invoke(this, series.Title);
+                RaiseSliceClick(series.Title);
             }
         }
 
         private void OnPieChartDataHover(object sender, ChartPoint chartPoint)
         {
-            var nextHoveredSliceLabel = (chartPoint?.SeriesView as PieSeries)?.Title;
+            SetHoveredSlice((chartPoint?.SeriesView as PieSeries)?.Title);
+            ShowTooltip(chartPoint);
+        }
+
+        private void OnPieChartMouseLeave(object sender, MouseEventArgs e)
+        {
+            SetHoveredSlice(null);
+            HideTooltip();
+        }
+
+        private void SetHoveredSlice(string label)
+        {
+            var nextHoveredSliceLabel = string.IsNullOrEmpty(label) ? null : label;
             if (string.Equals(hoveredSliceLabel, nextHoveredSliceLabel, StringComparison.Ordinal))
             {
                 return;
@@ -820,15 +1062,52 @@ namespace PlayniteAchievements.Views.Controls
             ApplySliceTransforms();
         }
 
-        private void OnPieChartMouseLeave(object sender, MouseEventArgs e)
+        private void OnLegendRowMouseEnter(object sender, MouseEventArgs e)
         {
-            if (string.IsNullOrEmpty(hoveredSliceLabel))
+            SetHoveredSlice(((sender as FrameworkElement)?.DataContext as PieLegendRowViewModel)?.Label);
+        }
+
+        private void OnLegendRowMouseLeave(object sender, MouseEventArgs e)
+        {
+            SetHoveredSlice(null);
+        }
+
+        private void OnLegendRowMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            var label = ((sender as FrameworkElement)?.DataContext as PieLegendRowViewModel)?.Label;
+            if (!string.IsNullOrEmpty(label))
             {
-                return;
+                RaiseSliceClick(label);
+            }
+        }
+
+        /// <summary>
+        /// Updates the legend rows in place by index, adding or removing only the rows the count
+        /// changed by, so a data change neither regenerates row visuals nor drops the row under
+        /// the mouse.
+        /// </summary>
+        private void SynchronizeLegendRows()
+        {
+            var items = ShowLegend
+                ? (LegendItems ?? Enumerable.Empty<LegendItem>()).Where(item => item != null).Take(MaxLegendRows).ToList()
+                : new List<LegendItem>();
+
+            while (LegendRows.Count > items.Count)
+            {
+                LegendRows.RemoveAt(LegendRows.Count - 1);
             }
 
-            hoveredSliceLabel = null;
-            ApplySliceTransforms();
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (i < LegendRows.Count)
+                {
+                    LegendRows[i].Update(items[i]);
+                }
+                else
+                {
+                    LegendRows.Add(new PieLegendRowViewModel(items[i]));
+                }
+            }
         }
 
         private static List<PieIconPosition> ResolveIconPositions(IReadOnlyList<IconCandidate> candidates)
@@ -974,11 +1253,11 @@ namespace PlayniteAchievements.Views.Controls
                 var series = seriesList[i];
                 var sliceValue = i < chartValues.Count ? chartValues[i] : 0;
                 var sliceArc = (sliceValue / totalValue) * 360.0;
-                var midpointAngle = currentAngle + (sliceArc / 2.0);
+                var slice = GetPieSlice(series);
+                var midpointAngle = SliceMidAngle(slice, currentAngle + (sliceArc / 2.0));
                 var angleRadians = midpointAngle * Math.PI / 180.0;
                 var isHighlighted = !string.IsNullOrWhiteSpace(series.Title) && highlighted.Contains(series.Title);
                 var offset = isHighlighted ? SliceHighlightOffset : 0.0;
-                var slice = GetPieSlice(series);
                 var offsetX = offset * Math.Sin(angleRadians);
                 var offsetY = -offset * Math.Cos(angleRadians);
 
@@ -996,6 +1275,18 @@ namespace PlayniteAchievements.Views.Controls
             }
 
             ApplyIconOffsets(iconOffsets);
+        }
+
+        /// <summary>
+        /// The middle of a drawn slice, in degrees clockwise from the top: the slice's own angles
+        /// as LiveCharts set them, so a pop-out runs straight out of the slice that is drawn. The
+        /// angle worked out from the values stands in until the slice exists.
+        /// </summary>
+        private static double SliceMidAngle(PieSlice slice, double fallback)
+        {
+            return slice != null && slice.WedgeAngle > 0
+                ? slice.RotationAngle + (slice.WedgeAngle / 2.0)
+                : fallback;
         }
 
         private void ClearSliceTransforms()
@@ -1069,6 +1360,13 @@ namespace PlayniteAchievements.Views.Controls
             }
         }
 
+        /// <summary>
+        /// Highlights a slice by moving its outer edge past the ring, and its inner edge away
+        /// from the center, by the length of (<paramref name="x"/>, <paramref name="y"/>), the same offset
+        /// its icon moves by. The
+        /// slice's sides stay on its neighbours' edges, so no slice slides and the separators
+        /// stay even whatever the slice's angle.
+        /// </summary>
         private static void SetSliceTransform(PieSlice slice, double x, double y)
         {
             if (slice == null)
@@ -1076,41 +1374,154 @@ namespace PlayniteAchievements.Views.Controls
                 return;
             }
 
-            if (!(slice.RenderTransform is TranslateTransform transform))
-            {
-                transform = new TranslateTransform();
-                slice.RenderTransform = transform;
-            }
-
-            AnimateTransformAxis(transform, TranslateTransform.XProperty, x);
-            AnimateTransformAxis(transform, TranslateTransform.YProperty, y);
-        }
-
-        private static void AnimateTransformAxis(TranslateTransform transform, DependencyProperty property, double target)
-        {
-            var current = property == TranslateTransform.XProperty ? transform.X : transform.Y;
+            var target = Math.Sqrt((x * x) + (y * y));
+            var current = (double)slice.GetValue(SliceGrowthProperty);
             if (Math.Abs(current - target) < 0.01)
             {
-                if (property == TranslateTransform.XProperty)
-                {
-                    transform.X = target;
-                }
-                else
-                {
-                    transform.Y = target;
-                }
+                slice.BeginAnimation(SliceGrowthProperty, null);
+                slice.SetValue(SliceGrowthProperty, target);
                 return;
             }
 
-            var animation = new DoubleAnimation
+            var animation = AnimationFrameRate.Apply(new DoubleAnimation
             {
                 To = target,
                 Duration = SliceAnimationDuration,
                 EasingFunction = SliceAnimationEasing,
                 FillBehavior = FillBehavior.HoldEnd
-            };
+            });
 
-            transform.BeginAnimation(property, animation, HandoffBehavior.SnapshotAndReplace);
+            slice.BeginAnimation(SliceGrowthProperty, animation, HandoffBehavior.SnapshotAndReplace);
+        }
+
+        /// <summary>How far a slice's outer edge reaches past the pie's radius; animated.</summary>
+        private static readonly DependencyProperty SliceGrowthProperty = DependencyProperty.RegisterAttached(
+            "SliceGrowth",
+            typeof(double),
+            typeof(PieChartWithRadialIcons),
+            new PropertyMetadata(0.0, (d, e) => ApplySliceGrowth(d as PieSlice)));
+
+        /// <summary>The pie's radius as LiveCharts last drew the slice, before any growth.</summary>
+        private static readonly DependencyProperty SliceBaseRadiusProperty = DependencyProperty.RegisterAttached(
+            "SliceBaseRadius",
+            typeof(double),
+            typeof(PieChartWithRadialIcons),
+            new PropertyMetadata(double.NaN));
+
+        /// <summary>The ring's inner radius as LiveCharts last drew the slice, before any growth.</summary>
+        private static readonly DependencyProperty SliceBaseInnerRadiusProperty = DependencyProperty.RegisterAttached(
+            "SliceBaseInnerRadius",
+            typeof(double),
+            typeof(PieChartWithRadialIcons),
+            new PropertyMetadata(double.NaN));
+
+        // Both edges move out by the growth: the outer one past the ring and the inner one away
+        // from the center, so the slice lifts off the hole as well.
+        /// <summary>The control a slice belongs to, so a growth step can move its outline too.</summary>
+        private static readonly DependencyProperty SliceOwnerProperty = DependencyProperty.RegisterAttached(
+            "SliceOwner",
+            typeof(PieChartWithRadialIcons),
+            typeof(PieChartWithRadialIcons),
+            new PropertyMetadata(null));
+
+        /// <summary>The separator thickness LiveCharts gives pie slices.</summary>
+        private const double SliceOutlineThickness = 2.0;
+
+        /// <summary>
+        /// Outlines a lone slice's outer and inner edges, which its own separator would draw
+        /// with a seam at its start angle. Each circle's stroke straddles the edge as a slice's
+        /// outline does; an ellipse draws its stroke inside its bounds, hence the half-stroke
+        /// padding. Hidden whenever two or more slices have values.
+        /// </summary>
+        private void UpdateSingleSliceOutline()
+        {
+            var drawn = (PieSeries?.OfType<PieSeries>() ?? Enumerable.Empty<PieSeries>())
+                .Where(series => (series.Values as ChartValues<PieSliceChartData>)?.FirstOrDefault()?.ChartValue > 0)
+                .Take(2)
+                .ToList();
+            var slice = drawn.Count == 1 ? GetPieSlice(drawn[0]) : null;
+            if (slice == null || slice.Radius <= 0 || !TryGetPieCenter(drawn, out var center))
+            {
+                SingleSliceOuterOutline.Visibility = Visibility.Collapsed;
+                SingleSliceInnerOutline.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            PlaceOutline(SingleSliceOuterOutline, center, slice.Radius);
+            PlaceOutline(SingleSliceInnerOutline, center, slice.InnerRadius);
+        }
+
+        private static void PlaceOutline(System.Windows.Shapes.Ellipse outline, Point center, double radius)
+        {
+            if (radius <= 0)
+            {
+                outline.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var reach = radius + (SliceOutlineThickness / 2.0);
+            outline.StrokeThickness = SliceOutlineThickness;
+            outline.Width = reach * 2;
+            outline.Height = reach * 2;
+            Canvas.SetLeft(outline, center.X - reach);
+            Canvas.SetTop(outline, center.Y - reach);
+            outline.Visibility = Visibility.Visible;
+        }
+
+        private static void ApplySliceGrowth(PieSlice slice)
+        {
+            if (slice == null)
+            {
+                return;
+            }
+
+            var baseRadius = (double)slice.GetValue(SliceBaseRadiusProperty);
+            if (double.IsNaN(baseRadius))
+            {
+                baseRadius = slice.Radius;
+                slice.SetValue(SliceBaseRadiusProperty, baseRadius);
+            }
+
+            var baseInnerRadius = (double)slice.GetValue(SliceBaseInnerRadiusProperty);
+            if (double.IsNaN(baseInnerRadius))
+            {
+                baseInnerRadius = slice.InnerRadius;
+                slice.SetValue(SliceBaseInnerRadiusProperty, baseInnerRadius);
+            }
+
+            var growth = (double)slice.GetValue(SliceGrowthProperty);
+            slice.Radius = baseRadius + growth;
+            slice.InnerRadius = baseInnerRadius + growth;
+            (slice.GetValue(SliceOwnerProperty) as PieChartWithRadialIcons)?.UpdateSingleSliceOutline();
+        }
+
+        // Every LiveCharts draw sets each slice's radius back to the pie's, so the growth goes
+        // back on right after, in the same pass, before the frame renders. A draw can also move
+        // the pie's center (LiveCharts redraws on its own after a resize, later than the resize
+        // recalculation here), so the center percentage follows it from the same place.
+        private void OnChartUpdated(object sender)
+        {
+            var seriesList = PieSeries?.OfType<PieSeries>().ToList() ?? new List<PieSeries>();
+            if (ShowCenterPercentage)
+            {
+                UpdateCenterPercentageOffset(seriesList);
+            }
+
+            foreach (var series in seriesList)
+            {
+                var slice = GetPieSlice(series);
+                if (slice == null)
+                {
+                    continue;
+                }
+
+                slice.SetValue(SliceOwnerProperty, this);
+                slice.SetValue(SliceBaseRadiusProperty, slice.Radius);
+                slice.SetValue(SliceBaseInnerRadiusProperty, slice.InnerRadius);
+                ApplySliceGrowth(slice);
+            }
+
+            UpdateSingleSliceOutline();
         }
     }
 }

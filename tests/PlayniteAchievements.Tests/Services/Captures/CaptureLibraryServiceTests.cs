@@ -195,5 +195,51 @@ namespace PlayniteAchievements.Services.Tests.Captures
 
             Assert.AreEqual(2, service.ScanGame("Portal").Groups.Count);
         }
+
+        [TestMethod]
+        public void GameOwnCaptureFolder_IsScannedAlongsideTheBaseLayout()
+        {
+            // The game's own folder holds its captures directly, with no game subfolder.
+            var own = Path.Combine(_root, "Elsewhere");
+            Directory.CreateDirectory(own);
+            File.WriteAllText(Path.Combine(own, "002_Companion.png"), "x");
+            WriteCapture("Portal", "001_Cake.png");
+            var service = new CaptureLibraryService(
+                () => _captures.Settings,
+                null,
+                watchForChanges: false,
+                gameDirectoriesAccessor: () => new System.Collections.Generic.Dictionary<string, string> { ["Portal"] = own });
+
+            Assert.AreEqual(2, service.ScanGame("Portal").Groups.Count);
+            Assert.IsTrue(service.GameFolderHasCaptures("Portal"));
+        }
+
+        [TestMethod]
+        public void GameOwnCaptureFolder_AloneMarksTheGameAsHavingCaptures()
+        {
+            var own = Path.Combine(Path.GetDirectoryName(_root), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(own);
+            try
+            {
+                File.WriteAllText(Path.Combine(own, "001_Cake.png"), "x");
+                var map = new System.Collections.Generic.Dictionary<string, string>();
+                var service = new CaptureLibraryService(
+                    () => _captures.Settings,
+                    null,
+                    watchForChanges: false,
+                    gameDirectoriesAccessor: () => map);
+                Assert.IsFalse(service.GameFolderHasCaptures("Portal"));
+
+                map["Portal"] = own;
+                service.RefreshGameDirectories();
+
+                Assert.IsTrue(service.GameFolderHasCaptures("Portal"));
+                Assert.AreEqual(1, service.ScanGame("Portal").Groups.Count);
+            }
+            finally
+            {
+                Directory.Delete(own, recursive: true);
+            }
+        }
     }
 }

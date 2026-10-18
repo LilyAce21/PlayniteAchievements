@@ -71,6 +71,9 @@ namespace PlayniteAchievements.Services.UI
             public DateTime LastDiscoveryUtc;
             public string NormalizedInstallDirectory;
 
+            /// <summary>The last presentation window logged, so a change is logged once.</summary>
+            public IntPtr LoggedPresentationHwnd;
+
             /// <summary>
             /// Every process attributed to this game so far, seeded with the one Playnite started.
             /// Grow-only and per-session: it is what lets a chain still reach the game after the
@@ -396,6 +399,44 @@ namespace PlayniteAchievements.Services.UI
             }
 
             return TryGetWindowHandle(gameId);
+        }
+
+        /// <summary>
+        /// The window the game's picture is presented in: the one to place a notification over and
+        /// to capture. Starts from <see cref="TryGetFocusedWindowHandle"/> when
+        /// <paramref name="focusFirst"/> (a still capture or a notification, taken while the player
+        /// is in the game), else from <see cref="TryGetWindowHandle"/> (the recorder's durable
+        /// target), then resolves any presentation window the game stacks above it (see
+        /// <see cref="GamePresentationWindow"/>). IntPtr.Zero when no game window resolves.
+        /// </summary>
+        public IntPtr ResolvePresentationWindow(Guid gameId, bool focusFirst)
+        {
+            var baseHwnd = focusFirst ? TryGetFocusedWindowHandle(gameId) : TryGetWindowHandle(gameId);
+            var presentation = GamePresentationWindow.Resolve(baseHwnd);
+            if (presentation == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            string game = null;
+            lock (_sync)
+            {
+                if (_tracked.TryGetValue(gameId, out var tracked) && tracked.LoggedPresentationHwnd != presentation)
+                {
+                    tracked.LoggedPresentationHwnd = presentation;
+                    game = tracked.Game?.Name;
+                }
+            }
+
+            if (game != null && presentation != baseHwnd)
+            {
+                _logger?.Info(
+                    $"[WindowTracker] '{game}' presents through 0x{presentation.ToInt64():X} " +
+                    $"class:'{TryGetWindowClass(presentation)}', stacked above its window 0x{baseHwnd.ToInt64():X} " +
+                    $"class:'{TryGetWindowClass(baseHwnd)}' title:'{TryGetWindowTitle(baseHwnd)}'.");
+            }
+
+            return presentation;
         }
 
         private bool IsRediscoveryDueLocked(TrackedGame tracked)

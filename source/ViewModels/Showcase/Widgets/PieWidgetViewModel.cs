@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows.Media;
 using Playnite.SDK;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
@@ -12,88 +11,95 @@ using PlayniteAchievements.ViewModels.Items;
 
 namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 {
-    /// <summary>A pie legend row: color swatch, label, and formatted count.</summary>
-    public sealed class PieLegendRowViewModel
-    {
-        public PieLegendRowViewModel(LegendItem item)
-        {
-            Label = item?.Label ?? string.Empty;
-            CountText = (item?.Count ?? 0).ToString("N0", FormattingCulture.Current);
-            Swatch = CreateSwatch(item?.ColorHex);
-        }
-
-        public Brush Swatch { get; }
-
-        public string Label { get; }
-
-        public string CountText { get; }
-
-        private static Brush CreateSwatch(string colorHex)
-        {
-            try
-            {
-                if (!string.IsNullOrWhiteSpace(colorHex) &&
-                    new BrushConverter().ConvertFromString(colorHex) is Brush brush)
-                {
-                    if (brush.CanFreeze)
-                    {
-                        brush.Freeze();
-                    }
-
-                    return brush;
-                }
-            }
-            catch
-            {
-                // Fall through to a neutral swatch when the provider color cannot be parsed.
-            }
-
-            var fallback = new SolidColorBrush(Colors.Gray);
-            fallback.Freeze();
-            return fallback;
-        }
-    }
-
     /// <summary>
     /// Backs the Pie widget by reusing PieChartWithRadialIcons/PieChartViewModel. Builds the chart
-    /// for the configured distribution (completed games / provider / rarity / trophy) plus an
-    /// optional legend (a per-widget setting) capped to 8 rows. A fresh chart is produced per
-    /// refresh so the bound control always reflects the latest data.
+    /// for the configured distribution (completed games / provider / rarity / trophy); the legend
+    /// and its side are per-widget settings that the chart control renders. A fresh chart is
+    /// produced per refresh so the bound control always reflects the latest data. The widget's
+    /// control bar filters the games the totals are computed from, so a pie can cover a single
+    /// platform or progress bucket.
     /// </summary>
     public sealed class PieWidgetViewModel : ShowcaseWidgetViewModelBase, IDisposable
     {
+        // The widget instance's shared adapter, so the filters survive view model swaps.
+        private readonly ShowcaseControlBarSlot<PieControlBarAdapter> _controlBarSlot;
         private PieChartViewModel _chart = new PieChartViewModel();
-        private bool _showCenterPercentage = true;
-        private bool _showLegend = true;
+        private GridControlBarViewModel _controlBar;
+        private bool _showControlBar;
+
+        public PieWidgetViewModel()
+        {
+            _controlBarSlot = new ShowcaseControlBarSlot<PieControlBarAdapter>(Refresh);
+        }
 
         public PieChartViewModel Chart { get => _chart; private set => SetValue(ref _chart, value); }
 
-        /// <summary>Per-widget option; the legend shows at every size when enabled.</summary>
-        public bool ShowLegend { get => _showLegend; private set => SetValue(ref _showLegend, value); }
-
-        /// <summary>Per-widget option; replaces the retired global pie display settings.</summary>
-        public bool ShowCenterPercentage
+        /// <summary>Game filter bar shown when the widget's Show Control Bar option is on.</summary>
+        public GridControlBarViewModel ControlBar
         {
-            get => _showCenterPercentage;
-            private set => SetValue(ref _showCenterPercentage, value);
+            get => _controlBar;
+            private set => SetValue(ref _controlBar, value);
         }
 
-        public BulkObservableCollection<PieLegendRowViewModel> LegendRows { get; } =
-            new BulkObservableCollection<PieLegendRowViewModel>();
+        public bool ShowControlBar
+        {
+            get => _showControlBar;
+            private set => SetValue(ref _showControlBar, value);
+        }
+
+        public ShowcasePieMode Mode { get; private set; }
+
+        // What the current chart was built from, so a highlight-only refresh can keep it.
+        private OverviewDataSnapshot _chartSnapshot;
+        private string _chartOptionsKey;
+
+        private static string OptionsKey(ShowcaseWidgetInstanceSettings instance) =>
+            string.Join(
+                "\u001f",
+                (instance?.Options ?? new Dictionary<string, string>())
+                    .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(pair => pair.Key + "=" + pair.Value));
 
         protected override void Refresh()
         {
-            var snapshot = Projection?.Snapshot ?? new OverviewDataSnapshot();
+            // A linked pie's snapshot already follows the overview's filters; its own control bar
+            // narrows that further.
+            var linked = Projection?.IsLinked == true;
+            ShowControlBar = ShowcaseWidgetOptions.GetPieShowControlBar(Projection?.Instance);
+            var snapshot = ApplyControlBarFilter(Projection?.Snapshot ?? new OverviewDataSnapshot(), linked);
             var mode = ShowcaseWidgetOptions.GetPieMode(Projection?.Instance);
-            ShowCenterPercentage = ShowcaseWidgetOptions.GetPieShowCenterPercentage(Projection?.Instance);
-            ShowLegend = ShowcaseWidgetOptions.GetPieShowLegend(Projection?.Instance);
-            var chart = new PieChartViewModel
+            Mode = mode;
+
+            // A linked pie is reprojected when the overview's selection moves even though its
+            // data did not; then only the highlight changes, and rebuilding the chart would
+            // redraw every slice for it.
+            var optionsKey = OptionsKey(Projection?.Instance);
+            if (linked &&
+                Chart != null &&
+                ReferenceEquals(snapshot, _chartSnapshot) &&
+                string.Equals(optionsKey, _chartOptionsKey, StringComparison.Ordinal))
+            {
+                Chart.SetSelectedLabels((Projection.LinkedSliceKeys ?? Array.Empty<string>())
+                    .Select(key => LabelForSliceKey(Chart, mode, key)));
+                return;
+            }
+
+            // New data under the same options goes into the chart already shown: its Set*Data
+            // calls sync the slices and legend in place, where a fresh chart view model hands
+            // the control a new series collection that it redraws (and animates) from nothing.
+            var reuse = Chart != null && string.Equals(optionsKey, _chartOptionsKey, StringComparison.Ordinal);
+            _chartSnapshot = linked ? snapshot : null;
+            _chartOptionsKey = optionsKey;
+            var chart = reuse ? Chart : new PieChartViewModel
             {
                 // Both are applied by each Set*Data call, so they must be assigned before
                 // the data.
                 SmallSliceMode = ShowcaseWidgetOptions.GetPieSmallSliceMode(Projection?.Instance),
                 IncludeLocked = ShowcaseWidgetOptions.GetPieIncludeLocked(Projection?.Instance),
-                ShowCenterPercentageRequested = ShowCenterPercentage
+                CenterMode = ShowcaseWidgetOptions.GetPieCenterMode(Projection?.Instance),
+                ShowIcons = ShowcaseWidgetOptions.GetPieShowIcons(Projection?.Instance),
+                ShowLegend = ShowcaseWidgetOptions.GetPieShowLegend(Projection?.Instance),
+                LegendPosition = ShowcaseWidgetOptions.GetPieLegendPosition(Projection?.Instance)
             };
             switch (mode)
             {
@@ -166,6 +172,12 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
                     break;
             }
 
+            if (linked)
+            {
+                chart.SetSelectedLabels((Projection.LinkedSliceKeys ?? Array.Empty<string>())
+                    .Select(key => LabelForSliceKey(chart, mode, key)));
+            }
+
             // The replaced chart is subscribed to the process-lifetime appearance event, so it
             // must be released explicitly; otherwise every refresh strands one chart view model
             // and its whole series/slice/legend graph in memory for the rest of the session.
@@ -175,10 +187,113 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
             {
                 previous?.Dispose();
             }
+        }
 
-            CollectionHelper.Replace(LegendRows, (chart.LegendItems ?? Enumerable.Empty<LegendItem>())
-                .Take(8)
-                .Select(item => new PieLegendRowViewModel(item)));
+        // The last narrowed linked view, reused while its source and games are unchanged so a
+        // reprojection that only moves the selection still takes the highlight-only path.
+        private OverviewDataSnapshot _narrowedFrom;
+        private HashSet<GameSummaryItem> _narrowedGames;
+        private OverviewDataSnapshot _narrowed;
+
+        /// <summary>
+        /// Filters the snapshot's games through the widget instance's control bar (which stays in
+        /// effect while the bar is hidden) and returns a snapshot of the remaining games' totals.
+        /// The original snapshot is returned when the filter keeps every game. A linked view keeps
+        /// what the overview's filters made of it, cut to matching unlocks where it was.
+        /// </summary>
+        private OverviewDataSnapshot ApplyControlBarFilter(OverviewDataSnapshot snapshot, bool linked)
+        {
+            if (_controlBarSlot.Bind(Projection?.Instance?.InstanceId))
+            {
+                ControlBar = _controlBarSlot.Adapter.ControlBar;
+            }
+
+            var adapter = _controlBarSlot.Adapter;
+            var games = (snapshot.GameSummaries ?? new List<GameSummaryItem>())
+                .Where(game => game != null)
+                .ToList();
+            // A linked pie's bar offers the whole library, not what the overview's filters left.
+            adapter.UpdateOptions(linked && Projection?.LinkedOptionGames != null
+                ? Projection.LinkedOptionGames.Where(game => game != null)
+                : games);
+
+            var filtered = adapter.Apply(games);
+            if (filtered.Count == games.Count)
+            {
+                return snapshot;
+            }
+
+            if (!linked)
+            {
+                return OverviewDataSnapshot.FromGameSummaries(filtered);
+            }
+
+            var kept = new HashSet<GameSummaryItem>(filtered);
+            if (!ReferenceEquals(_narrowedFrom, snapshot) || _narrowedGames == null || !_narrowedGames.SetEquals(kept))
+            {
+                _narrowedFrom = snapshot;
+                _narrowedGames = kept;
+                _narrowed = OverviewLinkedSnapshots.NarrowToGames(snapshot, filtered);
+            }
+
+            return _narrowed;
+        }
+
+        /// <summary>
+        /// The slice identity behind a clicked label: a provider key for the platform pie, or an
+        /// <see cref="OverviewLinkedSliceKeys"/> value. Null for a slice the overview cannot filter by.
+        /// </summary>
+        public string SliceKeyForLabel(string label)
+        {
+            if (string.IsNullOrWhiteSpace(label))
+            {
+                return null;
+            }
+
+            switch (Mode)
+            {
+                case ShowcasePieMode.Provider:
+                    return string.Equals(label, Localize("LOCPlayAch_Common_Locked"), StringComparison.OrdinalIgnoreCase)
+                        ? OverviewLinkedSliceKeys.Locked
+                        : Chart?.GetProviderKeyFromLabel(label);
+                case ShowcasePieMode.CompletedGames:
+                    if (string.Equals(label, Localize("LOCPlayAch_Completed"), StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OverviewLinkedSliceKeys.Complete;
+                    }
+
+                    return string.Equals(label, Localize("LOCPlayAch_Overview_Incomplete"), StringComparison.OrdinalIgnoreCase)
+                        ? OverviewLinkedSliceKeys.Incomplete
+                        : null;
+                case ShowcasePieMode.Rarity:
+                case ShowcasePieMode.Trophy:
+                    // The overview's rarity and trophy filters list these same labels.
+                    return string.Equals(label, Localize("LOCPlayAch_Common_Locked"), StringComparison.OrdinalIgnoreCase)
+                        ? OverviewLinkedSliceKeys.Locked
+                        : label;
+                default:
+                    return null;
+            }
+        }
+
+        private static string LabelForSliceKey(PieChartViewModel chart, ShowcasePieMode mode, string key)
+        {
+            switch (mode)
+            {
+                case ShowcasePieMode.Provider:
+                    return chart.GetLabelForProviderKey(key);
+                case ShowcasePieMode.CompletedGames:
+                    return key == OverviewLinkedSliceKeys.Complete
+                        ? Localize("LOCPlayAch_Completed")
+                        : key == OverviewLinkedSliceKeys.Incomplete
+                            ? Localize("LOCPlayAch_Overview_Incomplete")
+                            : null;
+                case ShowcasePieMode.Rarity:
+                case ShowcasePieMode.Trophy:
+                    return key;
+                default:
+                    return null;
+            }
         }
 
         /// <summary>

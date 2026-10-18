@@ -20,7 +20,9 @@ namespace PlayniteAchievements.Models.Settings
         ScreenshotSlideshow = 9,
         RecentAchievements = 10,
         GameSummaries = 11,
-        ActivityCalendar = 13
+        ActivityCalendar = 13,
+        Image = 14,
+        Text = 15
     }
 
     public enum ShowcasePageTemplate
@@ -34,6 +36,10 @@ namespace PlayniteAchievements.Models.Settings
         Library = 6
     }
 
+    /// <summary>
+    /// Legacy Scores widget card choice, read only to migrate a widget saved before each Scores
+    /// widget held one card (see ShowcaseWidgetOptions.GetScoreCardType).
+    /// </summary>
     public enum ShowcaseScoreMode
     {
         Dual = 0,
@@ -42,9 +48,8 @@ namespace PlayniteAchievements.Models.Settings
     }
 
     /// <summary>
-    /// Which score cards carry the score-over-time line under them. Shares the vocabulary of
-    /// <see cref="ShowcaseScoreMode"/> so the two options in the Scores widget editor read as a
-    /// pair, with None added because the chart, unlike the cards, can be off entirely.
+    /// Legacy score-over-time choice, read only to migrate a widget saved before each Scores
+    /// widget held one card (see ShowcaseWidgetOptions.GetScoreHistoryShown).
     /// </summary>
     public enum ShowcaseScoreHistoryMode
     {
@@ -53,6 +58,7 @@ namespace PlayniteAchievements.Models.Settings
         Prestige = 2,
         None = 3
     }
+
 
     public enum ShowcasePieMode
     {
@@ -193,6 +199,35 @@ namespace PlayniteAchievements.Models.Settings
     {
         Fit = 0,
         Fill = 1
+    }
+
+    /// <summary>Where the Image and Text widgets place their content across the card.</summary>
+    public enum ShowcaseHorizontalAlignment
+    {
+        Left = 0,
+        Center = 1,
+        Right = 2
+    }
+
+    /// <summary>Where the Image and Text widgets place their content down the card.</summary>
+    public enum ShowcaseVerticalAlignment
+    {
+        Top = 0,
+        Center = 1,
+        Bottom = 2
+    }
+
+    /// <summary>
+    /// The Text widget's size: one of the theme's font size resources, or Custom for the
+    /// widget's own size in pixels.
+    /// </summary>
+    public enum ShowcaseTextSize
+    {
+        Small = 0,
+        Normal = 1,
+        Large = 2,
+        Huge = 3,
+        Custom = 4
     }
 
     /// <summary>
@@ -500,7 +535,13 @@ namespace PlayniteAchievements.Models.Settings
 
     public sealed class ShowcaseSettings
     {
-        public const int CurrentLayoutVersion = 1;
+        /// <summary>
+        /// 2: each Scores widget holds one card; loading an older layout splits a legacy Both widget
+        /// into a Collection and a Prestige widget.
+        /// </summary>
+        public const int CurrentLayoutVersion = 2;
+
+        public const int OneCardScoresLayoutVersion = 2;
 
         public const string BuiltInAchievementCollectionId = "default-achievements";
 

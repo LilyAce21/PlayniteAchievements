@@ -67,7 +67,7 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             var applySnapshotTail = Between(
                 source,
-                "SyncRecentAchievementsDisplay();",
+                "private void ApplySnapshot(",
                 "private bool IsTransientRebuildSnapshot");
             StringAssert.Contains(
                 applySnapshotTail,

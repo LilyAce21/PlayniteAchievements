@@ -41,15 +41,19 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
         /// <summary>Share of the window's gain kept above the line so its end never touches the chart top.</summary>
         public const double Headroom = 0.10;
 
-        public static ScoreHistoryAxisFrame Frame(int currentScore, int windowMin, int windowMax)
+        public static ScoreHistoryAxisFrame Frame(
+            int currentScore,
+            int windowMin,
+            int windowMax)
         {
+            var curve = AchievementLevelCurveSettings.ModernDefault;
             windowMin = Math.Max(0, windowMin);
             windowMax = Math.Max(windowMin, windowMax);
             // The last history point should equal the live score, but the frame tolerates the two
             // disagreeing by anchoring on whichever is higher so the line never clips.
             var effectiveScore = Math.Max(currentScore, windowMax);
-            var current = AchievementLevelCalculator.CalculateModern(effectiveScore);
-            double tierStart = AchievementLevelCalculator.GetScoreForLevel(current.RankStartLevel);
+            var current = AchievementLevelCalculator.Calculate(effectiveScore, curve);
+            double tierStart = AchievementLevelCalculator.GetScoreForLevel(current.RankStartLevel, curve);
             var nextTierStart = current.NextRankScoreThreshold > effectiveScore
                 ? current.NextRankScoreThreshold
                 : double.NaN;
@@ -86,6 +90,28 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 
             double? currentTierLine = IsInside(tierStart, min, max) ? tierStart : (double?)null;
             return new ScoreHistoryAxisFrame(min, max, currentTierLine, nextTierLine);
+        }
+
+        /// <summary>
+        /// The frame of a points card's history, which has no tiers: the window's gain plus
+        /// headroom, or from zero to the score with headroom when nothing was earned in the window.
+        /// </summary>
+        public static ScoreHistoryAxisFrame FrameWithoutTiers(int currentScore, int windowMin, int windowMax)
+        {
+            windowMin = Math.Max(0, windowMin);
+            windowMax = Math.Max(windowMin, windowMax);
+            var effectiveScore = Math.Max(currentScore, windowMax);
+            var gain = windowMax - windowMin;
+            if (gain > 0)
+            {
+                return new ScoreHistoryAxisFrame(windowMin, windowMax + gain * Headroom, null, null);
+            }
+
+            return new ScoreHistoryAxisFrame(
+                0,
+                effectiveScore > 0 ? effectiveScore * (1 + Headroom) : double.NaN,
+                null,
+                null);
         }
 
         private static bool IsInside(double value, double min, double max)

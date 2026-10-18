@@ -27,7 +27,9 @@ namespace PlayniteAchievements.Services.UI
 
         /// <summary>
         /// The one template decision shared by the wave and the preview: a fire-test view model
-        /// carries a forced <see cref="AchievementToastViewModel.PreviewTemplateSource"/> (plugin
+        /// carrying an exact <see cref="AchievementToastViewModel.PreviewTemplateOverride"/> (a
+        /// previewed package's template) renders that template as is; otherwise a fire-test view
+        /// model carries a forced <see cref="AchievementToastViewModel.PreviewTemplateSource"/> (plugin
         /// style or a theme A/B override) and resolves through
         /// <see cref="AchievementToastTemplateResolver.ResolvePreviewTemplate"/>; a real unlock and
         /// the inline mockup carry none and resolve through
@@ -40,6 +42,14 @@ namespace PlayniteAchievements.Services.UI
             string providerKey,
             Guid scopeGameId)
         {
+            var templateOverride = items
+                .Select(vm => vm.PreviewTemplateOverride)
+                .FirstOrDefault(template => template != null);
+            if (templateOverride != null)
+            {
+                return templateOverride;
+            }
+
             var previewSource = items
                 .Select(vm => vm.PreviewTemplateSource)
                 .FirstOrDefault(source => source.HasValue);
@@ -236,6 +246,20 @@ namespace PlayniteAchievements.Services.UI
             surface.Margin = fromBottom
                 ? new Thickness(0, 0, 0, travelDip)
                 : new Thickness(0, travelDip, 0, 0);
+        }
+
+        /// <summary>
+        /// Reserves travel room on any combination of sides, for a style motion whose entrance and
+        /// exit may leave through different edges.
+        /// </summary>
+        public static void ApplySlideTravel(ItemsControl surface, Thickness travel)
+        {
+            if (surface == null)
+            {
+                return;
+            }
+
+            surface.Margin = travel;
         }
     }
 }

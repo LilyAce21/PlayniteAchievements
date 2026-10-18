@@ -2,6 +2,7 @@ using Playnite.SDK.Models;
 using PlayniteAchievements.Providers.EA;
 using PlayniteAchievements.Providers.RPCS3;
 using PlayniteAchievements.Providers.ShadPS4;
+using PlayniteAchievements.Providers.Vita3K;
 using PlayniteAchievements.Providers.Xbox;
 using PlayniteAchievements.Providers.Xenia;
 
@@ -15,21 +16,6 @@ namespace PlayniteAchievements.Providers.Exophase
     /// </summary>
     internal static class ExophaseRarityEnrichment
     {
-        public static bool SupportsProvider(string providerKey)
-        {
-            switch ((providerKey ?? string.Empty).Trim().ToUpperInvariant())
-            {
-                case "XBOX":
-                case "XENIA":
-                case "EA":
-                case "RPCS3":
-                case "SHADPS4":
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
         public static bool IsEnabledForProvider(string providerKey)
         {
             switch ((providerKey ?? string.Empty).Trim().ToUpperInvariant())
@@ -44,6 +30,8 @@ namespace PlayniteAchievements.Providers.Exophase
                     return ProviderRegistry.Settings<Rpcs3Settings>().UseExophaseForRarity;
                 case "SHADPS4":
                     return ProviderRegistry.Settings<ShadPS4Settings>().UseExophaseForRarity;
+                case "VITA3K":
+                    return ProviderRegistry.Settings<Vita3KSettings>().UseExophaseForRarity;
                 default:
                     return false;
             }
@@ -52,7 +40,7 @@ namespace PlayniteAchievements.Providers.Exophase
         /// <summary>
         /// The name-derived slug the enricher would try for this game, mirroring
         /// <see cref="ExophaseMetadataEnricher"/>'s default-slug generation and the scanners'
-        /// platform slug choices. PSN slugs carry no platform suffix, so RPCS3/ShadPS4 candidates
+        /// platform slug choices. PSN slugs carry no platform suffix, so RPCS3/ShadPS4/Vita3K candidates
         /// are the bare normalized name. RPCS3 multipack collections (a '+'-joined provider game
         /// key) have no collection-level Exophase page and enrich per trophy set instead, so no
         /// candidate is offered.
@@ -85,6 +73,7 @@ namespace PlayniteAchievements.Providers.Exophase
                     return $"{normalizedName}-origin";
                 case "RPCS3":
                 case "SHADPS4":
+                case "VITA3K":
                     return normalizedName;
                 default:
                     return null;

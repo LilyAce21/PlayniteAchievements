@@ -19,6 +19,7 @@ namespace PlayniteAchievements.Models.Settings
         private NotificationSurfaceStyle _toast;
         private NotificationSurfaceStyle _frame;
         private string _toastBackgroundImagePath;
+        private string _frameBackgroundImagePath;
         private Dictionary<string, NotificationStyleSettings> _kindStyles;
 
         /// <summary>
@@ -41,13 +42,24 @@ namespace PlayniteAchievements.Models.Settings
 
         /// <summary>
         /// Absolute path of a user-supplied toast background image in any format ImageFormats
-        /// recognizes, or null for the default surface brush. Applies to the toast only; frames
-        /// never get a background.
+        /// recognizes, or null for the default surface brush. Applies to the toast only; the frame
+        /// has its own <see cref="FrameBackgroundImagePath"/>.
         /// </summary>
         public string ToastBackgroundImagePath
         {
             get => _toastBackgroundImagePath;
             set => SetValue(ref _toastBackgroundImagePath, value);
+        }
+
+        /// <summary>
+        /// Absolute path of a user-supplied screenshot frame background image, or null. Drawn
+        /// stretched over the whole shot in place of the vignette when the frame surface's
+        /// <see cref="NotificationSurfaceStyle.FrameVignette"/> is <see cref="FrameVignetteStyle.Image"/>.
+        /// </summary>
+        public string FrameBackgroundImagePath
+        {
+            get => _frameBackgroundImagePath;
+            set => SetValue(ref _frameBackgroundImagePath, value);
         }
 
         /// <summary>
@@ -125,7 +137,8 @@ namespace PlayniteAchievements.Models.Settings
             {
                 Toast = Toast.Clone(),
                 Frame = Frame.Clone(),
-                ToastBackgroundImagePath = ToastBackgroundImagePath
+                ToastBackgroundImagePath = ToastBackgroundImagePath,
+                FrameBackgroundImagePath = FrameBackgroundImagePath
             };
 
             if (_kindStyles == null)
@@ -185,6 +198,7 @@ namespace PlayniteAchievements.Models.Settings
         private bool _showRarityBadge = true;
         private bool _showRarityPercent = true;
         private bool _inlineRarityBadge;
+        private bool _inlineGameRarityBadge;
         private bool _rightRarityBadge;
         private bool _rarityPercentUnderBadge;
         private bool _showRarityGlow = true;
@@ -196,8 +210,14 @@ namespace PlayniteAchievements.Models.Settings
         private bool _showAccentStrip = true;
         private bool _showCountdownBar = true;
         private string _countdownBarColor;
+        private ToastMotion? _entranceMotion;
+        private ToastMotion? _exitMotion;
+        private ToastMotionFeel? _motionFeel;
+        private ToastMotionSpeed? _motionSpeed;
+        private ToastScreenCorner? _position;
         private FrameVignetteStyle _frameVignette = FrameVignetteStyle.Full;
         private double? _frameVignetteStrength;
+        private int? _imageKeyframeMs;
         private List<string> _lineOrder;
         private string _fontFamily;
         private string _headerFontFamily;
@@ -293,6 +313,19 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _inlineRarityBadge;
             set => SetValue(ref _inlineRarityBadge, value);
+        }
+
+        /// <summary>
+        /// When true, the rarity/trophy badge is drawn inline before the game name on the
+        /// game/category line. Mutually exclusive with the other badge placements in the settings
+        /// UI, though independent in the model. The badge collapses with the line when the line
+        /// has no game name or category to show.
+        /// </summary>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Include)]
+        public bool InlineGameRarityBadge
+        {
+            get => _inlineGameRarityBadge;
+            set => SetValue(ref _inlineGameRarityBadge, value);
         }
 
         /// <summary>
@@ -409,6 +442,69 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// How the toast enters, or null for the theme's slide storyboard (the built-in slide
+        /// when the theme has none). Toast surface only. Read from the global, provider or game
+        /// style; kind styles never change the motion, because every card in a stack moves
+        /// together.
+        /// </summary>
+        public ToastMotion? EntranceMotion
+        {
+            get => _entranceMotion;
+            set => SetValue(ref _entranceMotion, value);
+        }
+
+        /// <summary>
+        /// How the toast leaves, or null to mirror <see cref="EntranceMotion"/>. Toast surface
+        /// only.
+        /// </summary>
+        public ToastMotion? ExitMotion
+        {
+            get => _exitMotion;
+            set => SetValue(ref _exitMotion, value);
+        }
+
+        /// <summary>
+        /// Easing for the entrance and exit, or null for the default (overshoot in, cubic out).
+        /// Toast surface only.
+        /// </summary>
+        public ToastMotionFeel? MotionFeel
+        {
+            get => _motionFeel;
+            set => SetValue(ref _motionFeel, value);
+        }
+
+        /// <summary>
+        /// Entrance and exit speed, or null for <see cref="ToastMotionSpeed.Normal"/>. The hold
+        /// time is the global notification duration. Toast surface only.
+        /// </summary>
+        public ToastMotionSpeed? MotionSpeed
+        {
+            get => _motionSpeed;
+            set => SetValue(ref _motionSpeed, value);
+        }
+
+        /// <summary>
+        /// Where the toast appears, or null to follow the global position setting. Toast surface
+        /// only. Read from the global, provider or game style like the motion fields; kind styles
+        /// never change it, because a stack sits in one place. Wins over a theme's position
+        /// resource.
+        /// </summary>
+        public ToastScreenCorner? Position
+        {
+            get => _position;
+            set => SetValue(ref _position, value);
+        }
+
+        /// <summary>
+        /// True when any motion field is set, so the toast uses the style's motion instead of
+        /// the theme's slide storyboard.
+        /// </summary>
+        [JsonIgnore]
+        public bool HasCustomMotion =>
+            _entranceMotion.HasValue || _exitMotion.HasValue ||
+            _motionFeel.HasValue || _motionSpeed.HasValue;
+
+        /// <summary>
         /// Vignette darkening on the screenshot frame. Frame surface only; the toast has its own
         /// card chrome and ignores this. Defaults to <see cref="FrameVignetteStyle.Full"/> to
         /// preserve the original radial-plus-bottom-wash look.
@@ -430,6 +526,19 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _frameVignetteStrength;
             set => SetValue(ref _frameVignetteStrength, value);
+        }
+
+        /// <summary>
+        /// Time in milliseconds into each animated slot image (this surface's background and
+        /// badges) whose frame screenshots show, or null for the first frame. Each image holds its
+        /// last frame past its own end. The frame surface draws every still at this time; the
+        /// toast keeps animating on screen and in clips, and only the with-notification
+        /// screenshot shows this frame.
+        /// </summary>
+        public int? ImageKeyframeMs
+        {
+            get => _imageKeyframeMs;
+            set => SetValue(ref _imageKeyframeMs, value);
         }
 
         /// <summary>
@@ -829,6 +938,7 @@ namespace PlayniteAchievements.Models.Settings
                 ShowRarityBadge = ShowRarityBadge,
                 ShowRarityPercent = ShowRarityPercent,
                 InlineRarityBadge = InlineRarityBadge,
+                InlineGameRarityBadge = InlineGameRarityBadge,
                 RightRarityBadge = RightRarityBadge,
                 RarityPercentUnderBadge = RarityPercentUnderBadge,
                 ShowRarityGlow = ShowRarityGlow,
@@ -840,8 +950,14 @@ namespace PlayniteAchievements.Models.Settings
                 ShowAccentStrip = ShowAccentStrip,
                 ShowCountdownBar = ShowCountdownBar,
                 CountdownBarColor = CountdownBarColor,
+                EntranceMotion = EntranceMotion,
+                ExitMotion = ExitMotion,
+                MotionFeel = MotionFeel,
+                MotionSpeed = MotionSpeed,
+                Position = Position,
                 FrameVignette = FrameVignette,
                 FrameVignetteStrength = FrameVignetteStrength,
+                ImageKeyframeMs = ImageKeyframeMs,
                 LineOrder = LineOrder != null ? new List<string>(LineOrder) : null,
                 FontFamily = FontFamily,
                 HeaderFontFamily = HeaderFontFamily,

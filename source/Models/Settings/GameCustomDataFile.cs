@@ -93,6 +93,18 @@ namespace PlayniteAchievements.Models.Settings
 
         public bool? ExcludedFromSummaries { get; set; }
 
+        /// <summary>
+        /// Values an automatic rule wrote and still owns, one per field. Local state: never
+        /// exported in a .pa package.
+        /// </summary>
+        public List<RuleClaim> RuleClaims { get; set; }
+
+        /// <summary>
+        /// Fields the user set against a rule. A rule leaves a pinned field alone until it stops
+        /// applying to the game, which clears the pin. Local state: never exported.
+        /// </summary>
+        public List<string> UserPinnedFields { get; set; }
+
         public bool? UseSeparateLockedIconsOverride { get; set; }
 
         public string ManualCapstoneApiName { get; set; }
@@ -184,6 +196,27 @@ namespace PlayniteAchievements.Models.Settings
         public string SteamAccountIdOverride { get; set; }
         public bool? PreserveCachedUnlocksOnRefreshOverride { get; set; }
 
+        /// <summary>
+        /// The game's own unlock sound pack, or null when it follows its provider's or the global
+        /// pack. A pack owns all six tiers: a blank tier falls to the theme and bundled sounds.
+        /// Not carried by the portable package, which does not package sound files.
+        /// </summary>
+        public UnlockSoundSettings UnlockSounds { get; set; }
+
+        /// <summary>
+        /// The game's own notification behavior, or null when it follows its provider and the
+        /// globals. Local to this machine like <see cref="UnlockSounds"/>: not carried by the
+        /// portable package.
+        /// </summary>
+        public GameNotificationBehaviorOverride NotificationBehaviorOverride { get; set; }
+
+        /// <summary>
+        /// The game's own unlock capture settings, or null when it follows its provider and the
+        /// globals. Local to this machine like <see cref="UnlockSounds"/>: not carried by the
+        /// portable package.
+        /// </summary>
+        public GameCaptureOverride CaptureOverride { get; set; }
+
         public ProviderOverrideData ProviderOverride { get; set; }
 
         /// <summary>
@@ -211,6 +244,10 @@ namespace PlayniteAchievements.Models.Settings
                 PlayniteGameId = PlayniteGameId,
                 ExcludedFromRefreshes = ExcludedFromRefreshes,
                 ExcludedFromSummaries = ExcludedFromSummaries,
+                RuleClaims = CloneRuleClaims(RuleClaims),
+                UserPinnedFields = UserPinnedFields != null
+                    ? new List<string>(UserPinnedFields)
+                    : null,
                 UseSeparateLockedIconsOverride = UseSeparateLockedIconsOverride,
                 ManualCapstoneApiName = ManualCapstoneApiName,
                 CapstonesMaterialized = CapstonesMaterialized,
@@ -261,6 +298,9 @@ namespace PlayniteAchievements.Models.Settings
                 ForceUseExophase = ForceUseExophase,
                 ExophaseSlugOverride = ExophaseSlugOverride,
                 NotificationAppearanceOverride = NotificationAppearanceOverride?.Clone(),
+                UnlockSounds = UnlockSounds?.Clone(),
+                NotificationBehaviorOverride = NotificationBehaviorOverride?.Clone(),
+                CaptureOverride = CaptureOverride?.Clone(),
                 SteamAccountIdOverride = SteamAccountIdOverride,
                 PreserveCachedUnlocksOnRefreshOverride = PreserveCachedUnlocksOnRefreshOverride,
                 ProviderOverride = ProviderOverride?.Clone(),
@@ -409,6 +449,25 @@ namespace PlayniteAchievements.Models.Settings
                     : null,
                 CustomProviderId = portable?.CustomProviderId
             };
+        }
+
+        internal static List<RuleClaim> CloneRuleClaims(IEnumerable<RuleClaim> source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            var clone = new List<RuleClaim>();
+            foreach (var claim in source)
+            {
+                if (claim != null)
+                {
+                    clone.Add(claim.Clone());
+                }
+            }
+
+            return clone;
         }
 
         internal static Dictionary<string, CategoryImageOverrideData> CloneCategoryImageOverrideMap(

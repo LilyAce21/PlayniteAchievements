@@ -12,7 +12,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
     {
         private static readonly IReadOnlyDictionary<string, (string ResourceKey, string Fallback)> LabelMap =
             CreateLabelMap(
-                (DynamicThemeViewKeys.All, "LOCPlayAch_Common_All", DynamicThemeViewKeys.All),
+                (DynamicThemeViewKeys.All, "LOCAll", DynamicThemeViewKeys.All),
                 (DynamicThemeViewKeys.Unlocked, "LOCPlayAch_Common_Unlocked", DynamicThemeViewKeys.Unlocked),
                 (DynamicThemeViewKeys.Locked, "LOCPlayAch_Common_Locked", DynamicThemeViewKeys.Locked),
                 (DynamicThemeViewKeys.Visible, "LOCPlayAch_Dynamic_Visible", "Visible"),
@@ -37,14 +37,18 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 ("Singleplayer", "LOCPlayAch_ManageAchievements_Category_Type_Singleplayer", "Singleplayer"),
                 ("Multiplayer", "LOCPlayAch_ManageAchievements_Category_Type_Multiplayer", "Multiplayer"),
                 ("Progression", "LOCPlayAch_ManageAchievements_Category_Type_Progression", "Progression"),
-                ("SideProgression", "LOCPlayAch_ManageAchievements_Category_Type_SideProgression", "Side Progression"),
+                ("SideQuest", "LOCPlayAch_ManageAchievements_Category_Type_SideQuest", "Side Quest"),
                 ("WinCondition", "LOCPlayAch_ManageAchievements_Category_Type_WinCondition", "Win Condition"),
+                ("PostGame", "LOCPlayAch_ManageAchievements_Category_Type_PostGame", "Post Game"),
+                ("Completion", "LOCPlayAch_ManageAchievements_Category_Type_Completion", "Completion"),
                 ("Collectable", "LOCPlayAch_ManageAchievements_Category_Type_Collectable", "Collectable"),
+                ("Cumulative", "LOCPlayAch_ManageAchievements_Category_Type_Cumulative", "Cumulative"),
+                ("Challenge", "LOCPlayAch_ManageAchievements_Category_Type_Challenge", "Challenge"),
                 ("Difficulty", "LOCPlayAch_ManageAchievements_Category_Type_Difficulty", "Difficulty"),
-                ("Miscellaneous", "LOCPlayAch_ManageAchievements_Category_Type_Miscellaneous", "Miscellaneous"),
+                ("Stackable", "LOCPlayAch_ManageAchievements_Category_Type_Stackable", "Stackable"),
                 ("Missable", "LOCPlayAch_ManageAchievements_Category_Type_Missable", "Missable"),
                 ("Unobtainable", "LOCPlayAch_ManageAchievements_Category_Type_Unobtainable", "Unobtainable"),
-                ("Stackable", "LOCPlayAch_ManageAchievements_Category_Type_Stackable", "Stackable"),
+                ("Miscellaneous", "LOCPlayAch_ManageAchievements_Category_Type_Miscellaneous", "Miscellaneous"),
                 ("Softcore", "LOCPlayAch_ManageAchievements_Category_Type_Softcore", "Softcore"),
                 ("Hardcore", "LOCPlayAch_ManageAchievements_Category_Type_Hardcore", "Hardcore"),
                 (DynamicThemeViewKeys.Completed, "LOCPlayAch_Completed", DynamicThemeViewKeys.Completed),
@@ -55,29 +59,29 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 (DynamicThemeViewKeys.Unplayed, "LOCPlayAch_Filter_Unplayed", "Unplayed"),
                 (DynamicThemeViewKeys.HasLastUnlock, "LOCPlayAch_Dynamic_HasLastUnlock", "Has Last Unlock"),
                 (DynamicThemeViewKeys.NoLastUnlock, "LOCPlayAch_Dynamic_NoLastUnlock", "No Last Unlock"),
-                (DynamicThemeViewKeys.Default, "LOCPlayAch_Common_Default", DynamicThemeViewKeys.Default),
-                (DynamicThemeViewKeys.Name, "LOCPlayAch_Column_Name", DynamicThemeViewKeys.Name),
+                (DynamicThemeViewKeys.Default, "LOCDefault", DynamicThemeViewKeys.Default),
+                (DynamicThemeViewKeys.Name, "LOCNameLabel", DynamicThemeViewKeys.Name),
                 (DynamicThemeViewKeys.Game, "LOCPlayAch_Column_Game", DynamicThemeViewKeys.Game),
-                (DynamicThemeViewKeys.Provider, "LOCPlayAch_ManageAchievements_Overview_Provider", DynamicThemeViewKeys.Provider),
+                (DynamicThemeViewKeys.Provider, "LOCPlatformTitle", DynamicThemeViewKeys.Provider),
                 (DynamicThemeViewKeys.Progress, "LOCPlayAch_Progress", DynamicThemeViewKeys.Progress),
                 (DynamicThemeViewKeys.AchievementCount, "LOCPlayAch_Column_Total", "Achievement Count"),
-                (DynamicThemeViewKeys.SharedGamesCount, "LOCPlayAch_Column_SharedGames", "Games"),
+                (DynamicThemeViewKeys.SharedGamesCount, "LOCPlayAch_Overview_GameSummaries", "Games"),
                 (DynamicThemeViewKeys.Status, "LOCPlayAch_Column_Status", DynamicThemeViewKeys.Status),
                 (DynamicThemeViewKeys.RarityPercent, "LOCPlayAch_Column_RarityPercent", "Rarity Percent"),
                 (DynamicThemeViewKeys.Points, "LOCPlayAch_Column_Points", DynamicThemeViewKeys.Points),
                 (DynamicThemeViewKeys.CollectionScore, "LOCPlayAch_Score_Collection", "Collection Score"),
                 (DynamicThemeViewKeys.PrestigeScore, "LOCPlayAch_Score_Prestige", "Prestige Score"),
                 (DynamicThemeViewKeys.TrophyType, "LOCPlayAch_Column_Trophy", "Trophy Type"),
-                (DynamicThemeViewKeys.CategoryType, "LOCPlayAch_Common_Label_Type", "Category Type"),
-                (DynamicThemeViewKeys.CategoryLabel, "LOCPlayAch_Common_Label_Category", "Category"),
+                (DynamicThemeViewKeys.CategoryType, "LOCTypeLabel", "Category Type"),
+                (DynamicThemeViewKeys.CategoryLabel, "LOCCategoryLabel", "Category"),
                 (DynamicThemeViewKeys.Notes, "LOCPlayAch_NotesDialog_ViewTitle", "Notes"),
                 (DynamicThemeViewKeys.UnlockTime, "LOCPlayAch_Common_UnlockTime", DynamicThemeViewKeys.UnlockTime),
                 (DynamicThemeViewKeys.Rarity, "LOCPlayAch_Column_Rarity", DynamicThemeViewKeys.Rarity),
                 (DynamicThemeViewKeys.LastUnlock, "LOCPlayAch_Common_LastUnlock", "Last Unlock"),
-                (DynamicThemeViewKeys.LastPlayed, "LOCPlayAch_Column_LastPlayed", "Last Played"),
+                (DynamicThemeViewKeys.LastPlayed, "LOCLastPlayed", "Last Played"),
                 (DynamicThemeViewKeys.UnlockedCount, "LOCPlayAch_Common_UnlockedCount", "Unlocked Count"),
-                (DynamicThemeViewKeys.Ascending, "LOCPlayAch_Common_Ascending", DynamicThemeViewKeys.Ascending),
-                (DynamicThemeViewKeys.Descending, "LOCPlayAch_Common_Descending", DynamicThemeViewKeys.Descending));
+                (DynamicThemeViewKeys.Ascending, "LOCMenuSortAscending", DynamicThemeViewKeys.Ascending),
+                (DynamicThemeViewKeys.Descending, "LOCMenuSortDescending", DynamicThemeViewKeys.Descending));
 
         public static string GetLabel(string key, string defaultKey)
         {
@@ -101,7 +105,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             if (string.IsNullOrWhiteSpace(key) ||
                 string.Equals(key, DynamicThemeViewKeys.All, StringComparison.OrdinalIgnoreCase))
             {
-                return L("LOCPlayAch_Common_All", DynamicThemeViewKeys.All);
+                return L("LOCAll", DynamicThemeViewKeys.All);
             }
 
             return ProviderRegistry.GetLocalizedName(key);

@@ -2,16 +2,28 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+// WinForms dialogs: the WPF Microsoft.Win32 pickers render legacy-style on .NET Framework.
+using DialogResult = System.Windows.Forms.DialogResult;
+using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using SaveFileDialog = System.Windows.Forms.SaveFileDialog;
 using Playnite.SDK;
+using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Providers;
+using PlayniteAchievements.Services.Library;
 using PlayniteAchievements.Services.UI;
+using PlayniteAchievements.Services.Workshop;
 using PlayniteAchievements.ViewModels.Settings;
+using PlayniteAchievements.Views.Dialogs;
+using PlayniteAchievements.Views.Helpers;
+using PlayniteAchievements.Views.Settings.Controls;
 
 namespace PlayniteAchievements.Views.Settings.Display
 {
@@ -22,7 +34,9 @@ namespace PlayniteAchievements.Views.Settings.Display
     public partial class ColorsSection : UserControl, IDisposable
     {
         private readonly PlayniteAchievementsSettings _settings;
+        private readonly PlayniteAchievementsPlugin _plugin;
         private readonly ProviderRegistry _providerRegistry;
+        private readonly ILogger _logger;
         private readonly Func<Window, string, string> _pickColor;
         private readonly PersistedSettingsSubscription _persistedSubscription;
 
@@ -31,7 +45,6 @@ namespace PlayniteAchievements.Views.Settings.Display
         private ObservableCollection<CompletedBadgeAppearanceItem> _completedBadgeAppearanceItems;
         private ObservableCollection<TrophyAppearanceItem> _trophyAppearanceItems;
         private ObservableCollection<ProviderAppearanceItem> _providerAppearanceItems;
-        private ObservableCollection<RarityPalettePreset> _rarityPalettePresets;
 
         public ColorsSection()
         {
@@ -40,18 +53,88 @@ namespace PlayniteAchievements.Views.Settings.Display
 
         internal ColorsSection(
             PlayniteAchievementsSettings settings,
-            ProviderRegistry providerRegistry,
+            PlayniteAchievementsPlugin plugin,
+            ILogger logger,
             Func<Window, string, string> pickColor)
             : this()
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
+            _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
+            _providerRegistry = plugin.ProviderRegistry ?? throw new ArgumentNullException(nameof(plugin.ProviderRegistry));
+            _logger = logger;
             _pickColor = pickColor ?? throw new ArgumentNullException(nameof(pickColor));
 
             _persistedSubscription = new PersistedSettingsSubscription(
                 _settings,
                 OnPersistedPropertyChanged,
                 RefreshAppearanceEditorFromPersisted);
+
+            ColorSetPresetPicker.Initialize(new LibraryPresetPickerOptions
+            {
+                Plugin = plugin,
+                Settings = settings,
+                Adapter = plugin.ColorsLibraryAdapter,
+                Presets = plugin.ColorPresetStore,
+                ExportCurrent = path => plugin.ColorPackPortableStore.Export(_settings.Persisted, path),
+                TargetChanged = RefreshAppearanceEditorFromPersisted,
+                NestedValue = () => _settings.Persisted?.RarityColors,
+                BuiltIns = CreateRarityPalettePresets().Select(ToBuiltIn).ToList(),
+                ItemSwatches = ColorSetSwatches,
+                Logger = logger
+            });
+        }
+
+        /// <summary>
+        /// A built-in palette as an entry of the one preset list: picking it writes its rarity
+        /// colors (and resource defaults) and ends any color set the colors followed.
+        /// </summary>
+        private LibraryPickerBuiltIn ToBuiltIn(RarityPalettePreset preset)
+        {
+            return new LibraryPickerBuiltIn
+            {
+                Label = preset.DisplayLabel,
+                Swatches = SwatchesOf(preset),
+                Apply = () =>
+                {
+                    ApplyRarityPalette(preset);
+                    LibraryApplyService.StopFollowing(_plugin.ColorsLibraryAdapter, _settings.Persisted);
+                },
+                IsCurrent = () => SameRarityColors(preset.Colors, _settings?.Persisted?.RarityColors)
+            };
+        }
+
+        private static IReadOnlyList<Brush> SwatchesOf(RarityPalettePreset preset)
+        {
+            return new[] { preset.CommonBrush, preset.UncommonBrush, preset.RareBrush, preset.UltraRareBrush };
+        }
+
+        // Swatches of a library color set, read from its file once per file version.
+        private readonly Dictionary<string, IReadOnlyList<Brush>> _colorSetSwatches =
+            new Dictionary<string, IReadOnlyList<Brush>>(StringComparer.OrdinalIgnoreCase);
+
+        private IReadOnlyList<Brush> ColorSetSwatches(LibraryItem item)
+        {
+            var path = _plugin?.LibraryStore?.FullPath(item);
+            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+            {
+                return null;
+            }
+
+            var key = path + "|" + System.IO.File.GetLastWriteTimeUtc(path).Ticks;
+            if (!_colorSetSwatches.TryGetValue(key, out var swatches))
+            {
+                var colors = _plugin.ColorPackPortableStore.Read(path)?.RarityColors;
+                swatches = colors == null ? null : SwatchesOf(new RarityPalettePreset(item.Name, colors, null));
+                _colorSetSwatches[key] = swatches;
+            }
+
+            return swatches;
+        }
+
+        private static bool SameRarityColors(RarityColorSettings left, RarityColorSettings right)
+        {
+            return left != null && right != null
+                   && Newtonsoft.Json.JsonConvert.SerializeObject(left) == Newtonsoft.Json.JsonConvert.SerializeObject(right);
         }
 
         public ObservableCollection<ResourceAppearanceItem> ResourceAppearanceItems
@@ -110,18 +193,6 @@ namespace PlayniteAchievements.Views.Settings.Display
             }
         }
 
-        public ObservableCollection<RarityPalettePreset> RarityPalettePresets
-        {
-            get
-            {
-                if (_rarityPalettePresets == null)
-                {
-                    _rarityPalettePresets = new ObservableCollection<RarityPalettePreset>(CreateRarityPalettePresets());
-                }
-
-                return _rarityPalettePresets;
-            }
-        }
 
         public ObservableCollection<ProviderAppearanceItem> ProviderAppearanceItems
         {
@@ -139,9 +210,11 @@ namespace PlayniteAchievements.Views.Settings.Display
 
         private void OnPersistedPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
+            // The plugin's settings handler applies the badge resources app-wide; only the
+            // editor previews need refreshing here.
             if (RarityAppearanceHelper.IsAppearanceSettingPropertyName(e.PropertyName))
             {
-                ApplyRarityAppearanceOverrides();
+                RefreshRarityAppearanceItems();
             }
 
             if (e.PropertyName == nameof(PersistedSettings.ProviderColorOverrides))
@@ -250,17 +323,126 @@ namespace PlayniteAchievements.Views.Settings.Display
             RefreshProviderAppearanceItems();
         }
 
-        private void ApplySelectedRarityPalettePreset_Click(object sender, RoutedEventArgs e)
+        /// <summary>Writes the current colors (rarity, provider, resource overrides) to a .pacolors file.</summary>
+        private void ExportColors_Click(object sender, RoutedEventArgs e)
         {
-            if (RarityPalettePresetComboBox?.SelectedItem is RarityPalettePreset preset)
+            WorkshopMenus.OpenExport(
+                sender as Button,
+                () => ExportColorsFile_Click(sender, e),
+                () => _plugin.OpenWorkshopShare(WorkshopItemKind.Colors, Window.GetWindow(this)));
+        }
+
+        private void ExportColorsFile_Click(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settings?.Persisted;
+            var store = _plugin?.ColorPackPortableStore;
+            if (persisted == null || store == null)
             {
-                ApplyRarityPalette(preset);
+                return;
+            }
+
+            try
+            {
+                var dialog = new SaveFileDialog
+                {
+                    Filter = ColorPackPortableStore.BuildFileDialogFilter(),
+                    AddExtension = true,
+                    DefaultExt = ColorPackPortableStore.PackageFileExtension,
+                    FileName = "colors" + ColorPackPortableStore.PackageFileExtension
+                };
+
+                if (dialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                store.Export(persisted, ColorPackPortableStore.NormalizeExportPath(dialog.FileName));
+                ShowMessage(ResourceProvider.GetString("LOCPlayAch_Status_Succeeded"), MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Failed exporting colors.");
+                ShowMessage(string.Format(ResourceProvider.GetString("LOCPlayAch_Status_Failed"), ex.Message), MessageBoxImage.Error);
             }
         }
 
-        private void ResetAllRarityColors_Click(object sender, RoutedEventArgs e)
+        /// <summary>Replaces the current colors with a .pacolors file's, then refreshes the live resources.</summary>
+        private void ImportColors_Click(object sender, RoutedEventArgs e)
         {
-            ApplyRarityPalette(new RarityPalettePreset("Default", RarityColorSettings.CreateDefault(), null));
+            WorkshopMenus.OpenImport(
+                sender as Button,
+                () => ImportColorsFile_Click(sender, e),
+                () => _plugin.OpenWorkshopWindow(focusKind: WorkshopItemKind.Colors));
+        }
+
+        /// <summary>
+        /// Adds a .pacolors file to the library as a local color set, named after the file.
+        /// Applying it is the job of the set list, so the current colors do not change here.
+        /// </summary>
+        private void ImportColorsFile_Click(object sender, RoutedEventArgs e)
+        {
+            var presets = _plugin?.ColorPresetStore;
+            if (presets == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var dialog = new OpenFileDialog
+                {
+                    Filter = ColorPackPortableStore.BuildFileDialogFilter(),
+                    CheckFileExists = true,
+                    Multiselect = false
+                };
+
+                if (dialog.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+
+                var saved = presets.SaveFrom(presets.UniqueName(PackageStem(dialog.FileName)), dialog.FileName);
+                ColorSetPresetPicker.AddLocalPreset(saved);
+                ShowMessage(string.Format(ResourceProvider.GetString("LOCPlayAch_Workshop_SavedAsPreset"), saved.Name), MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Failed importing colors.");
+                ShowMessage(string.Format(ResourceProvider.GetString("LOCPlayAch_Status_Failed"), ex.Message), MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>The file name without its package extension, including a trailing .zip.</summary>
+        private static string PackageStem(string path)
+        {
+            var name = System.IO.Path.GetFileName(path) ?? string.Empty;
+            foreach (var suffix in new[] { ".zip", ColorPackPortableStore.PackageFileExtension, BundlePortableStore.PackageFileExtension })
+            {
+                if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    name = name.Substring(0, name.Length - suffix.Length);
+                }
+            }
+
+            return name;
+        }
+
+        private AchievementToastTemplateResolver CreateTemplateResolver()
+        {
+            return new AchievementToastTemplateResolver(
+                _plugin.PlayniteApi,
+                _logger,
+                customTemplatesDirectory: AchievementToastTemplateResolver.GetCustomTemplatesDirectory(
+                    _plugin.GetPluginUserDataPath()));
+        }
+
+        private void ShowMessage(string message, MessageBoxImage image)
+        {
+            _plugin?.PlayniteApi?.Dialogs?.ShowMessage(
+                message,
+                ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                MessageBoxButton.OK,
+                image);
         }
 
         private void ApplyRarityPalette(RarityPalettePreset preset)
@@ -275,7 +457,6 @@ namespace PlayniteAchievements.Views.Settings.Display
             persisted.ResourceOverrides = preset.ResourceBrushes != null
                 ? CreateResourceOverrideSettings(preset.ResourceBrushes)
                 : PersistedSettings.CreateDefaultResourceOverrides();
-            RefreshAppearanceEditorFromPersisted();
         }
 
         private static Dictionary<string, ResourceOverrideSetting> CreateResourceOverrideSettings(
@@ -344,7 +525,7 @@ namespace PlayniteAchievements.Views.Settings.Display
             for (int i = 0; i < presets.Length; i++)
             {
                 presets[i].DisplayLabel = i == 0
-                    ? ResourceProvider.GetString("LOCPlayAch_Common_Default")
+                    ? ResourceProvider.GetString("LOCDefault")
                     : string.Format(
                         ResourceProvider.GetString("LOCPlayAch_Settings_Appearance_PresetNumbered"),
                         i);
@@ -494,10 +675,10 @@ namespace PlayniteAchievements.Views.Settings.Display
 
             var items = RarityAppearanceItems;
             items.Clear();
-            items.Add(new RarityAppearanceItem(RarityTier.Common, persisted, ApplyRarityAppearanceOverrides));
-            items.Add(new RarityAppearanceItem(RarityTier.Uncommon, persisted, ApplyRarityAppearanceOverrides));
-            items.Add(new RarityAppearanceItem(RarityTier.Rare, persisted, ApplyRarityAppearanceOverrides));
-            items.Add(new RarityAppearanceItem(RarityTier.UltraRare, persisted, ApplyRarityAppearanceOverrides));
+            items.Add(new RarityAppearanceItem(RarityTier.Common, persisted, RefreshRarityAppearanceItems));
+            items.Add(new RarityAppearanceItem(RarityTier.Uncommon, persisted, RefreshRarityAppearanceItems));
+            items.Add(new RarityAppearanceItem(RarityTier.Rare, persisted, RefreshRarityAppearanceItems));
+            items.Add(new RarityAppearanceItem(RarityTier.UltraRare, persisted, RefreshRarityAppearanceItems));
         }
 
         private void RebuildCompletedBadgeAppearanceItems()
@@ -510,8 +691,8 @@ namespace PlayniteAchievements.Views.Settings.Display
 
             var items = CompletedBadgeAppearanceItems;
             items.Clear();
-            items.Add(new CompletedBadgeAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Settings_Appearance_GradientStart"), true, persisted, ApplyRarityAppearanceOverrides));
-            items.Add(new CompletedBadgeAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Settings_Appearance_GradientEnd"), false, persisted, ApplyRarityAppearanceOverrides));
+            items.Add(new CompletedBadgeAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Settings_Appearance_GradientStart"), true, persisted, RefreshRarityAppearanceItems));
+            items.Add(new CompletedBadgeAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Settings_Appearance_GradientEnd"), false, persisted, RefreshRarityAppearanceItems));
         }
 
         private void RebuildTrophyAppearanceItems()
@@ -524,10 +705,10 @@ namespace PlayniteAchievements.Views.Settings.Display
 
             var items = TrophyAppearanceItems;
             items.Clear();
-            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Bronze"), "TrophyBronze", persisted, ApplyRarityAppearanceOverrides));
-            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Silver"), "TrophySilver", persisted, ApplyRarityAppearanceOverrides));
-            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Gold"), "TrophyGold", persisted, ApplyRarityAppearanceOverrides));
-            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Platinum"), "TrophyPlatinum", persisted, ApplyRarityAppearanceOverrides));
+            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Bronze"), "TrophyBronze", persisted, RefreshRarityAppearanceItems));
+            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Silver"), "TrophySilver", persisted, RefreshRarityAppearanceItems));
+            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Gold"), "TrophyGold", persisted, RefreshRarityAppearanceItems));
+            items.Add(new TrophyAppearanceItem(ResourceProvider.GetString("LOCPlayAch_Trophy_Platinum"), "TrophyPlatinum", persisted, RefreshRarityAppearanceItems));
         }
 
         private void RebuildProviderAppearanceItems()
@@ -551,7 +732,8 @@ namespace PlayniteAchievements.Views.Settings.Display
 
         /// <summary>
         /// Rebuilds all appearance editor items from the current persisted settings and reapplies
-        /// resource and rarity overrides to the application resources.
+        /// resource overrides to the application resources. Badge resources are applied by the
+        /// plugin when the rarity settings change or the persisted instance is replaced.
         /// </summary>
         public void RefreshAppearanceEditorFromPersisted()
         {
@@ -561,27 +743,14 @@ namespace PlayniteAchievements.Views.Settings.Display
             RebuildTrophyAppearanceItems();
             RebuildProviderAppearanceItems();
             ApplyResourceAppearanceOverrides();
-            ApplyRarityAppearanceOverrides();
             RefreshProviderAppearanceItems();
         }
 
         private void ApplyResourceAppearanceOverrides()
         {
-            var resources = Application.Current?.Resources;
-            if (resources != null)
-            {
-                PlayAchResourceService.Apply(
-                    resources,
-                    _settings?.Persisted?.ResourceOverrides,
-                    _settings?.Persisted);
-            }
-        }
-
-        private void ApplyRarityAppearanceOverrides()
-        {
-            RarityAppearanceHelper.ApplyBadgeApplicationResources(
+            PlayAchResourceService.ApplyToApplication(
+                _settings?.Persisted?.ResourceOverrides,
                 _settings?.Persisted);
-            RefreshRarityAppearanceItems();
         }
 
         private void RefreshRarityAppearanceItems()
@@ -627,6 +796,7 @@ namespace PlayniteAchievements.Views.Settings.Display
         public void Dispose()
         {
             _persistedSubscription?.Dispose();
+            ColorSetPresetPicker?.Dispose();
         }
     }
 }

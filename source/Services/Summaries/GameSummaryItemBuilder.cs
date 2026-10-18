@@ -100,6 +100,7 @@ namespace PlayniteAchievements.Services.Summaries
                 PlayniteGameId = gameData.PlayniteGameId,
                 LastPlayed = presentation.LastPlayed,
                 IsCompleted = gameData.IsCompleted,
+                ShowsRarity = gameData.ShowsRarity,
                 CapstoneTotal = capstoneCounts.Total,
                 CapstoneUnlocked = capstoneCounts.Unlocked,
                 CapstonesMatchPlatinums = capstoneCounts.CapstonesMatchPlatinums,

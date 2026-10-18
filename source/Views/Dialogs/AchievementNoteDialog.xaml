@@ -85,36 +85,10 @@
                 <RowDefinition Height="*" MinHeight="110" />
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0"
-                        Orientation="Horizontal"
-                        Margin="{StaticResource PlayAch.Thickness.Bottom.Sm}">
-                <Button x:Name="BoldButton"
-                        Content="B"
-                        FontWeight="Bold"
-                        Width="34"
-                        Height="{StaticResource PlayAch.Size.Control.Height}"
-                        Padding="{StaticResource PlayAch.Thickness.None}"
-                        Margin="{StaticResource PlayAch.Thickness.Right.Compact}"
-                        ToolTip="{DynamicResource LOCPlayAch_NotesDialog_Bold}"
-                        Click="BoldButton_Click" />
-                <Button x:Name="ItalicButton"
-                        Content="I"
-                        FontStyle="Italic"
-                        Width="34"
-                        Height="{StaticResource PlayAch.Size.Control.Height}"
-                        Padding="{StaticResource PlayAch.Thickness.None}"
-                        Margin="{StaticResource PlayAch.Thickness.Right.Compact}"
-                        ToolTip="{DynamicResource LOCPlayAch_NotesDialog_Italic}"
-                        Click="ItalicButton_Click" />
-                <Button x:Name="UnderlineButton"
-                        Width="34"
-                        Height="{StaticResource PlayAch.Size.Control.Height}"
-                        Padding="{StaticResource PlayAch.Thickness.None}"
-                        ToolTip="{DynamicResource LOCPlayAch_NotesDialog_Underline}"
-                        Click="UnderlineButton_Click">
-                    <TextBlock Text="U" TextDecorations="Underline" />
-                </Button>
-            </StackPanel>
+            <!-- Filled in code from MarkdownEditing.CreateToolbar, shared with the showcase Text widget. -->
+            <ContentControl x:Name="FormatToolbarHost"
+                            Grid.Row="0"
+                            Focusable="False" />
 
             <TextBox x:Name="NoteTextBox"
                      Grid.Row="1"
@@ -127,6 +101,7 @@
                      HorizontalScrollBarVisibility="Disabled"
                      ScrollViewer.CanContentScroll="True"
                      Padding="8"
+                     helpers:MarkdownEditing.Shortcuts="True"
                      KeyDown="NoteTextBox_KeyDown" />
 
             <TextBlock x:Name="CharacterCountTextBlock"
@@ -138,7 +113,7 @@
                        Margin="0,6,0,10" />
 
             <TextBlock Grid.Row="3"
-                       Text="{DynamicResource LOCPlayAch_NotesDialog_Preview}"
+                       Text="{DynamicResource LOCPlayAch_Common_Preview}"
                        Foreground="{DynamicResource PlayAch.Brush.Text}"
                        FontWeight="SemiBold"
                        Margin="{StaticResource PlayAch.Thickness.Bottom.Compact}" />
@@ -167,26 +142,26 @@
                     HorizontalAlignment="Right"
                     Margin="0,14,0,0">
             <Button x:Name="SaveButton"
-                    Content="{DynamicResource LOCPlayAch_Button_Save}"
+                    Content="{DynamicResource LOCSaveLabel}"
                     Click="SaveButton_Click"
                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                     MinWidth="82"
                     Margin="{StaticResource PlayAch.Thickness.Right.Sm}"
                     IsDefault="True" />
             <Button x:Name="ClearButton"
-                    Content="{DynamicResource LOCPlayAch_Button_Clear}"
+                    Content="{DynamicResource LOCClearLabel}"
                     Click="ClearButton_Click"
                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                     MinWidth="82"
                     Margin="{StaticResource PlayAch.Thickness.Right.Sm}" />
             <Button x:Name="CancelButton"
-                    Content="{DynamicResource LOCPlayAch_Button_Cancel}"
+                    Content="{DynamicResource LOCCancelLabel}"
                     Click="CancelButton_Click"
                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                     MinWidth="82"
                     IsCancel="True" />
             <Button x:Name="CloseButton"
-                    Content="{DynamicResource LOCPlayAch_Button_Ok}"
+                    Content="{DynamicResource LOCOKLabel}"
                     Click="CancelButton_Click"
                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                     MinWidth="82"

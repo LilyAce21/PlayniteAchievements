@@ -32,6 +32,9 @@ namespace PlayniteAchievements.Views.Controls
     public partial class AchievementDataGridControl : UserControl, IDisposable
     {
         private static readonly ILogger Logger = LogManager.GetLogger();
+
+        // Tracing only: how many rows each layout pass prepares, per grid.
+        private RowPrepareCounter _rowPrepareCounter;
         private DataGridColumnLayoutService _columnPersistence;
         private bool _isAttached;
         private bool _wheelDiagnosticsAttached;
@@ -396,6 +399,38 @@ namespace PlayniteAchievements.Views.Controls
         }
 
         /// <summary>
+        /// Column keys the surface hides whatever the saved layout says, such as columns no row
+        /// has a value for; the column menu does not offer them and the layout does not save them.
+        /// </summary>
+        public static readonly DependencyProperty HiddenColumnKeysProperty =
+            DependencyProperty.Register(nameof(HiddenColumnKeys), typeof(IReadOnlyCollection<string>),
+                typeof(AchievementDataGridControl), new PropertyMetadata(null, OnColumnVisibilityChanged));
+
+        public IReadOnlyCollection<string> HiddenColumnKeys
+        {
+            get => (IReadOnlyCollection<string>)GetValue(HiddenColumnKeysProperty);
+            set => SetValue(HiddenColumnKeysProperty, value);
+        }
+
+        private List<string> _appliedHiddenColumnKeys = new List<string>();
+
+        private static readonly string[] RarityColumnKeys = { "Rarity", "RarityTier", "RarityPercent" };
+
+        /// <summary>
+        /// False when the game's provider supplied no rarity, so its Common tiers are defaults:
+        /// the rarity columns are hidden whatever the saved layout says.
+        /// </summary>
+        public static readonly DependencyProperty ShowsRarityProperty =
+            DependencyProperty.Register(nameof(ShowsRarity), typeof(bool),
+                typeof(AchievementDataGridControl), new PropertyMetadata(true, OnColumnVisibilityChanged));
+
+        public bool ShowsRarity
+        {
+            get => (bool)GetValue(ShowsRarityProperty);
+            set => SetValue(ShowsRarityProperty, value);
+        }
+
+        /// <summary>
         /// Identifies the HideStatusColumn dependency property.
         /// When true, hides the Status column (checkmark/padlock).
         /// </summary>
@@ -582,6 +617,24 @@ namespace PlayniteAchievements.Views.Controls
         {
             get => (double?)GetValue(FixedRowHeightProperty);
             set => SetValue(FixedRowHeightProperty, value);
+        }
+
+        /// <summary>
+        /// Identifies the HighlightedItems dependency property.
+        /// </summary>
+        public static readonly DependencyProperty HighlightedItemsProperty =
+            DependencyProperty.Register(nameof(HighlightedItems), typeof(ICollection<AchievementDisplayItem>),
+                typeof(AchievementDataGridControl), new PropertyMetadata(null, (d, e) => ((AchievementDataGridControl)d).UpdateRealizedRowHeights()));
+
+        /// <summary>
+        /// Rows drawn with the highlight background, or null for none. The row background is set
+        /// on the row itself as each row loads: a style trigger cannot set it, because the
+        /// DataGrid's own RowBackground outranks a row style.
+        /// </summary>
+        public ICollection<AchievementDisplayItem> HighlightedItems
+        {
+            get => (ICollection<AchievementDisplayItem>)GetValue(HighlightedItemsProperty);
+            set => SetValue(HighlightedItemsProperty, value);
         }
 
         /// <summary>
@@ -1184,13 +1237,13 @@ namespace PlayniteAchievements.Views.Controls
             if (_expandAllButton == null)
             {
                 _expandAllButton = new GridActionButton(
-                    CategoryModeText("LOCPlayAch_CategorySummaries_ExpandAll", "Expand All"),
+                    CategoryModeText("LOCExpandAll", "Expand All"),
                     ExpandAllCategories,
-                    CategoryModeText("LOCPlayAch_CategorySummaries_ExpandAllToolTip", "Expand all categories"));
+                    CategoryModeText("LOCExpandAll", "Expand All"));
                 _collapseAllButton = new GridActionButton(
-                    CategoryModeText("LOCPlayAch_CategorySummaries_CollapseAll", "Collapse All"),
+                    CategoryModeText("LOCCollapseAll", "Collapse All"),
                     CollapseAllCategories,
-                    CategoryModeText("LOCPlayAch_CategorySummaries_CollapseAllToolTip", "Collapse all categories"));
+                    CategoryModeText("LOCCollapseAll", "Collapse All"));
             }
 
             if (!ReferenceEquals(_controlBarWithToggle, ControlBar))
@@ -2694,13 +2747,40 @@ namespace PlayniteAchievements.Views.Controls
                 return;
             }
 
+            // Released first, so a key the surface stops hiding falls back to the rules below.
+            foreach (var key in _appliedHiddenColumnKeys)
+            {
+                SetForcedColumnCollapsed(_columnPersistence, key, false);
+            }
+
             SetForcedColumnCollapsed(_columnPersistence, StatusColumnKey, HideStatusColumn);
             SetForcedColumnCollapsed(_columnPersistence, GameColumnKey, !ShowGameColumn);
             SetForcedColumnCollapsed(_columnPersistence, FriendAvatarColumnKey, !ShowFriendColumn);
             SetForcedColumnCollapsed(_columnPersistence, FriendColumnKey, !ShowFriendColumn);
             // Captures are the user's own screenshots and clips of their own unlocks; a friend's
-            // row has none to open, so the column is dropped from every friend surface.
-            SetForcedColumnCollapsed(_columnPersistence, CapturesColumnKey, IsFriendSurface(ColumnSettingsKey));
+            // row has none to open, and neither has a Workshop preview of a package, so the
+            // column is dropped from those surfaces.
+            SetForcedColumnCollapsed(
+                _columnPersistence,
+                CapturesColumnKey,
+                IsFriendSurface(ColumnSettingsKey) || IsWorkshopPreviewSurface(ColumnSettingsKey));
+
+            _appliedHiddenColumnKeys = HiddenColumnKeys?.Where(key => !string.IsNullOrWhiteSpace(key)).ToList() ?? new List<string>();
+            if (!ShowsRarity)
+            {
+                _appliedHiddenColumnKeys.AddRange(RarityColumnKeys);
+            }
+
+            foreach (var key in _appliedHiddenColumnKeys)
+            {
+                SetForcedColumnCollapsed(_columnPersistence, key, true);
+            }
+        }
+
+        private static bool IsWorkshopPreviewSurface(string columnSettingsKey)
+        {
+            return columnSettingsKey != null &&
+                   columnSettingsKey.StartsWith("WorkshopPreview", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsFriendSurface(string columnSettingsKey)
@@ -2899,7 +2979,11 @@ namespace PlayniteAchievements.Views.Controls
 
         private void AchievementsDataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
         {
+            (_rowPrepareCounter ?? (_rowPrepareCounter = new RowPrepareCounter(
+                Services.Logging.PluginLogger.GetLogger(nameof(AchievementDataGridControl)),
+                ColumnSettingsKey))).RowPrepared(Dispatcher);
             ApplyFixedRowHeight(e.Row);
+            ApplyRowHighlight(e.Row);
         }
 
         private void UpdateRealizedRowHeights()
@@ -2914,7 +2998,25 @@ namespace PlayniteAchievements.Views.Controls
                 if (AchievementsDataGrid.ItemContainerGenerator.ContainerFromItem(item) is DataGridRow row)
                 {
                     ApplyFixedRowHeight(row);
+                    ApplyRowHighlight(row);
                 }
+            }
+        }
+
+        private void ApplyRowHighlight(DataGridRow row)
+        {
+            if (row == null)
+            {
+                return;
+            }
+
+            if (HighlightedItems?.Contains(row.Item as AchievementDisplayItem) == true)
+            {
+                row.SetResourceReference(Control.BackgroundProperty, "PlayAch.Brush.Grid.RowHoverBackground");
+            }
+            else if (row.ReadLocalValue(Control.BackgroundProperty) != DependencyProperty.UnsetValue)
+            {
+                row.ClearValue(Control.BackgroundProperty);
             }
         }
 

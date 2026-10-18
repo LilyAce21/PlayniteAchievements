@@ -1,4 +1,5 @@
 using PlayniteAchievements.Services.Images;
+using PlayniteAchievements.Services.Images.Webm;
 using System;
 using System.IO;
 using System.Linq;
@@ -83,8 +84,32 @@ namespace PlayniteAchievements.Views.Helpers
         }
 
         /// <summary>
+        /// The image a drop or paste payload carries, in order: a decodable image file, an
+        /// http(s) URL, or text naming a decodable image file.
+        /// </summary>
+        public static bool TryGetImageSource(IDataObject data, out string source)
+        {
+            if (TryGetFirstImageFilePath(data, out source) || TryGetFirstBrowserUrl(data, out source))
+            {
+                return true;
+            }
+
+            var text = ReadDroppedText(data, DataFormats.UnicodeText) ??
+                       ReadDroppedText(data, DataFormats.Text);
+            var candidate = (text ?? string.Empty).Trim().Trim('"');
+            if (IsSupportedImageFile(candidate))
+            {
+                source = candidate;
+                return true;
+            }
+
+            source = null;
+            return false;
+        }
+
+        /// <summary>
         /// True when the path points at an existing file in a format this machine offers and that
-        /// a <see cref="BitmapDecoder"/> can actually open.
+        /// a <see cref="BitmapDecoder"/> (or, for WebM, the WebM reader) can actually open.
         /// </summary>
         public static bool IsSupportedImageFile(string path)
         {
@@ -96,6 +121,11 @@ namespace PlayniteAchievements.Views.Helpers
             if (!ImageFormats.HasSelectableExtension(path))
             {
                 return false;
+            }
+
+            if (ImageFormats.IsWebmExtension(ImageFormats.GetExtension(path)))
+            {
+                return WebmStill.IsReadable(path);
             }
 
             try

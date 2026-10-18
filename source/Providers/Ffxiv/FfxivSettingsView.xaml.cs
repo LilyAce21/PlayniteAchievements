@@ -3,6 +3,7 @@ using PlayniteAchievements.Providers.Settings;
 using PlayniteAchievements.Services.Logging;
 using System;
 using System.ComponentModel;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -10,9 +11,9 @@ using System.Windows;
 namespace PlayniteAchievements.Providers.Ffxiv
 {
     /// <summary>
-    /// Settings view for the Final Fantasy XIV provider. Character details are
-    /// entered manually and verified on demand against the Lodestone and FFXIV
-    /// Collect, following the "needs to be checked" pattern used by other providers.
+    /// Settings view for the Final Fantasy XIV provider. The character profile URL is
+    /// entered manually and verified on demand against FFXIV Collect, following the
+    /// "needs to be checked" pattern used by other providers.
     /// </summary>
     public partial class FfxivSettingsView : ProviderSettingsViewBase, IAuthRefreshable
     {
@@ -68,13 +69,12 @@ namespace PlayniteAchievements.Providers.Ffxiv
 
         private void Settings_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            // Editing the character invalidates any previous check and resolved id.
+            // Editing the profile invalidates any previous check and replaces the id
+            // carried over from a name and world search.
             if (e == null ||
-                string.Equals(e.PropertyName, nameof(FfxivSettings.CharacterName), StringComparison.Ordinal) ||
-                string.Equals(e.PropertyName, nameof(FfxivSettings.World), StringComparison.Ordinal) ||
-                string.Equals(e.PropertyName, nameof(FfxivSettings.Region), StringComparison.Ordinal))
+                string.Equals(e.PropertyName, nameof(FfxivSettings.CharacterProfile), StringComparison.Ordinal))
             {
-                if (_ffxivSettings != null)
+                if (e != null && _ffxivSettings != null)
                 {
                     _ffxivSettings.ResolvedCharacterId = 0;
                 }
@@ -90,18 +90,18 @@ namespace PlayniteAchievements.Providers.Ffxiv
         }
 
         /// <summary>
-        /// Resolves and verifies the configured character against the Lodestone and
-        /// FFXIV Collect, updating the status display. Also invoked by the global
-        /// auth-check flow.
+        /// Verifies the configured character against FFXIV Collect, updating the
+        /// status display. Also invoked by the global auth-check flow.
         /// </summary>
         public async Task RefreshAuthStatusAsync()
         {
-            if (_ffxivSettings == null ||
-                string.IsNullOrWhiteSpace(_ffxivSettings.CharacterName) ||
-                string.IsNullOrWhiteSpace(_ffxivSettings.World))
+            var characterId = _ffxivSettings?.GetCharacterId();
+            if (!characterId.HasValue)
             {
                 SetAuthStatusVisualState(pending: false, success: false);
-                AuthStatus = ResourceProvider.GetString("LOCPlayAch_Common_NotAuthenticated");
+                AuthStatus = string.IsNullOrWhiteSpace(_ffxivSettings?.CharacterProfile)
+                    ? ResourceProvider.GetString("LOCPlayAch_Common_NotAuthenticated")
+                    : ResourceProvider.GetString("LOCPlayAch_Settings_FFXIV_InvalidProfile");
                 return;
             }
 
@@ -112,33 +112,7 @@ namespace PlayniteAchievements.Providers.Ffxiv
             {
                 using (var client = new FfxivApiClient(Logger))
                 {
-                    var resolution = await client.ResolveCharacterIdAsync(
-                        _ffxivSettings.CharacterName,
-                        _ffxivSettings.World,
-                        _ffxivSettings.Region,
-                        CancellationToken.None).ConfigureAwait(true);
-
-                    if (resolution.Outcome == FfxivResolveOutcome.LookupFailed)
-                    {
-                        // The search never ran, so the configured character is still unjudged.
-                        SetAuthStatusVisualState(pending: false, success: false);
-                        AuthStatus = ResourceProvider.GetString("LOCPlayAch_Settings_FFXIV_LodestoneUnavailable");
-                        return;
-                    }
-
-                    if (resolution.Outcome != FfxivResolveOutcome.Resolved)
-                    {
-                        _ffxivSettings.ResolvedCharacterId = 0;
-                        SetAuthStatusVisualState(pending: false, success: false);
-                        AuthStatus = ResourceProvider.GetString("LOCPlayAch_Settings_FFXIV_CharacterNotFound");
-                        return;
-                    }
-
-                    // Kept before the FFXIV Collect call so a character that resolves on the
-                    // Lodestone but is not indexed yet retains its id for the next check.
-                    _ffxivSettings.ResolvedCharacterId = resolution.CharacterId;
-
-                    var character = await client.FetchCharacterAsync(resolution.CharacterId, CancellationToken.None).ConfigureAwait(true);
+                    var character = await client.FetchCharacterAsync(characterId.Value, CancellationToken.None).ConfigureAwait(true);
 
                     if (character?.Achievements?.Public == false)
                     {
@@ -148,11 +122,10 @@ namespace PlayniteAchievements.Providers.Ffxiv
                     }
 
                     SetAuthStatusVisualState(pending: false, success: true);
-                    var displayName = character?.Name ?? _ffxivSettings.CharacterName;
-                    var displayServer = character?.Server ?? _ffxivSettings.World;
+                    var displayName = character?.Name ?? characterId.Value.ToString(CultureInfo.InvariantCulture);
                     AuthStatus = string.Format(
                         ResourceProvider.GetString("LOCPlayAch_Auth_AuthenticatedAs"),
-                        $"{displayName} ({displayServer})");
+                        string.IsNullOrWhiteSpace(character?.Server) ? displayName : $"{displayName} ({character.Server})");
                 }
             }
             catch (FfxivCharacterNotIndexedException ex)

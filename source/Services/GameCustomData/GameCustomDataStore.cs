@@ -2,7 +2,9 @@ using Newtonsoft.Json;
 using Playnite.SDK;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
+using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Providers;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.Images;
 using System;
@@ -10,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace PlayniteAchievements.Services.GameCustomData
@@ -133,7 +136,8 @@ namespace PlayniteAchievements.Services.GameCustomData
                 [NotificationImageSlot.FrameBadgeUncommon] = "notification_frame_badge_uncommon",
                 [NotificationImageSlot.FrameBadgeRare] = "notification_frame_badge_rare",
                 [NotificationImageSlot.FrameBadgeUltraRare] = "notification_frame_badge_ultrarare",
-                [NotificationImageSlot.FrameBadgeCompletion] = "notification_frame_badge_completion"
+                [NotificationImageSlot.FrameBadgeCompletion] = "notification_frame_badge_completion",
+                [NotificationImageSlot.FrameBackground] = "notification_frame_background"
             };
 
         private readonly ILogger _logger;
@@ -166,6 +170,7 @@ namespace PlayniteAchievements.Services.GameCustomData
         private AchievementDataService _achievementDataService;
         private Func<string, CustomProviderDefinition> _tryGetCustomProvider;
         private Func<CustomProviderDefinition, bool> _importCustomProviderIfMissing;
+        private Func<Guid, IReadOnlyList<PortableGameKey>> _resolveGameKeys;
         private Dictionary<Guid, GameCustomDataFile> _cacheByGameId;
         private HashSet<Guid> _missingGameIds;
 
@@ -218,6 +223,15 @@ namespace PlayniteAchievements.Services.GameCustomData
         {
             _tryGetCustomProvider = tryGetCustomProvider;
             _importCustomProviderIfMissing = importCustomProviderIfMissing;
+        }
+
+        /// <summary>
+        /// Connects the lookup that names a game in machine-independent terms (provider ids,
+        /// name and platform), so an exported .pa file can be matched to a library game elsewhere.
+        /// </summary>
+        public void AttachGameKeyResolver(Func<Guid, IReadOnlyList<PortableGameKey>> resolveGameKeys)
+        {
+            _resolveGameKeys = resolveGameKeys;
         }
 
         public bool TryLoad(Guid playniteGameId, out GameCustomDataFile data)
@@ -737,6 +751,7 @@ namespace PlayniteAchievements.Services.GameCustomData
             EnsurePortablePackageExtension(destinationPath);
 
             var portable = LoadNormalizedPortableOrThrow(playniteGameId);
+            ScopePortableForExport(playniteGameId, portable);
             var fileStems = AchievementIconCachePathBuilder.BuildFileStems(
                 EnumeratePortableIconApiNames(portable));
             var categoryFileStems = AchievementIconCachePathBuilder.BuildCategoryFileStems(
@@ -795,13 +810,32 @@ namespace PlayniteAchievements.Services.GameCustomData
                         throw new InvalidOperationException($"Missing bundled icon file: {pair.Value ?? pair.Key}");
                     }
 
+                    // Stored icons keep their source bytes; anything not portable goes in as PNG.
                     var imageEntry = archive.CreateEntry(pair.Key, CompressionLevel.Optimal);
-                    using (var source = File.OpenRead(pair.Value))
                     using (var destination = imageEntry.Open())
                     {
-                        source.CopyTo(destination);
+                        PackageImageFormat.CopyPortable(pair.Value, destination);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// The game keys a .pa package names (provider identity, name and platform of the game it
+        /// was exported from), without importing anything. Empty for a package written before
+        /// game keys existed or for a custom-achievements package, which has no manifest.
+        /// </summary>
+        public IReadOnlyList<PortableGameKey> ReadPortableGameKeys(string sourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath) || !IsPortablePackagePath(sourcePath))
+            {
+                return Array.Empty<PortableGameKey>();
+            }
+
+            using (var archive = ZipFile.OpenRead(sourcePath))
+            {
+                var portable = ReadPortableManifestOrNull(IndexPackageEntries(archive));
+                return portable?.GameKeys?.Where(key => key != null).ToList() ?? (IReadOnlyList<PortableGameKey>)Array.Empty<PortableGameKey>();
             }
         }
 
@@ -909,7 +943,27 @@ namespace PlayniteAchievements.Services.GameCustomData
             portable.CustomProvider = string.IsNullOrWhiteSpace(portable.CustomProviderId)
                 ? null
                 : _tryGetCustomProvider?.Invoke(portable.CustomProviderId)?.Clone();
+            portable.Kind = GameCustomDataPortableFile.GameCustomDataKind;
+            var keys = SafeResolveGameKeys(playniteGameId);
+            portable.GameKeys = keys.Count == 0 ? null : keys;
             return portable;
+        }
+
+        private List<PortableGameKey> SafeResolveGameKeys(Guid playniteGameId)
+        {
+            try
+            {
+                return (_resolveGameKeys?.Invoke(playniteGameId) ?? Array.Empty<PortableGameKey>())
+                    .Where(key => key != null)
+                    .Select(key => key.Clone())
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                // A missing key only costs the workshop its automatic match; the export still works.
+                _logger?.Debug(ex, $"Failed resolving portable game keys for {playniteGameId}.");
+                return new List<PortableGameKey>();
+            }
         }
 
         /// <summary>
@@ -949,38 +1003,16 @@ namespace PlayniteAchievements.Services.GameCustomData
 
             using (var archive = ZipFile.OpenRead(sourcePath))
             {
-                var entriesByName = archive.Entries
-                    .Select(entry => new { Entry = entry, Name = NormalizeArchiveEntryName(entry.FullName) })
-                    .Where(item => item.Entry != null &&
-                                   !string.IsNullOrWhiteSpace(item.Entry.Name) &&
-                                   !string.IsNullOrWhiteSpace(item.Name))
-                    .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(group => group.Key, group => group.First().Entry, StringComparer.OrdinalIgnoreCase);
+                var entriesByName = IndexPackageEntries(archive);
 
-                if (entriesByName.TryGetValue(PortablePackageManifestEntryName, out var manifestEntry))
+                if (entriesByName.ContainsKey(PortablePackageManifestEntryName))
                 {
-                    GameCustomDataPortableFile portable;
-                    using (var reader = new StreamReader(manifestEntry.Open()))
-                    {
-                        portable = JsonConvert.DeserializeObject<GameCustomDataPortableFile>(reader.ReadToEnd());
-                    }
-
-                    RewritePackageImageOverrides(playniteGameId, entriesByName, portable?.AchievementUnlockedIconOverrides, AchievementIconVariant.Unlocked);
-                    RewritePackageImageOverrides(playniteGameId, entriesByName, portable?.AchievementLockedIconOverrides, AchievementIconVariant.Locked);
-                    if (portable != null)
-                    {
-                        // The rewrites above only see the legacy mirror maps. Republish them onto
-                        // the record, which normalization treats as authoritative, so the imported
-                        // icons point at the extracted files rather than the exporter's paths.
-                        SyncPortableOverrideIconsFromLegacyMaps(portable);
-                    }
-
-                    RewritePackageCustomAchievementImages(playniteGameId, entriesByName, portable?.CustomAchievements);
-                    RewritePackageCategoryImageOverrides(playniteGameId, entriesByName, portable?.AchievementCategoryImageOverrides);
-                    RewritePackageNotificationImages(
-                        playniteGameId,
+                    var portable = ReadPortableManifestOrNull(entriesByName);
+                    ScopePortableForGame(portable, LoadAchievementDataOrNull(playniteGameId));
+                    RewritePackageManifestImages(
+                        new ManagedPackageImageSink(this, playniteGameId),
                         entriesByName,
-                        portable?.NotificationAppearanceOverride?.Style);
+                        portable);
 
                     return new PortableGameCustomDataImportResult
                     {
@@ -1001,6 +1033,67 @@ namespace PlayniteAchievements.Services.GameCustomData
 
                 return ImportReplacePortableImageOnlyPackage(playniteGameId, entriesByName);
             }
+        }
+
+        /// <summary>
+        /// The package's file entries keyed by normalized entry name; the first entry wins when
+        /// two normalize to the same name. Folder entries are left out.
+        /// </summary>
+        private static Dictionary<string, ZipArchiveEntry> IndexPackageEntries(ZipArchive archive)
+        {
+            return archive.Entries
+                .Select(entry => new { Entry = entry, Name = NormalizeArchiveEntryName(entry.FullName) })
+                .Where(item => item.Entry != null &&
+                               !string.IsNullOrWhiteSpace(item.Entry.Name) &&
+                               !string.IsNullOrWhiteSpace(item.Name))
+                .GroupBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().Entry, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// The deserialized <see cref="PortablePackageManifestEntryName"/> entry, or null when the
+        /// package has none or it deserializes to nothing.
+        /// </summary>
+        private static GameCustomDataPortableFile ReadPortableManifestOrNull(
+            IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName)
+        {
+            if (!entriesByName.TryGetValue(PortablePackageManifestEntryName, out var manifestEntry))
+            {
+                return null;
+            }
+
+            using (var reader = new StreamReader(manifestEntry.Open()))
+            {
+                return JsonConvert.DeserializeObject<GameCustomDataPortableFile>(reader.ReadToEnd());
+            }
+        }
+
+        /// <summary>
+        /// Points every image a manifest references at the file the sink wrote for its package
+        /// entry: icon overrides, custom achievement icons, category images and notification
+        /// images, in that order. Shared by import and preview so both validate the same way.
+        /// </summary>
+        private void RewritePackageManifestImages(
+            IPackageImageSink sink,
+            IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
+            GameCustomDataPortableFile portable)
+        {
+            RewritePackageImageOverrides(sink, entriesByName, portable?.AchievementUnlockedIconOverrides, AchievementIconVariant.Unlocked);
+            RewritePackageImageOverrides(sink, entriesByName, portable?.AchievementLockedIconOverrides, AchievementIconVariant.Locked);
+            if (portable != null)
+            {
+                // The rewrites above only see the legacy mirror maps. Republish them onto
+                // the record, which normalization treats as authoritative, so the imported
+                // icons point at the extracted files rather than the exporter's paths.
+                SyncPortableOverrideIconsFromLegacyMaps(portable);
+            }
+
+            RewritePackageCustomAchievementImages(sink, entriesByName, portable?.CustomAchievements);
+            RewritePackageCategoryImageOverrides(sink, entriesByName, portable?.AchievementCategoryImageOverrides);
+            RewritePackageNotificationImages(
+                sink,
+                entriesByName,
+                portable?.NotificationAppearanceOverride?.Style);
         }
 
         private PortableGameCustomDataImportResult ImportReplacePortableImageOnlyPackage(
@@ -1108,8 +1201,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             }
         }
 
-        private void RewritePackageImageOverrides(
-            Guid playniteGameId,
+        private static void RewritePackageImageOverrides(
+            IPackageImageSink sink,
             IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
             Dictionary<string, string> overrides,
             AchievementIconVariant variant)
@@ -1119,9 +1212,8 @@ namespace PlayniteAchievements.Services.GameCustomData
                 return;
             }
 
-            var managedIcons = GetManagedCustomIconServiceOrThrow();
+            sink.EnsureIconTargetAvailable();
             var fileStems = AchievementIconCachePathBuilder.BuildFileStems(overrides.Keys);
-            var gameIdText = playniteGameId.ToString("D");
 
             foreach (var pair in overrides.ToList())
             {
@@ -1150,20 +1242,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                     throw new InvalidOperationException($"Could not determine a managed custom icon path for '{apiName}'.");
                 }
 
-                var targetPath = managedIcons.GetAchievementCustomIconPath(gameIdText, fileStem, variant);
-                var targetDirectory = Path.GetDirectoryName(targetPath);
-                if (!string.IsNullOrWhiteSpace(targetDirectory))
-                {
-                    Directory.CreateDirectory(targetDirectory);
-                }
-
-                using (var source = imageEntry.Open())
-                using (var destination = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.Read))
-                {
-                    source.CopyTo(destination);
-                }
-
-                overrides[apiName] = targetPath;
+                overrides[apiName] = sink.WriteAchievementIcon(imageEntry, fileStem, variant);
             }
         }
 
@@ -1228,8 +1307,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             return relativeEntryName;
         }
 
-        private void RewritePackageCustomAchievementImages(
-            Guid playniteGameId,
+        private static void RewritePackageCustomAchievementImages(
+            IPackageImageSink sink,
             IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
             IReadOnlyList<CustomAchievementDefinition> customAchievements)
         {
@@ -1253,14 +1332,14 @@ namespace PlayniteAchievements.Services.GameCustomData
                 }
 
                 definition.UnlockedIconPath = RewritePackageCustomAchievementImage(
-                    playniteGameId,
+                    sink,
                     entriesByName,
                     fileStems,
                     apiName,
                     definition.UnlockedIconPath,
                     AchievementIconVariant.Unlocked);
                 definition.LockedIconPath = RewritePackageCustomAchievementImage(
-                    playniteGameId,
+                    sink,
                     entriesByName,
                     fileStems,
                     apiName,
@@ -1269,8 +1348,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             }
         }
 
-        private string RewritePackageCustomAchievementImage(
-            Guid playniteGameId,
+        private static string RewritePackageCustomAchievementImage(
+            IPackageImageSink sink,
             IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
             IReadOnlyDictionary<string, string> fileStems,
             string apiName,
@@ -1294,7 +1373,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                 throw new InvalidOperationException($"Could not determine a managed custom icon path for '{apiName}'.");
             }
 
-            return ImportPackageImageToManagedPath(playniteGameId, imageEntry, fileStem, variant);
+            return sink.WriteCustomAchievementIcon(imageEntry, fileStem, variant);
         }
 
         private void RewritePortableCategoryImagesForPackage(
@@ -1362,8 +1441,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             imageSources[relativeEntryName] = bundledSource;
         }
 
-        private void RewritePackageCategoryImageOverrides(
-            Guid playniteGameId,
+        private static void RewritePackageCategoryImageOverrides(
+            IPackageImageSink sink,
             IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
             Dictionary<string, CategoryImageOverrideData> overrides)
         {
@@ -1372,9 +1451,8 @@ namespace PlayniteAchievements.Services.GameCustomData
                 return;
             }
 
-            var managedIcons = GetManagedCustomIconServiceOrThrow();
+            sink.EnsureIconTargetAvailable();
             var fileStems = AchievementIconCachePathBuilder.BuildCategoryFileStems(overrides.Keys);
-            var gameIdText = playniteGameId.ToString("D");
 
             foreach (var pair in overrides.ToList())
             {
@@ -1391,8 +1469,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                 }
 
                 pair.Value.Art = RewritePackageCategoryImageOverride(
-                    managedIcons,
-                    gameIdText,
+                    sink,
                     entriesByName,
                     fileStem,
                     pair.Value.Art);
@@ -1405,8 +1482,7 @@ namespace PlayniteAchievements.Services.GameCustomData
         }
 
         private static string RewritePackageCategoryImageOverride(
-            ManagedCustomIconService managedIcons,
-            string gameIdText,
+            IPackageImageSink sink,
             IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
             string fileStem,
             string overrideValue)
@@ -1423,20 +1499,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                 throw new InvalidOperationException($"Package is missing bundled category image entry '{overrideValue}'.");
             }
 
-            var targetPath = managedIcons.GetCategoryCustomImagePath(gameIdText, fileStem);
-            var targetDirectory = Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrWhiteSpace(targetDirectory))
-            {
-                Directory.CreateDirectory(targetDirectory);
-            }
-
-            using (var source = imageEntry.Open())
-            using (var destination = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.Read))
-            {
-                source.CopyTo(destination);
-            }
-
-            return targetPath;
+            return sink.WriteCategoryImage(imageEntry, fileStem);
         }
 
         private void RewritePortableNotificationImagesForPackage(
@@ -1495,8 +1558,8 @@ namespace PlayniteAchievements.Services.GameCustomData
             }
         }
 
-        private void RewritePackageNotificationImages(
-            Guid playniteGameId,
+        private static void RewritePackageNotificationImages(
+            IPackageImageSink sink,
             IReadOnlyDictionary<string, ZipArchiveEntry> entriesByName,
             NotificationStyleSettings style)
         {
@@ -1518,10 +1581,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                     continue;
                 }
 
-                if (_notificationImageStore == null)
-                {
-                    throw new InvalidOperationException("Notification image store is not available.");
-                }
+                sink.EnsureNotificationTargetAvailable();
 
                 var normalizedEntryName = NormalizePackageImagePathOrThrow(entryPair.Key);
                 var entry = entriesByName[normalizedEntryName];
@@ -1534,55 +1594,7 @@ namespace PlayniteAchievements.Services.GameCustomData
 
                 EnsureBundledImageDecodableOrThrow(entry.FullName);
 
-                var tempDirectory = Path.Combine(
-                    Path.GetTempPath(),
-                    "PlayniteAchievements",
-                    "PortableNotificationImports");
-                Directory.CreateDirectory(tempDirectory);
-                var tempPath = Path.Combine(
-                    tempDirectory,
-                    Guid.NewGuid().ToString("N") + extension);
-                try
-                {
-                    using (var source = entry.Open())
-                    using (var destination = new FileStream(
-                        tempPath,
-                        FileMode.Create,
-                        FileAccess.Write,
-                        FileShare.None))
-                    {
-                        source.CopyTo(destination);
-                    }
-
-                    var managedPath = _notificationImageStore
-                        .MaterializeAsync(
-                            tempPath,
-                            NotificationImageOwner.ForGame(playniteGameId),
-                            slot,
-                            CancellationToken.None)
-                        .GetAwaiter()
-                        .GetResult();
-                    if (string.IsNullOrWhiteSpace(managedPath) || !File.Exists(managedPath))
-                    {
-                        throw new InvalidOperationException(
-                            $"Failed to import packaged notification image '{entry.FullName}'.");
-                    }
-
-                    NotificationImageSlotMap.SetPath(style, slot, managedPath);
-                }
-                finally
-                {
-                    try
-                    {
-                        if (File.Exists(tempPath))
-                        {
-                            File.Delete(tempPath);
-                        }
-                    }
-                    catch
-                    {
-                    }
-                }
+                NotificationImageSlotMap.SetPath(style, slot, sink.WriteNotificationImage(entry, slot, extension));
             }
         }
 
@@ -1660,6 +1672,71 @@ namespace PlayniteAchievements.Services.GameCustomData
             return bundledSource;
         }
 
+        /// <summary>The game's cached achievements, or null when there are none or no data service is attached.</summary>
+        private GameAchievementData LoadAchievementDataOrNull(Guid playniteGameId)
+        {
+            return _achievementDataService?.GetGameAchievementData(playniteGameId);
+        }
+
+        /// <summary>
+        /// Writes portable keys in place of a scoped provider's per-scope keys
+        /// (<see cref="GameCustomDataPortableScoping.ToPortable"/>). Icons count as the same when
+        /// their files have the same content.
+        /// </summary>
+        private void ScopePortableForExport(Guid playniteGameId, GameCustomDataPortableFile portable)
+        {
+            var data = LoadAchievementDataOrNull(playniteGameId);
+            var scope = AchievementKeyScopes.For(data?.ProviderKey);
+            if (scope == null)
+            {
+                return;
+            }
+
+            var gameIdText = playniteGameId.ToString("D");
+            GameCustomDataPortableScoping.ToPortable(
+                portable,
+                scope,
+                data.Achievements,
+                value => IconContentIdentity(value, gameIdText));
+        }
+
+        /// <summary>
+        /// Spreads a package's portable keys over the target game's scopes
+        /// (<see cref="GameCustomDataPortableScoping.ToGame"/>). A no-op without cached rows or
+        /// for an unscoped provider.
+        /// </summary>
+        private static void ScopePortableForGame(GameCustomDataPortableFile portable, GameAchievementData target)
+        {
+            GameCustomDataPortableScoping.ToGame(
+                portable,
+                AchievementKeyScopes.For(target?.ProviderKey),
+                target?.Achievements);
+        }
+
+        private string IconContentIdentity(string value, string gameIdText)
+        {
+            var path = _managedCustomIconService?.ResolveManagedDisplayPath(value, gameIdText) ?? value;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                {
+                    using (var sha = SHA256.Create())
+                    using (var stream = File.OpenRead(path))
+                    {
+                        return BitConverter.ToString(sha.ComputeHash(stream));
+                    }
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+
+            return value;
+        }
+
         private IReadOnlyList<string> LoadAchievementApiNamesForImageOnlyPackageOrThrow(Guid playniteGameId)
         {
             if (_achievementDataService == null)
@@ -1667,8 +1744,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                 throw new InvalidOperationException("Achievement data service is not available.");
             }
 
-            var apiNames = _achievementDataService
-                .GetGameAchievementData(playniteGameId)?
+            var apiNames = LoadAchievementDataOrNull(playniteGameId)?
                 .Achievements?
                 .Where(achievement => achievement != null && !string.IsNullOrWhiteSpace(achievement.ApiName))
                 .Select(achievement => achievement.ApiName.Trim())
@@ -2278,6 +2354,14 @@ namespace PlayniteAchievements.Services.GameCustomData
                 throw new InvalidOperationException(
                     $"The bundled image '{entryName}' is a WebP, which this system has no decoder for. " +
                     "Install the WebP Image Extension from the Microsoft Store, then import again.");
+            }
+
+            if (ImageFormats.IsWebmExtension(ImageFormats.GetExtension(entryName)) &&
+                !WebmCodecProbe.IsSupported)
+            {
+                throw new InvalidOperationException(
+                    $"The bundled image '{entryName}' is a WebM, which this system has no decoder for. " +
+                    "Install the VP9 Video Extensions from the Microsoft Store, then import again.");
             }
         }
 

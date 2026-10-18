@@ -11,6 +11,7 @@
     <converters:ResourceKeyToImageSourceConverter x:Key="ShowcaseResourceKeyToImage"/>
     <converters:RaritySelectionIncludesCompletedConverter x:Key="RaritySelectionIncludesCompleted"/>
     <converters:ProviderIconConverter x:Key="ShowcaseProviderIcon"/>
+    <converters:UniformImageInsetConverter x:Key="UniformImageInset"/>
 
     <!-- Mosaics can hold 64 tiles, each carrying artwork, a glow effect, and a ray burst that
          redraws while it is on screen. A plain ItemsControl in a ScrollViewer realizes all of
@@ -345,16 +346,6 @@
          cumulative score-over-time line under each card outside compact. -->
     <DataTemplate DataType="{x:Type widgets:ScoresWidgetViewModel}">
       <Grid>
-        <!-- One info affordance for the widget. The cards themselves carry none: with both the
-             collection and prestige card on screen, a per-card glyph appeared twice and competed
-             with the label that tells the two cards apart. -->
-        <Button Style="{DynamicResource PlayAch.Button.InfoGlyphStyle}"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Panel.ZIndex="1"
-                Margin="0,2,4,0"
-                ToolTip="{DynamicResource LOCPlayAch_Score_Info_ButtonTooltip}"
-                showcase:ScoreCardInfoBehavior.Enabled="True"/>
         <ItemsControl ItemsSource="{Binding Cards}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -389,6 +380,7 @@
                         <controls:ScoreCardControl
                             ScoreCard="{Binding Card}"
                             IsFeatured="{Binding DataContext.IsFeatured, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            BadgePosition="{Binding BadgePosition}"
                             Flat="True"
                             MinWidth="0"
                             HorizontalAlignment="Stretch"/>
@@ -476,8 +468,8 @@
          the View Achievements window on the achievement, as the compact lists do. -->
     <DataTemplate DataType="{x:Type widgets:IconMosaicWidgetViewModel}">
       <DockPanel>
-        <controls:GridControlBarControl DockPanel.Dock="Top"
-                                        Margin="0,0,0,8"
+        <controls:GridControlBarControl DockPanel.Dock="Bottom"
+                                        Margin="0,8,0,0"
                                         ControlBar="{Binding ControlBar}"
                                         ShowControlBar="{Binding ShowControlBar}"/>
         <ListBox ItemsSource="{Binding Items}"
@@ -516,61 +508,74 @@
       </DockPanel>
     </DataTemplate>
 
-    <!-- Pie: reuses PieChartWithRadialIcons with an optional legend on the right; the pair is centered. -->
+    <!-- Pie: reuses PieChartWithRadialIcons, which also draws the optional legend on either side.
+         The optional control bar filters the games the pie's totals come from. -->
     <DataTemplate DataType="{x:Type widgets:PieWidgetViewModel}">
-        <showcase:ShowcasePieLegendPanel>
-            <controls:PieChartWithRadialIcons
-                PieSeries="{Binding Chart.PieSeries}"
-                LegendItems="{Binding Chart.LegendItems}"
-                HighlightedLabels="{Binding Chart.HighlightedLabels}"
-                ExactUnlockedCount="{Binding Chart.ExactUnlockedCount}"
-                ExactTotalCount="{Binding Chart.ExactTotalCount}"
-                ShowCenterPercentage="{Binding Chart.ShowCenterPercentage}"
-                PieMargin="23"
-                MinHeight="70"/>
-            <ItemsControl ItemsSource="{Binding LegendRows}"
-                          VerticalAlignment="Center"
-                          Margin="16,0,0,0"
-                          Visibility="{Binding ShowLegend, Converter={StaticResource BoolToVis}}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="0,3">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border Width="8"
-                                    Height="8"
-                                    CornerRadius="4"
-                                    Margin="0,0,7,0"
-                                    VerticalAlignment="Center"
-                                    Background="{Binding Swatch}"/>
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding Label}"
-                                       Foreground="{DynamicResource PlayAch.Brush.Text}"
-                                       Opacity="{StaticResource PlayAch.Opacity.Hint}"
-                                       FontSize="{DynamicResource PlayAch.FontSize.Caption}"
-                                       TextTrimming="CharacterEllipsis"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding CountText}"
-                                       Foreground="{DynamicResource PlayAch.Brush.Text}"
-                                       FontWeight="SemiBold"
-                                       FontSize="{DynamicResource PlayAch.FontSize.Caption}"
-                                       Margin="8,0,0,0"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </showcase:ShowcasePieLegendPanel>
+      <DockPanel>
+        <controls:GridControlBarControl DockPanel.Dock="Top"
+                                        Margin="0,0,0,8"
+                                        ControlBar="{Binding ControlBar}"
+                                        ShowControlBar="{Binding ShowControlBar}"/>
+        <controls:PieChartWithRadialIcons
+            PieSeries="{Binding Chart.PieSeries}"
+            LegendItems="{Binding Chart.LegendItems}"
+            HighlightedLabels="{Binding Chart.HighlightedLabels}"
+            ExactUnlockedCount="{Binding Chart.ExactUnlockedCount}"
+            ExactTotalCount="{Binding Chart.ExactTotalCount}"
+            ShowCenterPercentage="{Binding Chart.ShowCenterPercentage}"
+            ShowIcons="{Binding Chart.ShowIcons}"
+            IsFilled="{Binding Chart.IsFilled}"
+            ShowLegend="{Binding Chart.ShowLegend}"
+            LegendPosition="{Binding Chart.LegendPosition}"
+            MinHeight="70">
+            <!-- The margin holds the radial icons; without them only the hover push-out needs room. -->
+            <controls:PieChartWithRadialIcons.Style>
+                <Style TargetType="controls:PieChartWithRadialIcons">
+                    <Setter Property="PieMargin" Value="23"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Chart.ShowIcons}" Value="False">
+                            <Setter Property="PieMargin" Value="10"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </controls:PieChartWithRadialIcons.Style>
+        </controls:PieChartWithRadialIcons>
+      </DockPanel>
     </DataTemplate>
 
     <!-- Timeline: the reused LiveCharts column chart with range buttons, identical at every size. -->
     <DataTemplate DataType="{x:Type widgets:TimelineWidgetViewModel}">
-        <!-- The window and granularity are widget settings (the Range and Granularity options);
-             the widget itself is only the chart. -->
+        <!-- The window, bar width and platform split are widget settings; with Show Control Bar
+             on they are also set here, above the chart, and saved back to the widget. -->
+        <DockPanel>
+        <DockPanel DockPanel.Dock="Bottom"
+                   LastChildFill="True"
+                   Margin="0,8,0,0"
+                   Visibility="{Binding ShowControls, Converter={StaticResource BoolToVis}}">
+            <!-- IcoFont "layers": stacked per-platform segments, drawn as vector geometry like
+                 the plugin's other icon glyphs, in the button's own foreground. -->
+            <ToggleButton DockPanel.Dock="Right"
+                          Style="{DynamicResource PlayAch.ToggleButton.BaseStyle}"
+                          IsChecked="{Binding SplitByPlatform, Mode=TwoWay}"
+                          Width="34"
+                          Padding="0"
+                          Margin="{DynamicResource PlayAch.Thickness.Left.Xs}"
+                          VerticalAlignment="Center"
+                          ToolTip="{DynamicResource LOCPlayAch_Timeline_SplitByPlatform}">
+                <controls:GlyphIcon Glyph="&#xEF5C;"
+                                    Size="16"
+                                    FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    SnapsToDevicePixels="True"/>
+            </ToggleButton>
+            <controls:TimeWindowPicker Window="{Binding Timeline.Window, Mode=TwoWay}"
+                                       Granularity="{Binding Timeline.Granularity, Mode=TwoWay}"
+                                       UnavailableGranularities="{Binding Timeline.UnavailableGranularities}"
+                                       ShowGranularity="True"
+                                       MinDate="{Binding Timeline.EarliestDate}"/>
+        </DockPanel>
         <controls:UnlockTimelineChart Series="{Binding Timeline.TimelineSeries}"
                                       Labels="{Binding Timeline.TimelineLabels}"
                                       TooltipLabels="{Binding Timeline.TooltipLabels}"
@@ -581,7 +586,9 @@
                                       IsEmpty="{Binding Timeline.IsEmpty}"
                                       MaxTickCount="{Binding Timeline.MaxTickCount, Mode=OneWayToSource}"
                                       MaxBarCount="{Binding Timeline.MaxBarCount, Mode=OneWayToSource}"
-                                      RenderRevision="{Binding Timeline.RenderRevision}"/>
+                                      RenderRevision="{Binding Timeline.RenderRevision}"
+                                      HighlightedIndex="{Binding Timeline.HighlightedIndex}"/>
+        </DockPanel>
     </DataTemplate>
 
     <!-- Statistics: scrolling grid of value/label tiles. -->
@@ -596,6 +603,67 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
+        </ScrollViewer>
+    </DataTemplate>
+
+    <!-- Image: one stored picture across the whole card (the host drops its inset and clips to
+         the rounded corners). The alignment places a fitted picture, and for a filled one picks
+         the part that stays in view: the overflow falls off the far side, cut by ClipToBounds. -->
+    <DataTemplate DataType="{x:Type widgets:ImageWidgetViewModel}">
+        <Grid ClipToBounds="True">
+            <Image Stretch="{Binding Stretch}"
+                   HorizontalAlignment="{Binding HorizontalAlignment}"
+                   VerticalAlignment="{Binding VerticalAlignment}"
+                   IsHitTestVisible="False"
+                   Visibility="{Binding HasImage, Converter={StaticResource BoolToVis}}"
+                   helpers:AsyncImage.Uri="{Binding ImagePath}"
+                   helpers:AsyncImage.DecodePixel="{Binding DecodePixel}"/>
+        </Grid>
+    </DataTemplate>
+
+    <!-- Text: the widget's text with inline markdown (bold, italic, underline, strikethrough,
+         links). Sizes map onto the theme's font sizes; Huge scales the title size so it keeps
+         following the theme. A long text scrolls; the grid fills the viewport while the text is
+         shorter, so vertical alignment still places it. -->
+    <DataTemplate DataType="{x:Type widgets:TextWidgetViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Grid MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                <TextBlock HorizontalAlignment="{Binding HorizontalAlignment}"
+                           VerticalAlignment="{Binding VerticalAlignment}"
+                           TextAlignment="{Binding TextAlignment}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource PlayAch.Brush.Text}"
+                           helpers:InlineMarkdownFormatter.FormattedText="{Binding Text}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Body}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Small">
+                                    <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Caption}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Large">
+                                    <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Title}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Custom">
+                                    <Setter Property="FontSize" Value="{Binding PixelSize}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding TextSize}" Value="Huge">
+                                    <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Title}"/>
+                                    <Setter Property="LayoutTransform">
+                                        <Setter.Value>
+                                            <ScaleTransform ScaleX="2" ScaleY="2"/>
+                                        </Setter.Value>
+                                    </Setter>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding HasFontFamily}" Value="True">
+                                    <Setter Property="FontFamily" Value="{Binding FontFamily}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
         </ScrollViewer>
     </DataTemplate>
 
@@ -734,8 +802,8 @@
          tiles, reorder/unpin. -->
     <DataTemplate DataType="{x:Type widgets:GameMosaicWidgetViewModel}">
       <DockPanel>
-        <controls:GridControlBarControl DockPanel.Dock="Top"
-                                        Margin="0,0,0,8"
+        <controls:GridControlBarControl DockPanel.Dock="Bottom"
+                                        Margin="0,8,0,0"
                                         ControlBar="{Binding ControlBar}"
                                         ShowControlBar="{Binding ShowControlBar}"/>
         <ListBox ItemsSource="{Binding Tiles}"
@@ -886,7 +954,7 @@
                                     </Style>
                                 </Border.Style>
                                 <Grid>
-                                    <Image Style="{StaticResource MosaicTileArtStyle}"/>
+                                    <Image x:Name="TileArtImage" Style="{StaticResource MosaicTileArtStyle}"/>
                                     <!-- Capstone rarity: the shared rarity bar over the cover's
                                          bottom edge, on completed games only. -->
                                     <ProgressBar Style="{StaticResource PlayAch.ProgressBar.RarityBar}"
@@ -894,6 +962,26 @@
                                                  Visibility="{Binding ShowRarityBar, Converter={StaticResource BoolToVis}}"/>
                                 </Grid>
                             </Border>
+                            <!-- Completion frame: the game summaries grid's cover frame at tile
+                                 size, drawn on the art over the rarity bar. It binds the tile's
+                                 summary row, so it makes the same badge choice and shows the same
+                                 capstone count. Icon tiles letterbox their art, so the frame
+                                 insets to the picture actually drawn. -->
+                            <Control Template="{StaticResource CompletionFrameTemplate}"
+                                     DataContext="{Binding Game}"
+                                     Focusable="False"
+                                     IsTabStop="False"
+                                     helpers:CompletionBadge.FrameBadgeSize="16"
+                                     Visibility="{Binding DataContext.ShowCompletionFrame, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Converter={StaticResource BoolToVis}}">
+                                <Control.Margin>
+                                    <MultiBinding Converter="{StaticResource UniformImageInset}">
+                                        <Binding ElementName="TileArtImage" Path="Source"/>
+                                        <Binding ElementName="TileArtImage" Path="ActualWidth"/>
+                                        <Binding ElementName="TileArtImage" Path="ActualHeight"/>
+                                        <Binding ElementName="TileArtImage" Path="Stretch"/>
+                                    </MultiBinding>
+                                </Control.Margin>
+                            </Control>
                         </Grid>
                     </DataTemplate>
             </ListBox.ItemTemplate>
@@ -1075,14 +1163,25 @@
                          with tooltips and the day popup (ShowcaseActivityDayPopupTemplate)
                          served from hit tests. -->
                     <showcase:ActivityCalendarHeatmap Weeks="{Binding Weeks}"
+                                                      SelectsDays="{Binding IsLinked}"
+                                                      HighlightedDay="{Binding HighlightedDay}"
                                                       ShowMonthLabels="True"
                                                       HorizontalAlignment="Left"
                                                       VerticalAlignment="Top"/>
                 </ScrollViewer>
             </Grid>
+            <!-- With Show Control Bar on, the calendar's window is set here, on the legend's
+                 line, and saved back to the widget. -->
+            <controls:TimeWindowPicker Grid.Row="1"
+                                       Margin="0,4,8,0"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"
+                                       Window="{Binding Window, Mode=TwoWay}"
+                                       Visibility="{Binding ShowControls, Converter={StaticResource BoolToVis}}"/>
             <StackPanel Grid.Row="1"
                         Orientation="Horizontal"
                         HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
                         Margin="0,4,0,0">
                 <TextBlock Text="{DynamicResource LOCPlayAch_Showcase_ActivityLegend_Less}"
                            Foreground="{DynamicResource PlayAch.Brush.Text}"

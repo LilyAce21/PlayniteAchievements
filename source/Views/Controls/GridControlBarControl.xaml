@@ -404,15 +404,15 @@
                             <Path Data="{StaticResource GeoLock}"
                                   Fill="{DynamicResource PlayAch.Brush.Glyph}"/>
                         </Viewbox>
-                        <TextBlock x:Name="HiddenGlyph"
-                                   Text="&#xEF22;"
-                                   FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
-                                   Foreground="{DynamicResource PlayAch.Brush.Glyph}"
-                                   FontSize="15"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Visibility="Collapsed"/>
+                        <controls:GlyphIcon x:Name="HiddenGlyph"
+                                            Glyph="&#xEF22;"
+                                            Size="15"
+                                            FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                            Foreground="{DynamicResource PlayAch.Brush.Glyph}"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            SnapsToDevicePixels="True"
+                                            Visibility="Collapsed"/>
                         <!-- Same star the friend grids draw in their favorite gutters. -->
                         <TextBlock x:Name="FavoriteGlyph"
                                    Text="&#x2605;"
@@ -490,6 +490,101 @@
                         Visibility="{Binding EffectiveIsVisible, Converter={StaticResource GridControlBarBoolToVis}}"/>
             </DataTemplate>
 
+            <!-- A from-to day range, shaped like the other filters: a dropdown button reading the
+                 range (or "Unlocked" while there is none) whose popup holds the plugin's themed
+                 date pickers and a clear button. An empty end leaves that side open. -->
+            <DataTemplate DataType="{x:Type vm:GridDateRangeFilter}">
+                <Grid Margin="{StaticResource PlayAch.Thickness.Left.Xs}"
+                      VerticalAlignment="Center"
+                      Visibility="{Binding EffectiveIsVisible, Converter={StaticResource GridControlBarBoolToVis}}">
+                    <Button x:Name="RangeButton"
+                            Style="{StaticResource AchievementSelectorButtonStyle}"
+                            Content="{Binding DisplayText}"
+                            Click="DateRange_Click"
+                            Tag="{Binding ElementName=RangePopup}"
+                            Width="{Binding Width}"
+                            Height="{StaticResource PlayAch.Size.Control.Height}"
+                            VerticalAlignment="Center"/>
+                    <Popup x:Name="RangePopup"
+                           PlacementTarget="{Binding ElementName=RangeButton}"
+                           Placement="Bottom"
+                           VerticalOffset="2"
+                           StaysOpen="False"
+                           AllowsTransparency="True"
+                           Closed="DateRangePopup_Closed">
+                        <Border Background="{DynamicResource PlayAch.Brush.PopupSurface}"
+                                BorderBrush="{DynamicResource PlayAch.Brush.PopupBorder}"
+                                BorderThickness="1"
+                                CornerRadius="5"
+                                Padding="10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="30"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <!-- Either end alone makes a one-way range (since a day, or until
+                                     one); each clears on its own. -->
+                                <TextBlock Text="{DynamicResource LOCPlayAch_DateRange_From}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Text}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,10,6"/>
+                                <DatePicker Grid.Column="1"
+                                            Style="{DynamicResource PlayAch.DatePicker.BaseStyle}"
+                                            SelectedDate="{Binding From, Mode=TwoWay}"
+                                            Height="{StaticResource PlayAch.Size.Control.Height}"
+                                            Margin="0,0,0,6"/>
+                                <Button Grid.Column="2"
+                                        Style="{StaticResource GridActionButtonStyle}"
+                                        Content="&#x00D7;"
+                                        Click="DateRangeClearFrom_Click"
+                                        Padding="0"
+                                        Width="24"
+                                        Height="{StaticResource PlayAch.Size.Control.Height}"
+                                        Margin="6,0,0,6"
+                                        ToolTip="{DynamicResource LOCClearLabel}"
+                                        Visibility="{Binding HasFrom, Converter={StaticResource GridControlBarBoolToVis}}"/>
+                                <TextBlock Grid.Row="1"
+                                           Text="{DynamicResource LOCPlayAch_DateRange_To}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Text}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,10,0"/>
+                                <DatePicker Grid.Row="1"
+                                            Grid.Column="1"
+                                            Style="{DynamicResource PlayAch.DatePicker.BaseStyle}"
+                                            SelectedDate="{Binding To, Mode=TwoWay}"
+                                            Height="{StaticResource PlayAch.Size.Control.Height}"/>
+                                <Button Grid.Row="1"
+                                        Grid.Column="2"
+                                        Style="{StaticResource GridActionButtonStyle}"
+                                        Content="&#x00D7;"
+                                        Click="DateRangeClearTo_Click"
+                                        Padding="0"
+                                        Width="24"
+                                        Height="{StaticResource PlayAch.Size.Control.Height}"
+                                        Margin="6,0,0,0"
+                                        ToolTip="{DynamicResource LOCClearLabel}"
+                                        Visibility="{Binding HasTo, Converter={StaticResource GridControlBarBoolToVis}}"/>
+                                <Button Grid.Row="2"
+                                        Grid.ColumnSpan="3"
+                                        Style="{StaticResource GridActionButtonStyle}"
+                                        Content="{DynamicResource LOCClearLabel}"
+                                        Click="DateRangeClear_Click"
+                                        HorizontalAlignment="Right"
+                                        Height="{StaticResource PlayAch.Size.Control.Height}"
+                                        Margin="0,8,0,0"
+                                        IsEnabled="{Binding HasRange}"/>
+                            </Grid>
+                        </Border>
+                    </Popup>
+                </Grid>
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type vm:GridModeToggle}">
                 <ToggleButton x:Name="ModeToggleButton"
                               Style="{StaticResource GridModeToggleButtonStyle}"
@@ -510,15 +605,11 @@
         </ResourceDictionary>
     </UserControl.Resources>
 
-    <Grid KeyboardNavigation.DirectionalNavigation="Continue">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*" MinWidth="100"/>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-
-        <ItemsControl Grid.Column="0"
-                      ItemsSource="{Binding ControlBar.LeadingItems, ElementName=Root}"
+    <!-- Children in order: leading items, search box, filter items. With WrapItems the filters
+         drop below the search box when the bar is too narrow, and wrap across lines there. -->
+    <controls:ControlBarLayoutPanel KeyboardNavigation.DirectionalNavigation="Continue"
+                                    Wrap="{Binding (controls:GridControlBarControl.WrapItems), ElementName=Root}">
+        <ItemsControl ItemsSource="{Binding ControlBar.LeadingItems, ElementName=Root}"
                       VerticalAlignment="Center">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
@@ -527,17 +618,35 @@
             </ItemsControl.ItemsPanel>
         </ItemsControl>
 
-        <ContentControl Grid.Column="1"
-                        Content="{Binding ControlBar.Search, ElementName=Root}"/>
+        <ContentControl Content="{Binding ControlBar.Search, ElementName=Root}"/>
 
-        <ItemsControl Grid.Column="2"
-                      ItemsSource="{Binding ControlBar.Items, ElementName=Root}"
+        <ItemsControl ItemsSource="{Binding ControlBar.Items, ElementName=Root}"
                       VerticalAlignment="Center">
+            <ItemsControl.Style>
+                <Style TargetType="ItemsControl">
+                    <Style.Triggers>
+                        <!-- Offsets the item margins below, so one line keeps its height. -->
+                        <DataTrigger Binding="{Binding (controls:GridControlBarControl.WrapItems), ElementName=Root}" Value="True">
+                            <Setter Property="Margin" Value="0,-2"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ItemsControl.Style>
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Style.Triggers>
+                        <!-- Gap between wrapped lines. -->
+                        <DataTrigger Binding="{Binding (controls:GridControlBarControl.WrapItems), RelativeSource={RelativeSource AncestorType=controls:GridControlBarControl}}" Value="True">
+                            <Setter Property="Margin" Value="0,2"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ItemsControl.ItemContainerStyle>
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <StackPanel Orientation="Horizontal"/>
+                    <controls:CenteredWrapPanel/>
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
         </ItemsControl>
-    </Grid>
+    </controls:ControlBarLayoutPanel>
 </UserControl>

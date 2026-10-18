@@ -81,6 +81,8 @@ namespace PlayniteAchievements.ViewModels.Settings
 
             _persistDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _persistDebounceTimer.Tick += OnPersistDebounceTimerTick;
+            _keyframeCommitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(KeyframeCommitDelayMs) };
+            _keyframeCommitTimer.Tick += OnKeyframeCommitTimerTick;
 
             // The frame never renders progress notifications, so its editor has no progress row;
             // the token still lives in the frame's stored order (one canonical order).
@@ -216,7 +218,7 @@ namespace PlayniteAchievements.ViewModels.Settings
                     var options = new List<FontFamilyOption>
                     {
                         new FontFamilyOption(
-                            L("LOCPlayAch_Common_Default"),
+                            L("LOCDefault"),
                             familyName: null,
                             previewFamily: System.Windows.SystemFonts.MessageFontFamily)
                     };
@@ -349,23 +351,24 @@ namespace PlayniteAchievements.ViewModels.Settings
         public IReadOnlyList<RarityBadgePlacementOption> BadgePlacementOptions =>
             _badgePlacementOptions ?? (_badgePlacementOptions = new[]
             {
-                new RarityBadgePlacementOption(RarityBadgePlacement.None, L("LOCPlayAch_Common_None")),
+                new RarityBadgePlacementOption(RarityBadgePlacement.None, L("LOCNone")),
                 new RarityBadgePlacementOption(RarityBadgePlacement.UnderIcon, L("LOCPlayAch_Settings_Style_Rarity_BadgeUnderIcon")),
                 new RarityBadgePlacementOption(RarityBadgePlacement.Inline, L("LOCPlayAch_Settings_Style_Rarity_InlineBadge")),
+                new RarityBadgePlacementOption(RarityBadgePlacement.InlineGame, L("LOCPlayAch_Settings_Style_Rarity_InlineGameBadge")),
                 new RarityBadgePlacementOption(RarityBadgePlacement.Right, L("LOCPlayAch_Settings_Style_Rarity_BadgeRight"))
             });
 
         public IReadOnlyList<RarityPercentPlacementOption> PercentPlacementOptions =>
             _percentPlacementOptions ?? (_percentPlacementOptions = new[]
             {
-                new RarityPercentPlacementOption(RarityPercentPlacement.None, L("LOCPlayAch_Common_None")),
+                new RarityPercentPlacementOption(RarityPercentPlacement.None, L("LOCNone")),
                 new RarityPercentPlacementOption(RarityPercentPlacement.UnderIcon, L("LOCPlayAch_Settings_Style_Rarity_PercentUnderIcon")),
                 new RarityPercentPlacementOption(RarityPercentPlacement.WithBadge, L("LOCPlayAch_Settings_Style_Rarity_PercentWithBadge"))
             });
 
         /// <summary>
-        /// Rarity badge placement, derived from and written back to the surface's footer / inline /
-        /// right badge flags, which the dropdown keeps mutually exclusive.
+        /// Rarity badge placement, derived from and written back to the surface's footer / inline
+        /// name / inline game / right badge flags, which the dropdown keeps mutually exclusive.
         /// </summary>
         public RarityBadgePlacementOption SelectedBadgePlacement
         {
@@ -380,6 +383,10 @@ namespace PlayniteAchievements.ViewModels.Settings
                 else if (surface.RightRarityBadge)
                 {
                     value = RarityBadgePlacement.Right;
+                }
+                else if (surface.InlineGameRarityBadge)
+                {
+                    value = RarityBadgePlacement.InlineGame;
                 }
                 else if (surface.InlineRarityBadge)
                 {
@@ -408,6 +415,7 @@ namespace PlayniteAchievements.ViewModels.Settings
                 var mode = value.Value;
                 surface.ShowRarityBadge = mode == RarityBadgePlacement.UnderIcon;
                 surface.InlineRarityBadge = mode == RarityBadgePlacement.Inline;
+                surface.InlineGameRarityBadge = mode == RarityBadgePlacement.InlineGame;
                 surface.RightRarityBadge = mode == RarityBadgePlacement.Right;
             }
         }
@@ -477,15 +485,15 @@ namespace PlayniteAchievements.ViewModels.Settings
         public IReadOnlyList<GlowDisplayOption> GlowDisplayOptions => IsFrameSurface
             ? (_frameGlowDisplayOptions ?? (_frameGlowDisplayOptions = new[]
             {
-                new GlowDisplayOption(GlowDisplay.Icon, L("LOCPlayAch_Column_Icon")),
-                new GlowDisplayOption(GlowDisplay.None, L("LOCPlayAch_Common_None"))
+                new GlowDisplayOption(GlowDisplay.Icon, L("LOCGameIconTitle")),
+                new GlowDisplayOption(GlowDisplay.None, L("LOCNone"))
             }))
             : (_toastGlowDisplayOptions ?? (_toastGlowDisplayOptions = new[]
             {
-                new GlowDisplayOption(GlowDisplay.Icon, L("LOCPlayAch_Column_Icon")),
+                new GlowDisplayOption(GlowDisplay.Icon, L("LOCGameIconTitle")),
                 new GlowDisplayOption(GlowDisplay.Notification, L("LOCPlayAch_Settings_Style_ToastTab")),
                 new GlowDisplayOption(GlowDisplay.Both, L("LOCPlayAch_Common_Both")),
-                new GlowDisplayOption(GlowDisplay.None, L("LOCPlayAch_Common_None"))
+                new GlowDisplayOption(GlowDisplay.None, L("LOCNone"))
             }));
 
         /// <summary>
@@ -545,22 +553,154 @@ namespace PlayniteAchievements.ViewModels.Settings
 
         #endregion
 
+        #region Toast position and motion (toast surface, scope styles only)
+
+        private bool _isKindStyle;
+        private static IReadOnlyList<ToastMotionOption> _entranceMotionOptions;
+        private static IReadOnlyList<ToastMotionOption> _exitMotionOptions;
+        private static IReadOnlyList<ToastMotionOption> _motionFeelOptions;
+        private static IReadOnlyList<ToastMotionOption> _motionSpeedOptions;
+
+        /// <summary>
+        /// Whether the entrance, exit, easing and speed dropdowns show: on the toast surface of a
+        /// scope's style, but not a kind's own copy, because every card in a stack moves together
+        /// and the motion is read from the scope.
+        /// </summary>
+        public bool ShowMotionOptions => IsToastSurface && !_isKindStyle;
+
+        public IReadOnlyList<ToastMotionOption> EntranceMotionOptions =>
+            _entranceMotionOptions ?? (_entranceMotionOptions =
+                MotionChoices(L("LOCDefault")));
+
+        public IReadOnlyList<ToastMotionOption> ExitMotionOptions =>
+            _exitMotionOptions ?? (_exitMotionOptions =
+                MotionChoices(L("LOCPlayAch_Settings_Style_MotionMatchEntrance")));
+
+        public IReadOnlyList<ToastMotionOption> MotionFeelOptions =>
+            _motionFeelOptions ?? (_motionFeelOptions = new[]
+            {
+                new ToastMotionOption(null, L("LOCDefault")),
+                new ToastMotionOption((int)ToastMotionFeel.Smooth, L("LOCPlayAch_Settings_Style_MotionSmooth")),
+                new ToastMotionOption((int)ToastMotionFeel.Bouncy, L("LOCPlayAch_Settings_Style_MotionBouncy"))
+            });
+
+        // Normal is the null value, so a style that only ever picked Normal still follows the
+        // theme's slide.
+        public IReadOnlyList<ToastMotionOption> MotionSpeedOptions =>
+            _motionSpeedOptions ?? (_motionSpeedOptions = new[]
+            {
+                new ToastMotionOption((int)ToastMotionSpeed.Quick, L("LOCPlayAch_Settings_Style_MotionQuick")),
+                new ToastMotionOption(null, L("LOCPlayAch_Settings_Style_MotionNormal")),
+                new ToastMotionOption((int)ToastMotionSpeed.Relaxed, L("LOCPlayAch_Settings_Style_MotionRelaxed"))
+            });
+
+        private static ToastMotionOption[] MotionChoices(string unsetLabel)
+        {
+            return new[]
+            {
+                new ToastMotionOption(null, unsetLabel),
+                new ToastMotionOption((int)ToastMotion.Slide, L("LOCPlayAch_Settings_Style_MotionSlide")),
+                new ToastMotionOption((int)ToastMotion.SlideSide, L("LOCPlayAch_Settings_Style_MotionSlideSide")),
+                new ToastMotionOption((int)ToastMotion.Fade, L("LOCPlayAch_Settings_Style_MotionFade")),
+                new ToastMotionOption((int)ToastMotion.Zoom, L("LOCPlayAch_Settings_Style_MotionZoom")),
+                new ToastMotionOption((int)ToastMotion.None, L("LOCNone"))
+            };
+        }
+
+        private static IReadOnlyList<ToastMotionOption> _positionOptions;
+
+        /// <summary>
+        /// Position choices for the style. Default follows the global position setting.
+        /// </summary>
+        public IReadOnlyList<ToastMotionOption> PositionOptions =>
+            _positionOptions ?? (_positionOptions = new[]
+            {
+                new ToastMotionOption(null, L("LOCDefault")),
+                new ToastMotionOption((int)ToastScreenCorner.BottomRight, L("LOCPlayAch_Settings_ToastPosition_BottomRight")),
+                new ToastMotionOption((int)ToastScreenCorner.BottomLeft, L("LOCPlayAch_Settings_ToastPosition_BottomLeft")),
+                new ToastMotionOption((int)ToastScreenCorner.BottomCenter, L("LOCPlayAch_Settings_ToastPosition_BottomCenter")),
+                new ToastMotionOption((int)ToastScreenCorner.TopRight, L("LOCPlayAch_Settings_ToastPosition_TopRight")),
+                new ToastMotionOption((int)ToastScreenCorner.TopLeft, L("LOCPlayAch_Settings_ToastPosition_TopLeft"))
+            });
+
+        public ToastMotionOption SelectedPosition
+        {
+            get => FindMotionOption(PositionOptions, (int?)Surface?.Position);
+            set => SetSurfaceMotion(value, (surface, v) => surface.Position = (ToastScreenCorner?)v);
+        }
+
+        public ToastMotionOption SelectedEntranceMotion
+        {
+            get => FindMotionOption(EntranceMotionOptions, (int?)Surface?.EntranceMotion);
+            set => SetSurfaceMotion(value, (surface, v) => surface.EntranceMotion = (ToastMotion?)v);
+        }
+
+        public ToastMotionOption SelectedExitMotion
+        {
+            get => FindMotionOption(ExitMotionOptions, (int?)Surface?.ExitMotion);
+            set => SetSurfaceMotion(value, (surface, v) => surface.ExitMotion = (ToastMotion?)v);
+        }
+
+        public ToastMotionOption SelectedMotionFeel
+        {
+            get => FindMotionOption(MotionFeelOptions, (int?)Surface?.MotionFeel);
+            set => SetSurfaceMotion(value, (surface, v) => surface.MotionFeel = (ToastMotionFeel?)v);
+        }
+
+        public ToastMotionOption SelectedMotionSpeed
+        {
+            get => FindMotionOption(MotionSpeedOptions, (int?)Surface?.MotionSpeed);
+            set => SetSurfaceMotion(value, (surface, v) => surface.MotionSpeed = (ToastMotionSpeed?)v);
+        }
+
+        private static ToastMotionOption FindMotionOption(IReadOnlyList<ToastMotionOption> options, int? value)
+        {
+            return options.FirstOrDefault(option => option.Value == value)
+                   ?? options.First(option => option.Value == null);
+        }
+
+        private void SetSurfaceMotion(ToastMotionOption option, Action<NotificationSurfaceStyle, int?> assign)
+        {
+            var surface = Surface;
+            if (surface == null || option == null)
+            {
+                return;
+            }
+
+            assign(surface, option.Value);
+        }
+
+        private void NotifyMotionOptions()
+        {
+            OnPropertyChanged(nameof(SelectedPosition));
+            OnPropertyChanged(nameof(SelectedEntranceMotion));
+            OnPropertyChanged(nameof(SelectedExitMotion));
+            OnPropertyChanged(nameof(SelectedMotionFeel));
+            OnPropertyChanged(nameof(SelectedMotionSpeed));
+        }
+
+        #endregion
+
         #region Frame vignette (frame surface only)
 
         private static IReadOnlyList<FrameVignetteOption> _frameVignetteOptions;
 
         /// <summary>
         /// Vignette choices for the screenshot frame: Full (radial edge vignette plus the bottom
-        /// contrast wash), Bottom (bottom wash only), or None. Frame surface only; the toast has
+        /// contrast wash), Bottom (bottom wash only), None, or the frame background image. Frame surface only; the toast has
         /// its own card chrome, so the dropdown is hidden there.
         /// </summary>
         public IReadOnlyList<FrameVignetteOption> FrameVignetteOptions =>
             _frameVignetteOptions ?? (_frameVignetteOptions = new[]
             {
                 new FrameVignetteOption(FrameVignetteStyle.Full, L("LOCPlayAch_Settings_Style_VignetteFull")),
-                new FrameVignetteOption(FrameVignetteStyle.Bottom, L("LOCPlayAch_Settings_Style_VignetteBottom")),
-                new FrameVignetteOption(FrameVignetteStyle.None, L("LOCPlayAch_Common_None"))
+                new FrameVignetteOption(FrameVignetteStyle.Bottom, L("LOCDockBottom")),
+                new FrameVignetteOption(FrameVignetteStyle.None, L("LOCNone")),
+                new FrameVignetteOption(FrameVignetteStyle.Image, L("LOCPlayAch_Settings_Style_BackgroundImage"))
             });
+
+        /// <summary>The strength slider applies to the drawn vignettes, not to a background image.</summary>
+        public bool ShowFrameVignetteStrength => Surface?.FrameVignette != FrameVignetteStyle.Image;
 
         /// <summary>
         /// The frame vignette style, read from and written back to the surface.
@@ -616,6 +756,190 @@ namespace PlayniteAchievements.ViewModels.Settings
             get => Surface?.FrameVignetteStrength ?? AchievementToastViewModel.DefaultFrameVignetteStrength;
             set => FrameVignetteStrengthText = Math.Round(Math.Max(0, Math.Min(100, value)))
                 .ToString(CultureInfo.CurrentCulture);
+        }
+
+        #endregion
+
+        #region Image keyframe (animated slot images in screenshots)
+
+        private static readonly string PlayGlyph = char.ConvertFromUtf32(0xEC74);
+        private static readonly string PauseGlyph = char.ConvertFromUtf32(0xEC72);
+
+        // A slider drag only moves the readout; the value reaches the style (and the previews,
+        // which decode a still per image for it) once the slider rests this long.
+        private const int KeyframeCommitDelayMs = 150;
+
+        private readonly DispatcherTimer _keyframeCommitTimer;
+        private string _imageKeyframeText;
+        private int _imageKeyframeMaxMs;
+        private bool _isKeyframePreviewPaused;
+        private int? _pendingKeyframeMs;
+        private bool _hasPendingKeyframe;
+
+        /// <summary>
+        /// Raised when the toast preview switches between animating and holding its images at
+        /// the keyframe. Preview-only state: nothing is persisted.
+        /// </summary>
+        public event EventHandler KeyframePreviewChanged;
+
+        /// <summary>
+        /// Keyframe text mirror in milliseconds (LostFocus commit). Blank clears it: the frame
+        /// then uses each image's first frame and the with-notification screenshot keeps whatever
+        /// frame is playing. Editing it on the notification pauses the preview at the new frame.
+        /// </summary>
+        public string ImageKeyframeText
+        {
+            get => _imageKeyframeText;
+            set
+            {
+                if (!SetValueAndReturn(ref _imageKeyframeText, value))
+                {
+                    return;
+                }
+
+                // A typed value commits at once and supersedes a drag still settling.
+                _keyframeCommitTimer.Stop();
+                _pendingKeyframeMs = ParseKeyframe(value);
+                _hasPendingKeyframe = true;
+                CommitPendingKeyframe();
+            }
+        }
+
+        /// <summary>
+        /// Slider companion: dragging updates the readout and pauses the preview at once, and
+        /// commits the value after <see cref="KeyframeCommitDelayMs"/> without movement.
+        /// </summary>
+        public double ImageKeyframeSlider
+        {
+            get => _hasPendingKeyframe ? _pendingKeyframeMs ?? 0 : Surface?.ImageKeyframeMs ?? 0;
+            set
+            {
+                if (Surface == null || !_isEditable)
+                {
+                    return;
+                }
+
+                var ms = (int)Math.Round(Math.Max(0, Math.Min(_imageKeyframeMaxMs, value)));
+                _pendingKeyframeMs = ms;
+                _hasPendingKeyframe = true;
+                SetValue(ref _imageKeyframeText, ms.ToString(CultureInfo.CurrentCulture), nameof(ImageKeyframeText));
+                SetKeyframePreviewPaused(true);
+                _keyframeCommitTimer.Stop();
+                _keyframeCommitTimer.Start();
+            }
+        }
+
+        private void OnKeyframeCommitTimerTick(object sender, EventArgs e)
+        {
+            _keyframeCommitTimer.Stop();
+            CommitPendingKeyframe();
+        }
+
+        private void CommitPendingKeyframe()
+        {
+            _keyframeCommitTimer.Stop();
+            if (!_hasPendingKeyframe)
+            {
+                return;
+            }
+
+            _hasPendingKeyframe = false;
+            var surface = Surface;
+            if (surface != null && _isEditable)
+            {
+                surface.ImageKeyframeMs = _pendingKeyframeMs;
+                SetKeyframePreviewPaused(true);
+            }
+
+            OnPropertyChanged(nameof(ImageKeyframeSlider));
+        }
+
+        /// <summary>The longest loop among this surface's animated slot images, in milliseconds.</summary>
+        public int ImageKeyframeMaxMs => _imageKeyframeMaxMs;
+
+        /// <summary>Whether any of this surface's slot images is animated; the keyframe row is disabled otherwise.</summary>
+        public bool HasAnimatedImages => _imageKeyframeMaxMs > 0;
+
+        /// <summary>The pause/resume button belongs to the notification preview; the frame is always a still.</summary>
+        public bool ShowKeyframePreviewToggle => IsToastSurface;
+
+        public bool IsKeyframePreviewPaused => _isKeyframePreviewPaused;
+
+        public string KeyframePreviewGlyph => _isKeyframePreviewPaused ? PlayGlyph : PauseGlyph;
+
+        public string KeyframePreviewToolTip => _isKeyframePreviewPaused
+            ? L("LOCPlayAch_Common_Resume")
+            : L("LOCPlayAch_Common_Pause");
+
+        public void ToggleKeyframePreview()
+        {
+            SetKeyframePreviewPaused(!_isKeyframePreviewPaused);
+        }
+
+        private void SetKeyframePreviewPaused(bool paused)
+        {
+            if (IsFrameSurface || _isKeyframePreviewPaused == paused)
+            {
+                return;
+            }
+
+            _isKeyframePreviewPaused = paused;
+            OnPropertyChanged(nameof(IsKeyframePreviewPaused));
+            OnPropertyChanged(nameof(KeyframePreviewGlyph));
+            OnPropertyChanged(nameof(KeyframePreviewToolTip));
+            KeyframePreviewChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Re-reads the timelines of this surface's slot images (background and badges): the
+        /// slider spans the longest one, and the row is disabled when none is animated.
+        /// </summary>
+        private void RefreshImageKeyframeRange()
+        {
+            var maxMs = 0;
+            if (_style != null)
+            {
+                foreach (var slot in KeyframeSlots)
+                {
+                    maxMs = Math.Max(maxMs, AnimatedImageKeyframe.DurationMs(GetImagePath(ResolveSurfaceSlot(slot))));
+                }
+            }
+
+            if (_imageKeyframeMaxMs == maxMs)
+            {
+                return;
+            }
+
+            _imageKeyframeMaxMs = maxMs;
+            OnPropertyChanged(nameof(ImageKeyframeMaxMs));
+            OnPropertyChanged(nameof(HasAnimatedImages));
+            OnPropertyChanged(nameof(ImageKeyframeSlider));
+        }
+
+        private static readonly NotificationImageSlot[] KeyframeSlots =
+        {
+            NotificationImageSlot.Background,
+            NotificationImageSlot.BadgeCommon,
+            NotificationImageSlot.BadgeUncommon,
+            NotificationImageSlot.BadgeRare,
+            NotificationImageSlot.BadgeUltraRare,
+            NotificationImageSlot.BadgeCompletion
+        };
+
+        private static int? ParseKeyframe(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+
+            if (double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var value) ||
+                double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+            {
+                return (int)Math.Round(Math.Max(0, Math.Min(int.MaxValue, value)));
+            }
+
+            return null;
         }
 
         #endregion
@@ -856,6 +1180,10 @@ namespace PlayniteAchievements.ViewModels.Settings
             SetValue(ref _frameVignetteStrengthText,
                 surface?.FrameVignetteStrength?.ToString(CultureInfo.CurrentCulture) ?? string.Empty,
                 nameof(FrameVignetteStrengthText));
+            SetValue(ref _imageKeyframeText,
+                surface?.ImageKeyframeMs?.ToString(CultureInfo.CurrentCulture) ?? string.Empty,
+                nameof(ImageKeyframeText));
+            OnPropertyChanged(nameof(ImageKeyframeSlider));
 
             // The slider companions are computed straight from the surface; refresh them
             // together with their text mirrors.
@@ -1140,18 +1468,27 @@ namespace PlayniteAchievements.ViewModels.Settings
 
         /// <summary>
         /// Whether a toast background image is set. Drives the fit-to-image affordance, which is
-        /// meaningless on the frame surface (no background) or with no image chosen.
+        /// meaningless on the frame surface (the image stretches to the shot) or with no image chosen.
         /// </summary>
         public bool HasBackgroundImage =>
             !IsFrameSurface && !string.IsNullOrWhiteSpace(_style?.ToastBackgroundImagePath);
 
         /// <summary>
-        /// Cache-busted source for the editor's background thumbnail. The managed slot reuses a
-        /// fixed filename, so picking a different image resolves to the same path; the write-time +
-        /// size token makes the thumbnail re-decode the new file instead of showing the cached one.
+        /// Whether the frame's background picker shows under the Vignette dropdown: only on the
+        /// frame, while its vignette is set to the background image.
+        /// </summary>
+        public bool ShowFrameBackgroundPicker =>
+            IsFrameSurface && Surface?.FrameVignette == FrameVignetteStyle.Image;
+
+        /// <summary>
+        /// Cache-busted source for the editor's background thumbnail (this surface's own image).
+        /// The managed slot reuses a fixed filename, so picking a different image resolves to the
+        /// same path; the write-time + size token makes the thumbnail re-decode the new file
+        /// instead of showing the cached one.
         /// </summary>
         public string BackgroundThumbnailUri =>
-            Models.Achievements.AchievementIconResolver.ApplyCacheBust(_style?.ToastBackgroundImagePath);
+            Models.Achievements.AchievementIconResolver.ApplyCacheBust(
+                GetImagePath(ResolveSurfaceSlot(NotificationImageSlot.Background)));
 
         // Cache-busted sources for the editor's badge thumbnails, for the same reason as the
         // background: the managed slots reuse fixed filenames, so imports and preset applies
@@ -1171,6 +1508,45 @@ namespace PlayniteAchievements.ViewModels.Settings
         public string BadgeCompletionThumbnailUri =>
             Models.Achievements.AchievementIconResolver.ApplyCacheBust(Surface?.BadgeImages?.CompletionPath);
 
+        // The badge a slot's notification draws while it has no custom image: the generated
+        // rarity badge from the user's rarity appearance. Null once a custom image is set, so a
+        // transparent custom image is never drawn over it.
+        public ImageSource BadgeCommonDefaultImage =>
+            DefaultBadgeImage(Surface?.BadgeImages?.CommonPath, Models.Achievements.RarityTier.Common);
+
+        public ImageSource BadgeUncommonDefaultImage =>
+            DefaultBadgeImage(Surface?.BadgeImages?.UncommonPath, Models.Achievements.RarityTier.Uncommon);
+
+        public ImageSource BadgeRareDefaultImage =>
+            DefaultBadgeImage(Surface?.BadgeImages?.RarePath, Models.Achievements.RarityTier.Rare);
+
+        public ImageSource BadgeUltraRareDefaultImage =>
+            DefaultBadgeImage(Surface?.BadgeImages?.UltraRarePath, Models.Achievements.RarityTier.UltraRare);
+
+        public ImageSource BadgeCompletionDefaultImage =>
+            DefaultBadgeImage(Surface?.BadgeImages?.CompletionPath, null);
+
+        private ImageSource DefaultBadgeImage(string customPath, Models.Achievements.RarityTier? tier)
+        {
+            if (!string.IsNullOrWhiteSpace(customPath))
+            {
+                return null;
+            }
+
+            try
+            {
+                var persisted = _settings.Persisted;
+                return tier.HasValue
+                    ? Models.Achievements.RarityAppearanceHelper.CreateBadgePreview(tier.Value, persisted)
+                    : Models.Achievements.RarityAppearanceHelper.CreateCompletedBadgePreview(persisted);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, "Default notification badge preview could not be built.");
+                return null;
+            }
+        }
+
         private void RefreshBadgeThumbnails()
         {
             OnPropertyChanged(nameof(BadgeCommonThumbnailUri));
@@ -1178,6 +1554,12 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(BadgeRareThumbnailUri));
             OnPropertyChanged(nameof(BadgeUltraRareThumbnailUri));
             OnPropertyChanged(nameof(BadgeCompletionThumbnailUri));
+            OnPropertyChanged(nameof(BadgeCommonDefaultImage));
+            OnPropertyChanged(nameof(BadgeUncommonDefaultImage));
+            OnPropertyChanged(nameof(BadgeRareDefaultImage));
+            OnPropertyChanged(nameof(BadgeUltraRareDefaultImage));
+            OnPropertyChanged(nameof(BadgeCompletionDefaultImage));
+            RefreshImageKeyframeRange();
         }
 
         /// <summary>
@@ -1374,8 +1756,7 @@ namespace PlayniteAchievements.ViewModels.Settings
         /// <summary>
         /// Maps a logical slot (as named by the editor XAML's Tag attributes, which serve both
         /// surfaces) onto this surface's concrete store slot: badge slots resolve to the
-        /// frame's own slots on the frame editor. The background is toast-only and passes
-        /// through.
+        /// frame's own slots on the frame editor, the background included.
         /// </summary>
         private NotificationImageSlot ResolveSurfaceSlot(NotificationImageSlot slot)
         {
@@ -1386,6 +1767,8 @@ namespace PlayniteAchievements.ViewModels.Settings
 
             switch (slot)
             {
+                case NotificationImageSlot.Background:
+                    return NotificationImageSlot.FrameBackground;
                 case NotificationImageSlot.BadgeCommon:
                     return NotificationImageSlot.FrameBadgeCommon;
                 case NotificationImageSlot.BadgeUncommon:
@@ -1770,11 +2153,11 @@ namespace PlayniteAchievements.ViewModels.Settings
                 case NotificationSurfaceStyle.LineHeader:
                     return L("LOCPlayAch_Settings_ToastShowHeader");
                 case NotificationSurfaceStyle.LineTitle:
-                    return L("LOCPlayAch_Settings_ToastShowName");
+                    return L("LOCPlayAch_Column_AchievementName");
                 case NotificationSurfaceStyle.LineDescription:
-                    return L("LOCPlayAch_Settings_ToastShowDescription");
+                    return L("LOCGameDescriptionTitle");
                 case NotificationSurfaceStyle.LineGameCategory:
-                    return L("LOCPlayAch_Settings_ToastShowGameName") + " / " + L("LOCPlayAch_Common_Label_Category");
+                    return L("LOCPlayAch_Settings_ToastShowGameName") + " / " + L("LOCCategoryLabel");
                 case NotificationSurfaceStyle.LineProgress:
                     return L("LOCPlayAch_Progress");
                 default:
@@ -1802,12 +2185,8 @@ namespace PlayniteAchievements.ViewModels.Settings
 
             // Clear this surface's managed images before replacing the surface object, so the
             // old paths are still readable for memory-cache eviction. ClearImage maps the
-            // logical badge slots onto this surface's own store slots.
-            if (!IsFrameSurface)
-            {
-                ClearImage(NotificationImageSlot.Background);
-            }
-
+            // logical background and badge slots onto this surface's own store slots.
+            ClearImage(NotificationImageSlot.Background);
             ClearImage(NotificationImageSlot.BadgeCommon);
             ClearImage(NotificationImageSlot.BadgeUncommon);
             ClearImage(NotificationImageSlot.BadgeRare);
@@ -1836,6 +2215,9 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(IsProviderIconEnabled));
             OnPropertyChanged(nameof(SelectedGlowDisplay));
             OnPropertyChanged(nameof(SelectedFrameVignette));
+            OnPropertyChanged(nameof(ShowFrameVignetteStrength));
+            OnPropertyChanged(nameof(ShowFrameBackgroundPicker));
+            NotifyMotionOptions();
             OnPropertyChanged(nameof(CountdownBarColorText));
             OnPropertyChanged(nameof(CountdownBarSwatch));
             OnPropertyChanged(nameof(TitleLineOffsetText));
@@ -1860,12 +2242,14 @@ namespace PlayniteAchievements.ViewModels.Settings
             NotificationImageOwner imageOwner,
             bool isEditable,
             Action<NotificationStyleSettings> persistStyle = null,
-            string providerKey = null)
+            string providerKey = null,
+            bool isKindStyle = false)
         {
             FlushPendingPersist();
             Unsubscribe();
 
             _style = style;
+            _isKindStyle = isKindStyle;
             _providerKey = string.IsNullOrWhiteSpace(providerKey) ? null : providerKey;
             _imageOwner = imageOwner ?? NotificationImageOwner.Global;
             _persistStyle = persistStyle;
@@ -1881,12 +2265,16 @@ namespace PlayniteAchievements.ViewModels.Settings
             OnPropertyChanged(nameof(Surface));
             OnPropertyChanged(nameof(ProviderKey));
             OnPropertyChanged(nameof(IsEditable));
+            OnPropertyChanged(nameof(ShowMotionOptions));
             OnPropertyChanged(nameof(SelectedFontFamilyOption));
             OnPropertyChanged(nameof(SelectedBadgePlacement));
             OnPropertyChanged(nameof(SelectedPercentPlacement));
             OnPropertyChanged(nameof(IsProviderIconEnabled));
             OnPropertyChanged(nameof(SelectedGlowDisplay));
             OnPropertyChanged(nameof(SelectedFrameVignette));
+            OnPropertyChanged(nameof(ShowFrameVignetteStrength));
+            OnPropertyChanged(nameof(ShowFrameBackgroundPicker));
+            NotifyMotionOptions();
             OnPropertyChanged(nameof(CountdownBarColorText));
             OnPropertyChanged(nameof(CountdownBarSwatch));
             OnPropertyChanged(nameof(HasBackgroundImage));
@@ -1960,12 +2348,14 @@ namespace PlayniteAchievements.ViewModels.Settings
             }
 
             if (ReferenceEquals(sender, _style) &&
-                e.PropertyName == nameof(NotificationStyleSettings.ToastBackgroundImagePath))
+                (e.PropertyName == nameof(NotificationStyleSettings.ToastBackgroundImagePath) ||
+                 e.PropertyName == nameof(NotificationStyleSettings.FrameBackgroundImagePath)))
             {
                 OnPropertyChanged(nameof(Style));
                 OnPropertyChanged(nameof(HasBackgroundImage));
                 OnPropertyChanged(nameof(BackgroundImageDimensionsText));
                 OnPropertyChanged(nameof(BackgroundThumbnailUri));
+                RefreshImageKeyframeRange();
             }
 
             if (ReferenceEquals(sender, _subscribedBadges))
@@ -2024,6 +2414,7 @@ namespace PlayniteAchievements.ViewModels.Settings
             else if (e.PropertyName == nameof(NotificationSurfaceStyle.ShowRarityBadge) ||
                      e.PropertyName == nameof(NotificationSurfaceStyle.ShowRarityPercent) ||
                      e.PropertyName == nameof(NotificationSurfaceStyle.InlineRarityBadge) ||
+                     e.PropertyName == nameof(NotificationSurfaceStyle.InlineGameRarityBadge) ||
                      e.PropertyName == nameof(NotificationSurfaceStyle.RightRarityBadge) ||
                      e.PropertyName == nameof(NotificationSurfaceStyle.RarityPercentUnderBadge))
             {
@@ -2039,6 +2430,16 @@ namespace PlayniteAchievements.ViewModels.Settings
             else if (e.PropertyName == nameof(NotificationSurfaceStyle.FrameVignette))
             {
                 OnPropertyChanged(nameof(SelectedFrameVignette));
+                OnPropertyChanged(nameof(ShowFrameVignetteStrength));
+                OnPropertyChanged(nameof(ShowFrameBackgroundPicker));
+            }
+            else if (e.PropertyName == nameof(NotificationSurfaceStyle.EntranceMotion) ||
+                     e.PropertyName == nameof(NotificationSurfaceStyle.ExitMotion) ||
+                     e.PropertyName == nameof(NotificationSurfaceStyle.MotionFeel) ||
+                     e.PropertyName == nameof(NotificationSurfaceStyle.MotionSpeed) ||
+                     e.PropertyName == nameof(NotificationSurfaceStyle.Position))
+            {
+                NotifyMotionOptions();
             }
             else if (e.PropertyName == nameof(NotificationSurfaceStyle.BadgeImages) ||
                      e.PropertyName == nameof(NotificationSurfaceStyle.HeaderTexts))
@@ -2083,6 +2484,8 @@ namespace PlayniteAchievements.ViewModels.Settings
         /// </summary>
         public void FlushPendingPersist()
         {
+            // A keyframe still settling from a slider drag belongs to the style being left.
+            CommitPendingKeyframe();
             _persistDebounceTimer.Stop();
             if (!_hasPendingPersist)
             {
@@ -2128,6 +2531,7 @@ namespace PlayniteAchievements.ViewModels.Settings
         {
             FlushPendingPersist();
             _persistDebounceTimer.Tick -= OnPersistDebounceTimerTick;
+            _keyframeCommitTimer.Tick -= OnKeyframeCommitTimerTick;
             Unsubscribe();
         }
 
@@ -2180,6 +2584,23 @@ namespace PlayniteAchievements.ViewModels.Settings
     }
 
     /// <summary>
+    /// One entry of a toast motion or position dropdown: an enum value as an int (null for the unset
+    /// entry) and its localized label.
+    /// </summary>
+    internal sealed class ToastMotionOption
+    {
+        public ToastMotionOption(int? value, string display)
+        {
+            Value = value;
+            Display = display;
+        }
+
+        public int? Value { get; }
+
+        public string Display { get; }
+    }
+
+    /// <summary>
     /// One entry of the frame vignette dropdown: the value and its localized label.
     /// </summary>
     internal sealed class FrameVignetteOption
@@ -2203,6 +2624,7 @@ namespace PlayniteAchievements.ViewModels.Settings
         None,
         UnderIcon,
         Inline,
+        InlineGame,
         Right
     }
 

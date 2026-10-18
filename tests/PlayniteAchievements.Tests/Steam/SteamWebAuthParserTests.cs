@@ -61,6 +61,37 @@ namespace PlayniteAchievements.Steam.Tests
         }
 
         [TestMethod]
+        public void Parse_ReadsSsrPageToken_AndViewerSteamId()
+        {
+            // Shape of a redesigned community page: the loader entry is a string-escaped JSON
+            // document, and a friend's steamid appears only inside escaped query data.
+            const string source =
+                "<script type=\"application/json\" id=\"valve-ssr-data\">{\"route\":\"/profiles/:steamid/achievements/:appid\"," +
+                "\"loaderData\":[\"{\\\"strWebAPIToken\\\":\\\"eyJ0.eyJz-_x.sig\\\",\\\"steamid\\\":\\\"76561198000000001\\\"}\"," +
+                "\"{\\\"appid\\\":620,\\\"targetSteamId\\\":\\\"76561198000000002\\\"}\"]," +
+                "\"UserConfig\":{\"logged_in\":true,\"steamid\":\"76561198000000001\"}}</script>";
+
+            var session = SteamWebAuthParser.Parse(source);
+
+            Assert.IsTrue(session.IsComplete);
+            Assert.AreEqual("eyJ0.eyJz-_x.sig", session.WebApiToken);
+            Assert.AreEqual("76561198000000001", session.SteamId64);
+        }
+
+        [TestMethod]
+        public void Parse_LoggedOutSsrPage_HasNoSession()
+        {
+            const string source =
+                "<script type=\"application/json\" id=\"valve-ssr-data\">{\"loaderData\":[\"{\\\"steamid\\\":\\\"0\\\"}\"]," +
+                "\"UserConfig\":{\"logged_in\":false,\"steamid\":\"0\"}}</script>";
+
+            var session = SteamWebAuthParser.Parse(source);
+
+            Assert.IsFalse(session.HasSteamId);
+            Assert.IsFalse(session.HasWebApiToken);
+        }
+
+        [TestMethod]
         public void Parse_DoesNotCompleteSession_WhenTokenMissing()
         {
             const string source = "var g_steamID = \"76561198000000000\";";

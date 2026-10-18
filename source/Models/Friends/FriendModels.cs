@@ -175,6 +175,12 @@ namespace PlayniteAchievements.Models.Friends
         public string ErrorMessage { get; set; }
         public T Data { get; set; }
 
+        /// <summary>
+        /// The data is known to be incomplete (for example only the rows a page rendered), so it
+        /// may add or update cached rows but must not be used to delete rows it does not list.
+        /// </summary>
+        public bool IsPartial { get; set; }
+
         public static FriendsProviderResult<T> FromData(T data) =>
             new FriendsProviderResult<T> { Success = true, Data = data };
 

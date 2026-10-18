@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Playnite.SDK;
 using PlayniteAchievements.Common;
+using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Capture;
 using PlayniteAchievements.ViewModels;
 
@@ -92,6 +93,7 @@ namespace PlayniteAchievements.Services.UI
             public double SlideYPhys;
             public double GlowScale;
             public double HostOpacity;
+            public double HostScale;
             public int ClientW;
             public int ClientH;
             public double ElapsedMs;
@@ -99,8 +101,7 @@ namespace PlayniteAchievements.Services.UI
 
         private readonly ILogger _logger;
         private readonly double _sampleIntervalMs;
-        private readonly bool _alignRight;
-        private readonly bool _alignCenterHorizontally;
+        private readonly ToastHorizontalAlignment _horizontal;
         private readonly bool _alignBottom;
         private readonly double _gapXDip;
         private readonly double _gapYDip;
@@ -137,19 +138,18 @@ namespace PlayniteAchievements.Services.UI
         /// and pads the last sample, so a track's duration covers the frame its final sample
         /// represents.
         /// </param>
-        /// <param name="alignRight">Wave placement geometry, stamped on every track: the corner
+        /// <param name="horizontal">Wave placement geometry, stamped on every track: the
         /// alignment and the DIP gap/monitor scale the export uses to compute where a lone toast of
         /// each frame's size would sit. Resolved once per wave, like the live placement.</param>
         public ToastOverlayTrackRecorder(
             ILogger logger, double sampleIntervalMs,
-            bool alignRight, bool alignCenterHorizontally, bool alignBottom,
-            double gapXDip, double gapYDip, double monitorScale)
+            ToastHorizontalAlignment horizontal, bool alignBottom, double gapXDip, double gapYDip,
+            double monitorScale)
         {
             _logger = logger;
             _sampleIntervalMs = sampleIntervalMs > 0 ? sampleIntervalMs : 1;
             _maxQueuedPixelJobs = Math.Max(16, (int)Math.Round(1000.0 / _sampleIntervalMs / 2.0));
-            _alignRight = alignRight;
-            _alignCenterHorizontally = alignCenterHorizontally;
+            _horizontal = horizontal;
             _alignBottom = alignBottom;
             _gapXDip = gapXDip;
             _gapYDip = gapYDip;
@@ -224,7 +224,7 @@ namespace PlayniteAchievements.Services.UI
             AchievementToastViewModel vm, byte[] premulBgra, int width, int height,
             int cardWPhys, int cardHPhys, double slideXPhys, double slideYPhys,
             double glowScale, double hostOpacity,
-            int clientW, int clientH, double elapsedMs)
+            int clientW, int clientH, double elapsedMs, double hostScale = 1d)
         {
             if (vm == null || (premulBgra != null && (width <= 0 || height <= 0)))
             {
@@ -256,6 +256,7 @@ namespace PlayniteAchievements.Services.UI
                     SlideYPhys = slideYPhys,
                     GlowScale = glowScale,
                     HostOpacity = hostOpacity,
+                    HostScale = hostScale,
                     ClientW = clientW,
                     ClientH = clientH,
                     ElapsedMs = elapsedMs,
@@ -436,8 +437,7 @@ namespace PlayniteAchievements.Services.UI
                         ProviderKey = vm.ProviderKey,
                         AchievementName = vm.AchievementName,
                         StartUtc = CaptureTimelineClock.UtcNow,
-                        AlignRight = _alignRight,
-                        AlignCenterHorizontally = _alignCenterHorizontally,
+                        HorizontalAlignment = _horizontal,
                         AlignBottom = _alignBottom,
                         GapXDip = _gapXDip,
                         GapYDip = _gapYDip,
@@ -540,6 +540,7 @@ namespace PlayniteAchievements.Services.UI
                 SlideYPhys = job.SlideYPhys,
                 GlowScale = job.GlowScale,
                 HostOpacity = job.HostOpacity,
+                HostScale = job.HostScale,
                 ClientW = job.ClientW,
                 ClientH = job.ClientH,
             });

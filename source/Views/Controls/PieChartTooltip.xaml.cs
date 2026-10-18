@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Controls;
 using LiveCharts;
 using LiveCharts.Wpf;
+using PlayniteAchievements.Views.Helpers;
 
 namespace PlayniteAchievements.Views.Controls
 {
@@ -18,6 +19,7 @@ namespace PlayniteAchievements.Views.Controls
             Focusable = false;
             IsHitTestVisible = false;
             IsTabStop = false;
+            ClickThroughPopupHost.Attach(this);
         }
 
         public TooltipSelectionMode? SelectionMode { get; set; } = TooltipSelectionMode.OnlySender;
@@ -29,6 +31,24 @@ namespace PlayniteAchievements.Views.Controls
             set
             {
                 _data = value;
+                OnPropertyChanged();
+                Points = value?.Points;
+            }
+        }
+
+        private System.Collections.Generic.IEnumerable<DataPointViewModel> _points;
+
+        /// <summary>
+        /// The rows shown: the points LiveCharts hands over in <see cref="Data"/>, or the ones a
+        /// host sets directly when it shows the tooltip itself (TooltipData cannot be built
+        /// outside LiveCharts).
+        /// </summary>
+        public System.Collections.Generic.IEnumerable<DataPointViewModel> Points
+        {
+            get => _points;
+            set
+            {
+                _points = value;
                 OnPropertyChanged();
             }
         }

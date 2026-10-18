@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Services.UI;
 
 namespace PlayniteAchievements.Models.Achievements
 {
@@ -73,6 +74,15 @@ namespace PlayniteAchievements.Models.Achievements
         }
 
         private static PersistedSettings _activeSettings;
+
+        private static readonly Lazy<PersistedSettings> ShippedAppearanceSettings =
+            new Lazy<PersistedSettings>(() => new PersistedSettings());
+
+        /// <summary>
+        /// Settings at the shipped rarity colors, for surfaces that can opt out of the configured
+        /// colors. Pass as the settings argument of the color getters; never mutate it.
+        /// </summary>
+        public static PersistedSettings ShippedAppearance => ShippedAppearanceSettings.Value;
 
         public static Color GetBaseColor(RarityTier tier, PersistedSettings settings = null)
         {
@@ -433,9 +443,14 @@ namespace PlayniteAchievements.Models.Achievements
                 return;
             }
 
+            // Staged into the runtime dictionary so the pass lands as one resource change; the
+            // event fires after the swap so its handlers resolve the new values.
             void apply()
             {
-                ApplyBadgeApplicationResources(app.Resources, settings);
+                _activeSettings = settings;
+                ClearRayGlowPalettes();
+                PlayAchRuntimeResources.Update(resources => ApplyBadgeResources(resources, settings));
+                AppearanceChanged?.Invoke(null, EventArgs.Empty);
             }
 
             var dispatcher = app.Dispatcher;
@@ -535,24 +550,26 @@ namespace PlayniteAchievements.Models.Achievements
             resources["PlayAch.Brush.Trophy.Gold"] = CreateSolidBrush(GetTrophyColor("TrophyGold", settings));
             resources["PlayAch.Brush.Trophy.Silver"] = CreateSolidBrush(GetTrophyColor("TrophySilver", settings));
             resources["PlayAch.Brush.Trophy.Bronze"] = CreateSolidBrush(GetTrophyColor("TrophyBronze", settings));
-            SetStaticScoreBadge(resources, "ScoreBadgeBronzeTriangle", "BadgeBronzeTriangle");
-            SetStaticScoreBadge(resources, "ScoreBadgeBronzeHexagon", "BadgeBronzeHexagon");
-            SetStaticScoreBadge(resources, "ScoreBadgeSilverSquare", "BadgeSilverSquare");
-            SetStaticScoreBadge(resources, "ScoreBadgeSilverHexagon", "BadgeSilverHexagon");
-            SetStaticScoreBadge(resources, "ScoreBadgeGoldPentagon", "BadgeGoldPentagon");
-            SetStaticScoreBadge(resources, "ScoreBadgeGoldHexagon", "BadgeGoldHexagon");
-            SetStaticScoreBadge(resources, "ScoreBadgePlatinumHexagon", "BadgePlatinumHexagon");
-            SetStaticScoreBadge(resources, "ScoreBadgeCompletedGame", "BadgeCompletedGame");
+            // Score card badges are the generated rarity badges under their own keys, so they take
+            // the configured colors, uniform shapes and trophy mode the same way.
+            SetScoreBadge(resources, "ScoreBadgeBronzeTriangle", "BadgeBronzeTriangle");
+            SetScoreBadge(resources, "ScoreBadgeBronzeHexagon", "BadgeBronzeHexagon");
+            SetScoreBadge(resources, "ScoreBadgeSilverSquare", "BadgeSilverSquare");
+            SetScoreBadge(resources, "ScoreBadgeSilverHexagon", "BadgeSilverHexagon");
+            SetScoreBadge(resources, "ScoreBadgeGoldPentagon", "BadgeGoldPentagon");
+            SetScoreBadge(resources, "ScoreBadgeGoldHexagon", "BadgeGoldHexagon");
+            SetScoreBadge(resources, "ScoreBadgePlatinumHexagon", "BadgePlatinumHexagon");
+            SetScoreBadge(resources, "ScoreBadgeCompletedGame", "BadgeCompletedGame");
+            ApplyShippedScoreBadgeResources(resources);
 
             void SetGeneratedBadge(ResourceDictionary target, RarityTier tier, string badgeKey)
             {
                 target[badgeKey] = CreateBadgeImage(tier, GetGeometryKeyForBadge(badgeKey), settings);
             }
 
-            void SetStaticScoreBadge(ResourceDictionary target, string scoreBadgeKey, string defaultBadgeKey)
+            void SetScoreBadge(ResourceDictionary target, string scoreBadgeKey, string badgeKey)
             {
-                var image = TryGetDefaultImage(defaultBadgeKey);
-                if (image != null)
+                if (TryGetResource(target, badgeKey) is ImageSource image)
                 {
                     target[scoreBadgeKey] = image;
                 }
@@ -594,6 +611,34 @@ namespace PlayniteAchievements.Models.Achievements
                 if (image != null)
                 {
                     resources[key] = image;
+                }
+            }
+
+            ApplyShippedScoreBadgeResources(resources);
+        }
+
+        /// <summary>
+        /// Score card badges at the shipped colors and shapes, under "ScoreDefault" keys, for score
+        /// cards set not to use the configured rarity colors.
+        /// </summary>
+        private static void ApplyShippedScoreBadgeResources(ResourceDictionary resources)
+        {
+            foreach (var badgeKey in new[]
+            {
+                "BadgeBronzeTriangle",
+                "BadgeBronzeHexagon",
+                "BadgeSilverSquare",
+                "BadgeSilverHexagon",
+                "BadgeGoldPentagon",
+                "BadgeGoldHexagon",
+                "BadgePlatinumHexagon",
+                "BadgeCompletedGame"
+            })
+            {
+                var image = TryGetDefaultImage(badgeKey);
+                if (image != null)
+                {
+                    resources["ScoreDefault" + badgeKey] = image;
                 }
             }
         }

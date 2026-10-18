@@ -27,6 +27,9 @@ namespace PlayniteAchievements
             PluginGameMenuSection + "|" + ResourceProvider.GetString("LOCPlayAch_Settings_Maintenance_Title");
         private static string PluginLocalGameMenuSection => PluginGameMenuSection + "|Local Saves";
         private static string PluginMainMenuSection => "@" + ResourceProvider.GetString("LOCPlayAch_Title_PluginName");
+        // Nested "Refresh" submenu under the plugin's main-menu section, holding every refresh mode.
+        private static string PluginMainRefreshSection =>
+            PluginMainMenuSection + "|" + ResourceProvider.GetString("LOCPlayAch_Button_Refresh");
         private int _fullscreenMenuGlobalProgressActive;
 
         private bool IsRefreshInProgress()
@@ -146,7 +149,7 @@ namespace PlayniteAchievements
 
             yield return new GameMenuItem
             {
-                Description = ResourceProvider.GetString("LOCPlayAch_Button_Cancel"),
+                Description = ResourceProvider.GetString("LOCCancelLabel"),
                 MenuSection = PluginGameMenuSection,
                 Action = (a) =>
                 {
@@ -184,7 +187,7 @@ namespace PlayniteAchievements
 
             yield return new MainMenuItem
             {
-                Description = ResourceProvider.GetString("LOCPlayAch_Button_Cancel"),
+                Description = ResourceProvider.GetString("LOCCancelLabel"),
                 MenuSection = PluginMainMenuSection,
                 Action = (a) =>
                 {
@@ -839,56 +842,69 @@ namespace PlayniteAchievements
         public override IEnumerable<MainMenuItem> GetMainMenuItems(GetMainMenuItemsArgs args)
         {
             var refreshInProgress = IsRefreshInProgress();
+            var isFullscreen = IsFullscreenMode();
             if (refreshInProgress)
             {
                 foreach (var item in GetRefreshInProgressMainMenuHeader())
                 {
                     yield return item;
                 }
-            }
-
-            if (!refreshInProgress)
-            {
-                // Fullscreen-only: overview window (desktop uses the overview panel).
-                var isFullscreen = IsFullscreenMode();
-
-                if (isFullscreen)
-                {
-                    yield return new MainMenuItem
-                    {
-                        Description = ResourceProvider.GetString("LOCPlayAch_Menu_OpenOverview"),
-                        MenuSection = PluginMainMenuSection,
-                        Action = (a) =>
-                        {
-                            OpenOverviewWindow();
-                        }
-                    };
-
-                    // Fullscreen can't open Playnite's native plugin-settings dialog
-                    // (OpenSettingsView is a no-op there), so host the plugin's settings UI in a
-                    // managed popout instead — giving fullscreen access to the notification
-                    // appearance editor and fire-tests. Closing the window saves.
-                    yield return new MainMenuItem
-                    {
-                        Description = ResourceProvider.GetString("LOCPlayAch_Landing_OpenSettings"),
-                        MenuSection = PluginMainMenuSection,
-                        Action = (a) =>
-                        {
-                            OpenSettingsWindow();
-                        }
-                    };
-
-                    yield return new MainMenuItem
-                    {
-                        Description = "-",
-                        MenuSection = PluginMainMenuSection
-                    };
-                }
 
                 yield return new MainMenuItem
                 {
-                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshMode_Recent"),
-                    MenuSection = PluginMainMenuSection,
+                    Description = "-",
+                    MenuSection = PluginMainMenuSection
+                };
+            }
+
+            // The Overview, settings and the Workshop show in every mode, mid-refresh included.
+            // Overview and Settings use Playnite's own labels, which are already translated.
+            // Fullscreen can't open Playnite's native plugin-settings dialog (OpenSettingsView is
+            // a no-op there), so it hosts the plugin's settings UI in a managed popout that saves
+            // on close.
+            yield return new MainMenuItem
+            {
+                Description = ResourceProvider.GetString("LOCOverviewLabel"),
+                MenuSection = PluginMainMenuSection,
+                Action = (a) =>
+                {
+                    OpenOverviewWindow();
+                }
+            };
+
+            yield return new MainMenuItem
+            {
+                Description = ResourceProvider.GetString("LOCSettingsLabel"),
+                MenuSection = PluginMainMenuSection,
+                Action = (a) =>
+                {
+                    if (isFullscreen)
+                    {
+                        OpenSettingsWindow();
+                    }
+                    else
+                    {
+                        OpenSettingsView();
+                    }
+                }
+            };
+
+            yield return new MainMenuItem
+            {
+                Description = ResourceProvider.GetString("LOCPlayAch_Workshop_Title"),
+                MenuSection = PluginMainMenuSection,
+                Action = (a) =>
+                {
+                    ToggleWorkshopTabWindow();
+                }
+            };
+
+            if (!refreshInProgress)
+            {
+                yield return new MainMenuItem
+                {
+                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshModeShort_Recent"),
+                    MenuSection = PluginMainRefreshSection,
                     Action = (a) =>
                     {
                         _ = StartMenuRefreshAsync(new RefreshRequest { Mode = RefreshModeType.Recent });
@@ -897,8 +913,8 @@ namespace PlayniteAchievements
 
                 yield return new MainMenuItem
                 {
-                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshMode_Full"),
-                    MenuSection = PluginMainMenuSection,
+                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshModeShort_Full"),
+                    MenuSection = PluginMainRefreshSection,
                     Action = (a) =>
                     {
                         _ = StartMenuRefreshAsync(new RefreshRequest { Mode = RefreshModeType.Full });
@@ -907,8 +923,8 @@ namespace PlayniteAchievements
 
                 yield return new MainMenuItem
                 {
-                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshMode_Installed"),
-                    MenuSection = PluginMainMenuSection,
+                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshModeShort_Installed"),
+                    MenuSection = PluginMainRefreshSection,
                     Action = (a) =>
                     {
                         _ = StartMenuRefreshAsync(new RefreshRequest { Mode = RefreshModeType.Installed });
@@ -917,8 +933,8 @@ namespace PlayniteAchievements
 
                 yield return new MainMenuItem
                 {
-                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshMode_Favorites"),
-                    MenuSection = PluginMainMenuSection,
+                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshModeShort_Favorites"),
+                    MenuSection = PluginMainRefreshSection,
                     Action = (a) =>
                     {
                         _ = StartMenuRefreshAsync(new RefreshRequest { Mode = RefreshModeType.Favorites });
@@ -927,8 +943,8 @@ namespace PlayniteAchievements
 
                 yield return new MainMenuItem
                 {
-                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshMode_Selected"),
-                    MenuSection = PluginMainMenuSection,
+                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshModeShort_Selected"),
+                    MenuSection = PluginMainRefreshSection,
                     Action = (a) =>
                     {
                         _ = StartMenuRefreshAsync(new RefreshRequest { Mode = RefreshModeType.LibrarySelected });
@@ -937,8 +953,8 @@ namespace PlayniteAchievements
 
                 yield return new MainMenuItem
                 {
-                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshMode_Missing"),
-                    MenuSection = PluginMainMenuSection,
+                    Description = ResourceProvider.GetString("LOCPlayAch_RefreshModeShort_Missing"),
+                    MenuSection = PluginMainRefreshSection,
                     Action = (a) =>
                     {
                         _ = StartMenuRefreshAsync(new RefreshRequest { Mode = RefreshModeType.Missing });
@@ -947,8 +963,8 @@ namespace PlayniteAchievements
 
                 yield return new MainMenuItem
                 {
-                    Description = ResourceProvider.GetString("LOCPlayAch_CustomRefresh_MenuItem"),
-                    MenuSection = PluginMainMenuSection,
+                    Description = ResourceProvider.GetString("LOCCustomLabel") + "...",
+                    MenuSection = PluginMainRefreshSection,
                     Action = (a) =>
                     {
                         if (!CustomRefreshControl.TryShowDialog(

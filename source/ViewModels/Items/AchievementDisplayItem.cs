@@ -1137,11 +1137,19 @@ namespace PlayniteAchievements.ViewModels.Items
         public double ProgressPercent => HasProgress ? (ProgressNum.Value * 100.0 / ProgressDenom.Value) : 0;
 
         /// <summary>
+        /// Treats the row as locked when deciding what to mask, whatever its unlock state says.
+        /// The published Workshop image sets it: every row there is stamped unlocked so the image
+        /// carries none of the sharer's progress, which would otherwise leave hidden achievements
+        /// unmasked. Set before the row is bound; it raises no change notification.
+        /// </summary>
+        public bool MaskAsLocked { get; set; }
+
+        /// <summary>
         /// Unlock state used for visibility/obscuring decisions.
         /// Subclasses may substitute a different unlock source (e.g. the current user's
         /// unlock state on friend items when spoiler protection is enabled).
         /// </summary>
-        public virtual bool UnlockedForVisibility => Unlocked;
+        public virtual bool UnlockedForVisibility => !MaskAsLocked && Unlocked;
 
         /// <summary>
         /// True if the achievement can be revealed (is locked and at least one hiding setting is enabled).
@@ -1644,6 +1652,7 @@ namespace PlayniteAchievements.ViewModels.Items
             // reset any appearance setting that was added to the item but not added to the list,
             // and the grids clone before they render, so the reset is what the user sees.
             clone.ApplyAppearanceSettings(CaptureAppearanceSettings());
+            clone.MaskAsLocked = MaskAsLocked;
             clone.CategoryType = _categoryType;
             clone.CategoryLabel = _categoryLabel;
             clone.GameIconPath = _gameIconPath;

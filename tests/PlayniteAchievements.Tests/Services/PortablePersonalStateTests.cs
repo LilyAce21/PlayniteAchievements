@@ -18,6 +18,18 @@ namespace PlayniteAchievements.Services.Tests
         private static readonly DateTime OtherUnlockTime = new DateTime(2025, 6, 7, 8, 9, 10, DateTimeKind.Utc);
 
         [TestMethod]
+        public void CarryLocal_KeepsTheGameSoundPack()
+        {
+            var current = new GameCustomDataFile { UnlockSounds = new UnlockSoundSettings { Rare = "rare.wav" } };
+            var imported = new GameCustomDataFile();
+
+            PortablePersonalState.CarryLocal(current, imported);
+
+            Assert.AreEqual("rare.wav", imported.UnlockSounds?.Rare);
+            Assert.AreNotSame(current.UnlockSounds, imported.UnlockSounds);
+        }
+
+        [TestMethod]
         public void ExportPortablePackage_OmitsPersonalStateAndKeepsCuration()
         {
             WithStore((store, tempDir) =>
@@ -52,6 +64,69 @@ namespace PlayniteAchievements.Services.Tests
                 Assert.IsNull(custom.UnlockTimeUtc);
                 Assert.IsNull(custom.ProgressNum);
                 Assert.AreEqual(3, custom.ProgressDenom);
+            });
+        }
+
+        [TestMethod]
+        public void ExportPortablePackage_WritesKindAndGameKeys_ImportIgnoresThem()
+        {
+            WithStore((store, tempDir) =>
+            {
+                var gameId = Guid.NewGuid();
+                store.Save(gameId, BuildRecordWithPersonalState(gameId, "480", UnlockTime));
+                store.AttachGameKeyResolver(id => id == gameId
+                    ? new[]
+                    {
+                        new PortableGameKey { ProviderKey = "Steam", ProviderGameId = 480, Name = "Spacewar", Platform = "PC (Windows)" },
+                        new PortableGameKey { Name = "Spacewar", Platform = "PC (Windows)" }
+                    }
+                    : Array.Empty<PortableGameKey>());
+
+                var packagePath = Path.Combine(tempDir, "game.pa");
+                store.ExportPortablePackage(gameId, packagePath);
+
+                GameCustomDataPortableFile portable;
+                using (var archive = ZipFile.OpenRead(packagePath))
+                using (var reader = new StreamReader(archive.GetEntry(GameCustomDataStore.PortablePackageManifestEntryName).Open()))
+                {
+                    portable = JsonConvert.DeserializeObject<GameCustomDataPortableFile>(reader.ReadToEnd());
+                }
+
+                Assert.AreEqual(GameCustomDataPortableFile.GameCustomDataKind, portable.Kind);
+                Assert.AreEqual(2, portable.GameKeys.Count);
+                Assert.AreEqual("Steam", portable.GameKeys[0].ProviderKey);
+                Assert.AreEqual(480, portable.GameKeys[0].ProviderGameId);
+                Assert.IsNull(portable.GameKeys[1].ProviderKey);
+                Assert.AreEqual("Spacewar", portable.GameKeys[1].Name);
+
+                var read = store.ReadPortableGameKeys(packagePath);
+                Assert.AreEqual(2, read.Count, "the reader returns the keys without importing");
+                Assert.AreEqual(480, read[0].ProviderGameId);
+                Assert.AreEqual("Spacewar", read[1].Name);
+
+                // Keys describe the exporter's game; the importer chose its own target.
+                var otherGame = Guid.NewGuid();
+                var imported = store.ImportReplacePortable(otherGame, packagePath).ImportedData;
+                Assert.AreEqual(otherGame, imported.PlayniteGameId);
+            });
+        }
+
+        [TestMethod]
+        public void ExportPortablePackage_WithoutResolver_OmitsGameKeys()
+        {
+            WithStore((store, tempDir) =>
+            {
+                var gameId = Guid.NewGuid();
+                store.Save(gameId, BuildRecordWithPersonalState(gameId, "480", UnlockTime));
+                var packagePath = Path.Combine(tempDir, "game.pa");
+                store.ExportPortablePackage(gameId, packagePath);
+
+                using (var archive = ZipFile.OpenRead(packagePath))
+                using (var reader = new StreamReader(archive.GetEntry(GameCustomDataStore.PortablePackageManifestEntryName).Open()))
+                {
+                    var portable = JsonConvert.DeserializeObject<GameCustomDataPortableFile>(reader.ReadToEnd());
+                    Assert.IsNull(portable.GameKeys);
+                }
             });
         }
 
@@ -119,16 +194,16 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
-        public void ImportCustomAchievementsPackage_LegacyCsvWithUnlocks_ImportsLocked()
+        public void ImportCustomAchievementsPackage_CsvWithUnlocks_ImportsLocked()
         {
             WithStore((store, tempDir) =>
             {
-                var packagePath = Path.Combine(tempDir, "legacy-custom.pa");
+                var packagePath = Path.Combine(tempDir, "hand-written-custom.pa");
                 using (var archive = ZipFile.Open(packagePath, ZipArchiveMode.Create))
                 using (var writer = new StreamWriter(archive.CreateEntry(GameCustomDataStore.CustomAchievementsPackageCsvEntryName).Open()))
                 {
-                    writer.WriteLine("ID,Title,Description,Unlocked,Unlock Time (UTC),Points,Trophy Type,Hidden,Rarity,Global Percent,Progress,Progress Total,Unlocked Icon,Locked Icon");
-                    writer.WriteLine("c1,C1,,true,2026-01-02T03:04:05Z,10,,false,,,1,3,,");
+                    writer.WriteLine(CustomAchievementCsvFormat.Header);
+                    writer.WriteLine("c1,C1,,10,,false,,,1,3,true,2026-01-02T03:04:05Z,,");
                 }
 
                 var result = store.ImportCustomAchievementsPackage(Guid.NewGuid(), packagePath);

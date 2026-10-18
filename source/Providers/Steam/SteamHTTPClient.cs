@@ -452,6 +452,44 @@ namespace PlayniteAchievements.Providers.Steam
         public Task<SteamPageResult> GetAchievementsPageAsync(string steamId64, int appId, string language, CancellationToken ct)
             => GetSteamPageAsync($"https://steamcommunity.com/profiles/{steamId64}/stats/{appId}/?tab=achievements&l={language ?? "english"}", true, ct);
 
+        internal static string BuildAchievementsSsrPageUrl(string steamId64, int appId, string language)
+            => $"https://steamcommunity.com/profiles/{steamId64?.Trim()}/achievements/{appId}?l={language ?? "english"}";
+
+        /// <summary>
+        /// Fetches the redesigned achievements page over HTTP with the cookie jar. The page reads
+        /// as logged in only when the jar holds a valid session; callers that need the viewer's
+        /// session (friends-only profiles) check <see cref="SteamSsrAchievementsPage.ViewerLoggedIn"/>
+        /// and use <see cref="GetAchievementsSsrPageViaBrowserAsync"/> when it is false.
+        /// </summary>
+        public Task<SteamPageResult> GetAchievementsSsrPageAsync(string steamId64, int appId, string language, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(steamId64) || appId <= 0)
+            {
+                return Task.FromResult(new SteamPageResult());
+            }
+
+            return GetSteamPageAsync(BuildAchievementsSsrPageUrl(steamId64, appId, language), true, ct);
+        }
+
+        /// <summary>
+        /// Loads the redesigned achievements page in the logged-in browser session, which renders
+        /// with the viewer's visibility (friends-only profiles included). Returns null when the
+        /// browser yields no page data.
+        /// </summary>
+        public async Task<SteamPageResult> GetAchievementsSsrPageViaBrowserAsync(string steamId64, int appId, string language, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(steamId64) || appId <= 0)
+            {
+                return null;
+            }
+
+            var url = BuildAchievementsSsrPageUrl(steamId64, appId, language);
+            var (finalUrl, html) = await _sessionManager.GetSteamPageAsyncCef(url, ct).ConfigureAwait(false);
+            return SteamAchievementsSsrParser.HasSsrData(html)
+                ? new SteamPageResult { RequestedUrl = url, FinalUrl = finalUrl, Html = html }
+                : null;
+        }
+
         public Task<SteamPageResult> GetFriendsPageAsync(string steamId64, CancellationToken ct)
         {
             return string.IsNullOrWhiteSpace(steamId64)
@@ -1069,7 +1107,7 @@ namespace PlayniteAchievements.Providers.Steam
 
             // Find first two numbers - they represent (unlocked, total) regardless of language
             // English: "12 of 15 (80%) achievements earned"
-            // French: "12 sur 15 (80%) succès débloqués"
+            // French: "12 sur 15 (80%) succÃ¨s dÃ©bloquÃ©s"
             // German: "12 von 15 (80%) Errungenschaften freigeschaltet"
             var numberMatches = Regex.Matches(text, @"\b(\d+)\b");
             if (numberMatches.Count >= 2 &&

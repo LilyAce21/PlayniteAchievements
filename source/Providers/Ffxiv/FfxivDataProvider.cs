@@ -64,17 +64,9 @@ namespace PlayniteAchievements.Providers.Ffxiv
         public PlayniteAchievements.Models.Friends.IFriendsProvider Friends => null;
 
         /// <summary>
-        /// FFXIV is authenticated once a character name and world are configured.
+        /// FFXIV is authenticated once a character profile is configured.
         /// </summary>
-        public bool IsAuthenticated
-        {
-            get
-            {
-                var s = ProviderRegistry.Settings<FfxivSettings>();
-                return !string.IsNullOrWhiteSpace(s.CharacterName) &&
-                       !string.IsNullOrWhiteSpace(s.World);
-            }
-        }
+        public bool IsAuthenticated => ProviderRegistry.Settings<FfxivSettings>().GetCharacterId().HasValue;
 
         public bool IsCapable(Game game)
         {
@@ -111,10 +103,10 @@ namespace PlayniteAchievements.Providers.Ffxiv
         {
             var providerSettings = ProviderRegistry.Settings<FfxivSettings>();
 
-            if (string.IsNullOrWhiteSpace(providerSettings.CharacterName) ||
-                string.IsNullOrWhiteSpace(providerSettings.World))
+            var configuredId = providerSettings.GetCharacterId();
+            if (!configuredId.HasValue)
             {
-                _logger?.Warn("[FFXIV] Missing character name/world - cannot fetch achievements.");
+                _logger?.Warn("[FFXIV] No character profile configured - cannot fetch achievements.");
                 return new RebuildPayload { Summary = new RebuildSummary(), AuthRequired = true };
             }
 
@@ -125,22 +117,7 @@ namespace PlayniteAchievements.Providers.Ffxiv
 
             EnsureInitialized();
 
-            var resolution = await ResolveCharacterIdAsync(providerSettings, cancel).ConfigureAwait(false);
-            if (resolution.Outcome == FfxivResolveOutcome.LookupFailed)
-            {
-                // The Lodestone could not be asked, so nothing is known about the character.
-                // Reporting this as a configuration problem would be wrong.
-                _logger?.Warn($"[FFXIV] Lodestone lookup failed for '{providerSettings.CharacterName}' @ '{providerSettings.World}'; skipping this run.");
-                return new RebuildPayload { Summary = new RebuildSummary() };
-            }
-
-            if (resolution.Outcome != FfxivResolveOutcome.Resolved)
-            {
-                _logger?.Warn($"[FFXIV] Could not resolve character '{providerSettings.CharacterName}' @ '{providerSettings.World}'.");
-                return new RebuildPayload { Summary = new RebuildSummary(), AuthRequired = true };
-            }
-
-            var characterId = resolution.CharacterId;
+            var characterId = configuredId.Value;
             var catalog = await _catalogCache.GetCatalogAsync(_apiClient, characterId, cancel).ConfigureAwait(false);
 
             FfxivCharacter character;
@@ -172,13 +149,13 @@ namespace PlayniteAchievements.Providers.Ffxiv
             {
                 // FFXIV Collect answered for the character but returned no achievement block.
                 // The cause is not knowable from here, so log it rather than assert one.
-                _logger?.Warn($"[FFXIV] Character '{providerSettings.CharacterName}' returned no achievement data from FFXIV Collect; skipping this run.");
+                _logger?.Warn($"[FFXIV] Character {characterId} returned no achievement data from FFXIV Collect; skipping this run.");
                 return new RebuildPayload { Summary = new RebuildSummary() };
             }
 
             if (!character.Achievements.Public)
             {
-                _logger?.Warn($"[FFXIV] Character '{providerSettings.CharacterName}' has achievements hidden on the Lodestone; skipping this run rather than importing them all as locked.");
+                _logger?.Warn($"[FFXIV] Character {characterId} has achievements hidden on the Lodestone; skipping this run rather than importing them all as locked.");
                 ShowNotification(AchievementsPrivateNotificationId, "LOCPlayAch_Settings_FFXIV_AchievementsPrivate", null);
                 return new RebuildPayload { Summary = new RebuildSummary() };
             }
@@ -209,28 +186,6 @@ namespace PlayniteAchievements.Providers.Ffxiv
                 delayBetweenGamesAsync: null,
                 delayAfterErrorAsync: null,
                 cancel).ConfigureAwait(false);
-        }
-
-        private async Task<FfxivCharacterResolution> ResolveCharacterIdAsync(FfxivSettings providerSettings, CancellationToken cancel)
-        {
-            if (providerSettings.ResolvedCharacterId > 0)
-            {
-                return FfxivCharacterResolution.Resolved(providerSettings.ResolvedCharacterId);
-            }
-
-            var resolution = await _apiClient.ResolveCharacterIdAsync(
-                providerSettings.CharacterName,
-                providerSettings.World,
-                providerSettings.Region,
-                cancel).ConfigureAwait(false);
-
-            if (resolution.Outcome == FfxivResolveOutcome.Resolved)
-            {
-                providerSettings.ResolvedCharacterId = resolution.CharacterId;
-                ProviderRegistry.Write(providerSettings);
-            }
-
-            return resolution;
         }
 
         /// <summary>

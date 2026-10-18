@@ -38,6 +38,7 @@ using PlayniteAchievements.Services.Friends;
 using PlayniteAchievements.Services.ThemeIntegration;
 using PlayniteAchievements.Services.ThemeMigration;
 using PlayniteAchievements.Services.Tagging;
+using PlayniteAchievements.Services.Rules;
 using PlayniteAchievements.Services.UI;
 using PlayniteAchievements.Providers.Steam;
 using System.Threading.Tasks;
@@ -63,12 +64,12 @@ namespace PlayniteAchievements
 
         private static readonly string[] ProviderDisplayOrder =
         {
-            "Steam", "Local", "Epic", "GOG", "BattleNet", "EA", "Ubisoft", "GameJolt", "Riot", "PSN", "Xbox", "GooglePlay", "Apple", "FFXIV", "RetroAchievements", "RPCS3", "ShadPS4", "Xenia", "Manual", "Exophase", "Hoyoverse"
+            "Steam", "Local", "Epic", "GOG", "BattleNet", "EA", "Ubisoft", "GameJolt", "Riot", "PSN", "Xbox", "Meta", "GooglePlay", "Apple", "FFXIV", "Minecraft", "RetroAchievements", "RPCS3", "ShadPS4", "Vita3K", "Xenia", "Manual", "Exophase", "Hoyoverse"
         };
 
         private static readonly string[] ProviderRefreshOrder =
         {
-            "Manual", "FFXIV", "Exophase", "Steam", "Epic", "GOG", "BattleNet", "EA", "GameJolt", "Riot", "GW2", "Hypixel", "Hoyoverse", "RPCS3", "ShadPS4", "PSN", "Xenia", "Xbox", "RetroAchievements"
+            "Manual", "FFXIV", "Exophase", "Steam", "Epic", "GOG", "BattleNet", "EA", "Ubisoft", "GameJolt", "Riot", "GW2", "Hypixel", "Minecraft", "Meta", "Hoyoverse", "RPCS3", "ShadPS4", "Vita3K", "PSN", "Xenia", "Xbox", "RetroAchievements"
         };
 
         private readonly PlayniteAchievementsSettingsViewModel _settingsViewModel;
@@ -90,6 +91,29 @@ namespace PlayniteAchievements
         private readonly ShowcaseImageStore _showcaseImageStore;
         private NotificationStylePortableStore _notificationStylePortableStore;
         private NotificationStylePresetStore _notificationStylePresetStore;
+        private Services.Workshop.PackagePresetStore _colorPresetStore;
+        private Services.Workshop.PackagePresetStore _unlockSoundPresetStore;
+        private Services.Sound.UnlockSoundPortableStore _unlockSoundPortableStore;
+        private Services.Workshop.BundlePortableStore _bundlePortableStore;
+        private Services.Workshop.ColorPackPortableStore _colorPackPortableStore;
+        private Services.Workshop.WorkshopIdentityStore _workshopIdentityStore;
+        private Services.Library.LibraryStore _libraryStore;
+        private Services.Library.LibraryApplyService _libraryApplyService;
+        private Services.Library.ColorsLibraryAdapter _colorsLibraryAdapter;
+        private Services.Library.SoundsLibraryAdapter _soundsLibraryAdapter;
+        private Services.Library.NotificationLibraryTargets _notificationLibraryTargets;
+        private Services.Library.SoundsLibraryTargets _soundsLibraryTargets;
+        private Services.Library.ShowcaseLibraryTargets _showcaseLibraryTargets;
+        private Services.Library.GameLinkStore _gameLinkStore;
+        private Services.Library.GameDataLinkService _gameDataLinks;
+        private Services.Library.LibraryUpdateService _libraryUpdateService;
+        private int _droppedLibraryItemsQueued;
+        private Services.Workshop.WorkshopInstaller _workshopInstaller;
+        private Services.Workshop.WorkshopClient _workshopClient;
+        private Services.Workshop.WorkshopSubmissionClient _workshopSubmissionClient;
+        private Services.Workshop.WorkshopStatsClient _workshopStatsClient;
+        private Services.Workshop.WorkshopStatsStore _workshopStatsStore;
+        private Services.Workshop.WorkshopShareService _workshopShareService;
         private readonly NotificationPublisher _notifications;
         private readonly ProviderRegistry _providerRegistry;
         private readonly GameCustomDataStore _gameCustomDataStore;
@@ -101,6 +125,7 @@ namespace PlayniteAchievements
         private bool _unlockNextPoolRequired;
 
         private readonly BackgroundUpdater _backgroundUpdates;
+        private Services.Workshop.WorkshopUpdateChecker _workshopUpdateChecker;
         private readonly InGameAchievementMonitor _inGameMonitor;
         private readonly ActiveGameWindowTracker _windowTracker;
         private readonly Services.Sound.UnlockSoundService _unlockSounds;
@@ -147,6 +172,9 @@ namespace PlayniteAchievements
         private readonly HashSet<Guid> _pendingCustomizationTagSyncIds = new HashSet<Guid>();
         private bool _tagSyncDrainRunning;
         private TagSyncService _tagSyncService;
+        private FilterExclusionRuleService _filterExclusionRules;
+
+        internal FilterExclusionRuleService FilterExclusionRules => _filterExclusionRules;
         private AutoCapstoneMaintainer _autoCapstoneMaintainer;
         private AutoCapstoneGenerator _autoCapstoneGenerator;
         private AutoCapstoneAuthoring _autoCapstoneAuthoring;
@@ -195,10 +223,290 @@ namespace PlayniteAchievements
         public ShowcaseImageStore ShowcaseImageStore => _showcaseImageStore;
         public NotificationStylePortableStore NotificationStylePortableStore =>
             _notificationStylePortableStore ?? (_notificationStylePortableStore =
-                new NotificationStylePortableStore(_notificationImageStore, _logger));
+                new NotificationStylePortableStore());
         public NotificationStylePresetStore NotificationStylePresetStore =>
             _notificationStylePresetStore ?? (_notificationStylePresetStore =
                 new NotificationStylePresetStore(NotificationStylePortableStore, GetPluginUserDataPath()));
+        public Services.Sound.UnlockSoundPortableStore UnlockSoundPortableStore =>
+            _unlockSoundPortableStore ?? (_unlockSoundPortableStore =
+                new Services.Sound.UnlockSoundPortableStore(GetPluginUserDataPath(), _logger));
+        public Services.Workshop.ColorPackPortableStore ColorPackPortableStore =>
+            _colorPackPortableStore ?? (_colorPackPortableStore = new Services.Workshop.ColorPackPortableStore());
+        /// <summary>Saved color sets (.pacolors files), the presets behind Display > Colors.</summary>
+        public Services.Workshop.PackagePresetStore ColorPresetStore =>
+            _colorPresetStore ?? (_colorPresetStore = new Services.Workshop.PackagePresetStore(
+                GetPluginUserDataPath(),
+                Services.Library.LibraryStore.FolderOf(Services.Library.LibraryItemKind.Colors),
+                Services.Workshop.ColorPackPortableStore.PackageFileExtension,
+                path => ColorPackPortableStore.Read(path)));
+        /// <summary>Saved sound packs (.pasounds files), the presets behind the unlock sounds card.</summary>
+        public Services.Workshop.PackagePresetStore UnlockSoundPresetStore =>
+            _unlockSoundPresetStore ?? (_unlockSoundPresetStore = new Services.Workshop.PackagePresetStore(
+                GetPluginUserDataPath(),
+                Services.Library.LibraryStore.FolderOf(Services.Library.LibraryItemKind.Sounds),
+                Services.Sound.UnlockSoundPortableStore.PackageFileExtension,
+                path => UnlockSoundPortableStore.Inspect(path)));
+        public Services.Workshop.BundlePortableStore BundlePortableStore =>
+            _bundlePortableStore ?? (_bundlePortableStore =
+                new Services.Workshop.BundlePortableStore(NotificationStylePortableStore, UnlockSoundPortableStore, ColorPackPortableStore, _logger));
+        public Services.Workshop.WorkshopIdentityStore WorkshopIdentityStore =>
+            _workshopIdentityStore ?? (_workshopIdentityStore =
+                new Services.Workshop.WorkshopIdentityStore(GetPluginUserDataPath(), _logger));
+        /// <summary>The library index over the preset folders (UserData\library\library.json).</summary>
+        public Services.Library.LibraryStore LibraryStore
+        {
+            get
+            {
+                if (_libraryStore == null)
+                {
+                    _libraryStore = new Services.Library.LibraryStore(
+                        GetPluginUserDataPath(),
+                        (ex, message) => _logger?.Warn(ex, message));
+                    _libraryStore.Changed += LibraryStore_Changed;
+                }
+
+                return _libraryStore;
+            }
+        }
+
+        /// <summary>The links of per-game targets (UserData\library\links.json).</summary>
+        public Services.Library.GameLinkStore GameLinkStore =>
+            _gameLinkStore ?? (_gameLinkStore = new Services.Library.GameLinkStore(
+                LibraryStore.LibraryDirectory,
+                (ex, message) => _logger?.Warn(ex, message)));
+
+        /// <summary>Each game's Workshop game data record: its link, package copy and baseline.</summary>
+        public Services.Library.GameDataLinkService GameDataLinks =>
+            _gameDataLinks ?? (_gameDataLinks = new Services.Library.GameDataLinkService(
+                GameLinkStore,
+                LibraryStore.LibraryDirectory,
+                System.IO.Path.Combine(GetPluginUserDataPath(), Services.Library.LibraryStore.GameDataBaselinesFolder),
+                gameId => GameCustomDataStore != null && GameCustomDataStore.TryLoad(gameId, out var data) ? data : null,
+                gameId => ManagedCustomIconService?.GetGameCustomIconDirectory(gameId.ToString("D")),
+                (ex, message) => _logger?.Warn(ex, message)));
+
+        /// <summary>Writes Workshop packages into the library and keeps the targets that follow library items in step.</summary>
+        public Services.Library.LibraryUpdateService LibraryUpdateService =>
+            _libraryUpdateService ?? (_libraryUpdateService = new Services.Library.LibraryUpdateService(
+                LibraryApplyService,
+                GameLinkStore,
+                new Services.Library.ISettingsLibraryAdapter[] { ColorsLibraryAdapter, SoundsLibraryAdapter },
+                () => _settingsViewModel?.Settings?.Persisted,
+                update => ApplyLibrarySettingsChange(update, includeEditSnapshot: true),
+                update => ApplyLibrarySettingsChange(update, includeEditSnapshot: false),
+                new Services.Library.ILibraryTargetResolver[] { NotificationLibraryTargets, SoundsLibraryTargets, ShowcaseLibraryTargets }));
+        /// <summary>Applies library items to their targets and keeps the links and baselines.</summary>
+        public Services.Library.LibraryApplyService LibraryApplyService =>
+            _libraryApplyService ?? (_libraryApplyService = new Services.Library.LibraryApplyService(
+                LibraryStore,
+                new Services.Library.LibraryBaselineStore(
+                    LibraryStore.LibraryDirectory,
+                    (ex, message) => _logger?.Warn(ex, message))));
+        /// <summary>The colors target (Display > Colors) as a library adapter.</summary>
+        public Services.Library.ColorsLibraryAdapter ColorsLibraryAdapter =>
+            _colorsLibraryAdapter ?? (_colorsLibraryAdapter = new Services.Library.ColorsLibraryAdapter(ColorPackPortableStore));
+        /// <summary>
+        /// The unlock sounds target as a library adapter. Its prunes keep every pack's files: the
+        /// global and platform packs of the live settings and of the edit snapshot, so a Cancel
+        /// restores sounds that still exist, and every game's own pack.
+        /// </summary>
+        public Services.Library.SoundsLibraryAdapter SoundsLibraryAdapter =>
+            _soundsLibraryAdapter ?? (_soundsLibraryAdapter = new Services.Library.SoundsLibraryAdapter(
+                UnlockSoundPortableStore,
+                ReferencedUnlockSoundPacks));
+
+        /// <summary>The platform and game sound scopes as library targets.</summary>
+        public Services.Library.SoundsLibraryTargets SoundsLibraryTargets =>
+            _soundsLibraryTargets ?? (_soundsLibraryTargets = new Services.Library.SoundsLibraryTargets(
+                SoundsLibraryAdapter,
+                () => _gameCustomDataStore,
+                () => _settingsViewModel?.Settings?.Persisted,
+                gameId => _achievementDataService?.GetGameAchievementData(gameId)?.EffectiveProviderKey));
+
+        private IEnumerable<UnlockSoundSettings> ReferencedUnlockSoundPacks()
+        {
+            var packs = new List<UnlockSoundSettings>();
+            foreach (var persisted in new[] { _settingsViewModel?.Settings?.Persisted, _settingsViewModel?.EditSnapshotPersisted })
+            {
+                if (persisted == null)
+                {
+                    continue;
+                }
+
+                packs.Add(persisted.UnlockSounds);
+                packs.AddRange(persisted.ProviderUnlockSounds.Values);
+            }
+
+            var store = _gameCustomDataStore;
+            if (store != null)
+            {
+                packs.AddRange(store.QueryAll(all => all
+                    .Select(data => data?.UnlockSounds)
+                    .Where(sounds => sounds != null)
+                    .ToList()));
+            }
+
+            return packs;
+        }
+
+        /// <summary>
+        /// The notification and frame scopes (global, platform, game) as library targets. Their
+        /// slot images are pruned against the live settings, the edit snapshot and every game.
+        /// </summary>
+        public Services.Library.NotificationLibraryTargets NotificationLibraryTargets
+        {
+            get
+            {
+                if (_notificationLibraryTargets == null)
+                {
+                    var templates = new Services.Library.ResolverTemplateFiles(new AchievementToastTemplateResolver(
+                        PlayniteApi,
+                        _logger,
+                        customTemplatesDirectory: AchievementToastTemplateResolver.GetCustomTemplatesDirectory(GetPluginUserDataPath())));
+                    Services.Library.NotificationStyleLibraryAdapter Adapter(bool isFrame) =>
+                        new Services.Library.NotificationStyleLibraryAdapter(
+                            isFrame,
+                            NotificationStylePortableStore,
+                            _notificationImageStore,
+                            templates,
+                            PruneNotificationImages,
+                            (ex, message) => _logger?.Warn(ex, message));
+                    _notificationLibraryTargets = new Services.Library.NotificationLibraryTargets(
+                        Adapter(isFrame: false),
+                        Adapter(isFrame: true),
+                        () => _gameCustomDataStore,
+                        () => _settingsViewModel?.Settings?.Persisted,
+                        gameId => _achievementDataService?.GetGameAchievementData(gameId)?.EffectiveProviderKey);
+                }
+
+                return _notificationLibraryTargets;
+            }
+        }
+
+        /// <summary>The showcase pages as library targets.</summary>
+        public Services.Library.ShowcaseLibraryTargets ShowcaseLibraryTargets =>
+            _showcaseLibraryTargets ?? (_showcaseLibraryTargets = new Services.Library.ShowcaseLibraryTargets(
+                () => _settingsViewModel?.Settings?.Persisted,
+                path => _showcaseImageStore?.Import(path),
+                AfterShowcaseLibraryWrite));
+
+        /// <summary>
+        /// After a library item changed a page of the live layout: unused profile images go
+        /// (only outside a settings edit session, whose snapshot may still show them) and the
+        /// open showcase redraws.
+        /// </summary>
+        private void AfterShowcaseLibraryWrite(PersistedSettings settings)
+        {
+            if (settings == null || !ReferenceEquals(settings, _settingsViewModel?.Settings?.Persisted))
+            {
+                return;
+            }
+
+            if (_settingsViewModel?.IsEditSessionActive != true)
+            {
+                _showcaseImageStore?.Prune(settings.Showcase);
+            }
+
+            Services.Showcase.ShowcaseConfigurationEvents.RaiseChanged();
+        }
+
+        /// <summary>Removes notification slot images that neither the live settings, the edit snapshot nor any game refers to.</summary>
+        private void PruneNotificationImages()
+        {
+            _notificationImageStore?.PruneOrphans(
+                new[] { _settingsViewModel?.Settings?.Persisted, _settingsViewModel?.EditSnapshotPersisted },
+                _gameCustomDataStore?.LoadAll());
+        }
+
+        /// <summary>
+        /// Applies <paramref name="update"/> to the live settings and, while the settings window
+        /// is open, to its edit snapshot, for changes that must survive a Cancel (a preset file
+        /// deleted, a library update merged from outside the settings).
+        /// </summary>
+        public void UpdateSettingsIncludingEditSnapshot(Action<PersistedSettings> update)
+        {
+            _settingsViewModel?.UpdatePersistedIncludingEditSnapshot(update);
+        }
+
+        /// <summary>
+        /// Applies a library change to the live settings (and the edit snapshot when
+        /// <paramref name="includeEditSnapshot"/>), and saves the settings when no settings window
+        /// is open to save them on OK.
+        /// </summary>
+        private void ApplyLibrarySettingsChange(Action<PersistedSettings> update, bool includeEditSnapshot)
+        {
+            if (update == null || _settingsViewModel?.Settings?.Persisted == null)
+            {
+                return;
+            }
+
+            if (includeEditSnapshot)
+            {
+                UpdateSettingsIncludingEditSnapshot(update);
+            }
+            else
+            {
+                update(_settingsViewModel.Settings.Persisted);
+            }
+
+            if (!_settingsViewModel.IsEditSessionActive)
+            {
+                PersistSettingsForUi();
+            }
+        }
+
+        /// <summary>
+        /// A reconcile may have dropped items whose files are gone; their links end once the UI
+        /// thread is free. Repeated changes coalesce into one pass.
+        /// </summary>
+        private void LibraryStore_Changed(object sender, EventArgs e)
+        {
+            var dispatcher = PlayniteApi?.MainView?.UIDispatcher ?? System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher == null || System.Threading.Interlocked.Exchange(ref _droppedLibraryItemsQueued, 1) == 1)
+            {
+                return;
+            }
+
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                System.Threading.Interlocked.Exchange(ref _droppedLibraryItemsQueued, 0);
+                try
+                {
+                    var dropped = LibraryUpdateService.UnlinkDropped();
+                    if (dropped > 0)
+                    {
+                        _logger?.Info($"[Library] Ended the links to {dropped} item(s) whose files are gone.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Warn(ex, "Failed ending the links to dropped library items.");
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        public Services.Workshop.WorkshopInstaller WorkshopInstaller =>
+            _workshopInstaller ?? (_workshopInstaller =
+                new Services.Workshop.WorkshopInstaller(this, WorkshopIdentityStore, _logger));
+        public Services.Workshop.WorkshopClient WorkshopClient =>
+            _workshopClient ?? (_workshopClient = new Services.Workshop.WorkshopClient(
+                null,
+                System.IO.Path.Combine(GetPluginUserDataPath(), Services.Workshop.WorkshopIdentityStore.DirectoryName, "cache"),
+                _logger));
+        public Services.Workshop.WorkshopSubmissionClient WorkshopSubmissionClient =>
+            _workshopSubmissionClient ?? (_workshopSubmissionClient = new Services.Workshop.WorkshopSubmissionClient(null));
+        public Services.Workshop.WorkshopStatsClient WorkshopStatsClient =>
+            _workshopStatsClient ?? (_workshopStatsClient = new Services.Workshop.WorkshopStatsClient(null, _logger));
+        public Services.Workshop.WorkshopStatsStore WorkshopStatsStore =>
+            _workshopStatsStore ?? (_workshopStatsStore =
+                new Services.Workshop.WorkshopStatsStore(WorkshopStatsClient, WorkshopIdentityStore, _logger));
+        public Services.Workshop.WorkshopShareService WorkshopShareService =>
+            _workshopShareService ?? (_workshopShareService =
+                new Services.Workshop.WorkshopShareService(this, WorkshopSubmissionClient, WorkshopIdentityStore, _logger));
+        public Services.Workshop.WorkshopGameMatcher CreateWorkshopGameMatcher() =>
+            new Services.Workshop.WorkshopGameMatcher(
+                () => _achievementDataService?.GetAllCachedGameDataForLookup(),
+                () => PlayniteApi?.Database?.Games);
         public ThemeIntegrationService ThemeIntegrationService => _themeIntegrationService;
         public ThemeIntegrationService ThemeUpdateService => _themeIntegrationService;
         public TagSyncService TagSyncService => _tagSyncService;
@@ -313,6 +621,41 @@ namespace PlayniteAchievements
             {
                 Instance?._logger?.Error(ex, $"Failed clearing goal for unlocked achievement '{args.ApiName}'.");
             }
+        }
+
+        /// <summary>
+        /// The machine-independent names for a game that an exported .pa file carries: the
+        /// servicing provider's identity from the cache, and the library's name and platform as a
+        /// fallback for games no provider services.
+        /// </summary>
+        private IReadOnlyList<PortableGameKey> ResolvePortableGameKeys(Guid gameId)
+        {
+            var keys = new List<PortableGameKey>();
+            var game = PlayniteApi?.Database?.Games?.Get(gameId);
+            var platform = game?.Platforms?.FirstOrDefault()?.Name;
+
+            var data = _achievementDataService?.GetRawGameAchievementData(gameId);
+            if (data != null && !string.IsNullOrWhiteSpace(data.ProviderKey) &&
+                (data.AppId > 0 || !string.IsNullOrWhiteSpace(data.ProviderGameKey)))
+            {
+                keys.Add(new PortableGameKey
+                {
+                    ProviderKey = data.ProviderKey,
+                    ProviderPlatformKey = string.IsNullOrWhiteSpace(data.ProviderPlatformKey) ? null : data.ProviderPlatformKey,
+                    ProviderGameId = data.AppId > 0 ? data.AppId : (int?)null,
+                    ProviderGameKey = string.IsNullOrWhiteSpace(data.ProviderGameKey) ? null : data.ProviderGameKey,
+                    Name = game?.Name ?? data.GameName,
+                    Platform = platform
+                });
+            }
+
+            var name = game?.Name ?? data?.GameName;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                keys.Add(new PortableGameKey { Name = name, Platform = platform });
+            }
+
+            return keys;
         }
 
         private bool UsesCustomAchievementNotification(AchievementUnlockedEventArgs args)
@@ -431,7 +774,7 @@ namespace PlayniteAchievements
         /// The extension's install directory (where the plugin dll, the bundled sounds and the sound
         /// host exe live), resolved from the assembly location. Null when it cannot be resolved.
         /// </summary>
-        private string GetPluginInstallDirectory()
+        internal string GetPluginInstallDirectory()
         {
             try
             {
@@ -653,6 +996,10 @@ namespace PlayniteAchievements
                     _logger.Debug(ex, "Could not stamp the build into the log.");
                 }
 
+                // Before anything reads the library or a preset folder, so the library's first
+                // reconcile sees every preset at its current place.
+                MigrateLibraryFolders(pluginUserDataPath);
+
                 // Phase 1: Load settings and chart plumbing used by theme controls.
                 using (PerfScope.StartStartup(_logger, "PluginCtor.SettingsLoad", thresholdMs: 50))
                 {
@@ -708,6 +1055,7 @@ namespace PlayniteAchievements
                 _gameCustomDataStore.AttachCustomProviderCatalog(
                     id => _customProviderStore.TryGet(id, out var definition) ? definition : null,
                     definition => _customProviderStore.ImportIfMissing(definition));
+                _gameCustomDataStore.AttachGameKeyResolver(ResolvePortableGameKeys);
                 TryWarmCustomDataCache();
 
                 List<IDataProvider> providers;
@@ -918,6 +1266,11 @@ namespace PlayniteAchievements
                     // duration can come from a theme override rather than the setting.
                     _unlockSounds.MaxPlaybackSeconds =
                         () => _toastNotifications?.GetEffectiveToastDurationSecondsSafe();
+                    _unlockSounds.ResolvePack = (providerKey, gameId) => Services.Sound.UnlockSoundScope.Resolve(
+                        settings?.Persisted,
+                        _gameCustomDataStore,
+                        providerKey,
+                        gameId);
                     _toastNotifications = new ToastNotificationService(
                         PlayniteApi,
                         settings,
@@ -950,10 +1303,13 @@ namespace PlayniteAchievements
                         // captures, and its measured onsets, so composited chimes land where the
                         // live ones were heard.
                         () => _unlockSounds?.HostProcessId,
-                        id => _unlockSounds?.TryGetAudibleOnsetUtc(id));
+                        id => _unlockSounds?.TryGetAudibleOnsetUtc(id),
+                        // Each game's own capture settings, read per session and per unlock.
+                        gameId => _gameCustomDataStore != null && _gameCustomDataStore.TryLoad(gameId, out var data) ? data : null);
                     _captureLibraryService = new Services.Captures.CaptureLibraryService(
                         () => _settingsViewModel?.Settings?.Persisted,
-                        _logger);
+                        _logger,
+                        gameDirectoriesAccessor: ReadGameCaptureDirectories);
                     Services.Captures.AchievementCapturePathResolver.CaptureLibraryAccessor =
                         () => _captureLibraryService;
                     _inGameMonitor = new InGameAchievementMonitor(
@@ -980,6 +1336,12 @@ namespace PlayniteAchievements
                         settings,
                         GetPluginLocalizationDirectory());
                     _tagSyncService.InitializeAndSubscribeTaggingSettings();
+
+                    _filterExclusionRules = new FilterExclusionRuleService(
+                        PlayniteApi,
+                        _gameCustomDataStore,
+                        settings,
+                        _logger);
 
                     _fullscreenControllerNavigationService = new FullscreenControllerNavigationService(
                         PlayniteApi,
@@ -1020,7 +1382,8 @@ namespace PlayniteAchievements
                         OpenSettingsViewFromHotkey,
                         TryFlipCategoryModeInActiveView,
                         TryRefreshActivePluginView,
-                        runningGameId => _inGameMonitor?.FireTestNotification(runningGameId));
+                        runningGameId => _inGameMonitor?.FireTestNotification(runningGameId),
+                        ToggleWorkshopTabWindow);
 
                     _themeAutoMigrationService = new ThemeAutoMigrationService(
                         _logger,
@@ -1444,6 +1807,21 @@ namespace PlayniteAchievements
                 // Playnite's populated database rather than the blank values an early startup warm
                 // would bake in.
                 _libraryProjectionService?.Warm();
+
+                // Hourly look for newer versions of installed Workshop items; its first tick also
+                // resolves the proxy for the Workshop host off the UI thread, so the first index
+                // fetch from a settings page does not stall on WPAD.
+                try
+                {
+                    _workshopUpdateChecker = _workshopUpdateChecker ?? new Services.Workshop.WorkshopUpdateChecker(this, _logger);
+                    _workshopUpdateChecker.Start();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Warn(ex, "Failed starting the Workshop update checker.");
+                }
+
+                StartLibraryMigration();
                 // The friends overview snapshot is intentionally NOT warmed here: it is built
                 // on demand by the first consumer (friends view or a theme friend binding) and
                 // released when the last consumer detaches, so it only occupies memory while
@@ -1533,6 +1911,10 @@ namespace PlayniteAchievements
 
                 _fallbackIconStore?.PruneOrphans(_settingsViewModel?.Settings?.Persisted);
 
+                // Catch up on filter matches that moved while Playnite was closed. A steady
+                // library writes nothing here.
+                _filterExclusionRules?.QueueAll();
+
                 // Auto-migrate themes that have been updated since the last migration.
                 _themeAutoMigrationService?.ScheduleAutoMigration();
 
@@ -1619,6 +2001,116 @@ namespace PlayniteAchievements
                 catch (Exception ex)
                 {
                     _logger?.Error(ex, "Failed to apply auto capstone text templates.");
+                }
+            });
+        }
+
+        /// <summary>
+        /// Moves the preset folders and the game data baselines into the library folder and
+        /// removes folders left empty; a no-op once done. See <see cref="Services.Library.LibraryFolderMigration"/>.
+        /// </summary>
+        private void MigrateLibraryFolders(string pluginUserDataPath)
+        {
+            try
+            {
+                var result = Services.Library.LibraryFolderMigration.Run(
+                    pluginUserDataPath,
+                    (ex, message) => _logger?.Warn(ex, "[Library] " + message));
+                if (!result.HasChanges)
+                {
+                    return;
+                }
+
+                foreach (var group in result.Moved.GroupBy(move => System.IO.Path.GetDirectoryName(move.From), StringComparer.OrdinalIgnoreCase))
+                {
+                    _logger?.Info($"[Library] Moved {group.Count()} file(s) from {group.Key} to {System.IO.Path.GetDirectoryName(group.First().To)}.");
+                }
+
+                foreach (var renamed in result.Renamed)
+                {
+                    _logger?.Info($"[Library] Kept both copies of {renamed.From}: the moved file is {renamed.To}.");
+                }
+
+                if (result.RewrittenItems > 0 || result.RewrittenBaselines > 0)
+                {
+                    _logger?.Info($"[Library] Pointed {result.RewrittenItems} library item(s) and {result.RewrittenBaselines} game data baseline(s) at the moved files.");
+                }
+
+                if (result.Failed > 0)
+                {
+                    _logger?.Warn($"[Library] {result.Failed} file(s) could not be moved into the library; the next startup tries again.");
+                }
+
+                if (result.DeletedRetiredInstalls)
+                {
+                    _logger?.Info("[Library] Deleted the retired installed.migrated.json.");
+                }
+
+                if (result.RemovedFolders.Count > 0)
+                {
+                    _logger?.Info($"[Library] Removed empty folder(s): {string.Join(", ", result.RemovedFolders)}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "[Library] Failed moving the preset folders into the library; the next startup tries again.");
+            }
+        }
+
+        /// <summary>
+        /// Indexes the preset folders into the library, off the UI thread, at every startup. The
+        /// first run after an update from a version before the library also brings what
+        /// installed.json records into it, then retires that file.
+        /// </summary>
+        private void StartLibraryMigration()
+        {
+            Services.Library.LibraryStore store;
+            Services.Workshop.WorkshopIdentityStore identity;
+            Services.Library.GameLinkStore gameLinks;
+            try
+            {
+                store = LibraryStore;
+                identity = WorkshopIdentityStore;
+                gameLinks = GameLinkStore;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "Failed opening the customization library.");
+                return;
+            }
+
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    var plan = Services.Library.LibraryMigration.Run(store, identity);
+                    if (plan.CreatedIndex || plan.Steps.Count > 0)
+                    {
+                        _logger?.Info($"[Library] Indexed the preset folders; {plan.Steps.Count} Workshop install change(s) brought into the library.");
+                    }
+
+                    var linked = Services.Library.LibraryMigration.LinkGameDataInstalls(plan, gameLinks);
+                    if (linked > 0)
+                    {
+                        _logger?.Info($"[Library] Linked {linked} game(s) to the Workshop game data installed on them.");
+                    }
+
+                    // Game data is recorded on the games: what the old library items knew moves into their links.
+                    var moved = Services.Library.LibraryMigration.MoveGameDataItemsToLinks(store.TakeLegacyGameDataItems(), gameLinks);
+                    if (moved > 0)
+                    {
+                        _logger?.Info($"[Library] Moved the names of {moved} game data record(s) out of the library index.");
+                    }
+
+                    // Everything installed.json recorded is in the library now; it is read no more.
+                    if (identity.RetireLegacyInstalls())
+                    {
+                        _logger?.Info("[Library] Retired installed.json; the library holds its installs.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Warn(ex, "Failed bringing Workshop installs into the customization library.");
                 }
             });
         }
@@ -1747,8 +2239,7 @@ namespace PlayniteAchievements
                 OfferAutoCapstonesForExistingGames();
             }
 
-            if (e.PropertyName == nameof(PersistedSettings.UseUniformRarityBadges) ||
-                e.PropertyName == nameof(PersistedSettings.RarityColors))
+            if (RarityAppearanceHelper.IsAppearanceSettingPropertyName(e.PropertyName))
             {
                 RarityAppearanceHelper.ApplyBadgeApplicationResources(
                     _settingsViewModel?.Settings?.Persisted);
@@ -1779,6 +2270,12 @@ namespace PlayniteAchievements
                 InvalidateFriendDataCoordinators();
             }
 
+            if (e.PropertyName == nameof(PersistedSettings.RefreshExclusionFilterPresetIds) ||
+                e.PropertyName == nameof(PersistedSettings.SummaryExclusionFilterPresetIds))
+            {
+                _filterExclusionRules?.QueueAll();
+            }
+
             InvalidateStartPageData();
             _tagSyncService?.HandlePersistedSettingsPropertyChanged(e);
         }
@@ -1799,6 +2296,7 @@ namespace PlayniteAchievements
             InvalidateFriendDataCoordinators();
             InvalidateStartPageData();
             _tagSyncService?.InitializeAndSubscribeTaggingSettings();
+            _filterExclusionRules?.QueueAll();
         }
 
         private void FriendCacheManager_FriendCacheInvalidated(object sender, FriendCacheInvalidatedEventArgs e)
@@ -1941,6 +2439,8 @@ namespace PlayniteAchievements
             }
 
             _backgroundUpdates.Stop();
+            try { _workshopUpdateChecker?.Stop(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to stop the Workshop update checker"); }
+            try { _filterExclusionRules?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose filterExclusionRules"); }
             try { _inGameMonitor?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose inGameMonitor"); }
             try { _toastNotifications?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose toastNotifications"); }
             try { _unlockRecordings?.Dispose(); } catch (Exception ex) { _logger?.Debug(ex, "Failed to dispose unlockRecordings"); }
@@ -2044,6 +2544,29 @@ namespace PlayniteAchievements
             // against fresh values instead of serving a stale cached snapshot.
             PlayniteApi?.Database?.Games?.ItemUpdated += Games_ItemUpdated;
             _eventSubscriptions.Add(() => PlayniteApi?.Database?.Games?.ItemUpdated -= Games_ItemUpdated);
+
+            // A saved filter edited or deleted in Playnite changes which games the exclusion
+            // rules match.
+            PlayniteApi?.Database?.FilterPresets?.ItemUpdated += FilterPresets_ItemUpdated;
+            _eventSubscriptions.Add(() => PlayniteApi?.Database?.FilterPresets?.ItemUpdated -= FilterPresets_ItemUpdated);
+            PlayniteApi?.Database?.FilterPresets?.ItemCollectionChanged += FilterPresets_ItemCollectionChanged;
+            _eventSubscriptions.Add(() => PlayniteApi?.Database?.FilterPresets?.ItemCollectionChanged -= FilterPresets_ItemCollectionChanged);
+        }
+
+        private void FilterPresets_ItemUpdated(object sender, ItemUpdatedEventArgs<FilterPreset> e)
+        {
+            if (_filterExclusionRules?.HasRules == true)
+            {
+                _filterExclusionRules.QueueAll();
+            }
+        }
+
+        private void FilterPresets_ItemCollectionChanged(object sender, ItemCollectionChangedEventArgs<FilterPreset> e)
+        {
+            if (_filterExclusionRules?.HasRules == true)
+            {
+                _filterExclusionRules.QueueAll();
+            }
         }
 
         private void SubscribePluginEventHandlers()
@@ -2070,8 +2593,10 @@ namespace PlayniteAchievements
                 if (_gameCustomDataStore != null)
                 {
                     _gameCustomDataStore.CustomDataChanged += GameCustomDataStore_CustomDataChanged;
+                    _gameCustomDataStore.CustomDataWritten += GameCustomDataStore_CustomDataWrittenForCaptures;
                     _eventSubscriptions.Add(() =>
                     {
+                        _gameCustomDataStore.CustomDataWritten -= GameCustomDataStore_CustomDataWrittenForCaptures;
                         _gameCustomDataStore.CustomDataChanged -= GameCustomDataStore_CustomDataChanged;
                         lock (_customDataChangeSync)
                         {
@@ -2118,6 +2643,43 @@ namespace PlayniteAchievements
         // sync, the start page and the whole-library theme lists are left alone.
         private readonly Dictionary<Guid, bool> _pendingCustomDataChangeIds = new Dictionary<Guid, bool>();
         private Timer _customDataChangeTimer;
+
+        /// <summary>
+        /// Each game with its own capture folder, by game name, as the capture library reads it:
+        /// captures are named after the game, so the library matches folders by name.
+        /// </summary>
+        private IReadOnlyDictionary<string, string> ReadGameCaptureDirectories()
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var directories = _gameCustomDataStore?.QueryAll(
+                rows => rows
+                    .Where(data => data?.PlayniteGameId != Guid.Empty &&
+                                   !string.IsNullOrWhiteSpace(data?.CaptureOverride?.CaptureDirectory))
+                    .Select(data => new KeyValuePair<Guid, string>(data.PlayniteGameId, data.CaptureOverride.CaptureDirectory))
+                    .ToList());
+            foreach (var pair in directories ?? new List<KeyValuePair<Guid, string>>())
+            {
+                var name = PlayniteApi?.Database?.Games?.Get(pair.Key)?.Name;
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    result[name] = pair.Value;
+                }
+            }
+
+            return result;
+        }
+
+        private void GameCustomDataStore_CustomDataWrittenForCaptures(object sender, GameCustomDataWrittenEventArgs e)
+        {
+            // Only a change to a game's own capture folder moves where its captures are read from.
+            if (e != null && !string.Equals(
+                    e.Previous?.CaptureOverride?.CaptureDirectory,
+                    e.Persisted?.CaptureOverride?.CaptureDirectory,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                _captureLibraryService?.RefreshGameDirectories();
+            }
+        }
 
         private void GameCustomDataStore_CustomDataChanged(object sender, GameCustomDataChangedEventArgs e)
         {
@@ -2610,9 +3172,32 @@ namespace PlayniteAchievements
             // does not project. So every custom-data edit threw away a whole-library projection
             // a second time, on top of the one its own store event caused, and that projection
             // was measured at ~1.5s to rebuild for 500 games.
+            //
+            // The exclusion rules come first and look at every update: a saved filter can match
+            // on any field, tags and completion status included.
+            if (_filterExclusionRules?.HasRules == true && e?.UpdatedItems != null)
+            {
+                _filterExclusionRules.QueueGames(e.UpdatedItems
+                    .Where(update => update?.NewData != null)
+                    .Select(update => update.NewData.Id));
+            }
+
             if (!UpdateAffectsProjection(e))
             {
                 return;
+            }
+
+            // Hidden decides whether the game is in summaries at all, which the memoized
+            // summary under the projection has to re-evaluate before the projection rebuilds.
+            var hiddenChangedIds = e?.UpdatedItems?
+                .Where(update => update?.OldData != null &&
+                                 update.NewData != null &&
+                                 update.OldData.Hidden != update.NewData.Hidden)
+                .Select(update => update.NewData.Id)
+                .ToList();
+            if (hiddenChangedIds?.Count > 0)
+            {
+                _achievementDataService?.InvalidateSummariesForPlayniteGames(hiddenChangedIds);
             }
 
             _libraryProjectionService?.InvalidateForGame();
@@ -2696,6 +3281,12 @@ namespace PlayniteAchievements
                         .Where(id => id != Guid.Empty)
                         .Distinct()
                         .ToList() ?? new List<Guid>();
+
+                    // Settled first, so a new game a saved filter excludes is never fetched.
+                    if (_filterExclusionRules?.HasRules == true)
+                    {
+                        _filterExclusionRules.ReconcileGamesNow(validGameIds);
+                    }
 
                     // The GameIds path bypasses user exclusions so a manual multi-select menu
                     // refresh can force excluded games; this auto-refresh of newly added games is

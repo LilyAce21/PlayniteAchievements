@@ -4,7 +4,9 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using PlayniteAchievements.Models;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.Overview;
 using PlayniteAchievements.ViewModels;
 using PlayniteAchievements.ViewModels.Items;
@@ -76,6 +78,31 @@ namespace PlayniteAchievements.Services.Showcase
 
         /// <summary>Cumulative prestige score as of the end of <see cref="Date"/>.</summary>
         public int PrestigeScore { get; set; }
+
+        /// <summary>Cumulative points per points family as of the end of <see cref="Date"/>.</summary>
+        public IReadOnlyDictionary<string, int> PointsByFamily { get; set; } =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        public int Gamerscore => GetPoints(PointsFamilies.Xbox);
+
+        public int EpicXp => GetPoints(PointsFamilies.Epic);
+
+        public int RetroPoints => GetPoints(PointsFamilies.RetroAchievements);
+
+        public int GetPoints(string family) =>
+            family != null && PointsByFamily != null && PointsByFamily.TryGetValue(family, out var points)
+                ? points
+                : 0;
+
+        public int GetScore(ScoreCardType type)
+        {
+            if (type.IsPrestige)
+            {
+                return PrestigeScore;
+            }
+
+            return type.IsPoints ? GetPoints(type.PointsFamily) : CollectionScore;
+        }
     }
 
     public sealed class ShowcaseAchievementItem
@@ -122,6 +149,9 @@ namespace PlayniteAchievements.Services.Showcase
         public IReadOnlyDictionary<DateTime, int> Timeline { get; set; } =
             new Dictionary<DateTime, int>();
 
+        /// <summary>Per-platform segments of <see cref="Timeline"/>; null unless the widget splits by platform.</summary>
+        public IReadOnlyList<TimelineSeriesCounts> TimelineByPlatform { get; set; }
+
         public ShowcaseProfileSettings Profile { get; set; }
 
         /// <summary>Grid-ready achievement rows (pinned or recent, per widget kind).</summary>
@@ -149,6 +179,38 @@ namespace PlayniteAchievements.Services.Showcase
         /// protected Default collection. Reorder and unpin commands use this stable id.
         /// </summary>
         public string ResolvedPinCollectionId { get; set; }
+
+        /// <summary>
+        /// Set by the overview's mini-showcase: the snapshot already follows the overview's
+        /// filters, and the widget's clicks set those filters.
+        /// </summary>
+        public bool IsLinked { get; set; }
+
+        /// <summary>
+        /// The overview's whole library, for a linked widget's own control bar to offer its
+        /// choices from, so the overview's filters (set by other widgets' clicks too) never
+        /// shrink that bar or drop its selections. Null for an unlinked widget.
+        /// </summary>
+        public IReadOnlyList<GameSummaryItem> LinkedOptionGames { get; set; }
+
+        /// <summary>
+        /// A linked pie's selected slices as <see cref="OverviewLinkedSliceKeys"/> values or
+        /// provider keys, never display labels.
+        /// </summary>
+        public IReadOnlyCollection<string> LinkedSliceKeys { get; set; } = Array.Empty<string>();
+
+        /// <summary>The overview's unlock-day filter, for a linked timeline or calendar to mark.</summary>
+        public UnlockDaySpan? HighlightedSpan { get; set; }
+
+        /// <summary>The game a linked widget narrowed to, shown beside its title.</summary>
+        public string ContextLabel { get; set; }
+
+        /// <summary>
+        /// The linked state this projection was decorated with (selected slices, the marked
+        /// days, the narrowed game), in one comparable string. That state can change while the
+        /// snapshot does not, and only a widget whose own stamp moved needs reprojecting.
+        /// </summary>
+        public string LinkedStamp { get; set; }
     }
 
     public static class ShowcaseWidgetProjectionService
@@ -208,7 +270,8 @@ namespace PlayniteAchievements.Services.Showcase
             ShowcaseSettings settings,
             ShowcaseWidgetInstanceSettings instance,
             DateTime? now = null,
-            GridOptionsCatalog gridOptions = null)
+            GridOptionsCatalog gridOptions = null,
+            bool trimCalendarToUnlocks = false)
         {
             snapshot = snapshot ?? new OverviewDataSnapshot();
             settings = settings ?? new ShowcaseSettings();
@@ -325,7 +388,11 @@ namespace PlayniteAchievements.Services.Showcase
 
                     break;
                 case ShowcaseWidgetKind.ActivityCalendar:
-                    result.ActivityCalendar = GetActivityCalendar(snapshot, instance, (now ?? DateTime.Now).Date);
+                    result.ActivityCalendar = GetActivityCalendar(
+                        snapshot,
+                        instance,
+                        (now ?? DateTime.Now).Date,
+                        trimCalendarToUnlocks);
                     break;
                 case ShowcaseWidgetKind.Scores:
                     result.ScoreHistory = GetScoreHistory(snapshot, instance, (now ?? DateTime.Now).Date);
@@ -335,6 +402,11 @@ namespace PlayniteAchievements.Services.Showcase
                     // TimeWindow the options hold), so the projection hands over the per-day
                     // counts unwindowed rather than clipping them a second time here.
                     result.Timeline = NormalizeDailyCounts(snapshot);
+                    // Built per call rather than cached on the snapshot, so a platform recolor
+                    // reaches the segments on the next rebuild.
+                    result.TimelineByPlatform = ShowcaseTimelineOptions.GetSplitByPlatform(instance)
+                        ? TimelinePlatformSeries.FromSnapshot(snapshot)
+                        : null;
                     break;
             }
 
@@ -377,13 +449,14 @@ namespace PlayniteAchievements.Services.Showcase
         private static ShowcaseActivityCalendar GetActivityCalendar(
             OverviewDataSnapshot snapshot,
             ShowcaseWidgetInstanceSettings instance,
-            DateTime endDate)
+            DateTime endDate,
+            bool trimToUnlocks)
         {
             var cache = DerivedCache.GetOrCreateValue(snapshot);
-            var key = WindowKey(ShowcaseTimelineOptions.GetWindow(instance), endDate);
+            var key = WindowKey(ShowcaseTimelineOptions.GetWindow(instance), endDate) + (trimToUnlocks ? "|trim" : string.Empty);
             if (!cache.ActivityCalendars.TryGetValue(key, out var calendar))
             {
-                calendar = BuildActivityCalendar(snapshot, instance, endDate);
+                calendar = BuildActivityCalendar(snapshot, instance, endDate, trimToUnlocks);
                 cache.ActivityCalendars[key] = calendar;
             }
 
@@ -493,7 +566,7 @@ namespace PlayniteAchievements.Services.Showcase
             {
                 Stat("unlocked", "LOCPlayAch_Common_Unlocked", snapshot.TotalUnlocked),
                 Stat("locked", "LOCPlayAch_Common_Locked", snapshot.TotalLocked),
-                Stat("completion", "LOCPlayAch_Showcase_Stat_Completion", snapshot.GlobalProgressionPercent),
+                Stat("completion", "LOCPlayAch_ManageAchievements_Overview_Completion", snapshot.GlobalProgressionPercent),
                 Stat("trackedGames", "LOCPlayAch_Showcase_Stat_TrackedGames", snapshot.TotalGames),
                 Stat("playedGames", "LOCPlayAch_Showcase_Stat_PlayedGames", playedGames),
                 Stat("completedGames", "LOCPlayAch_Showcase_Stat_CompletedGames", snapshot.Completions),
@@ -872,16 +945,34 @@ namespace PlayniteAchievements.Services.Showcase
             return games.Take(count).ToList();
         }
 
+        /// <param name="trimToUnlocks">
+        /// Narrows the window to the days from the first unlock in it to the last, for a calendar
+        /// following a selection (the overview's mini-showcase) whose span is what matters, not
+        /// the run up to today.
+        /// </param>
         public static ShowcaseActivityCalendar BuildActivityCalendar(
             OverviewDataSnapshot snapshot,
             ShowcaseWidgetInstanceSettings instance,
-            DateTime endDate)
+            DateTime endDate,
+            bool trimToUnlocks = false)
         {
             var counts = NormalizeDailyCounts(snapshot);
             var range = ResolveDayRange(instance, endDate.Date, counts);
             var start = range.Start;
             // A custom window with a fixed end stops the calendar there rather than at today.
             endDate = range.End;
+            if (trimToUnlocks)
+            {
+                var active = counts
+                    .Where(pair => pair.Value > 0 && pair.Key >= start && pair.Key <= endDate)
+                    .Select(pair => pair.Key)
+                    .ToList();
+                if (active.Count > 0)
+                {
+                    start = active.Min();
+                    endDate = active.Max();
+                }
+            }
             // Weeks render as Sunday-first columns, so the window starts on a Sunday.
             while (start.DayOfWeek != DayOfWeek.Sunday)
             {
@@ -1028,9 +1119,51 @@ namespace PlayniteAchievements.Services.Showcase
         {
             public readonly Dictionary<DateTime, int> Collection = new Dictionary<DateTime, int>();
             public readonly Dictionary<DateTime, int> Prestige = new Dictionary<DateTime, int>();
+            public readonly Dictionary<string, Dictionary<DateTime, int>> Points =
+                new Dictionary<string, Dictionary<DateTime, int>>(StringComparer.OrdinalIgnoreCase);
+            public readonly Dictionary<string, int> PointsBaseline =
+                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             public int BaselineCollection;
             public int BaselinePrestige;
             public bool SawUnlocked;
+
+            public void AddPoints(string family, DateTime day, int points)
+            {
+                if (!Points.TryGetValue(family, out var daily))
+                {
+                    daily = new Dictionary<DateTime, int>();
+                    Points[family] = daily;
+                }
+
+                daily.TryGetValue(day, out var earned);
+                daily[day] = earned + points;
+            }
+
+            public void AddPointsBaseline(string family, int points)
+            {
+                PointsBaseline.TryGetValue(family, out var baseline);
+                PointsBaseline[family] = baseline + points;
+            }
+        }
+
+        /// <summary>
+        /// The points family per game, from the game summary, which already folds in the game's
+        /// override and its effective platform key. Achievement rows carry the raw provider key,
+        /// so an Exophase Xbox unlock is resolved through its game here. A game whose points count
+        /// toward no card maps to null.
+        /// </summary>
+        private static Dictionary<Guid, string> BuildPointsFamiliesByGame(OverviewDataSnapshot snapshot)
+        {
+            var families = new Dictionary<Guid, string>();
+            foreach (var game in snapshot?.GameSummaries ?? new List<GameSummaryItem>())
+            {
+                if (game?.PlayniteGameId.HasValue == true)
+                {
+                    families[game.PlayniteGameId.Value] = game.PointsFamily;
+                }
+            }
+
+            return families;
         }
 
         /// <summary>
@@ -1052,6 +1185,7 @@ namespace PlayniteAchievements.Services.Showcase
             }
 
             var deltas = new DailyScoreDeltas();
+            var familiesByGame = BuildPointsFamiliesByGame(snapshot);
             // Single pass over the full achievement list - materializing the unlocked subset
             // would allocate a list the size of the user's whole unlock history.
             foreach (var item in snapshot.Achievements ?? new List<AchievementDisplayItem>())
@@ -1062,6 +1196,16 @@ namespace PlayniteAchievements.Services.Showcase
                 }
 
                 deltas.SawUnlocked = true;
+                var family = item.PlayniteGameId.HasValue &&
+                    familiesByGame.TryGetValue(item.PlayniteGameId.Value, out var gameFamily)
+                        ? gameFamily
+                        : PointsFamilies.FromProviderKey(item.ProviderKey);
+                var platformPoints = item.Points;
+                // Softcore unlocks are left out, as in the points totals.
+                var hasPlatformScore = platformPoints > 0 &&
+                    family != null &&
+                    !AchievementCategoryTypeHelper.IsSoftcore(item.CategoryType);
+
                 if (item.UnlockTimeUtc.HasValue)
                 {
                     var day = UnlockDayCounts.DayOf(item.UnlockTimeUtc.Value);
@@ -1069,11 +1213,19 @@ namespace PlayniteAchievements.Services.Showcase
                     deltas.Collection[day] = collection + item.CollectionScore;
                     deltas.Prestige.TryGetValue(day, out var prestige);
                     deltas.Prestige[day] = prestige + item.PrestigeScore;
+                    if (hasPlatformScore)
+                    {
+                        deltas.AddPoints(family, day, platformPoints);
+                    }
                 }
                 else
                 {
                     deltas.BaselineCollection += item.CollectionScore;
                     deltas.BaselinePrestige += item.PrestigeScore;
+                    if (hasPlatformScore)
+                    {
+                        deltas.AddPointsBaseline(family, platformPoints);
+                    }
                 }
             }
 
@@ -1111,6 +1263,16 @@ namespace PlayniteAchievements.Services.Showcase
                 dailyCollection.Where(pair => pair.Key < start).Sum(pair => pair.Value);
             var cumulativePrestige = deltas.BaselinePrestige +
                 dailyPrestige.Where(pair => pair.Key < start).Sum(pair => pair.Value);
+            var cumulativePoints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var family in deltas.Points.Keys
+                .Concat(deltas.PointsBaseline.Keys)
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                deltas.PointsBaseline.TryGetValue(family, out var baseline);
+                cumulativePoints[family] = baseline + (deltas.Points.TryGetValue(family, out var daily)
+                    ? daily.Where(pair => pair.Key < start).Sum(pair => pair.Value)
+                    : 0);
+            }
 
             var rangeDays = Math.Max(1, (endDate - start).Days + 1);
             // The chart is a couple of hundred pixels wide at most, and a hoverable LiveCharts
@@ -1127,13 +1289,22 @@ namespace PlayniteAchievements.Services.Showcase
                     cumulativePrestige += prestige;
                 }
 
+                foreach (var family in deltas.Points)
+                {
+                    if (family.Value.TryGetValue(day.Date, out var earned))
+                    {
+                        cumulativePoints[family.Key] += earned;
+                    }
+                }
+
                 if (offset % step == 0 || offset == rangeDays - 1)
                 {
                     points.Add(new ShowcaseScorePoint
                     {
                         Date = day.Date,
                         CollectionScore = cumulativeCollection,
-                        PrestigeScore = cumulativePrestige
+                        PrestigeScore = cumulativePrestige,
+                        PointsByFamily = new Dictionary<string, int>(cumulativePoints, StringComparer.OrdinalIgnoreCase)
                     });
                 }
 
@@ -1430,7 +1601,7 @@ namespace PlayniteAchievements.Services.Showcase
             result.Add(new ShowcaseChartEntry
             {
                 Key = "Other",
-                LabelKey = "LOCPlayAch_Showcase_Other",
+                LabelKey = "LOCOther",
                 Value = ordered.Skip(topN).Sum(entry => entry.Value)
             });
             return result;

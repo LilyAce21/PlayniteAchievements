@@ -228,7 +228,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             {
                 var selected = GetSelectedCategoryTypeValues(TypeSelectionOptions);
                 return selected.Count == 0
-                    ? L("LOCPlayAch_Common_Label_Type")
+                    ? L("LOCTypeLabel")
                     : string.Join(", ", selected.Select(AchievementCategoryTypeHelper.ToCategoryTypeDisplayText));
             }
         }
@@ -239,7 +239,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             {
                 var selected = GetSelectedCategoryTypeFilterValues();
                 return selected.Count == 0
-                    ? L("LOCPlayAch_Common_Label_Type")
+                    ? L("LOCTypeLabel")
                     : string.Join(", ", selected.Select(AchievementCategoryTypeHelper.ToCategoryTypeDisplayText));
             }
         }
@@ -337,7 +337,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             {
                 if (_selectedCategoryLabelFilters.Count == 0)
                 {
-                    return L("LOCPlayAch_Common_Label_Category");
+                    return L("LOCCategoryLabel");
                 }
 
                 var ordered = CategoryLabelFilterOptions
@@ -357,6 +357,15 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 return string.Join(", ", ordered.Select(AchievementCategoryTypeHelper.ToCategoryLeafDisplayText));
             }
         }
+
+        /// <summary>
+        /// The ticked categories, in the order the filter lists them. Changes are announced
+        /// through <see cref="SelectedCategoryLabelFilterText"/>.
+        /// </summary>
+        public IReadOnlyCollection<string> SelectedCategoryLabelFilters =>
+            CategoryLabelFilterOptions
+                .Where(label => _selectedCategoryLabelFilters.Contains(label))
+                .ToList();
 
         public bool IsCategoryLabelFilterSelected(string value)
         {
@@ -470,8 +479,9 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
 
                     var effectiveCategory = AchievementCategoryTypeHelper.NormalizeCategoryOrDefault(
                         hasCategoryOverride ? overrideCategory : providerCategory);
-                    var effectiveCategoryType = AchievementCategoryTypeHelper.NormalizeOrDefault(
-                        hasCategoryTypeOverride ? overrideCategoryType : providerCategoryType);
+                    var effectiveCategoryType = AchievementCategoryTypeHelper.ApplyOverride(
+                        providerCategoryType,
+                        hasCategoryTypeOverride ? overrideCategoryType : null);
 
                     var projected = AchievementDisplayItem.Create(
                         projectionSource,

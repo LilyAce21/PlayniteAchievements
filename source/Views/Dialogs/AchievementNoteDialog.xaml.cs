@@ -41,6 +41,7 @@ namespace PlayniteAchievements.Views.Dialogs
             AchievementApiNameTextBlock.Text = achievementApiName ?? string.Empty;
             ApplyAchievementIcon(achievementIconSource);
             NoteTextBox.MaxLength = AchievementNoteHelper.MaxNoteLength;
+            FormatToolbarHost.Content = MarkdownEditing.CreateToolbar(NoteTextBox);
             NoteText = noteText ?? string.Empty;
 
             Loaded += AchievementNoteDialog_Loaded;
@@ -126,48 +127,6 @@ namespace PlayniteAchievements.Views.Dialogs
             InlineMarkdownFormatter.ApplyFormattedText(ViewTextBlock, NoteText);
         }
 
-        private void BoldButton_Click(object sender, RoutedEventArgs e)
-        {
-            ApplyFormattingMarker("**");
-            e.Handled = true;
-        }
-
-        private void ItalicButton_Click(object sender, RoutedEventArgs e)
-        {
-            ApplyFormattingMarker("*");
-            e.Handled = true;
-        }
-
-        private void UnderlineButton_Click(object sender, RoutedEventArgs e)
-        {
-            ApplyFormattingMarker("__");
-            e.Handled = true;
-        }
-
-        private void ApplyFormattingMarker(string marker)
-        {
-            if (_isReadOnly || NoteTextBox == null || string.IsNullOrEmpty(marker))
-            {
-                return;
-            }
-
-            var selectionStart = NoteTextBox.SelectionStart;
-            var selectionLength = NoteTextBox.SelectionLength;
-            var selectedText = NoteTextBox.SelectedText ?? string.Empty;
-            var replacement = marker + selectedText + marker;
-            var currentText = NoteTextBox.Text ?? string.Empty;
-            var nextLength = currentText.Length - selectionLength + replacement.Length;
-            if (nextLength > AchievementNoteHelper.MaxNoteLength)
-            {
-                return;
-            }
-
-            NoteTextBox.SelectedText = replacement;
-            NoteTextBox.SelectionStart = selectionStart + marker.Length;
-            NoteTextBox.SelectionLength = selectedText.Length;
-            NoteTextBox.Focus();
-        }
-
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = true;
@@ -192,30 +151,6 @@ namespace PlayniteAchievements.Views.Dialogs
 
         private void NoteTextBox_KeyDown(object sender, KeyEventArgs e)
         {
-            if (Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                if (e.Key == Key.B)
-                {
-                    ApplyFormattingMarker("**");
-                    e.Handled = true;
-                    return;
-                }
-
-                if (e.Key == Key.I)
-                {
-                    ApplyFormattingMarker("*");
-                    e.Handled = true;
-                    return;
-                }
-
-                if (e.Key == Key.U)
-                {
-                    ApplyFormattingMarker("__");
-                    e.Handled = true;
-                    return;
-                }
-            }
-
             if (e.Key == Key.Escape)
             {
                 DialogResult = false;

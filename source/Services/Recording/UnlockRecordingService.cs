@@ -128,6 +128,8 @@ namespace PlayniteAchievements.Services.Recording
         // Resolves the started process id for a game (null game id: most recently started game).
         private readonly Func<Guid?, int?> _getGameProcessId;
         private readonly Func<string, bool> _isProviderRecordingEnabled;
+        // A game's custom data, for its own capture settings; null when not wired in.
+        private readonly Func<Guid, GameCustomDataFile> _loadGameData;
         // Whether any enabled provider can service a game. A delegate, since the plugin owns the
         // registry, so capture is never started for a game that can never report an unlock.
         private readonly Func<Playnite.SDK.Models.Game, bool> _isAnyProviderCapable;
@@ -195,9 +197,11 @@ namespace PlayniteAchievements.Services.Recording
             ActiveGameWindowTracker windowTracker = null,
             Func<Playnite.SDK.Models.Game, bool> isAnyProviderCapable = null,
             Func<int?> getSoundHostProcessId = null,
-            Func<int, DateTime?> getSoundAudibleOnsetUtc = null)
+            Func<int, DateTime?> getSoundAudibleOnsetUtc = null,
+            Func<Guid, GameCustomDataFile> loadGameData = null)
         {
             _api = api;
+            _loadGameData = loadGameData;
             _settings = settings;
             _logger = logger;
             _pluginUserDataPath = pluginUserDataPath;
@@ -266,6 +270,8 @@ namespace PlayniteAchievements.Services.Recording
             public Guid PlayniteGameId;
             public string ProviderKey;
             public string GameName;
+            // The game's own capture folder, written into as is; null uses the global layout.
+            public string GameDirectory;
             public string AchievementName;
             public int AchievementNumber;
             public int TotalCount;
@@ -355,6 +361,9 @@ namespace PlayniteAchievements.Services.Recording
             public TaskCompletionSource<ToastOverlayTrack> TrackTcs;
         }
 
+        private GameCustomDataFile LoadGameData(Guid gameId) =>
+            gameId != Guid.Empty ? _loadGameData?.Invoke(gameId) : null;
+
         // === Session lifecycle ===
 
         public void OnGameStarted(Playnite.SDK.Models.Game game)
@@ -370,7 +379,8 @@ namespace PlayniteAchievements.Services.Recording
 
             var persisted = ResolveEffectiveRecordingSettings(
                 out var usesCustomSettings, out var customSettings);
-            if (persisted?.EnableUnlockRecordings != true)
+            var gameData = LoadGameData(game?.Id ?? Guid.Empty);
+            if (!ProviderNotificationPolicy.Resolve(persisted, null, gameData).RecordingsEnabled)
             {
                 _logger?.Info($"[Recording] Capture not started for '{game?.Name}': unlock recordings are disabled.");
                 return;
@@ -381,7 +391,8 @@ namespace PlayniteAchievements.Services.Recording
                 return;
             }
 
-            var outputDir = ResolveOutputDirectory(persisted);
+            // A game with its own capture folder needs no global one.
+            var outputDir = gameData?.CaptureOverride?.CaptureDirectory ?? ResolveOutputDirectory(persisted);
             if (string.IsNullOrWhiteSpace(outputDir))
             {
                 _logger?.Warn("[Recording] Unlock recordings are enabled but the output folder is missing/invalid; skipping this session.");
@@ -606,7 +617,7 @@ namespace PlayniteAchievements.Services.Recording
                 System.Drawing.Rectangle? bounds = null;
                 while (!token.IsCancellationRequested)
                 {
-                    var trackedHwnd = _windowTracker?.TryGetWindowHandle(session.OwnerGameId) ?? IntPtr.Zero;
+                    var trackedHwnd = _windowTracker?.ResolvePresentationWindow(session.OwnerGameId, focusFirst: false) ?? IntPtr.Zero;
                     var processId = _getGameProcessId?.Invoke(session.OwnerGameId);
                     mainWindowResolved = trackedHwnd != IntPtr.Zero ||
                                          (processId.HasValue && ProcessHasMainWindow(processId.Value));
@@ -666,7 +677,10 @@ namespace PlayniteAchievements.Services.Recording
                     return;
                 }
 
-                if (persisted.RecordingIncludeAudio)
+                // The owner game's own record-sound choice when it has capture settings.
+                var includeAudio = LoadGameData(session.OwnerGameId)?.CaptureOverride?.RecordingIncludeAudio
+                    ?? persisted.RecordingIncludeAudio;
+                if (includeAudio)
                 {
                     var recorder = new AudioLoopbackRecorder(
                         session.BufferDirectory,
@@ -725,7 +739,7 @@ namespace PlayniteAchievements.Services.Recording
                 // a captured snapshot, so a foreground switch to another running game redirects the
                 // per-window capture without a restart) — never a foreground fallback, so it follows
                 // the actual game once known instead of whatever window is on top at capture start.
-                Func<IntPtr> resolveHwnd = () => _windowTracker?.TryGetWindowHandle(session.OwnerGameId) ?? IntPtr.Zero;
+                Func<IntPtr> resolveHwnd = () => _windowTracker?.ResolvePresentationWindow(session.OwnerGameId, focusFirst: false) ?? IntPtr.Zero;
 
                 var recorder = new WgcVideoRecorder(
                     resolveHwnd, session.BufferDirectory, persisted.RecordingFps, SegmentSeconds,
@@ -793,6 +807,8 @@ namespace PlayniteAchievements.Services.Recording
                 if (drained)
                 {
                     TryDeleteDirectory(session.BufferDirectory);
+                    var bufferRoot = Path.GetDirectoryName(session.BufferDirectory);
+                    Common.EmptyFolders.RemoveUpTo(bufferRoot, bufferRoot);
                 }
                 else
                 {
@@ -857,6 +873,7 @@ namespace PlayniteAchievements.Services.Recording
                 return ClipEligibility.NotRecordable;
             }
 
+            var gameData = LoadGameData(e.PlayniteGameId);
             lock (_gate)
             {
                 session = _session;
@@ -869,21 +886,20 @@ namespace PlayniteAchievements.Services.Recording
             }
 
             var persisted = session.EffectiveSettings;
-            if (persisted?.EnableUnlockRecordings != true)
+            if (!ProviderNotificationPolicy.Resolve(persisted, e.ProviderKey, gameData).RecordingsEnabled)
             {
                 return ClipEligibility.NotRecordable;
             }
 
-            if (!session.UsesCustomSettings && _isProviderRecordingEnabled?.Invoke(e.ProviderKey) == false)
+            if (!session.UsesCustomSettings && gameData?.CaptureOverride == null &&
+                _isProviderRecordingEnabled?.Invoke(e.ProviderKey) == false)
             {
-                _logger?.Debug(
-                    $"[Recording] Unlock '{e.DisplayName}' ignored; recording is disabled for provider '{e.ProviderKey}'.");
                 return ClipEligibility.ProviderDisabled;
             }
 
             // Each variant has its own rarity threshold and per-platform switch; no variant left
             // means no clip.
-            var resolved = UnlockClipVariantPolicy.Resolve(e, persisted);
+            var resolved = UnlockClipVariantPolicy.Resolve(e, persisted, gameData);
             if (resolved == ScreenshotVariants.None)
             {
                 return ClipEligibility.BelowRarity;
@@ -1133,12 +1149,16 @@ namespace PlayniteAchievements.Services.Recording
 
             // A retrigger is never delayed, so it never waits on a display instant — its clip
             // anchors on the retrigger moment, which observation already is.
+            // Timing follows the game's own behavior and capture settings when it has them, so the
+            // clip agrees with the wave the toast service shows for the same game.
+            var gameData = LoadGameData(e.PlayniteGameId);
+            var effective = ProviderNotificationPolicy.Resolve(persisted, e.ProviderKey, gameData);
             var notificationDelaySeconds = e.IsTestFire
                 ? 0
-                : Math.Max(0, persisted.NotificationDelaySeconds);
+                : Math.Max(0, effective.Behavior.NotificationDelaySeconds);
             var captureDelaySeconds = e.IsTestFire
                 ? 0
-                : Math.Max(0, persisted.CaptureDelaySeconds);
+                : Math.Max(0, effective.Captures.CaptureDelaySeconds);
 
             var request = new ClipRequest
             {
@@ -1147,6 +1167,7 @@ namespace PlayniteAchievements.Services.Recording
                 PlayniteGameId = e.PlayniteGameId,
                 ProviderKey = e.ProviderKey,
                 GameName = e.GameName,
+                GameDirectory = effective.Captures.CaptureDirectory,
                 // Resolved through the shared helper so completion notifications (no
                 // DisplayName) get the same name the toast wave reports, letting the clip
                 // match its wave's overlay track and carry a sensible filename.
@@ -1163,7 +1184,7 @@ namespace PlayniteAchievements.Services.Recording
                 NotificationDelaySeconds = notificationDelaySeconds,
                 CaptureDelaySeconds = captureDelaySeconds,
                 Variants = variants,
-                FramedSeconds = persisted.UnlockRecordingFramedSeconds,
+                FramedSeconds = effective.Captures.UnlockRecordingFramedSeconds,
                 TrackTcs = new TaskCompletionSource<ToastOverlayTrack>(
                     TaskCreationOptions.RunContinuationsAsynchronously),
                 DisplayTcs = notificationDelaySeconds + captureDelaySeconds > 0
@@ -1795,13 +1816,22 @@ namespace PlayniteAchievements.Services.Recording
             var hold = request.FramedSeconds.HasValue ? (double?)request.FramedSeconds.Value : null;
             var frameStart = videoLeadSeconds;
             var frameEnd = FramedClipTiming.EndSeconds(hold, frameStart, composition.EndSeconds);
+            // A frame with animated images plays them from its first moment; a still frame is
+            // converted once.
             var overlays = new List<IFrameOverlaySource>
             {
-                new FrameChromeOverlaySource(
-                    chrome,
-                    MediaFoundationOverlayReencoder.ToTicks(frameStart),
-                    MediaFoundationOverlayReencoder.ToTicks(frameEnd),
-                    hold),
+                track.FrameChromeAnimation != null
+                    ? (IFrameOverlaySource)new AnimatedFrameChromeOverlaySource(
+                        track.FrameChromeAnimation,
+                        chrome,
+                        MediaFoundationOverlayReencoder.ToTicks(frameStart),
+                        MediaFoundationOverlayReencoder.ToTicks(frameEnd),
+                        hold)
+                    : new FrameChromeOverlaySource(
+                        chrome,
+                        MediaFoundationOverlayReencoder.ToTicks(frameStart),
+                        MediaFoundationOverlayReencoder.ToTicks(frameEnd),
+                        hold),
             };
 
             var includesToast = FramedClipTiming.IncludesToast(hold, frameStart, composition.ToastStartSeconds);
@@ -2509,7 +2539,8 @@ namespace PlayniteAchievements.Services.Recording
                 }
 
                 var baseDir = ResolveOutputDirectory(persisted);
-                if (string.IsNullOrWhiteSpace(baseDir))
+                var gameDir = request.GameDirectory;
+                if (string.IsNullOrWhiteSpace(baseDir) && string.IsNullOrWhiteSpace(gameDir))
                 {
                     return null;
                 }
@@ -2520,7 +2551,10 @@ namespace PlayniteAchievements.Services.Recording
                 // never land in different places.
                 if (request.IsTestFire && persisted.EnableCaptureTestFolder)
                 {
-                    baseDir = Path.Combine(baseDir, UnlockScreenshotService.TestFolderName);
+                    baseDir = Path.Combine(
+                        string.IsNullOrWhiteSpace(baseDir) ? gameDir : baseDir,
+                        UnlockScreenshotService.TestFolderName);
+                    gameDir = null;
                 }
 
                 var relative = UnlockScreenshotService.BuildRelativePath(
@@ -2531,7 +2565,7 @@ namespace PlayniteAchievements.Services.Recording
                     request.TotalCount,
                     variantSuffix: string.IsNullOrWhiteSpace(variantSuffix) ? null : variantSuffix.Trim(),
                     extension: ".mp4");
-                var folder = Path.Combine(baseDir, relative.Folder);
+                var folder = UnlockScreenshotService.ResolveTargetFolder(baseDir, gameDir, relative.Folder);
                 Directory.CreateDirectory(folder);
                 return UnlockScreenshotService.EnsureUniquePath(Path.Combine(folder, relative.FileName));
             }
@@ -2843,6 +2877,8 @@ namespace PlayniteAchievements.Services.Recording
                     _logger?.Debug($"[Recording] Removing stale recording buffer: {directory}");
                     TryDeleteDirectory(directory);
                 }
+
+                Common.EmptyFolders.RemoveUpTo(bufferRoot, bufferRoot);
             }
             catch (Exception ex)
             {

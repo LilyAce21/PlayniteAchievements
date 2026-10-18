@@ -131,7 +131,7 @@ namespace PlayniteAchievements.Steam.Tests
                 "<div class=\"gameListRow\">" +
                 "<a href=\"https://store.steampowered.com/app/431960\">Slay the Spire</a>" +
                 "<div>" +
-                "<a href=\"https://steamcommunity.com/profiles/76561198000000001/stats/431960/?tab=achievements\">ACHIEVEMENTS</a>" +
+                "<a href=\"https://steamcommunity.com/profiles/76561198000000001/achievements/431960\">ACHIEVEMENTS</a>" +
                 "<span>11/17</span>" +
                 "</div>" +
                 "</div>";
@@ -178,20 +178,6 @@ namespace PlayniteAchievements.Steam.Tests
             Assert.IsTrue(SteamCommunityPageParser.LooksLikeOwnedGamesPayload(xml));
         }
 
-        [TestMethod]
-        public void ParseOwnedGames_MapsRgGamesPayload()
-        {
-            const string html =
-                "<script>var rgGames = [{\"appid\":570,\"playtime_forever\":120,\"playtime_2weeks\":15,\"rtime_last_played\":1710000000}];</script>";
-
-            var game = SteamCommunityPageParser.ParseOwnedGames(html).Single();
-
-            Assert.AreEqual(570, game.AppId);
-            Assert.AreEqual(120, game.PlaytimeForever);
-            Assert.AreEqual(15, game.Playtime2Weeks);
-            Assert.AreEqual(1710000000L, game.LastPlayedUnixSeconds);
-            Assert.IsTrue(SteamCommunityPageParser.LooksLikeOwnedGamesPayload(html));
-        }
 
         [TestMethod]
         public void ParseOwnedGames_MapsSteamSsrOwnedGamesQuery()
@@ -200,10 +186,7 @@ namespace PlayniteAchievements.Steam.Tests
                 "{\"mutations\":[],\"queries\":[{\"queryKey\":[\"OwnedGames\",\"76561198087595485\",\"english\"]," +
                 "\"state\":{\"data\":[{\"appid\":730,\"name\":\"Counter-Strike 2\",\"playtime_forever\":156469}," +
                 "{\"appid\":550,\"name\":\"Left 4 Dead 2\",\"playtime_forever\":281,\"playtime_2weeks\":12,\"rtime_last_played\":1710000000}]}}]}";
-            var renderContext = "{\"queryData\":" + JsonConvert.SerializeObject(queryData) + "}";
-            var html = "<script>window.SSR.renderContext=JSON.parse(" +
-                       JsonConvert.SerializeObject(renderContext) +
-                       ");</script>";
+            var html = SsrPage(queryData);
 
             var games = SteamCommunityPageParser.ParseOwnedGames(html)
                 .OrderBy(game => game.AppId)
@@ -227,13 +210,9 @@ namespace PlayniteAchievements.Steam.Tests
             const string queryData =
                 "{\"mutations\":[],\"queries\":[{\"queryKey\":[\"OwnedGames\",\"76561198087595485\",\"english\"]," +
                 "\"state\":{\"data\":[{\"appid\":730,\"name\":\"Counter-Strike 2\",\"playtime_forever\":156469}]}}]}";
-            var renderContext = "{\"queryData\":" + JsonConvert.SerializeObject(queryData) + "}";
             const string listData =
                 "{\"listData\":{\"rgGames\":[{\"appid\":550,\"name\":\"Left 4 Dead 2\",\"playtime_forever\":281}]}}";
-            var loaderData = JsonConvert.SerializeObject(new[] { listData });
-            var html = "<script>window.SSR={};window.SSR.renderContext=JSON.parse(" +
-                       JsonConvert.SerializeObject(renderContext) +
-                       ");window.SSR.loaderData = " + loaderData + ";</script>";
+            var html = SsrPage(queryData, listData);
 
             var games = SteamCommunityPageParser.ParseOwnedGames(html)
                 .OrderBy(game => game.AppId)
@@ -257,10 +236,7 @@ namespace PlayniteAchievements.Steam.Tests
                 "\"state\":{\"data\":{\"achievement_progress\":[" +
                 "{\"appid\":440,\"unlocked\":0,\"total\":520}," +
                 "{\"appid\":570,\"unlocked\":14,\"total\":100}]}}}]}";
-            var renderContext = "{\"queryData\":" + JsonConvert.SerializeObject(queryData) + "}";
-            var html = "<script>window.SSR.renderContext=JSON.parse(" +
-                       JsonConvert.SerializeObject(renderContext) +
-                       ");</script>";
+            var html = SsrPage(queryData);
 
             var games = SteamCommunityPageParser.ParseOwnedGames(html)
                 .OrderBy(game => game.AppId)
@@ -282,9 +258,7 @@ namespace PlayniteAchievements.Steam.Tests
             const string listData =
                 "{\"listData\":{\"rgRecentlyPlayedGames\":[{\"appid\":2862420,\"name\":\"Tyr Playtest\"," +
                 "\"playtime_forever\":111,\"playtime_2weeks\":111}]}}";
-            var loaderData = JsonConvert.SerializeObject(new[] { "{}", listData });
-            var html = "<script>window.SSR={};window.SSR.loaderData = " + loaderData + ";" +
-                       "window.SSR.renderContext=JSON.parse(\"{}\");</script>";
+            var html = SsrPage(null, "{}", listData);
 
             var game = SteamCommunityPageParser.ParseOwnedGames(html).Single();
 
@@ -301,12 +275,11 @@ namespace PlayniteAchievements.Steam.Tests
             const string listData =
                 "{\"listData\":{\"rgRecentlyPlayedGames\":[{\"appid\":2862420,\"name\":\"Tyr Playtest\"," +
                 "\"playtime_forever\":111,\"playtime_2weeks\":111}]}}";
-            var loaderData = JsonConvert.SerializeObject(new[] { "{}", listData });
-            var html = "<script>window.SSR={};window.SSR.loaderData = " + loaderData + ";</script>" +
+            var html = SsrPage(null, "{}", listData) +
                        "<div class=\"Panel\">" +
                        "<a href=\"https://store.steampowered.com/app/730\">Counter-Strike 2</a>" +
                        "<span>TOTAL PLAYED</span><span>2,607.8 hours</span>" +
-                       "<a href=\"https://steamcommunity.com/id/test/stats/730/?tab=achievements\">ACHIEVEMENTS</a>" +
+                       "<a href=\"https://steamcommunity.com/id/test/achievements/730\">ACHIEVEMENTS</a>" +
                        "</div>" +
                        "<div class=\"Panel\">" +
                        "<a href=\"https://store.steampowered.com/app/550\">Left 4 Dead 2</a>" +
@@ -432,8 +405,6 @@ namespace PlayniteAchievements.Steam.Tests
                 "{\"appid\":440,\"name\":\"Team Fortress 2\",\"playtime_forever\":90}," +
                 "{\"appid\":570,\"name\":\"Dota 2\",\"playtime_forever\":180}," +
                 "{\"appid\":730,\"name\":\"Counter-Strike 2\",\"playtime_forever\":50}]}}";
-            var loaderData = JsonConvert.SerializeObject(new[] { listData });
-
             const string queryData =
                 "{\"mutations\":[],\"queries\":[" +
                 "{\"state\":{\"data\":{\"appid\":440,\"unlocked\":11,\"total\":17,\"percentage\":64,\"all_unlocked\":false}}," +
@@ -442,10 +413,7 @@ namespace PlayniteAchievements.Steam.Tests
                 "\"queryKey\":[\"AchievementProgress\",570]}," +
                 "{\"state\":{\"data\":{\"appid\":730,\"unlocked\":75,\"total\":75,\"percentage\":100,\"all_unlocked\":true}}," +
                 "\"queryKey\":[\"AchievementProgress\",730]}]}";
-            var renderContext = "{\"queryData\":" + JsonConvert.SerializeObject(queryData) + "}";
-
-            var html = "<script>window.SSR={};window.SSR.loaderData = " + loaderData + ";" +
-                       "window.SSR.renderContext=JSON.parse(" + JsonConvert.SerializeObject(renderContext) + ");</script>";
+            var html = SsrPage(queryData, listData);
 
             var games = SteamCommunityPageParser.ParseOwnedGames(html)
                 .OrderBy(game => game.AppId)
@@ -464,26 +432,89 @@ namespace PlayniteAchievements.Steam.Tests
         }
 
         [TestMethod]
-        public void ParseOwnedGames_AttributesAchievementHintByStatsAppIdWhenRowTextIsLocalized()
+        public void ParseOwnedGames_ReadsWholeLibraryFromRedesignedPage_BeyondRenderedRows()
         {
-            // Minified React row with a non-English playtime/achievements label and the achievements
-            // anchor in a sibling container from the appid-bearing image. Row-text discovery cannot
-            // scope the count here, so only the appid-keyed /stats/{appid} overlay can attribute it.
-            const string html =
-                "<div class=\"row- Panel\" role=\"button\">" +
-                "<div class=\"cover-\"><img src=\"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/431960/header.jpg\" alt=\"Slay the Spire\" /></div>" +
-                "<div class=\"stats-\">" +
-                "<a href=\"https://steamcommunity.com/id/test/stats/431960/?tab=achievements\">SUCCÈS</a>" +
-                "<span>21/72</span>" +
-                "</div>" +
-                "</div>";
+            // Shape of the redesigned games page (October 2026): the OwnedGames query holds the
+            // whole library and every game has its own AchievementProgress query, while the DOM
+            // renders only the first rows. The parser must return every owned game with its hint.
+            const string queryData =
+                "{\"mutations\":[],\"queries\":[" +
+                "{\"queryKey\":[\"OwnedGames\",\"76561198000000002\",\"english\"],\"state\":{\"status\":\"success\",\"data\":[" +
+                "{\"appid\":22380,\"name\":\"Fallout: New Vegas\",\"playtime_forever\":34686,\"has_community_visible_stats\":true}," +
+                "{\"appid\":50300,\"name\":\"Spec Ops: The Line\",\"playtime_forever\":120,\"has_community_visible_stats\":true}," +
+                "{\"appid\":70,\"name\":\"Half-Life\",\"playtime_forever\":398,\"has_community_visible_stats\":false}]}}," +
+                "{\"queryKey\":[\"AchievementProgress\",{\"steamid\":\"76561198000000002\",\"include_unvetted_apps\":true,\"language\":\"english\"},22380]," +
+                "\"state\":{\"status\":\"success\",\"data\":{\"appid\":22380,\"unlocked\":75,\"total\":75,\"percentage\":100,\"all_unlocked\":true}}}," +
+                "{\"queryKey\":[\"AchievementProgress\",{\"steamid\":\"76561198000000002\",\"include_unvetted_apps\":true,\"language\":\"english\"},50300]," +
+                "\"state\":{\"status\":\"success\",\"data\":{\"appid\":50300,\"unlocked\":3,\"total\":50,\"percentage\":6,\"all_unlocked\":false}}}," +
+                "{\"queryKey\":[\"AchievementProgress\",{\"steamid\":\"76561198000000002\",\"include_unvetted_apps\":true,\"language\":\"english\"},70]," +
+                "\"state\":{\"status\":\"success\",\"data\":{\"appid\":70,\"unlocked\":0,\"total\":0,\"percentage\":0,\"all_unlocked\":false}}}]}";
+            var html = SsrPage(queryData, "{\"steamid\":\"76561198000000001\"}") +
+                       "<div class=\"Panel\">" +
+                       "<img src=\"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/22380/header.jpg\" alt=\"Fallout: New Vegas\" />" +
+                       "<span><span>TOTAL PLAYED</span>578.1 hours</span>" +
+                       "<div><a href=\"https://steamcommunity.com/id/test/achievements/22380\">ACHIEVEMENTS</a><span>75/75</span></div>" +
+                       "</div>";
 
-            var game = SteamCommunityPageParser.ParseOwnedGames(html).Single();
+            var games = SteamCommunityPageParser.ParseOwnedGames(html)
+                .OrderBy(game => game.AppId)
+                .ToList();
 
-            Assert.AreEqual(431960, game.AppId);
-            Assert.AreEqual(21, game.AchievementsEarned);
-            Assert.AreEqual(72, game.AchievementsTotal);
+            CollectionAssert.AreEqual(new[] { 70, 22380, 50300 }, games.Select(game => game.AppId).ToArray());
+            Assert.AreEqual(398, games[0].PlaytimeForever);
+            Assert.IsFalse(games[0].AchievementsTotal > 0);
+            Assert.AreEqual(34686, games[1].PlaytimeForever);
+            Assert.AreEqual(75, games[1].AchievementsEarned);
+            Assert.AreEqual(75, games[1].AchievementsTotal);
+            Assert.AreEqual("Spec Ops: The Line", games[2].Name);
+            Assert.AreEqual(3, games[2].AchievementsEarned);
+            Assert.AreEqual(50, games[2].AchievementsTotal);
             Assert.IsTrue(SteamCommunityPageParser.LooksLikeOwnedGamesPayload(html));
+        }
+
+        [TestMethod]
+        public void ParseOwnedGames_ReportsWhetherTheListIsComplete()
+        {
+            const string ownedQuery =
+                "{\"queries\":[{\"queryKey\":[\"OwnedGames\",\"76561198000000002\",\"english\"]," +
+                "\"state\":{\"data\":[{\"appid\":620,\"name\":\"Portal 2\",\"playtime_forever\":10}]}}]}";
+            const string renderedRow =
+                "<div class=\"Panel\"><img src=\"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/620/header.jpg\" alt=\"Portal 2\" />" +
+                "<span>TOTAL PLAYED</span><span>5 hours</span></div>";
+            const string recentlyPlayed =
+                "{\"listData\":{\"rgRecentlyPlayedGames\":[{\"appid\":620,\"name\":\"Portal 2\",\"playtime_forever\":10}]}}";
+            const string fullXml = "<gamesList><games><game><appID>620</appID><name>Portal 2</name></game></games></gamesList>";
+            const string mostPlayedXml =
+                "<profile><mostPlayedGames><mostPlayedGame><gameName>Portal 2</gameName>" +
+                "<gameLink>https://steamcommunity.com/app/620</gameLink><hoursOnRecord>1</hoursOnRecord></mostPlayedGame></mostPlayedGames></profile>";
+
+            SteamCommunityPageParser.ParseOwnedGames(SsrPage(ownedQuery), out var fromQuery);
+            SteamCommunityPageParser.ParseOwnedGames(renderedRow, out var fromRows);
+            SteamCommunityPageParser.ParseOwnedGames(SsrPage(null, recentlyPlayed), out var fromRecent);
+            SteamCommunityPageParser.ParseOwnedGames(fullXml, out var fromFullXml);
+            SteamCommunityPageParser.ParseOwnedGames(mostPlayedXml, out var fromMostPlayed);
+
+            Assert.IsTrue(fromQuery, "OwnedGames query lists the whole library.");
+            Assert.IsFalse(fromRows, "Rendered rows are only the first page.");
+            Assert.IsFalse(fromRecent, "Recently played is a subset.");
+            Assert.IsTrue(fromFullXml, "gamesList XML lists the whole library.");
+            Assert.IsFalse(fromMostPlayed, "mostPlayedGames is a subset.");
+        }
+
+        // The redesigned pages' server-rendered payload: queryData is a string-encoded query cache
+        // and each loaderData entry is a string-encoded JSON object.
+        private static string SsrPage(string queryData, params string[] loaderItems)
+        {
+            var root = new Newtonsoft.Json.Linq.JObject
+            {
+                ["route"] = "/profiles/:steamid/games",
+                ["loaderData"] = new Newtonsoft.Json.Linq.JArray(loaderItems ?? new string[0]),
+                ["UserConfig"] = new Newtonsoft.Json.Linq.JObject { ["logged_in"] = true },
+                ["renderContext"] = new Newtonsoft.Json.Linq.JObject { ["queryData"] = queryData ?? "{\"queries\":[]}" }
+            };
+            return "<script type=\"application/json\" id=\"valve-ssr-data\" nonce=\"x\">" +
+                   root.ToString(Formatting.None) +
+                   "</script>";
         }
     }
 }

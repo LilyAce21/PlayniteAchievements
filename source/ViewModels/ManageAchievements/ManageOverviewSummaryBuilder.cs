@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.Summaries;
 
@@ -57,10 +58,10 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
     /// </summary>
     internal static class ManageOverviewSummaryBuilder
     {
-        public const string CustomAchievementsLabelKey = "LOCPlayAch_ManageAchievements_Tab_Custom";
+        public const string CustomAchievementsLabelKey = "LOCCustomLabel";
         public const string OrderLabelKey = "LOCPlayAch_ManageAchievements_Tab_AchievementOrder";
         public const string CategoryArtLabelKey = "LOCPlayAch_Column_CategoryArt";
-        public const string NotificationsLabelKey = "LOCPlayAch_Settings_TabNotifications";
+        public const string NotificationsLabelKey = "LOCNotifications";
         public const string ProviderOverrideLabelKey = "LOCPlayAch_ManageAchievements_Overrides_ProviderHeader";
         public const string ExophaseEnrichmentLabelKey = "LOCPlayAch_ManageAchievements_Overrides_ExophaseEnrichmentHeader";
         public const string SeparateLockedIconsLabelKey = "LOCPlayAch_ManageAchievements_Overrides_LockedIconsHeader";
@@ -158,6 +159,11 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         /// they describe what an export of this game would carry. The schema-7 scalar maps are
         /// not read: they are folded into <see cref="GameCustomDataFile.AchievementOverrides"/> on
         /// migration.
+        ///
+        /// A custom achievement's own fields live on its definition rather than in an override
+        /// record, so each per-achievement kind counts the achievements whose override or custom
+        /// definition carries it, once each. Notes, goals and filters are ApiName-keyed for both
+        /// kinds already.
         /// </remarks>
         public static IReadOnlyList<ManageOverviewCustomizationCount> BuildCustomizationCounts(GameCustomDataFile data)
         {
@@ -171,8 +177,20 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
 
             var overrides = (data.AchievementOverrides ?? new Dictionary<string, AchievementOverride>())
                 .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && pair.Value != null)
-                .Select(pair => pair.Value)
                 .ToList();
+            var customs = (data.CustomAchievements ?? new List<CustomAchievementDefinition>())
+                .Where(item => item != null)
+                .Select(item => new KeyValuePair<string, CustomAchievementDefinition>(
+                    CustomAchievementProjectionService.BuildApiName(item.Id), item))
+                .Where(pair => pair.Key != null)
+                .ToList();
+
+            int Count(Func<AchievementOverride, bool> inOverride, Func<CustomAchievementDefinition, bool> inCustom)
+            {
+                return CountDistinct(
+                    overrides.Where(pair => inOverride(pair.Value)).Select(pair => pair.Key)
+                        .Concat(customs.Where(pair => inCustom(pair.Value)).Select(pair => pair.Key)));
+            }
 
             foreach (var entry in AchievementCustomizationFacetLabels.Ordered)
             {
@@ -180,37 +198,39 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 switch (entry.Item1)
                 {
                     case AchievementCustomizationFacet.DisplayName:
-                        count = overrides.Count(o => HasText(o.DisplayName));
+                        count = Count(o => HasText(o.DisplayName), c => HasText(c.DisplayName));
                         break;
                     case AchievementCustomizationFacet.Description:
-                        count = overrides.Count(o => HasText(o.Description));
+                        count = Count(o => HasText(o.Description), c => HasText(c.Description));
                         break;
                     case AchievementCustomizationFacet.UnlockedIcon:
-                        count = overrides.Count(o => HasText(o.UnlockedIconPath));
+                        count = Count(o => HasText(o.UnlockedIconPath), c => HasText(c.UnlockedIconPath));
                         break;
                     case AchievementCustomizationFacet.LockedIcon:
-                        count = overrides.Count(o => HasText(o.LockedIconPath));
+                        count = Count(o => HasText(o.LockedIconPath), c => HasText(c.LockedIconPath));
                         break;
                     case AchievementCustomizationFacet.Points:
-                        count = overrides.Count(o => o.Points.HasValue);
+                        count = Count(o => o.Points.HasValue, c => c.Points.HasValue);
                         break;
                     case AchievementCustomizationFacet.TrophyType:
-                        count = overrides.Count(o => HasText(o.TrophyType));
+                        count = Count(o => HasText(o.TrophyType), c => HasText(c.TrophyType));
                         break;
                     case AchievementCustomizationFacet.UnlockTime:
-                        count = overrides.Count(o => o.UnlockTimeUtc.HasValue || o.ClearUnlockTime);
+                        count = Count(
+                            o => o.UnlockTimeUtc.HasValue || o.ClearUnlockTime,
+                            c => c.Unlocked && c.UnlockTimeUtc.HasValue);
                         break;
                     case AchievementCustomizationFacet.Category:
-                        count = overrides.Count(o => HasText(o.Category));
+                        count = Count(o => HasText(o.Category), c => IsNamedCategory(c.Category));
                         break;
                     case AchievementCustomizationFacet.CategoryType:
-                        count = overrides.Count(o => HasText(o.CategoryType));
+                        count = Count(o => HasText(o.CategoryType), c => IsNamedCategoryType(c.CategoryType));
                         break;
                     case AchievementCustomizationFacet.Hidden:
-                        count = overrides.Count(o => o.Hidden.HasValue);
+                        count = Count(o => o.Hidden.HasValue, c => c.Hidden);
                         break;
                     case AchievementCustomizationFacet.Note:
-                        count = overrides.Count(o => HasText(o.Note));
+                        count = overrides.Count(pair => HasText(pair.Value.Note));
                         break;
                     case AchievementCustomizationFacet.FilterScope:
                         count = CountDistinct((data.FilteredAchievementApiNames ?? new List<string>())
@@ -220,9 +240,11 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                         count = CountDistinct(data.GoalAchievementApiNames);
                         break;
                     case AchievementCustomizationFacet.Capstone:
+                        // A materialized set names every capstone, custom ones included; before
+                        // that, a custom achievement's own flag is what makes it one.
                         count = data.CapstonesMaterialized
                             ? data.Capstones?.Count(item => item != null) ?? 0
-                            : 0;
+                            : customs.Count(pair => pair.Value.IsCapstone);
                         break;
                     default:
                         continue;
@@ -237,7 +259,13 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                 data.AchievementCategoryImageOverrides?.Count(pair => HasText(pair.Value?.Art)) ?? 0);
 
             AddFlag(result, OrderLabelKey, data.AchievementOrder?.Count > 0 || data.AchievementCategoryOrder?.Count > 0);
-            AddFlag(result, NotificationsLabelKey, data.NotificationAppearanceOverride != null);
+            AddFlag(
+                result,
+                NotificationsLabelKey,
+                data.NotificationAppearanceOverride != null ||
+                data.UnlockSounds != null ||
+                data.NotificationBehaviorOverride != null ||
+                data.CaptureOverride != null);
             AddFlag(
                 result,
                 ProviderOverrideLabelKey,
@@ -281,5 +309,21 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
         }
 
         private static bool HasText(string value) => !string.IsNullOrWhiteSpace(value);
+
+        // A custom achievement left in the Default bucket, or with the Default type, has chosen
+        // nothing; the projection files it there when the field is blank.
+        private static bool IsNamedCategory(string category) =>
+            HasText(category) &&
+            !string.Equals(
+                CategoryPathHelper.NormalizePath(category),
+                AchievementCategoryTypeHelper.DefaultCategoryLabel,
+                StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsNamedCategoryType(string categoryType) =>
+            HasText(categoryType) &&
+            !string.Equals(
+                AchievementCategoryTypeHelper.NormalizeOrDefault(categoryType),
+                AchievementCategoryTypeHelper.DefaultCategoryType,
+                StringComparison.OrdinalIgnoreCase);
     }
 }
