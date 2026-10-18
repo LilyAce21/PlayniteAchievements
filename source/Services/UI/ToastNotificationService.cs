@@ -2808,8 +2808,9 @@ namespace PlayniteAchievements.Services.UI
                 // presented before the next begins and the slide starts against a drained
                 // composition queue, at the price of two composed frames of extra latency. Game
                 // anchor only — a test fire out of game has no video — and only with recordings
-                // enabled, since nothing else consumes a track.
-                if (_activeIsGame && _activeReferenceHwnd != IntPtr.Zero &&
+                // enabled, since nothing else consumes a track. Progress waves never own a clip,
+                // so they skip the track entirely.
+                if (_activeIsGame && _activeReferenceHwnd != IntPtr.Zero && !wave[0].IsProgressUpdate &&
                     (_activeWaveCaptures?.EnableUnlockRecordings ?? _settings?.Persisted?.EnableUnlockRecordings ?? false))
                 {
                     trackRecorder = new ToastOverlayTrackRecorder(
