@@ -1389,8 +1389,8 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_RemoveFromCollection">Aus Sammlung entfernen</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NoPinnedAchievements">Angeheftete Erfolge werden hier angezeigt.</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NoFavoriteGames">Spiele anheften oder Playnite-Favoriten verwenden.</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_NoImage">Choose an image in the widget settings.</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_NoText">Add text in the widget settings.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_NoImage">Grafik in den Widget-Einstellungen auswählen.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_NoText">Text in den Widget-Einstellungen hinzufügen.</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_NoData">Noch keine Daten</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_UnknownProvider">Unbekannter Anbieter</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_UnavailableAchievement">Unavailable achievement</sys:String>
@@ -1413,11 +1413,11 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Days">{0} Tage</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Hours">{0:N0} h</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ThousandsHours">{0:N1}k h</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_PerDay">{0:N1} pro Tag</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_PerDay">{0:N1}/Tag</sys:String>
 
     <sys:String x:Key="LOCPlayAch_Showcase_ScoreCards">Score Cards</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ScoreHistory">Punkte über Zeit</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_ScoreMode_Collection">Sammlung</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_ScoreMode_Collection">Sammelwertung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ScoreMode_Prestige">Prestigewertung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ProfileMedals">Medaillen</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ProfileMedalMode_Rarity">Seltenheitsränge</sys:String>
@@ -1458,7 +1458,7 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Normal">Normal</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Large">Groß</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Huge">Riesig</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Custom">Custom</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_TextSize_Custom">Angepasst</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_HorizontalAlignment">Horizontale Ausrichtung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_VerticalAlignment">Vertikale Ausrichtung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ActivityTooltipFormat">{0} — {1} freigeschaltet</sys:String>
@@ -1558,7 +1558,7 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Library_InLibrary">In library</sys:String>
     <sys:String x:Key="LOCPlayAch_Library_Applied">Applied</sys:String>
     <sys:String x:Key="LOCPlayAch_Library_Edited">Bearbeitet</sys:String>
-    <sys:String x:Key="LOCPlayAch_Library_UsedIn">Used in</sys:String>
+    <sys:String x:Key="LOCPlayAch_Library_UsedIn">Verwendet in</sys:String>
     <sys:String x:Key="LOCPlayAch_Library_NotApplied">Not applied anywhere.</sys:String>
     <sys:String x:Key="LOCPlayAch_Library_Unlink">Unlink: keep everything as it is and stop taking updates from this item</sys:String>
     <sys:String x:Key="LOCPlayAch_Library_UpdatesWhenApplied">Notifications, frames and showcase pages that use it take the new version when you apply it again.</sys:String>
