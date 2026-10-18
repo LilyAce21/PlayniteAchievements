@@ -142,9 +142,10 @@ namespace PlayniteAchievements.Services.Achievements
                 AchievementSortSurface.OverviewSelectedGame => new AchievementSortSpec(
                     settings.OverviewSelectedGameGridSortMode,
                     settings.OverviewSelectedGameGridSortDescending ? ListSortDirection.Descending : ListSortDirection.Ascending),
+                // Default (None) keeps the source order, newest unlock first.
                 AchievementSortSurface.OverviewRecentAchievements => new AchievementSortSpec(
-                    CompactListSortMode.UnlockTime,
-                    ListSortDirection.Descending),
+                    settings.OverviewRecentAchievementsGridSortMode,
+                    settings.OverviewRecentAchievementsGridSortDescending ? ListSortDirection.Descending : ListSortDirection.Ascending),
                 AchievementSortSurface.SingleGame => new AchievementSortSpec(
                     settings.SingleGameGridSortMode,
                     settings.SingleGameGridSortDescending ? ListSortDirection.Descending : ListSortDirection.Ascending),
@@ -367,15 +368,55 @@ namespace PlayniteAchievements.Services.Achievements
             var comparison = GetComparison(configuredSort.SortMemberPath, configuredSort.Direction, scope);
             if (comparison != null)
             {
-                items.Sort(WithStableOrder(comparison, stableOrder));
+                SortUnlessOrdered(items, WithStableOrder(comparison, stableOrder));
             }
+        }
+
+        /// <summary>
+        /// Orders one game's achievement rows for a grid surface: the active column sort when one
+        /// is set, otherwise the surface's configured default sort (skipped when
+        /// <paramref name="useSourceOrder"/> is true), then goals first. <paramref name="items"/>
+        /// must arrive in source order (custom order when configured, provider order otherwise);
+        /// that order breaks ties, so the result does not depend on any earlier sort.
+        /// </summary>
+        public static void OrderGameAchievementItems(
+            List<AchievementDisplayItem> items,
+            string columnSortPath,
+            ListSortDirection? columnSortDirection,
+            bool useSourceOrder,
+            PersistedSettings settings,
+            AchievementSortSurface surface)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return;
+            }
+
+            var sourceOrder = CreateStableOrderMap(items);
+            var columnComparison = !string.IsNullOrWhiteSpace(columnSortPath) && columnSortDirection.HasValue
+                ? GetComparison(columnSortPath, columnSortDirection.Value, AchievementSortScope.GameAchievements)
+                : null;
+            if (columnComparison != null)
+            {
+                SortUnlessOrdered(items, WithStableOrder(columnComparison, sourceOrder));
+            }
+            else if (!useSourceOrder)
+            {
+                ApplyConfiguredDefaultSort(
+                    items,
+                    settings,
+                    surface,
+                    AchievementSortScope.GameAchievements,
+                    stableOrder: sourceOrder);
+            }
+
+            ApplyGoalsFirst(items);
         }
 
         /// <summary>
         /// Stable-partitions goal achievements to the front of an already-sorted list, ordered by
         /// the user's goal order. Applied after sorting rather than folded into the comparators so
-        /// it survives the <see cref="TrySortItems{TItem}"/> reverse fast path and cannot disturb
-        /// the relative order of everything else.
+        /// it cannot disturb the relative order of everything else.
         /// </summary>
         public static void ApplyGoalsFirst<TItem>(List<TItem> items)
             where TItem : AchievementDisplayItem
@@ -519,7 +560,9 @@ namespace PlayniteAchievements.Services.Achievements
                 AchievementSortSurface.OverviewSelectedGame =>
                     propertyName == nameof(PersistedSettings.OverviewSelectedGameGridSortMode) ||
                     propertyName == nameof(PersistedSettings.OverviewSelectedGameGridSortDescending),
-                AchievementSortSurface.OverviewRecentAchievements => false,
+                AchievementSortSurface.OverviewRecentAchievements =>
+                    propertyName == nameof(PersistedSettings.OverviewRecentAchievementsGridSortMode) ||
+                    propertyName == nameof(PersistedSettings.OverviewRecentAchievementsGridSortDescending),
                 AchievementSortSurface.SingleGame =>
                     propertyName == nameof(PersistedSettings.SingleGameGridSortMode) ||
                     propertyName == nameof(PersistedSettings.SingleGameGridSortDescending),
@@ -682,16 +725,6 @@ namespace PlayniteAchievements.Services.Achievements
                 return false;
             }
 
-            if (SupportsQuickReverse(sortMemberPath) &&
-                currentSortPath == sortMemberPath &&
-                currentSortDirection == ListSortDirection.Ascending &&
-                direction == ListSortDirection.Descending)
-            {
-                items.Reverse();
-                currentSortDirection = direction;
-                return true;
-            }
-
             var comparison = GetComparison(sortMemberPath, direction, scope);
             if (comparison == null)
             {
@@ -700,7 +733,7 @@ namespace PlayniteAchievements.Services.Achievements
 
             currentSortPath = sortMemberPath;
             currentSortDirection = direction;
-            items.Sort(WithStableOrder(comparison, stableOrder));
+            SortUnlessOrdered(items, WithStableOrder(comparison, stableOrder));
             return true;
         }
 
@@ -832,6 +865,37 @@ namespace PlayniteAchievements.Services.Achievements
             return indexed.Select(item => item.Detail).ToList();
         }
 
+        /// <summary>
+        /// Sorts <paramref name="items"/> unless they already are in order. Filtering an ordered
+        /// list keeps it ordered, so a grid re-filtered under an unchanged sort pays one linear
+        /// check instead of a full sort; a list already in order also keeps its order of ties.
+        /// </summary>
+        public static void SortUnlessOrdered<TItem>(List<TItem> items, Comparison<TItem> comparison)
+        {
+            if (items != null && comparison != null && !IsOrdered(items, comparison))
+            {
+                items.Sort(comparison);
+            }
+        }
+
+        /// <summary>
+        /// Whether no neighbouring pair of <paramref name="items"/> is out of order. A list in
+        /// order comes out of a stable sort unchanged, so a caller can skip building the
+        /// tie-break map as well as the sort.
+        /// </summary>
+        public static bool IsOrdered<TItem>(IReadOnlyList<TItem> items, Comparison<TItem> comparison)
+        {
+            for (var i = 1; i < items.Count; i++)
+            {
+                if (comparison(items[i - 1], items[i]) > 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public static Comparison<TItem> WithStableOrder<TItem>(
             Comparison<AchievementDisplayItem> comparison,
             IReadOnlyDictionary<TItem, int> stableOrder)
@@ -929,12 +993,6 @@ namespace PlayniteAchievements.Services.Achievements
                 "bronze" => 1,
                 _ => 0
             };
-        }
-
-        private static bool SupportsQuickReverse(string sortMemberPath)
-        {
-            return !string.Equals(sortMemberPath, nameof(AchievementDisplayItem.UnlockTime), StringComparison.Ordinal) &&
-                   !string.Equals(sortMemberPath, nameof(AchievementDisplayItem.TrophyType), StringComparison.Ordinal);
         }
 
         private static Comparison<AchievementDisplayItem> ApplyDirection(

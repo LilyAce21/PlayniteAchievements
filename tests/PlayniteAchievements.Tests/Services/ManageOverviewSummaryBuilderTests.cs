@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Services;
 using PlayniteAchievements.ViewModels.ManageAchievements;
 
 namespace PlayniteAchievements.Tests.Services
@@ -126,8 +127,59 @@ namespace PlayniteAchievements.Tests.Services
             Assert.AreEqual(1, counts["LOCPlayAch_ManageAchievements_Custom_LockedIcon"]);
             Assert.AreEqual(1, counts["LOCPlayAch_ManageAchievements_Notes_Note"]);
             Assert.AreEqual(1, counts["LOCPlayAch_Common_UnlockTime"]);
-            Assert.AreEqual(1, counts["LOCPlayAch_ManageAchievements_Custom_Hidden"]);
-            Assert.IsFalse(counts.ContainsKey("LOCPlayAch_Column_Description"));
+            Assert.AreEqual(1, counts["LOCPlayAch_Filter_Hidden"]);
+            Assert.IsFalse(counts.ContainsKey("LOCGameDescriptionTitle"));
+        }
+
+        [TestMethod]
+        public void BuildCustomizationCounts_CountsCustomAchievementFieldsOncePerAchievement()
+        {
+            var customApiName = CustomAchievementProjectionService.BuildApiName("one");
+            var data = new GameCustomDataFile
+            {
+                CustomAchievements = new List<CustomAchievementDefinition>
+                {
+                    new CustomAchievementDefinition
+                    {
+                        Id = "one",
+                        DisplayName = "Mine",
+                        Description = "Do it",
+                        Points = 10,
+                        TrophyType = "gold",
+                        Hidden = true,
+                        IsCapstone = true,
+                        Unlocked = true,
+                        UnlockTimeUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                        CategoryType = "Default"
+                    },
+                    new CustomAchievementDefinition
+                    {
+                        Id = "two",
+                        DisplayName = "Other",
+                        Category = "DLC",
+                        CategoryType = "Story",
+                        UnlockTimeUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                    }
+                },
+                AchievementOverrides = new Dictionary<string, AchievementOverride>(StringComparer.OrdinalIgnoreCase)
+                {
+                    // The same custom achievement through its override record counts once.
+                    [customApiName] = new AchievementOverride { Category = "Main" },
+                    ["provider"] = new AchievementOverride { Description = "Changed" }
+                }
+            };
+
+            var counts = ToMap(ManageOverviewSummaryBuilder.BuildCustomizationCounts(data));
+
+            Assert.AreEqual(2, counts["LOCPlayAch_Column_AchievementName"]);
+            Assert.AreEqual(2, counts["LOCGameDescriptionTitle"]);
+            Assert.AreEqual(1, counts["LOCPlayAch_Column_Points"]);
+            Assert.AreEqual(1, counts["LOCPlayAch_Column_Trophy"]);
+            Assert.AreEqual(1, counts["LOCPlayAch_Filter_Hidden"]);
+            Assert.AreEqual(1, counts["LOCPlayAch_Dynamic_Capstone"]);
+            Assert.AreEqual(1, counts["LOCPlayAch_Common_UnlockTime"], "A locked custom's stored time is not in effect.");
+            Assert.AreEqual(2, counts["LOCCategoryLabel"]);
+            Assert.AreEqual(1, counts[AchievementCustomizationFacetLabels.GetLabelKey(AchievementCustomizationFacet.CategoryType)]);
         }
 
         [TestMethod]

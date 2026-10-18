@@ -2,11 +2,15 @@
 #
 # These are diagnostics, not part of the plugin build: they reference the plugin's own assemblies from
 # source\bin\Debug, so build the plugin first. Executables go to bin\ here, which is git-ignored.
+param(
+    [ValidateSet('Debug', 'Release')][string]$Configuration = 'Debug',
+    [string[]]$Only
+)
 $ErrorActionPreference = 'Stop'
 
 $here = Split-Path $PSCommandPath
 $repo = Resolve-Path (Join-Path $here '..\..')
-$pluginBin = Join-Path $repo 'source\bin\Debug'
+$pluginBin = Join-Path $repo "source\bin\$Configuration"
 $out = Join-Path $here 'bin'
 
 # Find Roslyn wherever Visual Studio or the Build Tools put it, rather than assuming an edition.
@@ -66,7 +70,7 @@ $tools = @(
     'CaptureHarness', 'FrameDump', 'AttributeBisect', 'PacerProbe', 'GenerationLoss',
     'SlideProbe', 'SlideStoryboardProbe', 'SlideCadenceProbe',
     'ChimeSeparationProbe', 'ChimeBurstProbe', 'HapticProbe', 'ComposerProbe',
-    'CaptureStarvationProbe', 'ChannelMapProbe', 'ClipRemnantProbe', 'ThemeToastClipProbe')
+    'CaptureStarvationProbe', 'ChannelMapProbe', 'ClipRemnantProbe', 'ThemeToastClipProbe', 'HoldProbe', 'ScreenFrameRecorder', 'TemplateBench', 'GameLoad')
 # Tools that compile plugin source files in directly, so they always test the current algorithm
 # rather than a built DLL.
 $extraSources = @{
@@ -109,6 +113,9 @@ $extraSources = @{
         (Join-Path $repo 'source\Services\Recording\MicrophoneSelector.cs'),
         (Join-Path $repo 'source\Services\Recording\HapticEndpointClassifier.cs'),
         (Join-Path $repo 'source\Services\UI\ControllerPadIds.cs'))
+    SlideCadenceProbe = @(
+        (Join-Path $here 'SlideTruth.cs'),
+        (Join-Path $here 'SplitTruth.cs'))
     HapticProbe = @(
         (Join-Path $repo 'source\Services\Recording\ProcessLoopbackCapture.cs'),
         (Join-Path $repo 'source\Services\Recording\AudioGapTracker.cs'),
@@ -125,6 +132,7 @@ $extraSources = @{
 $manifestTools = @('ChimeSeparationProbe', 'ChimeBurstProbe', 'HapticProbe', 'CaptureStarvationProbe', 'ChannelMapProbe')
 $failed = @()
 foreach ($tool in $tools) {
+    if ($Only -and $tool -notin $Only) { continue }
     $source = Join-Path $here ($tool + '.cs')
     if (-not (Test-Path $source)) { Write-Output "  skip    $tool (no source)"; continue }
     $sources = @($source) + @($extraSources[$tool])  | Where-Object { $_ }
@@ -143,6 +151,10 @@ foreach ($tool in $tools) {
     }
     else {
         Write-Output "  built   $tool"
+        # A tool's own app config travels with it: HoldProbe's turns on WPF's per-monitor scaling,
+        # as Playnite runs with it, so a window placed on a scaled monitor renders at that scale.
+        $config = Join-Path $here ($tool + '.exe.config')
+        if (Test-Path $config) { Copy-Item $config (Join-Path $out ($tool + '.exe.config')) -Force }
     }
 }
 

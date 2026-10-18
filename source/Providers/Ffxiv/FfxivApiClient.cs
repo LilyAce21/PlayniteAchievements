@@ -11,12 +11,11 @@ using System.Threading.Tasks;
 namespace PlayniteAchievements.Providers.Ffxiv
 {
     /// <summary>
-    /// HTTP client for the FFXIV Collect REST API plus Lodestone character lookup.
+    /// HTTP client for the FFXIV Collect REST API.
     ///
     /// FFXIV Collect supplies both the achievement catalog (definitions + icons +
-    /// global ownership %) and per-character unlock data (with timestamps). It has
-    /// no name-to-id search, so character resolution falls back to scraping the
-    /// public Lodestone character search page.
+    /// global ownership %) and per-character unlock data (with timestamps), keyed
+    /// by Lodestone character id.
     /// </summary>
     internal sealed class FfxivApiClient : IDisposable
     {
@@ -100,54 +99,6 @@ namespace PlayniteAchievements.Providers.Ffxiv
             }
 
             return JsonConvert.DeserializeObject<FfxivCharacter>(json);
-        }
-
-        /// <summary>
-        /// Resolves a Lodestone character id from a character name and world by
-        /// parsing the public Lodestone search page. Keeps "matched nothing" distinct
-        /// from "could not ask" so callers do not blame the user's input for an outage.
-        /// </summary>
-        public async Task<FfxivCharacterResolution> ResolveCharacterIdAsync(string name, string world, string region, CancellationToken cancel)
-        {
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(world))
-            {
-                return FfxivCharacterResolution.NoMatch();
-            }
-
-            var subdomain = NormalizeRegion(region);
-            var url = $"https://{subdomain}.finalfantasyxiv.com/lodestone/character/" +
-                      $"?q={Uri.EscapeDataString(name.Trim())}&worldname={Uri.EscapeDataString(world.Trim())}";
-
-            string html;
-            try
-            {
-                html = await GetRawAsync(new Uri(url), lodestoneId: null, cancel).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.Warn(ex, $"[FFXIV] Lodestone character search failed for '{name}' @ '{world}'.");
-                return FfxivCharacterResolution.LookupFailed();
-            }
-
-            if (string.IsNullOrWhiteSpace(html))
-            {
-                _logger?.Warn($"[FFXIV] Lodestone character search returned an empty page for '{name}' @ '{world}'.");
-                return FfxivCharacterResolution.LookupFailed();
-            }
-
-            try
-            {
-                var id = FfxivParsing.ParseLodestoneCharacterId(html, name, world);
-                return id.HasValue
-                    ? FfxivCharacterResolution.Resolved(id.Value)
-                    : FfxivCharacterResolution.NoMatch();
-            }
-            catch (Exception ex)
-            {
-                // A parse failure means the page shape changed, not that the character is absent.
-                _logger?.Warn(ex, "[FFXIV] Failed to parse Lodestone search results.");
-                return FfxivCharacterResolution.LookupFailed();
-            }
         }
 
         /// <summary>
@@ -271,22 +222,6 @@ namespace PlayniteAchievements.Providers.Ffxiv
             }
 
             return null;
-        }
-
-        private static string NormalizeRegion(string region)
-        {
-            var normalized = (region ?? string.Empty).Trim().ToLowerInvariant();
-            switch (normalized)
-            {
-                case "eu":
-                case "de":
-                case "fr":
-                case "jp":
-                case "na":
-                    return normalized;
-                default:
-                    return "na";
-            }
         }
     }
 }

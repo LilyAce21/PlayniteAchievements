@@ -17,7 +17,6 @@
     <PackageReference Include="SharpCompress" Version="0.26.0" />
     <PackageReference Include="ZstdSharp.Port" Version="0.6.5" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
-    <PackageReference Include="XamlAnimatedGif" Version="2.3.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -65,6 +64,12 @@
     <Compile Include="..\..\source\Providers\Hypixel\HypixelParsing.cs" Link="Source\Providers\Hypixel\HypixelParsing.cs" />
     <Compile Include="..\..\source\Providers\Hypixel\HypixelAchievementMapper.cs" Link="Source\Providers\Hypixel\HypixelAchievementMapper.cs" />
 
+    <Compile Include="..\..\source\Providers\Meta\MetaModels.cs" Link="Source\Providers\Meta\MetaModels.cs" />
+    <Compile Include="..\..\source\Providers\Meta\MetaParsing.cs" Link="Source\Providers\Meta\MetaParsing.cs" />
+
+    <Compile Include="..\..\source\Providers\Ubisoft\UbisoftModels.cs" Link="Source\Providers\Ubisoft\UbisoftModels.cs" />
+    <Compile Include="..\..\source\Providers\Ubisoft\UbisoftParsing.cs" Link="Source\Providers\Ubisoft\UbisoftParsing.cs" />
+
     <Compile Include="..\..\source\Providers\GameJolt\GameJoltModels.cs" Link="Source\Providers\GameJolt\GameJoltModels.cs" />
     <Compile Include="..\..\source\Providers\GameJolt\GameJoltTrophyMapper.cs" Link="Source\Providers\GameJolt\GameJoltTrophyMapper.cs" />
 
@@ -111,6 +116,12 @@
     <Compile Include="..\..\source\Services\LegacyManualLinkImporter.cs" Link="Source\Services\LegacyManualLinkImporter.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataStore.cs" Link="Source\Services\GameCustomData\GameCustomDataStore.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataStore.CustomAchievementsPackage.cs" Link="Source\Services\GameCustomData\GameCustomDataStore.CustomAchievementsPackage.cs" />
+    <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataStore.PortablePackageRead.cs" Link="Source\Services\GameCustomData\GameCustomDataStore.PortablePackageRead.cs" />
+    <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataPackageImageSink.cs" Link="Source\Services\GameCustomData\GameCustomDataPackageImageSink.cs" />
+    <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataPortableScoping.cs" Link="Source\Services\GameCustomData\GameCustomDataPortableScoping.cs" />
+    <Compile Include="..\..\source\Providers\IAchievementKeyScope.cs" Link="Source\Providers\IAchievementKeyScope.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftKeyScope.cs" Link="Source\Providers\Minecraft\MinecraftKeyScope.cs" />
+    <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataPortablePackage.cs" Link="Source\Services\GameCustomData\GameCustomDataPortablePackage.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\PortablePersonalState.cs" Link="Source\Services\GameCustomData\PortablePersonalState.cs" />
     <Compile Include="..\..\source\Services\CustomAchievementCsvFormat.cs" Link="Source\Services\CustomAchievementCsvFormat.cs" />
     <Compile Include="..\..\source\Services\Achievements\CustomAchievementSummaryMerger.cs" Link="Source\Services\Achievements\CustomAchievementSummaryMerger.cs" />
@@ -143,8 +154,10 @@
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataRepository.cs" Link="Source\Services\GameCustomData\GameCustomDataRepository.cs" />
     <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataRuntimeProjector.cs" Link="Source\Services\GameCustomData\GameCustomDataRuntimeProjector.cs" />
     <Compile Include="..\..\source\Services\Hydration\AchievementDetailHydrator.cs" Link="Source\Services\Hydration\AchievementDetailHydrator.cs" />
+    <Compile Include="..\..\source\Services\Hydration\AchievementOverlayPipeline.cs" Link="Source\Services\Hydration\AchievementOverlayPipeline.cs" />
     <Compile Include="..\..\source\Services\Achievements\AutoCapstoneCalculator.cs" Link="Source\Services\Achievements\AutoCapstoneCalculator.cs" />
     <Compile Include="..\..\source\Services\Achievements\AutoCapstoneEligibility.cs" Link="Source\Services\Achievements\AutoCapstoneEligibility.cs" />
+    <Compile Include="..\..\source\Services\Achievements\AutoCapstoneScope.cs" Link="Source\Services\Achievements\AutoCapstoneScope.cs" />
     <Compile Include="..\..\source\Services\Achievements\AutoCapstoneTemplate.cs" Link="Source\Services\Achievements\AutoCapstoneTemplate.cs" />
     <Compile Include="..\..\source\Services\Achievements\AutoCapstoneText.cs" Link="Source\Services\Achievements\AutoCapstoneText.cs" />
     <Compile Include="..\..\source\Services\Achievements\AutoCapstoneTextRewriter.cs" Link="Source\Services\Achievements\AutoCapstoneTextRewriter.cs" />
@@ -162,13 +175,33 @@
     <Compile Include="..\..\source\Services\Images\ImageCompressionPlan.cs" Link="Source\Services\Images\ImageCompressionPlan.cs" />
     <Compile Include="..\..\source\Services\Images\ImageHeaderDimensions.cs" Link="Source\Services\Images\ImageHeaderDimensions.cs" />
     <Compile Include="..\..\source\Services\Images\ImageFormats.cs" Link="Source\Services\Images\ImageFormats.cs" />
+    <Compile Include="..\..\source\Services\Images\PackageImageFormat.cs" Link="Source\Services\Images\PackageImageFormat.cs" />
+    <Compile Include="..\..\source\Services\Images\AnimatedImageKeyframe.cs" Link="Source\Services\Images\AnimatedImageKeyframe.cs" />
     <Compile Include="..\..\source\Services\Images\WebpAnimationInfo.cs" Link="Source\Services\Images\WebpAnimationInfo.cs" />
     <Compile Include="..\..\source\Services\Images\WebpCodecProbe.cs" Link="Source\Services\Images\WebpCodecProbe.cs" />
+    <Compile Include="..\..\source\Services\Images\WebmCodecProbe.cs" Link="Source\Services\Images\WebmCodecProbe.cs" />
+    <Compile Include="..\..\source\Services\Images\Webm\WebmContainer.cs" Link="Source\Services\Images\Webm\WebmContainer.cs" />
+    <Compile Include="..\..\source\Services\Images\Webm\WebmVideoDecoder.cs" Link="Source\Services\Images\Webm\WebmVideoDecoder.cs" />
+    <Compile Include="..\..\source\Services\Images\Webm\WebmFrameDecoder.cs" Link="Source\Services\Images\Webm\WebmFrameDecoder.cs" />
+    <Compile Include="..\..\source\Services\Images\Webm\WebmStill.cs" Link="Source\Services\Images\Webm\WebmStill.cs" />
+    <Compile Include="..\..\source\Services\Capture\MediaFoundationRuntime.cs" Link="Source\Services\Capture\MediaFoundationRuntime.cs" />
     <Compile Include="..\..\source\Services\Images\MemoryImageService.cs" Link="Source\Services\Images\MemoryImageService.cs" />
+    <Compile Include="..\..\source\Services\Images\ImagePixelSize.cs" Link="Source\Services\Images\ImagePixelSize.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrack.cs" Link="Source\Services\Images\RayTrack.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrackBuilder.cs" Link="Source\Services\Images\RayTrackBuilder.cs" />
     <Compile Include="..\..\source\Services\Images\RayTrackService.cs" Link="Source\Services\Images\RayTrackService.cs" />
     <Compile Include="..\..\source\Views\Helpers\AnimatedImageHelper.cs" Link="Source\Views\Helpers\AnimatedImageHelper.cs" />
+    <Compile Include="..\..\source\Views\Helpers\AsyncImage.cs" Link="Source\Views\Helpers\AsyncImage.cs" />
+    <Compile Include="..\..\source\Views\Helpers\AnimationFrameRate.cs" Link="Source\Views\Helpers\AnimationFrameRate.cs" />
+    <Compile Include="..\..\source\Views\Helpers\RarityGlowPulse.cs" Link="Source\Views\Helpers\RarityGlowPulse.cs" />
+    <Compile Include="..\..\source\Views\Helpers\GlowAnimationClock.cs" Link="Source\Views\Helpers\GlowAnimationClock.cs" />
+    <Compile Include="..\..\source\Views\Helpers\Gif\GifCanvas.cs" Link="Source\Views\Helpers\Gif\GifCanvas.cs" />
+    <Compile Include="..\..\source\Views\Helpers\Gif\GifFrameClock.cs" Link="Source\Views\Helpers\Gif\GifFrameClock.cs" />
+    <Compile Include="..\..\source\Views\Helpers\Gif\GifImage.cs" Link="Source\Views\Helpers\Gif\GifImage.cs" />
+    <Compile Include="..\..\source\Views\Helpers\Gif\GifLzwDecoder.cs" Link="Source\Views\Helpers\Gif\GifLzwDecoder.cs" />
+    <Compile Include="..\..\source\Views\Helpers\Gif\GifPlayer.cs" Link="Source\Views\Helpers\Gif\GifPlayer.cs" />
+    <Compile Include="..\..\source\Views\Helpers\Gif\IFrameCanvas.cs" Link="Source\Views\Helpers\Gif\IFrameCanvas.cs" />
+    <Compile Include="..\..\source\Views\Helpers\Gif\WebmCanvas.cs" Link="Source\Views\Helpers\Gif\WebmCanvas.cs" />
     <Compile Include="..\..\source\Views\Helpers\NativeGifAnimation.cs" Link="Source\Views\Helpers\NativeGifAnimation.cs" />
     <Compile Include="..\..\source\Views\Helpers\SliderTrackValueMath.cs" Link="Source\Views\Helpers\SliderTrackValueMath.cs" />
     <Compile Include="..\..\source\Views\Helpers\SharedResourceDictionary.cs" Link="Source\Views\Helpers\SharedResourceDictionary.cs" />
@@ -251,13 +284,35 @@
     <Compile Include="..\..\source\Providers\RPCS3\Rpcs3GamesYmlReader.cs" Link="Source\Providers\RPCS3\Rpcs3GamesYmlReader.cs" />
     <Compile Include="..\..\source\Providers\RPCS3\Rpcs3MatchIdHelper.cs" Link="Source\Providers\RPCS3\Rpcs3MatchIdHelper.cs" />
     <Compile Include="..\..\source\Providers\RPCS3\Rpcs3NpCommIdExtractor.cs" Link="Source\Providers\RPCS3\Rpcs3NpCommIdExtractor.cs" />
-    <Compile Include="..\..\source\Providers\RPCS3\Rpcs3ParamSfoReader.cs" Link="Source\Providers\RPCS3\Rpcs3ParamSfoReader.cs" />
+    <Compile Include="..\..\source\Providers\PlayStationTrophies\ParamSfoReader.cs" Link="Source\Providers\PlayStationTrophies\ParamSfoReader.cs" />
     <Compile Include="..\..\source\Providers\RPCS3\Rpcs3Scanner.cs" Link="Source\Providers\RPCS3\Rpcs3Scanner.cs" />
     <Compile Include="..\..\source\Providers\RPCS3\Rpcs3SerialNpwrBridge.cs" Link="Source\Providers\RPCS3\Rpcs3SerialNpwrBridge.cs" />
     <Compile Include="..\..\source\Providers\RPCS3\Rpcs3TrophyParser.cs" Link="Source\Providers\RPCS3\Rpcs3TrophyParser.cs" />
     <Compile Include="..\..\source\Providers\RPCS3\Rpcs3VfsYmlReader.cs" Link="Source\Providers\RPCS3\Rpcs3VfsYmlReader.cs" />
-    <Compile Include="..\..\source\Providers\RPCS3\Rpcs3TrpArchiveReader.cs" Link="Source\Providers\RPCS3\Rpcs3TrpArchiveReader.cs" />
-    <Compile Include="..\..\source\Providers\RPCS3\Models\Rpcs3Trophy.cs" Link="Source\Providers\RPCS3\Models\Rpcs3Trophy.cs" />
+    <Compile Include="..\..\source\Providers\PlayStationTrophies\TrpArchiveReader.cs" Link="Source\Providers\PlayStationTrophies\TrpArchiveReader.cs" />
+    <Compile Include="..\..\source\Providers\PlayStationTrophies\NpTrophy.cs" Link="Source\Providers\PlayStationTrophies\NpTrophy.cs" />
+    <Compile Include="..\..\source\Providers\PlayStationTrophies\TrophyConfParser.cs" Link="Source\Providers\PlayStationTrophies\TrophyConfParser.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KDataProvider.cs" Link="Source\Providers\Vita3K\Vita3KDataProvider.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KInstallationContext.cs" Link="Source\Providers\Vita3K\Vita3KInstallationContext.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KMatchIdHelper.cs" Link="Source\Providers\Vita3K\Vita3KMatchIdHelper.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KScanner.cs" Link="Source\Providers\Vita3K\Vita3KScanner.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KSettings.cs" Link="Source\Providers\Vita3K\Vita3KSettings.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KTitleIdResolver.cs" Link="Source\Providers\Vita3K\Vita3KTitleIdResolver.cs" />
+    <Compile Include="..\..\source\Providers\Vita3K\Vita3KTropusrReader.cs" Link="Source\Providers\Vita3K\Vita3KTropusrReader.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftAccounts.cs" Link="Source\Providers\Minecraft\MinecraftAccounts.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftAdvancementCatalog.cs" Link="Source\Providers\Minecraft\MinecraftAdvancementCatalog.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftDataProvider.cs" Link="Source\Providers\Minecraft\MinecraftDataProvider.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftGameResolver.cs" Link="Source\Providers\Minecraft\MinecraftGameResolver.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftIconExtractor.cs" Link="Source\Providers\Minecraft\MinecraftIconExtractor.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftModelResolver.cs" Link="Source\Providers\Minecraft\MinecraftModelResolver.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftLogWatcher.cs" Link="Source\Providers\Minecraft\MinecraftLogWatcher.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftLiveLanguage.cs" Link="Source\Providers\Minecraft\MinecraftLiveLanguage.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftBlockRenderer.cs" Link="Source\Providers\Minecraft\MinecraftBlockRenderer.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftPaths.cs" Link="Source\Providers\Minecraft\MinecraftPaths.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftProgressReader.cs" Link="Source\Providers\Minecraft\MinecraftProgressReader.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftResourceSource.cs" Link="Source\Providers\Minecraft\MinecraftResourceSource.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftScanner.cs" Link="Source\Providers\Minecraft\MinecraftScanner.cs" />
+    <Compile Include="..\..\source\Providers\Minecraft\MinecraftSettings.cs" Link="Source\Providers\Minecraft\MinecraftSettings.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseDataProvider.cs" Link="Source\Providers\Hoyoverse\HoyoverseDataProvider.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseGameCatalog.cs" Link="Source\Providers\Hoyoverse\HoyoverseGameCatalog.cs" />
     <Compile Include="..\..\source\Providers\Hoyoverse\HoyoverseScanner.cs" Link="Source\Providers\Hoyoverse\HoyoverseScanner.cs" />
@@ -325,6 +380,7 @@
     <Compile Include="..\..\source\Providers\Exophase\ExophaseFriendPlatformMatcher.cs" Link="Source\Providers\Exophase\ExophaseFriendPlatformMatcher.cs" />
     <Compile Include="..\..\source\Providers\Exophase\ExophaseGameNameMatcher.cs" Link="Source\Providers\Exophase\ExophaseGameNameMatcher.cs" />
     <Compile Include="..\..\source\Common\StringSimilarity.cs" Link="Source\Common\StringSimilarity.cs" />
+    <Compile Include="..\..\source\Common\KeySequenceMatcher.cs" Link="Source\Common\KeySequenceMatcher.cs" />
     <Compile Include="..\..\source\Common\GameNameNormalizer.cs" Link="Source\Common\GameNameNormalizer.cs" />
     <Compile Include="..\..\source\Providers\Xbox\XboxTitleIdResolver.cs" Link="Source\Providers\Xbox\XboxTitleIdResolver.cs" />
     <Compile Include="..\..\source\Providers\Xenia\XeniaSettings.cs" Link="Source\Providers\Xenia\XeniaSettings.cs" />
@@ -345,6 +401,7 @@
     <Compile Include="..\..\source\Providers\Manual\ManualDisplayPlatformResolver.cs" Link="Source\Providers\Manual\ManualDisplayPlatformResolver.cs" />
     <Compile Include="..\..\source\Providers\Steam\SteamAPIClient.cs" Link="Source\Providers\Steam\SteamAPIClient.cs" />
     <Compile Include="..\..\source\Providers\Steam\SteamCommunityPageParser.cs" Link="Source\Providers\Steam\SteamCommunityPageParser.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamSsrPayload.cs" Link="Source\Providers\Steam\SteamSsrPayload.cs" />
     <Compile Include="..\..\source\Providers\Steam\SteamAchievementApiNameResolver.cs" Link="Source\Providers\Steam\SteamAchievementApiNameResolver.cs" />
     <Compile Include="..\..\source\Providers\Steam\SteamWebAuthSession.cs" Link="Source\Providers\Steam\SteamWebAuthSession.cs" />
     <Compile Include="..\..\source\Providers\Steam\SteamWebApiTokenResolver.cs" Link="Source\Providers\Steam\SteamWebApiTokenResolver.cs" />
@@ -356,11 +413,17 @@
     <Compile Include="..\..\source\Providers\PSN\PsnSettings.cs" Link="Source\Providers\PSN\PsnSettings.cs" />
     <Compile Include="..\..\source\Providers\Steam\Models\SteamApiResponseModels.cs" Link="Source\Providers\Steam\Models\SteamApiResponseModels.cs" />
     <Compile Include="..\..\source\Providers\Steam\Models\SteamResponseModels.cs" Link="Source\Providers\Steam\Models\SteamResponseModels.cs" />
+    <Compile Include="..\..\source\Providers\Steam\Models\SteamApiResult.cs" Link="Source\Providers\Steam\Models\SteamApiResult.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamAchievementsSsrParser.cs" Link="Source\Providers\Steam\SteamAchievementsSsrParser.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamAchievementSetMapper.cs" Link="Source\Providers\Steam\SteamAchievementSetMapper.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamCategoryLabels.cs" Link="Source\Providers\Steam\SteamCategoryLabels.cs" />
+    <Compile Include="..\..\source\Providers\Steam\SteamCategoryArtDownloader.cs" Link="Source\Providers\Steam\SteamCategoryArtDownloader.cs" />
     <Compile Include="..\..\source\Common\ObservableObject.cs" Link="Source\Common\ObservableObject.cs" />
     <Compile Include="..\..\source\Common\BulkObservableCollection.cs" Link="Source\Common\BulkObservableCollection.cs" />
     <Compile Include="..\..\source\Common\AsyncCommand.cs" Link="Source\Common\AsyncCommand.cs" />
     <Compile Include="..\..\source\Common\CommandBase.cs" Link="Source\Common\CommandBase.cs" />
     <Compile Include="..\..\source\Common\CollectionHelper.cs" Link="Source\Common\CollectionHelper.cs" />
+    <Compile Include="..\..\source\Common\EmptyFolders.cs" Link="Source\Common\EmptyFolders.cs" />
     <Compile Include="..\..\source\Common\DateTimeUtilities.cs" Link="Source\Common\DateTimeUtilities.cs" />
     <Compile Include="..\..\source\Common\DispatcherExtensions.cs" Link="Source\Common\DispatcherExtensions.cs" />
     <Compile Include="..\..\source\Common\LeakWatch.cs" Link="Source\Common\LeakWatch.cs" />
@@ -402,6 +465,7 @@
     <Compile Include="..\..\source\ViewModels\Items\ProviderPlatformFilter.cs" Link="Source\ViewModels\Items\ProviderPlatformFilter.cs" />
     <Compile Include="..\..\source\ViewModels\ScoreCardViewModel.cs" Link="Source\ViewModels\ScoreCardViewModel.cs" />
     <Compile Include="..\..\source\ViewModels\Showcase\Widgets\ScoreHistoryAxis.cs" Link="Source\ViewModels\Showcase\Widgets\ScoreHistoryAxis.cs" />
+    <Compile Include="..\..\source\ViewModels\Showcase\Widgets\GameMosaicTileLayout.cs" Link="Source\ViewModels\Showcase\Widgets\GameMosaicTileLayout.cs" />
     <Compile Include="..\..\source\ViewModels\Items\ScoreSegmentViewModel.cs" Link="Source\ViewModels\Items\ScoreSegmentViewModel.cs" />
     <Compile Include="..\..\source\ViewModels\Items\ManualAchievementEditItem.cs" Link="Source\ViewModels\Items\ManualAchievementEditItem.cs" />
     <Compile Include="..\..\source\ViewModels\AchievementToastViewModel.cs" Link="Source\ViewModels\AchievementToastViewModel.cs" />
@@ -429,11 +493,13 @@
     <Compile Include="..\..\source\Models\Settings\FriendSettingsEntry.cs" Link="Source\Models\Settings\FriendSettingsEntry.cs" />
     <Compile Include="..\..\source\Models\Settings\ManageSidebarStatGroups.cs" Link="Source\Models\Settings\ManageSidebarStatGroups.cs" />
     <Compile Include="..\..\source\Models\Settings\PersistedSettings.cs" Link="Source\Models\Settings\PersistedSettings.cs" />
+    <Compile Include="..\..\source\Models\Settings\LibraryLink.cs" Link="Source\Models\Settings\LibraryLink.cs" />
     <Compile Include="..\..\source\Models\Settings\PersistedSettings.GridCompatibility.cs" Link="Source\Models\Settings\PersistedSettings.GridCompatibility.cs" />
     <Compile Include="..\..\source\Models\Settings\PersistedSettings.GridCompatibility.Notifications.cs" Link="Source\Models\Settings\PersistedSettings.GridCompatibility.Notifications.cs" />
     <Compile Include="..\..\source\Models\Settings\PersistedSettings.ForkCompatibility.cs" Link="Source\Models\Settings\PersistedSettings.ForkCompatibility.cs" />
     <Compile Include="..\..\source\Models\Settings\ProgressBadgeSource.cs" Link="Source\Models\Settings\ProgressBadgeSource.cs" />
     <Compile Include="..\..\source\Models\Settings\ProviderNotificationOverride.cs" Link="Source\Models\Settings\ProviderNotificationOverride.cs" />
+    <Compile Include="..\..\source\Models\Settings\GameNotificationOverrides.cs" Link="Source\Models\Settings\GameNotificationOverrides.cs" />
     <Compile Include="..\..\source\Models\Settings\FrameVignetteStyle.cs" Link="Source\Models\Settings\FrameVignetteStyle.cs" />
     <Compile Include="..\..\source\Models\Settings\NotificationLineEmphasis.cs" Link="Source\Models\Settings\NotificationLineEmphasis.cs" />
     <Compile Include="..\..\source\Models\Settings\NotificationKind.cs" Link="Source\Models\Settings\NotificationKind.cs" />
@@ -457,6 +523,9 @@
     <Compile Include="..\..\source\Models\Settings\PlaytimeDisplayMode.cs" Link="Source\Models\Settings\PlaytimeDisplayMode.cs" />
     <Compile Include="..\..\source\Models\Settings\CategoryCompletionBadgeMode.cs" Link="Source\Models\Settings\CategoryCompletionBadgeMode.cs" />
     <Compile Include="..\..\source\Models\Settings\ToastScreenCorner.cs" Link="Source\Models\Settings\ToastScreenCorner.cs" />
+    <Compile Include="..\..\source\Models\Settings\NotificationRenderMode.cs" Link="Source\Models\Settings\NotificationRenderMode.cs" />
+    <Compile Include="..\..\source\Models\Settings\ToastHorizontalAlignment.cs" Link="Source\Models\Settings\ToastHorizontalAlignment.cs" />
+    <Compile Include="..\..\source\Models\Settings\ToastMotion.cs" Link="Source\Models\Settings\ToastMotion.cs" />
     <Compile Include="..\..\source\Models\Settings\GridVerticalAlignment.cs" Link="Source\Models\Settings\GridVerticalAlignment.cs" />
     <Compile Include="..\..\source\Models\Settings\CompactListSortMode.cs" Link="Source\Models\Settings\CompactListSortMode.cs" />
     <Compile Include="..\..\source\Models\Settings\GameSummariesSortMode.cs" Link="Source\Models\Settings\GameSummariesSortMode.cs" />
@@ -475,10 +544,13 @@
     <Compile Include="..\..\source\Services\Showcase\ShowcaseGeometry.cs" Link="Source\Services\Showcase\ShowcaseGeometry.cs" />
     <Compile Include="..\..\source\Services\Showcase\ShowcaseLayoutService.cs" Link="Source\Services\Showcase\ShowcaseLayoutService.cs" />
     <Compile Include="..\..\source\Services\Showcase\ShowcaseLayoutService.Tracks.cs" Link="Source\Services\Showcase\ShowcaseLayoutService.Tracks.cs" />
+    <Compile Include="..\..\source\Services\Showcase\OverviewMiniShowcaseLayout.cs" Link="Source\Services\Showcase\OverviewMiniShowcaseLayout.cs" />
     <Compile Include="..\..\source\Services\Showcase\ShowcasePagePortableStore.cs" Link="Source\Services\Showcase\ShowcasePagePortableStore.cs" />
     <Compile Include="..\..\source\Services\Showcase\ShowcaseImageStore.cs" Link="Source\Services\Showcase\ShowcaseImageStore.cs" />
     <Compile Include="..\..\source\Views\Controls\ClampedDesiredSizeGrid.cs" Link="Source\Views\Controls\ClampedDesiredSizeGrid.cs" />
     <Compile Include="..\..\source\Views\Controls\OverlayLayoutHost.cs" Link="Source\Views\Controls\OverlayLayoutHost.cs" />
+    <Compile Include="..\..\source\Views\Controls\ControlBarLayoutPanel.cs" Link="Source\Views\Controls\ControlBarLayoutPanel.cs" />
+    <Compile Include="..\..\source\Views\Controls\CenteredWrapPanel.cs" Link="Source\Views\Controls\CenteredWrapPanel.cs" />
     <Compile Include="..\..\source\Services\Showcase\ShowcasePinService.cs" Link="Source\Services\Showcase\ShowcasePinService.cs" />
     <Compile Include="..\..\source\Services\Showcase\ShowcaseWidgetProjectionService.cs" Link="Source\Services\Showcase\ShowcaseWidgetProjectionService.cs" />
     <Compile Include="..\..\source\Services\Showcase\ShowcaseProfileResolver.cs" Link="Source\Services\Showcase\ShowcaseProfileResolver.cs" />
@@ -491,12 +563,19 @@
     <Compile Include="..\..\source\ViewModels\ManageAchievements\ManageOverviewSummaryBuilder.cs" Link="Source\ViewModels\ManageAchievements\ManageOverviewSummaryBuilder.cs" />
     <Compile Include="..\..\source\Models\Settings\CapstoneAssignment.cs" Link="Source\Models\Settings\CapstoneAssignment.cs" />
     <Compile Include="..\..\source\Models\Settings\GameCustomDataFile.cs" Link="Source\Models\Settings\GameCustomDataFile.cs" />
+    <Compile Include="..\..\source\Models\Settings\RuleClaim.cs" Link="Source\Models\Settings\RuleClaim.cs" />
+    <Compile Include="..\..\source\Services\Rules\RuleReconciler.cs" Link="Source\Services\Rules\RuleReconciler.cs" />
+    <Compile Include="..\..\source\Services\Rules\FilterExclusionRuleService.cs" Link="Source\Services\Rules\FilterExclusionRuleService.cs" />
     <Compile Include="..\..\source\Models\Settings\GameCustomDataPortableFile.cs" Link="Source\Models\Settings\GameCustomDataPortableFile.cs" />
+    <Compile Include="..\..\source\Models\Settings\PortableGameKey.cs" Link="Source\Models\Settings\PortableGameKey.cs" />
     <Compile Include="..\..\source\Models\Settings\CustomAchievementDefinition.cs" Link="Source\Models\Settings\CustomAchievementDefinition.cs" />
     <Compile Include="..\..\source\Models\Settings\CustomProviderDefinition.cs" Link="Source\Models\Settings\CustomProviderDefinition.cs" />
     <Compile Include="..\..\source\Services\CustomProviders\CustomProviderKeys.cs" Link="Source\Services\CustomProviders\CustomProviderKeys.cs" />
     <Compile Include="..\..\source\Services\CustomProviders\SvgGeometryImporter.cs" Link="Source\Services\CustomProviders\SvgGeometryImporter.cs" />
     <Compile Include="..\..\source\Models\Settings\OverviewPieSmallSliceMode.cs" Link="Source\Models\Settings\OverviewPieSmallSliceMode.cs" />
+    <Compile Include="..\..\source\Models\Settings\PieCenterMode.cs" Link="Source\Models\Settings\PieCenterMode.cs" />
+    <Compile Include="..\..\source\Models\Settings\PieLegendPosition.cs" Link="Source\Models\Settings\PieLegendPosition.cs" />
+    <Compile Include="..\..\source\Models\Settings\ScoreCardBadgePosition.cs" Link="Source\Models\Settings\ScoreCardBadgePosition.cs" />
     <Compile Include="..\..\source\Models\Settings\SettingsExtensions.cs" Link="Source\Models\Settings\SettingsExtensions.cs" />
     <Compile Include="..\..\source\Models\AchievementUnlockedEventArgs.cs" Link="Source\Models\AchievementUnlockedEventArgs.cs" />
     <Compile Include="..\..\source\Models\Achievements\UnlockCaptureRarityFilter.cs" Link="Source\Models\Achievements\UnlockCaptureRarityFilter.cs" />
@@ -508,6 +587,9 @@
     <Compile Include="..\..\source\Services\Achievements\TimelineBucketing.cs" Link="Source\Services\Achievements\TimelineBucketing.cs" />
     <Compile Include="..\..\source\Services\Achievements\TimelineAxisTicks.cs" Link="Source\Services\Achievements\TimelineAxisTicks.cs" />
     <Compile Include="..\..\source\Services\Overview\UnlockDayCounts.cs" Link="Source\Services\Overview\UnlockDayCounts.cs" />
+    <Compile Include="..\..\source\Services\Overview\TimelinePlatformSeries.cs" Link="Source\Services\Overview\TimelinePlatformSeries.cs" />
+    <Compile Include="..\..\source\Services\Overview\OverviewLinkedSnapshots.cs" Link="Source\Services\Overview\OverviewLinkedSnapshots.cs" />
+    <Compile Include="..\..\source\Services\Achievements\TimelineSeriesCounts.cs" Link="Source\Services\Achievements\TimelineSeriesCounts.cs" />
     <Compile Include="..\..\source\Services\Overview\OverviewDataSnapshot.cs" Link="Source\Services\Overview\OverviewDataSnapshot.cs" />
     <Compile Include="..\..\source\Services\Overview\UnlockNextCandidateSelector.cs" Link="Source\Services\Overview\UnlockNextCandidateSelector.cs" />
     <Compile Include="..\..\source\Services\StartPage\StartPageDataCoordinator.cs" Link="Source\Services\StartPage\StartPageDataCoordinator.cs" />
@@ -523,6 +605,7 @@
     <Compile Include="..\..\source\Models\Settings\ThemeMigrationCacheEntry.cs" Link="Source\Models\Settings\ThemeMigrationCacheEntry.cs" />
     <Compile Include="..\..\source\Models\Settings\ManualAchievementLink.cs" Link="Source\Models\Settings\ManualAchievementLink.cs" />
     <Compile Include="..\..\source\Models\Achievements\AchievementRarityResolver.cs" Link="Source\Models\Achievements\AchievementRarityResolver.cs" />
+    <Compile Include="..\..\source\Models\Achievements\RaritySource.cs" Link="Source\Models\Achievements\RaritySource.cs" />
     <Compile Include="..\..\source\Models\Achievements\RarityAppearanceHelper.cs" Link="Source\Models\Achievements\RarityAppearanceHelper.cs" />
     <Compile Include="..\..\source\Models\Achievements\RarityAppearanceHelper.RayGlow.cs" Link="Source\Models\Achievements\RarityAppearanceHelper.RayGlow.cs" />
     <Compile Include="..\..\source\Views\Controls\RayGlow\RayArrowLayout.cs" Link="Source\Views\Controls\RayGlow\RayArrowLayout.cs" />
@@ -531,6 +614,11 @@
     <Compile Include="..\..\source\Models\Achievements\AchievementCompletionPercentCalculator.cs" Link="Source\Models\Achievements\AchievementCompletionPercentCalculator.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementLevelCurveSettings.cs" Link="Source\Models\Achievements\Scoring\AchievementLevelCurveSettings.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementLevelCalculator.cs" Link="Source\Models\Achievements\Scoring\AchievementLevelCalculator.cs" />
+    <Compile Include="..\..\source\Models\Achievements\Scoring\ScoreCardType.cs" Link="Source\Models\Achievements\Scoring\ScoreCardType.cs" />
+    <Compile Include="..\..\source\Models\Achievements\Scoring\PlatformScoreTotals.cs" Link="Source\Models\Achievements\Scoring\PlatformScoreTotals.cs" />
+    <Compile Include="..\..\source\Models\Achievements\Scoring\PointsFamilies.cs" Link="Source\Models\Achievements\Scoring\PointsFamilies.cs" />
+    <Compile Include="..\..\source\Models\Achievements\Scoring\ScoreCardChoices.cs" Link="Source\Models\Achievements\Scoring\ScoreCardChoices.cs" />
+    <Compile Include="..\..\source\Services\Achievements\PointsFamilyNames.cs" Link="Source\Services\Achievements\PointsFamilyNames.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementLevelSnapshot.cs" Link="Source\Models\Achievements\Scoring\AchievementLevelSnapshot.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementRank.cs" Link="Source\Models\Achievements\Scoring\AchievementRank.cs" />
     <Compile Include="..\..\source\Models\Achievements\Scoring\AchievementRankDebugRow.cs" Link="Source\Models\Achievements\Scoring\AchievementRankDebugRow.cs" />
@@ -544,6 +632,7 @@
     <Compile Include="..\..\source\Models\ThemeIntegration\DynamicThemeViewState.cs" Link="Source\Models\ThemeIntegration\DynamicThemeViewState.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\LegacyThemeBindings.cs" Link="Source\Models\ThemeIntegration\LegacyThemeBindings.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\LibraryRuntimeState.cs" Link="Source\Models\ThemeIntegration\LibraryRuntimeState.cs" />
+    <Compile Include="..\..\source\Models\ThemeIntegration\PointsScoreItem.cs" Link="Source\Models\ThemeIntegration\PointsScoreItem.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\FriendRuntimeState.cs" Link="Source\Models\ThemeIntegration\FriendRuntimeState.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\ModernThemeBindings.cs" Link="Source\Models\ThemeIntegration\ModernThemeBindings.cs" />
     <Compile Include="..\..\source\Models\ThemeIntegration\SelectedGameRuntimeState.cs" Link="Source\Models\ThemeIntegration\SelectedGameRuntimeState.cs" />
@@ -557,6 +646,7 @@
     <Compile Include="..\..\source\Views\Helpers\ColumnWidthNormalization.cs" Link="Source\Views\Helpers\ColumnWidthNormalization.cs" />
     <Compile Include="..\..\source\Views\Helpers\ColumnSizingPlanner.cs" Link="Source\Views\Helpers\ColumnSizingPlanner.cs" />
     <Compile Include="..\..\source\Views\Helpers\GridAlignmentMapping.cs" Link="Source\Views\Helpers\GridAlignmentMapping.cs" />
+    <Compile Include="..\..\source\Views\Helpers\MarkdownEditing.cs" Link="Source\Views\Helpers\MarkdownEditing.cs" />
     <Compile Include="..\..\source\Views\Helpers\VisualTreeHelpers.cs" Link="Source\Views\Helpers\VisualTreeHelpers.cs" />
     <Compile Include="..\..\source\Services\ThemeIntegration\LibraryRuntimeStateBuilder.cs" Link="Source\Services\ThemeIntegration\LibraryRuntimeStateBuilder.cs" />
     <Compile Include="..\..\source\Services\ThemeIntegration\SelectedGameRuntimeStateBuilder.cs" Link="Source\Services\ThemeIntegration\SelectedGameRuntimeStateBuilder.cs" />
@@ -613,6 +703,7 @@
     <Compile Include="..\..\source\Services\Capture\ToastOverlayTrack.cs" Link="Source\Services\Capture\ToastOverlayTrack.cs" />
     <Compile Include="..\..\source\Services\Capture\OverlayBlitMath.cs" Link="Source\Services\Capture\OverlayBlitMath.cs" />
     <Compile Include="..\..\source\Services\Capture\FrameChromeImage.cs" Link="Source\Services\Capture\FrameChromeImage.cs" />
+    <Compile Include="..\..\source\Services\Capture\FrameChromeAnimation.cs" Link="Source\Services\Capture\FrameChromeAnimation.cs" />
     <Compile Include="..\..\source\Services\Capture\FramedClipTiming.cs" Link="Source\Services\Capture\FramedClipTiming.cs" />
     <Compile Include="..\..\source\Services\Capture\StaticNv12Overlay.cs" Link="Source\Services\Capture\StaticNv12Overlay.cs" />
     <Compile Include="..\..\source\Services\Capture\ToastOverlayExportMath.cs" Link="Source\Services\Capture\ToastOverlayExportMath.cs" />
@@ -631,10 +722,61 @@
     <Compile Include="..\..\source\Services\UI\GameWindowRanking.cs" Link="Source\Services\UI\GameWindowRanking.cs" />
     <Compile Include="..\..\source\Services\UI\AchievementHotkeyTargetResolver.cs" Link="Source\Services\UI\AchievementHotkeyTargetResolver.cs" />
     <Compile Include="..\..\source\Services\UI\AchievementToastTemplateResolver.cs" Link="Source\Services\UI\AchievementToastTemplateResolver.cs" />
+    <Compile Include="..\..\source\Services\UI\XamlTemplateSanitizer.cs" Link="Source\Services\UI\XamlTemplateSanitizer.cs" />
+    <Compile Include="..\..\source\Common\PortablePackage.cs" Link="Source\Common\PortablePackage.cs" />
     <Compile Include="..\..\source\Services\UI\UnlockSoundResolver.cs" Link="Source\Services\UI\UnlockSoundResolver.cs" />
+    <Compile Include="..\..\source\Services\Sound\UnlockSoundPortableStore.cs" Link="Source\Services\Sound\UnlockSoundPortableStore.cs" />
+    <Compile Include="..\..\source\Services\Workshop\BundlePortableStore.cs" Link="Source\Services\Workshop\BundlePortableStore.cs" />
+    <Compile Include="..\..\source\Services\Workshop\ColorPackPortableStore.cs" Link="Source\Services\Workshop\ColorPackPortableStore.cs" />
+    <Compile Include="..\..\source\Services\Workshop\PackagePresetStore.cs" Link="Source\Services\Workshop\PackagePresetStore.cs" />
+    <Compile Include="..\..\source\Views\Controls\GlyphIcon.cs" Link="Source\Views\Controls\GlyphIcon.cs" />
+    <Compile Include="..\..\source\Common\HttpClientFactory.cs" Link="Source\Common\HttpClientFactory.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopModels.cs" Link="Source\Services\Workshop\WorkshopModels.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopClient.cs" Link="Source\Services\Workshop\WorkshopClient.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopIdentityStore.cs" Link="Source\Services\Workshop\WorkshopIdentityStore.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopBaselineStore.cs" Link="Source\Services\Workshop\WorkshopBaselineStore.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopGameMatcher.cs" Link="Source\Services\Workshop\WorkshopGameMatcher.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopSubmissionClient.cs" Link="Source\Services\Workshop\WorkshopSubmissionClient.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopStatsClient.cs" Link="Source\Services\Workshop\WorkshopStatsClient.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopStatsStore.cs" Link="Source\Services\Workshop\WorkshopStatsStore.cs" />
+    <Compile Include="..\..\source\ViewModels\Workshop\WorkshopItemViewModel.cs" Link="Source\ViewModels\Workshop\WorkshopItemViewModel.cs" />
+    <Compile Include="..\..\source\Services\Workshop\GameCustomDataThreeWayMerge.cs" Link="Source\Services\Workshop\GameCustomDataThreeWayMerge.cs" />
+    <Compile Include="..\..\source\Services\Workshop\Preview\GameCustomDataPreviewDiff.cs" Link="Source\Services\Workshop\Preview\GameCustomDataPreviewDiff.cs" />
+    <Compile Include="..\..\source\Services\Workshop\Preview\GameCustomDataPreviewDiffBuilder.cs" Link="Source\Services\Workshop\Preview\GameCustomDataPreviewDiffBuilder.cs" />
+    <Compile Include="..\..\source\Services\Workshop\Preview\GameCustomDataPreviewSource.cs" Link="Source\Services\Workshop\Preview\GameCustomDataPreviewSource.cs" />
+    <Compile Include="..\..\source\Services\Workshop\Preview\WorkshopPreviewContext.cs" Link="Source\Services\Workshop\Preview\WorkshopPreviewContext.cs" />
+    <Compile Include="..\..\source\Services\Workshop\Preview\WorkshopPreviewModel.cs" Link="Source\Services\Workshop\Preview\WorkshopPreviewModel.cs" />
+    <Compile Include="..\..\source\Services\Workshop\Preview\WorkshopPreviewModelBuilder.cs" Link="Source\Services\Workshop\Preview\WorkshopPreviewModelBuilder.cs" />
+    <Compile Include="..\..\source\Services\Library\JsonThreeWayMerge.cs" Link="Source\Services\Library\JsonThreeWayMerge.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryModels.cs" Link="Source\Services\Library\LibraryModels.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryStore.cs" Link="Source\Services\Library\LibraryStore.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryMigration.cs" Link="Source\Services\Library\LibraryMigration.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryFolderMigration.cs" Link="Source\Services\Library\LibraryFolderMigration.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryTargetKeys.cs" Link="Source\Services\Library\LibraryTargetKeys.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryTargetNavigation.cs" Link="Source\Services\Library\LibraryTargetNavigation.cs" />
+    <Compile Include="..\..\source\Models\Settings\SettingsNavigationRequest.cs" Link="Source\Models\Settings\SettingsNavigationRequest.cs" />
+    <Compile Include="..\..\source\Models\Settings\NotificationSurface.cs" Link="Source\Models\Settings\NotificationSurface.cs" />
+    <Compile Include="..\..\source\Services\Library\GameLinkStore.cs" Link="Source\Services\Library\GameLinkStore.cs" />
+    <Compile Include="..\..\source\Services\Library\GameDataLinkService.cs" Link="Source\Services\Library\GameDataLinkService.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryBaselineStore.cs" Link="Source\Services\Library\LibraryBaselineStore.cs" />
+    <Compile Include="..\..\source\Services\Library\ILibraryAdapter.cs" Link="Source\Services\Library\ILibraryAdapter.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryApplyService.cs" Link="Source\Services\Library\LibraryApplyService.cs" />
+    <Compile Include="..\..\source\Services\Library\ColorsLibraryAdapter.cs" Link="Source\Services\Library\ColorsLibraryAdapter.cs" />
+    <Compile Include="..\..\source\Services\Library\SoundsLibraryAdapter.cs" Link="Source\Services\Library\SoundsLibraryAdapter.cs" />
+    <Compile Include="..\..\source\Services\Library\SoundsLibraryTargets.cs" Link="Source\Services\Library\SoundsLibraryTargets.cs" />
+    <Compile Include="..\..\source\Services\Sound\UnlockSoundScope.cs" Link="Source\Services\Sound\UnlockSoundScope.cs" />
+    <Compile Include="..\..\source\Services\Library\ILibraryPackageFolder.cs" Link="Source\Services\Library\ILibraryPackageFolder.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryUpdateService.cs" Link="Source\Services\Library\LibraryUpdateService.cs" />
+    <Compile Include="..\..\source\Services\Library\LibraryFileTokens.cs" Link="Source\Services\Library\LibraryFileTokens.cs" />
+    <Compile Include="..\..\source\Services\Library\ILibraryTargetResolver.cs" Link="Source\Services\Library\ILibraryTargetResolver.cs" />
+    <Compile Include="..\..\source\Services\Library\NotificationStyleLibraryAdapter.cs" Link="Source\Services\Library\NotificationStyleLibraryAdapter.cs" />
+    <Compile Include="..\..\source\Services\Library\NotificationLibraryTargets.cs" Link="Source\Services\Library\NotificationLibraryTargets.cs" />
+    <Compile Include="..\..\source\Services\Library\ShowcaseLibraryAdapter.cs" Link="Source\Services\Library\ShowcaseLibraryAdapter.cs" />
+    <Compile Include="..\..\source\Services\Notifications\NotificationStyleScope.cs" Link="Source\Services\Notifications\NotificationStyleScope.cs" />
     <Compile Include="..\..\source\Services\Sound\SoundHostProtocol.cs" Link="Source\Services\Sound\SoundHostProtocol.cs" />
     <Compile Include="..\..\source\Services\Sound\SoundHostRestartPolicy.cs" Link="Source\Services\Sound\SoundHostRestartPolicy.cs" />
     <Compile Include="..\..\source\Services\UI\PlayAchResourceService.cs" Link="Source\Services\UI\PlayAchResourceService.cs" />
+    <Compile Include="..\..\source\Services\UI\PlayAchRuntimeResources.cs" Link="Source\Services\UI\PlayAchRuntimeResources.cs" />
     <Compile Include="..\..\source\Services\UI\ProviderNotificationPolicy.cs" Link="Source\Services\UI\ProviderNotificationPolicy.cs" />
     <Compile Include="..\..\source\Services\UI\ScreenshotFrameCompositor.cs" Link="Source\Services\UI\ScreenshotFrameCompositor.cs" />
     <Compile Include="..\..\source\Services\UI\ScreenshotVariants.cs" Link="Source\Services\UI\ScreenshotVariants.cs" />
@@ -642,6 +784,7 @@
     <Compile Include="..\..\source\Services\UI\UnlockScreenshotVariantPolicy.cs" Link="Source\Services\UI\UnlockScreenshotVariantPolicy.cs" />
     <Compile Include="..\..\source\Services\UI\UnlockClipVariantPolicy.cs" Link="Source\Services\UI\UnlockClipVariantPolicy.cs" />
     <Compile Include="..\..\source\Services\UI\ToastWindowPlacer.cs" Link="Source\Services\UI\ToastWindowPlacer.cs" />
+    <Compile Include="..\..\source\Services\UI\ToastMotionStoryboardFactory.cs" Link="Source\Services\UI\ToastMotionStoryboardFactory.cs" />
     <Compile Include="..\..\source\Services\UI\UnlockScreenshotService.cs" Link="Source\Services\UI\UnlockScreenshotService.cs" />
     <Compile Include="..\..\source\Providers\Local\LocalSettings.cs" Link="Source\Providers\Local\LocalSettings.cs" />
     <Compile Include="..\..\source\Services\Local\LocalAchievementScreenshotService.cs" Link="Source\Services\Local\LocalAchievementScreenshotService.cs" />
@@ -653,6 +796,14 @@
     </Reference>
     <Reference Include="SQLNado">
       <HintPath>..\..\source\packages\SQLNado.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="SharpDX">
+      <HintPath>..\..\source\packages\SharpDX.4.2.0\lib\net45\SharpDX.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="SharpDX.MediaFoundation">
+      <HintPath>..\..\source\packages\SharpDX.MediaFoundation.4.2.0\lib\net45\SharpDX.MediaFoundation.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>
@@ -668,6 +819,12 @@
 
   <ItemGroup>
     <None Include="Fixtures\Steam\*.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Fixtures\Steam\Achievements\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Fixtures\Webm\*.webm">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <Content Include="..\..\source\Resources\UnlockedAchIcon.png" Link="Resources\UnlockedAchIcon.png">

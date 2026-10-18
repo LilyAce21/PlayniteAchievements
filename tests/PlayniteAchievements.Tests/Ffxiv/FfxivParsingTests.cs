@@ -6,62 +6,31 @@ namespace PlayniteAchievements.Ffxiv.Tests
     [TestClass]
     public class FfxivParsingTests
     {
-        // The Lodestone search is a partial match: searching "Mal Reynolds" returns
-        // "Malynor Reynolds" as the first result, then the exact "Mal Reynolds".
-        // The "{NBSP}" placeholder stands in for the non-breaking space the Lodestone
-        // inserts between the world and data center.
-        private const string SearchHtmlTemplate = @"
-<html><body>
-  <div class=""entry"">
-    <a href=""/lodestone/character/4602717/"" class=""entry__link"">
-      <p class=""entry__name"">Malynor Reynolds</p>
-      <p class=""entry__world""><i class=""xiv-lds""></i>Gilgamesh [Aether]</p>
-    </a>
-  </div>
-  <div class=""entry"">
-    <a href=""/lodestone/character/1681647/"" class=""entry__link"">
-      <p class=""entry__name"">Mal Reynolds</p>
-      <p class=""entry__world""><i class=""xiv-lds""></i>Gilgamesh{NBSP}[Aether]</p>
-    </a>
-  </div>
-</body></html>";
-
-        private static string SearchHtml => SearchHtmlTemplate.Replace("{NBSP}", " ");
-
-        [TestMethod]
-        public void ParseLodestoneCharacterId_PicksExactNameMatch_NotFirstPartialResult()
+        [DataTestMethod]
+        [DataRow("62541805")]
+        [DataRow("  62541805  ")]
+        [DataRow("https://na.finalfantasyxiv.com/lodestone/character/62541805/")]
+        [DataRow("https://eu.finalfantasyxiv.com/lodestone/character/62541805")]
+        [DataRow("na.finalfantasyxiv.com/lodestone/character/62541805/achievement/")]
+        [DataRow("https://ffxivcollect.com/characters/62541805")]
+        [DataRow("https://ffxivcollect.com/characters/62541805/achievements?x=1")]
+        public void ParseCharacterId_ReadsIdFromUrlOrBareId(string input)
         {
-            var id = FfxivParsing.ParseLodestoneCharacterId(SearchHtml, "Mal Reynolds", "Gilgamesh");
-            Assert.AreEqual(1681647L, id);
+            Assert.AreEqual(62541805L, FfxivParsing.ParseCharacterId(input));
         }
 
-        [TestMethod]
-        public void ParseLodestoneCharacterId_IsCaseInsensitive_AndHandlesNonBreakingSpaceWorld()
+        [DataTestMethod]
+        [DataRow(null)]
+        [DataRow("")]
+        [DataRow("   ")]
+        [DataRow("Aeron Riusone")]
+        [DataRow("0")]
+        [DataRow("-5")]
+        [DataRow("https://ffxivcollect.com/characters")]
+        [DataRow("https://ffxivcollect.com/characters/62541805abc")]
+        public void ParseCharacterId_ReturnsNull_WithoutAnId(string input)
         {
-            var id = FfxivParsing.ParseLodestoneCharacterId(SearchHtml, "mal reynolds", "gilgamesh");
-            Assert.AreEqual(1681647L, id);
-        }
-
-        [TestMethod]
-        public void ParseLodestoneCharacterId_ReturnsNull_WhenWorldDoesNotMatch()
-        {
-            var id = FfxivParsing.ParseLodestoneCharacterId(SearchHtml, "Mal Reynolds", "Faerie");
-            Assert.IsNull(id);
-        }
-
-        [TestMethod]
-        public void ParseLodestoneCharacterId_ReturnsNull_WhenNameIsOnlyAPartialMatch()
-        {
-            var id = FfxivParsing.ParseLodestoneCharacterId(SearchHtml, "Mal", "Gilgamesh");
-            Assert.IsNull(id);
-        }
-
-        [TestMethod]
-        public void ParseLodestoneCharacterId_ReturnsNull_ForEmptyOrMissingInput()
-        {
-            Assert.IsNull(FfxivParsing.ParseLodestoneCharacterId(string.Empty, "Mal Reynolds", "Gilgamesh"));
-            Assert.IsNull(FfxivParsing.ParseLodestoneCharacterId(SearchHtml, "", "Gilgamesh"));
-            Assert.IsNull(FfxivParsing.ParseLodestoneCharacterId("<html></html>", "Mal Reynolds", "Gilgamesh"));
+            Assert.IsNull(FfxivParsing.ParseCharacterId(input));
         }
 
         [DataTestMethod]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Friends;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.ViewModels;
@@ -27,6 +28,12 @@ namespace PlayniteAchievements.Services.Overview
         /// starts needing the pool triggers a rebuild off this flag.
         /// </summary>
         public bool UnlockNextPoolBuilt { get; set; }
+
+        /// <summary>
+        /// Whether this snapshot was cut to the unlocks an achievement filter keeps, so its
+        /// achievement totals count those unlocks only and it holds no locked remainder.
+        /// </summary>
+        public bool IsAchievementClip { get; set; }
 
         /// <summary>
         /// Every achievement pin (see <see cref="AchievementPinKey"/>) the build considered when it
@@ -116,6 +123,36 @@ namespace PlayniteAchievements.Services.Overview
         public double PrestigeLevelProgress { get; set; }
         public string PrestigeRank { get; set; } = "Bronze5";
 
+        // Points totals per points family (see PointsFamilies): unlocked provider points earned,
+        // and the points of every achievement in the family's games.
+        public PlatformScoreTotals PointsTotals { get; private set; } = new PlatformScoreTotals();
+
+        public int GamerscoreScore => PointsTotals.Gamerscore;
+
+        public int EpicXpScore => PointsTotals.EpicXp;
+
+        public int RetroPointsScore => PointsTotals.RetroPoints;
+
+        /// <summary>The raw score a card type shows.</summary>
+        public int GetScore(ScoreCardType type)
+        {
+            if (type.IsPrestige)
+            {
+                return PrestigeScore;
+            }
+
+            return type.IsPoints ? PointsTotals.Get(type) : CollectorScore;
+        }
+
+        /// <summary>A points card's possible points: every achievement in its games. 0 for Collection and Prestige.</summary>
+        public int GetPossibleScore(ScoreCardType type) => PointsTotals.GetPossible(type);
+
+        /// <summary>Sets the points totals per family.</summary>
+        public void ApplyPlatformScores(PlatformScoreTotals totals)
+        {
+            PointsTotals = totals ?? new PlatformScoreTotals();
+        }
+
         /// <summary>
         /// Unlocked achievements per provider (for provider distribution pie chart).
         /// </summary>
@@ -188,6 +225,24 @@ namespace PlayniteAchievements.Services.Overview
         }
 
         /// <summary>
+        /// Builds a snapshot holding only the game-summary totals of <paramref name="games"/>, for
+        /// pie charts drawn over a filtered game list. The scores are left at zero; no pie reads them.
+        /// </summary>
+        public static OverviewDataSnapshot FromGameSummaries(IReadOnlyList<GameSummaryItem> games)
+        {
+            var list = games ?? Array.Empty<GameSummaryItem>();
+            var snapshot = new OverviewDataSnapshot
+            {
+                Achievements = new List<AchievementDisplayItem>(),
+                GameSummaries = new List<GameSummaryItem>(list),
+                UnlockedByProvider = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                TotalByProvider = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            };
+            snapshot.ApplyGameSummaryTotals(list, addClamped: null);
+            return snapshot;
+        }
+
+        /// <summary>
         /// Applies every total derived from the game summaries in one pass: counts, rarity,
         /// completions, trophies, the two per-provider maps, and the raw collector and prestige
         /// scores.
@@ -222,6 +277,7 @@ namespace PlayniteAchievements.Services.Overview
             PossibleCompletions = 0;
             CollectorScore = 0;
             PrestigeScore = 0;
+            var platformScores = addClamped != null ? new PlatformScoreTotals() : null;
             TotalPlatinum = 0;
             TotalGold = 0;
             TotalSilver = 0;
@@ -292,7 +348,13 @@ namespace PlayniteAchievements.Services.Overview
                 {
                     CollectorScore = addClamped(CollectorScore, game.CollectionScore);
                     PrestigeScore = addClamped(PrestigeScore, game.PrestigeScore);
+                    platformScores.AddToFamily(game.PointsFamily, game.PlatformScorePoints, game.PlatformScorePointsTotal);
                 }
+            }
+
+            if (platformScores != null)
+            {
+                ApplyPlatformScores(platformScores);
             }
 
             TotalLocked = Math.Max(0, TotalAchievements - TotalUnlocked);

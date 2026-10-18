@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using PlayniteAchievements.Common;
+using PlayniteAchievements.Models.Settings;
 
 namespace PlayniteAchievements.Services.UI
 {
@@ -283,6 +284,36 @@ namespace PlayniteAchievements.Services.UI
         /// awareness does not virtualize it. Returns false (and 0) whenever the rate can't be trusted,
         /// leaving callers on their own defaults.
         /// </summary>
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc callback, IntPtr data);
+
+        private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
+
+        /// <summary>The highest refresh rate among the connected monitors, or 0 when none can be read.</summary>
+        public static int MaxMonitorRefreshHz()
+        {
+            var max = 0;
+            try
+            {
+                EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (monitor, hdc, rect, data) =>
+                {
+                    if (TryGetRefreshHz(monitor, out var hz) && hz > max)
+                    {
+                        max = hz;
+                    }
+
+                    return true;
+                }, IntPtr.Zero);
+            }
+            catch
+            {
+                // No monitor read: the caller keeps WPF's default.
+            }
+
+            return max;
+        }
+
         public static bool TryGetMonitorRefreshHz(IntPtr windowHandle, out int hz)
         {
             hz = 0;
@@ -293,12 +324,24 @@ namespace PlayniteAchievements.Services.UI
 
             try
             {
-                var monitor = MonitorFromWindow(windowHandle, MONITOR_DEFAULTTONEAREST);
-                if (monitor == IntPtr.Zero)
-                {
-                    return false;
-                }
+                return TryGetRefreshHz(MonitorFromWindow(windowHandle, MONITOR_DEFAULTTONEAREST), out hz);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
+        private static bool TryGetRefreshHz(IntPtr monitor, out int hz)
+        {
+            hz = 0;
+            if (monitor == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            try
+            {
                 var info = new MONITORINFOEX { cbSize = Marshal.SizeOf(typeof(MONITORINFOEX)) };
                 if (!GetMonitorInfoEx(monitor, ref info) || string.IsNullOrEmpty(info.szDevice))
                 {
@@ -447,13 +490,14 @@ namespace PlayniteAchievements.Services.UI
             Rectangle gameClientPhys,
             double renderScale,
             double monitorScale,
-            bool alignRight,
+            ToastHorizontalAlignment horizontal,
             bool alignBottom,
             double gapDipX,
             double gapDipY,
             out int x,
             out int y,
-            out bool clamped)
+            out bool clamped,
+            FrameworkElement slideHost = null)
         {
             x = 0;
             y = 0;
@@ -469,7 +513,7 @@ namespace PlayniteAchievements.Services.UI
             // the window would place the padding at the corner and push the card inward by the travel.
             // Falls back to the window's own size before layout, where the two are the same thing.
             if (!TryMeasureCardPhysical(window, card, renderScale, slideDipX, slideDipY,
-                    out var insetX, out var insetY, out var physW, out var physH))
+                    out var insetX, out var insetY, out var physW, out var physH, slideHost))
             {
                 insetX = 0;
                 insetY = 0;
@@ -490,7 +534,7 @@ namespace PlayniteAchievements.Services.UI
             }
 
             ComputeCorner(
-                gameClientPhys, physW, physH, monitorScale, alignRight, alignBottom,
+                gameClientPhys, physW, physH, monitorScale, horizontal, alignBottom,
                 gapDipX, gapDipY, out x, out y);
 
             // A negative gap is deliberate: with the card's border glow on, the window hangs past the
@@ -527,7 +571,15 @@ namespace PlayniteAchievements.Services.UI
         /// The slide transform's current value (window DIPs), removed from the measurement so this
         /// always reports the card's <em>resting</em> offset. Without it a placement pass that lands
         /// mid-slide would read the animated position as the inset and move the window to chase the
-        /// animation, doubling the motion. Zero when no slide is running.
+        /// animation, doubling the motion. Zero when no slide is running. Ignored when
+        /// <paramref name="slideHost"/> is given, which removes the slide along with the rest of the
+        /// host's transform.
+        /// </param>
+        /// <param name="slideHost">
+        /// The element whose render transform carries the toast's entrance and exit motion, or null.
+        /// When given, its whole render transform is removed from the measurement, so a pass that
+        /// lands mid-zoom reads the card at full size rather than scaled, which would place the window
+        /// off by the scaled-away margin and snap it back when the zoom ends.
         /// </param>
         public static bool TryMeasureCardPhysical(
             Window window,
@@ -538,7 +590,8 @@ namespace PlayniteAchievements.Services.UI
             out int offsetX,
             out int offsetY,
             out int physW,
-            out int physH)
+            out int physH,
+            FrameworkElement slideHost = null)
         {
             offsetX = 0;
             offsetY = 0;
@@ -570,7 +623,18 @@ namespace PlayniteAchievements.Services.UI
                     return false;
                 }
 
-                var bounds = card.TransformToAncestor(window).TransformBounds(new Rect(card.RenderSize));
+                Rect bounds;
+                if (TryMeasureAtRest(window, card, slideHost, out var restBounds))
+                {
+                    bounds = restBounds;
+                    slideDipX = 0d;
+                    slideDipY = 0d;
+                }
+                else
+                {
+                    bounds = card.TransformToAncestor(window).TransformBounds(new Rect(card.RenderSize));
+                }
+
                 if (bounds.Width <= 0 || bounds.Height <= 0)
                 {
                     return false;
@@ -588,6 +652,46 @@ namespace PlayniteAchievements.Services.UI
                 // or a template swap between passes); the window-sized fallback is correct there.
                 return false;
             }
+        }
+
+        /// <summary>
+        /// The card's bounds in window DIPs with <paramref name="slideHost"/>'s render transform
+        /// removed: the card is measured inside the host, then carried to the window by the host's
+        /// layout placement alone. False when there is no host or its transform cannot be undone, and
+        /// the caller measures through the transform as before.
+        /// </summary>
+        private static bool TryMeasureAtRest(Window window, FrameworkElement card, FrameworkElement slideHost, out Rect bounds)
+        {
+            bounds = Rect.Empty;
+            if (slideHost == null || !slideHost.IsAncestorOf(card) || !window.IsAncestorOf(slideHost))
+            {
+                return false;
+            }
+
+            if (!(slideHost.TransformToAncestor(window) is Transform hostToWindow))
+            {
+                return false;
+            }
+
+            // The render transform as WPF applies it: about RenderTransformOrigin, in the host's own
+            // coordinates.
+            var origin = new System.Windows.Point(
+                slideHost.RenderTransformOrigin.X * slideHost.RenderSize.Width,
+                slideHost.RenderTransformOrigin.Y * slideHost.RenderSize.Height);
+            var render = Matrix.Identity;
+            render.Translate(-origin.X, -origin.Y);
+            render.Append(slideHost.RenderTransform?.Value ?? Matrix.Identity);
+            render.Translate(origin.X, origin.Y);
+            if (!render.HasInverse)
+            {
+                return false;
+            }
+
+            render.Invert();
+            var layoutOnly = render * hostToWindow.Value;
+            var inHost = card.TransformToAncestor(slideHost).TransformBounds(new Rect(card.RenderSize));
+            bounds = Rect.Transform(inHost, layoutOnly);
+            return true;
         }
 
         /// <summary>
@@ -637,7 +741,8 @@ namespace PlayniteAchievements.Services.UI
         /// Pure corner math, shared between live window placement and the per-item screenshot/clip
         /// composites: the top-left of a box of the given physical size placed at the requested
         /// corner of the client rect, inset by <paramref name="gapDipX"/> and
-        /// <paramref name="gapDipY"/> scaled to the monitor.
+        /// <paramref name="gapDipY"/> scaled to the monitor. A centered box ignores
+        /// <paramref name="gapDipX"/>: it sits against neither horizontal edge.
         ///
         /// The two axes are separate because the gap is derived from the transparent room the card
         /// reserves on the edge it sits against, and a template's root margin need not be uniform.
@@ -647,7 +752,7 @@ namespace PlayniteAchievements.Services.UI
             int physW,
             int physH,
             double monitorScale,
-            bool alignRight,
+            ToastHorizontalAlignment horizontal,
             bool alignBottom,
             double gapDipX,
             double gapDipY,
@@ -657,7 +762,19 @@ namespace PlayniteAchievements.Services.UI
             var scale = monitorScale > 0 ? monitorScale : 1.0;
             var gapX = (int)Math.Round(gapDipX * scale);
             var gapY = (int)Math.Round(gapDipY * scale);
-            x = alignRight ? gameClientPhys.Right - physW - gapX : gameClientPhys.Left + gapX;
+            switch (horizontal)
+            {
+                case ToastHorizontalAlignment.Right:
+                    x = gameClientPhys.Right - physW - gapX;
+                    break;
+                case ToastHorizontalAlignment.Center:
+                    x = gameClientPhys.Left + ((gameClientPhys.Width - physW) / 2);
+                    break;
+                default:
+                    x = gameClientPhys.Left + gapX;
+                    break;
+            }
+
             y = alignBottom ? gameClientPhys.Bottom - physH - gapY : gameClientPhys.Top + gapY;
         }
 
@@ -675,7 +792,9 @@ namespace PlayniteAchievements.Services.UI
             out int y)
         {
             ComputeCorner(
-                gameClientPhys, physW, physH, monitorScale, alignRight, alignBottom,
+                gameClientPhys, physW, physH, monitorScale,
+                alignCenterHorizontally ? ToastHorizontalAlignment.Center :
+                    (alignRight ? ToastHorizontalAlignment.Right : ToastHorizontalAlignment.Left), alignBottom,
                 gapDipX, gapDipY, out x, out y);
             if (alignCenterHorizontally)
             {
@@ -794,6 +913,9 @@ namespace PlayniteAchievements.Services.UI
         /// it after the window currently above the game (skipping the toast itself). When nothing is
         /// above the game it goes to the top of the game's band — matching the game's topmost-ness,
         /// since a non-topmost window can never sit above a topmost (e.g. fullscreen) game window.
+        /// <paramref name="gameHwnd"/> is the game's presentation window
+        /// (<see cref="ActiveGameWindowTracker.ResolvePresentationWindow"/>), which can be a layer
+        /// the game stacks above its focus window.
         /// </summary>
         public static bool SetZOrderAbove(Window window, IntPtr gameHwnd)
         {
@@ -857,19 +979,20 @@ namespace PlayniteAchievements.Services.UI
             Rectangle gameClientPhys,
             double renderScale,
             double monitorScale,
-            bool alignRight,
+            ToastHorizontalAlignment horizontal,
             bool alignBottom,
             double gapDipX,
             double gapDipY,
             bool measure,
             ref PlacementCorrection correction,
-            out PlacementOutcome outcome)
+            out PlacementOutcome outcome,
+            FrameworkElement slideHost = null)
         {
             outcome = default(PlacementOutcome);
             if (!TryComputeCorner(
                 window, card, slideDipX, slideDipY, gameClientPhys, renderScale, monitorScale,
-                alignRight, alignBottom, gapDipX, gapDipY,
-                out var x, out var y, out var clamped))
+                horizontal, alignBottom, gapDipX, gapDipY,
+                out var x, out var y, out var clamped, slideHost))
             {
                 return false;
             }

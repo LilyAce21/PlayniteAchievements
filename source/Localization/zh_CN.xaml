@@ -11,7 +11,7 @@
     <!-- 02 Core and Common Text -->
     <!-- ================================================================= -->
     <sys:String x:Key="LOCPlayAch_Achievements">成就</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Add">Add</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Add">添加</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Action_ExcludeFromSummaries">从统计摘要中排除</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Action_IncludeInSummaries">包含在统计摘要中</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_ApplyToSelected">应用于所选</sys:String>
@@ -22,31 +22,31 @@
     <sys:String x:Key="LOCPlayAch_Common_Custom">自定义</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Transparent">透明</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Back">返回</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Color">Color</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Color">颜色</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Default">默认</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Delete">Delete</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Delete">删除</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_DeselectAll">取消全选</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Descending">降序</sys:String>
     <!-- Common_Desktop / Common_Fullscreen: bare names of Playnite's two modes (and their themes) -->
-    <sys:String x:Key="LOCPlayAch_Common_Desktop">Desktop</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Duplicate">Duplicate</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Desktop">桌面</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Duplicate">复制</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Edit">编辑</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Enabled">已启用</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_FilterAchievementsPlaceholder">搜索成就...</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Fullscreen">Fullscreen</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_FilterAchievementsPlaceholder">筛选成就……</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Fullscreen">全屏</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_General">常规</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Hide">隐藏</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Import">Import</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Label_ApiKey">API Key</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Import">导入</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Label_ApiKey">API 密钥</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Label_Category">分类</sys:String>
     <!-- Granularity: bar width of the unlocks-over-time chart; the options follow the label -->
-    <sys:String x:Key="LOCPlayAch_Common_Label_Granularity">Granularity</sys:String>
-    <sys:String x:Key="LOCPlayAch_Granularity_Day">Day</sys:String>
-    <sys:String x:Key="LOCPlayAch_Granularity_Week">Week</sys:String>
-    <sys:String x:Key="LOCPlayAch_Granularity_Month">Month</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Label_Level">Level</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Label_Granularity">颗粒度</sys:String>
+    <sys:String x:Key="LOCPlayAch_Granularity_Day">日</sys:String>
+    <sys:String x:Key="LOCPlayAch_Granularity_Week">周</sys:String>
+    <sys:String x:Key="LOCPlayAch_Granularity_Month">月</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Label_Level">等级</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Label_Platform">平台</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Label_Platforms">Platforms</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Label_Platforms">平台</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Label_Playtime">运行时间</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Label_Region">区域</sys:String>
     <sys:String x:Key="LOCPlayAch_Region_NorthAmerica">北美</sys:String>
@@ -63,19 +63,19 @@
     <sys:String x:Key="LOCPlayAch_NoAchievementsMessageAlt">此游戏可能不支持成就，或成就数据在此平台上不可用。</sys:String>
     <sys:String x:Key="LOCPlayAch_NoAchievementsTitle">未发现成就</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_NotAuthenticated">未认证</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Redo">Redo</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Reorder">Reorder</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Redo">重做</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Reorder">重排</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_ResetSelected">重置已选</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_SelectAll">全选</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_SelectedCountFormat">{0:N0}已选择</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_SetLabelEllipsis">设置标签...</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_SetLabelEllipsis">设置标签……</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Status_Disabled">已禁用</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Status_Linked">已链接</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_None">无</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Both">Both</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Status_NoOverrideSet">未设置覆盖</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Status_NotLinked">未链接</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Undo">Undo</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Undo">撤销</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Unknown">未知</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Unlocked">已解锁</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_UnlockedCount">已解锁数量</sys:String>
@@ -89,13 +89,13 @@
     <sys:String x:Key="LOCPlayAch_Common_Date_OneYearAgo">1 年前</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Date_YearsAgo">{0} 年前</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Validation_NonNegativeInteger">输入大于等于 0 的整数，或留空。</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Validation_InvalidDateTime">Enter a valid date, or leave blank.</sys:String>
-    <sys:String x:Key="LOCPlayAch_Common_Validation_DateRangeOrder">The start date must be on or before the end date.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Validation_InvalidDateTime">输入有效的日期，或留空。</sys:String>
+    <sys:String x:Key="LOCPlayAch_Common_Validation_DateRangeOrder">起始日期必须早于或与结束日期相同。</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_View">查看</sys:String>
     <sys:String x:Key="LOCPlayAch_Completed">已完成</sys:String>
     <!-- DateRange: tooltips of the From/To date pickers -->
-    <sys:String x:Key="LOCPlayAch_DateRange_From">From</sys:String>
-    <sys:String x:Key="LOCPlayAch_DateRange_To">To</sys:String>
+    <sys:String x:Key="LOCPlayAch_DateRange_From">自</sys:String>
+    <sys:String x:Key="LOCPlayAch_DateRange_To">至</sys:String>
     <sys:String x:Key="LOCPlayAch_Format_Counts">{0}/{1}</sys:String>
     <sys:String x:Key="LOCPlayAch_Format_Pair">{0} · {1}</sys:String>
     <sys:String x:Key="LOCPlayAch_Presets_ApplyConfirm">Apply preset &quot;{0}&quot;? This replaces this tab's appearance for the current selection, including any custom template.</sys:String>
@@ -216,6 +216,7 @@
     <sys:String x:Key="LOCPlayAch_Provider_GameJolt">Game Jolt</sys:String>
     <sys:String x:Key="LOCPlayAch_Provider_GooglePlay">Google Play</sys:String>
     <sys:String x:Key="LOCPlayAch_Provider_Hoyoverse">HoYoverse</sys:String>
+    <sys:String x:Key="LOCPlayAch_Provider_Hypixel">Hypixel</sys:String>
     <sys:String x:Key="LOCPlayAch_Provider_Manual">手动</sys:String>
     <sys:String x:Key="LOCPlayAch_Provider_PSN">PlayStation</sys:String>
     <sys:String x:Key="LOCPlayAch_Provider_RetroAchievements">RetroAchievements</sys:String>
@@ -347,6 +348,7 @@
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_Hidden">Hidden</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_ImportSummary">Imported {0} rows ({1} added, {2} updated).</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_LockedIcon">Locked Icon</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_NewAchievementName">New Achievement {0}</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_NoImportRows">No importable achievements were found.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_NoSelection">Select a custom achievement row.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Custom_ProgressDenom">Progress Total</sys:String>
@@ -654,6 +656,10 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_EnableAutoCapstoneGeneration_Description">After a game refreshes, gives it an auto capstone once if it has no capstone yet. Turning this off stops new ones and keeps existing capstones.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneGeneration_ApplyToExisting">Also add auto capstones to games already in your library?</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneGeneration_Progress">Adding auto capstones...</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneText_Hint">The text new auto capstones get. {0} is the game's name and {1} the category's. Apply updates existing auto capstones still on default text; ones whose title or description you edited keep it.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneText_ApplyConfirm">Update every auto capstone still on default text to these templates? Capstones whose title or description you edited keep their text.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneText_Progress">Updating auto capstone text...</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_AutoCapstoneText_TemplateInvalid">Not a valid template. Use {0} for the game and {1} for the category, and double braces for literal ones.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_EnableFriendsFeatures">启用好友功能</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_EnableFriendsFeatures_Description">禁用后将隐藏所有好友相关设置、好友概览和好友成就菜单。</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_EnableUnlockToasts">显示成就解锁通知</sys:String>
@@ -1041,6 +1047,12 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_GW2_NoDatesNote">Guild Wars 2 does not record when an achievement was earned and publishes no completion rates, so Guild Wars 2 achievements show no unlock date and no rarity.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_GW2_ApiKey_Help">The key is a long hyphenated code. It is stored in the plugin settings in readable form and sent only to api.guildwars2.com. It is not your password, it can only read, and you can delete it at any time on the same page you created it.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_GW2_MissingProgression">The key is valid but lacks the progression permission. Create a new key with progression ticked.</sys:String>
+
+    <!-- Provider: Hypixel -->
+    <sys:String x:Key="LOCPlayAch_Settings_Hypixel_NoDatesNote">Achievements are read from your public Hypixel profile. Hypixel does not record when an achievement was earned, so Hypixel achievements show no unlock date.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_Hypixel_PlayerNotFound">No Hypixel player found with that username.</sys:String>
+    <!-- Hypixel_Unavailable: leave the domain "hypixel.net" untranslated. -->
+    <sys:String x:Key="LOCPlayAch_Settings_Hypixel_Unavailable">hypixel.net could not be reached to look up the player. Try again later.</sys:String>
 
     <!-- Provider: Riot -->
     <sys:String x:Key="LOCPlayAch_Settings_Riot_Help">Reading League of Legends Challenges uses Riot's official API, which needs a free API key tied to your Riot account. Riot publishes no per-player endpoint that works without one:</sys:String>

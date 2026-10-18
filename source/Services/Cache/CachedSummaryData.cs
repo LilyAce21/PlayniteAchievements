@@ -36,6 +36,9 @@ namespace PlayniteAchievements.Services.Cache
 
         public string ProviderPlatformKey { get; set; }
 
+        /// <summary>Where the game's rarity came from; null until a refresh records it.</summary>
+        public RaritySource? RaritySource { get; set; }
+
         public int AppId { get; set; }
 
         public string ProviderGameKey { get; set; }
@@ -59,6 +62,12 @@ namespace PlayniteAchievements.Services.Cache
         public int PrestigeScoreTotal { get; set; }
 
         public int Points { get; set; }
+
+        /// <summary>Unlocked points that count toward a platform score: RetroAchievements softcore unlocks are left out.</summary>
+        public int PlatformScorePoints { get; set; }
+
+        /// <summary>Points of every achievement, unlocked or not: the most <see cref="PlatformScorePoints"/> can reach.</summary>
+        public int PlatformScorePointsTotal { get; set; }
 
         public int CommonCount { get; set; }
 

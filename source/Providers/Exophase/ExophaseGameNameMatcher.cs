@@ -17,12 +17,16 @@ namespace PlayniteAchievements.Providers.Exophase
         public const int ExactMatchScore = 100;
 
         /// <summary>
-        /// Normalizes a game name for matching by trimming and removing a known edition suffix.
-        /// Case is preserved; downstream comparisons are case-insensitive.
+        /// Normalizes a game name for matching by removing trademark symbols (store titles such
+        /// as "Prince of Persia™: The Lost Crown" carry them; Exophase titles do not), collapsing
+        /// whitespace, and removing a known edition suffix. Case is preserved; downstream
+        /// comparisons are case-insensitive.
         /// </summary>
         public static string NormalizeGameName(string name)
         {
-            return GameNameNormalizer.StripEditionSuffix(name);
+            return GameNameNormalizer.StripEditionSuffix(
+                GameNameNormalizer.CollapseWhitespace(
+                    GameNameNormalizer.StripTrademarkSymbols(name)));
         }
 
         /// <summary>
@@ -193,6 +197,40 @@ namespace PlayniteAchievements.Providers.Exophase
             }
 
             return MapRegionLetter(normalized[2]);
+        }
+
+        /// <summary>
+        /// Maps a PS Vita title id to the Exophase region token its fourth letter encodes:
+        /// PCSA/PCSE -> na, PCSB/PCSF -> eu, PCSC/PCSG -> jp, PCSD/PCSH -> as.
+        /// Null for anything else.
+        /// </summary>
+        public static string MapVitaTitleIdToRegionHint(string titleId)
+        {
+            var normalized = titleId?.Trim();
+            if (string.IsNullOrWhiteSpace(normalized) ||
+                normalized.Length != 9 ||
+                !normalized.StartsWith("PCS", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            switch (char.ToUpperInvariant(normalized[3]))
+            {
+                case 'A':
+                case 'E':
+                    return "na";
+                case 'B':
+                case 'F':
+                    return "eu";
+                case 'C':
+                case 'G':
+                    return "jp";
+                case 'D':
+                case 'H':
+                    return "as";
+                default:
+                    return null;
+            }
         }
 
         /// <summary>

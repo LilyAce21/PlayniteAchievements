@@ -53,7 +53,7 @@ namespace PlayniteAchievements.Tests.ViewModels
                 default(DateTime),
                 AchievementToastViewModel.ComputeNotifyReadyUtc(
                     new AchievementUnlockedEventArgs { ObservedUtc = observed },
-                    new PersistedSettings(),
+                    0,
                     enqueued),
                 "zero delay must not stamp a ready time");
 
@@ -61,11 +61,11 @@ namespace PlayniteAchievements.Tests.ViewModels
                 default(DateTime),
                 AchievementToastViewModel.ComputeNotifyReadyUtc(
                     new AchievementUnlockedEventArgs { ObservedUtc = observed },
-                    null,
+                    -1,
                     enqueued),
-                "null settings must not stamp a ready time");
+                "a negative delay must not stamp a ready time");
 
-            var delayed = new PersistedSettings { NotificationDelaySeconds = 5 };
+            var delayed = 5;
             Assert.AreEqual(
                 default(DateTime),
                 AchievementToastViewModel.ComputeNotifyReadyUtc(
@@ -98,7 +98,7 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             var readyAt = AchievementToastViewModel.ComputeNotifyReadyUtc(
                 new AchievementUnlockedEventArgs { ObservedUtc = observed },
-                new PersistedSettings { NotificationDelaySeconds = 5 },
+                5,
                 enqueued);
 
             Assert.AreEqual(observed.AddSeconds(5), readyAt);
@@ -112,7 +112,7 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             var readyAt = AchievementToastViewModel.ComputeNotifyReadyUtc(
                 new AchievementUnlockedEventArgs { IsFriendUnlock = true },
-                new PersistedSettings { NotificationDelaySeconds = 3 },
+                3,
                 enqueued);
 
             Assert.AreEqual(enqueued.AddSeconds(3), readyAt);
@@ -125,7 +125,7 @@ namespace PlayniteAchievements.Tests.ViewModels
 
             var readyAt = AchievementToastViewModel.ComputeNotifyReadyUtc(
                 new AchievementUnlockedEventArgs { ObservedUtc = localObserved },
-                new PersistedSettings { NotificationDelaySeconds = 2 },
+                2,
                 localObserved.ToUniversalTime());
 
             Assert.AreEqual(localObserved.ToUniversalTime().AddSeconds(2), readyAt);
@@ -705,6 +705,70 @@ namespace PlayniteAchievements.Tests.ViewModels
             }
         }
 
+        private static AchievementUnlockedEventArgs RareUnlockArgs()
+        {
+            return new AchievementUnlockedEventArgs
+            {
+                DisplayName = "Deep Diver",
+                Description = "Reach the deepest point of the map.",
+                GameName = "Some Game",
+                RarityTier = "Rare",
+                GlobalPercent = 9.3
+            };
+        }
+
+        [TestMethod]
+        public void InlineGameBadge_DrawsOnTheGameLineAndTheOffsetFollowsIt()
+        {
+            var style = AllLinesVisible();
+            style.InlineGameRarityBadge = true;
+            style.TitleLineOffset = 24;
+
+            var viewModel = BuildLineToast(style, RareUnlockArgs());
+
+            Assert.IsTrue(viewModel.GameCategoryLine.ShowInlineBadge);
+            Assert.IsFalse(viewModel.TitleLine.ShowInlineBadge);
+            Assert.AreEqual(24, viewModel.GameCategoryLine.LeftIndent, "A positive offset indents the badge line.");
+            foreach (var line in viewModel.ToastLines)
+            {
+                if (!(line is ToastGameCategoryLine))
+                {
+                    Assert.AreEqual(0, line.LeftIndent);
+                }
+            }
+        }
+
+        [TestMethod]
+        public void InlineGameBadge_NegativeOffsetIndentsEveryOtherLine()
+        {
+            var style = AllLinesVisible();
+            style.InlineGameRarityBadge = true;
+            style.TitleLineOffset = -24;
+
+            var viewModel = BuildLineToast(style, RareUnlockArgs());
+
+            Assert.AreEqual(0, viewModel.GameCategoryLine.LeftIndent);
+            foreach (var line in viewModel.ToastLines)
+            {
+                if (!(line is ToastGameCategoryLine))
+                {
+                    Assert.AreEqual(24, line.LeftIndent);
+                }
+            }
+        }
+
+        [TestMethod]
+        public void InlineGameBadge_CollapsesWithAnEmptyGameLine()
+        {
+            var style = AllLinesVisible();
+            style.InlineGameRarityBadge = true;
+            style.ShowGameName = false;
+
+            var viewModel = BuildLineToast(style, RareUnlockArgs());
+
+            Assert.AreEqual(Visibility.Collapsed, viewModel.GameCategoryLine.LineVisibility);
+        }
+
         [TestMethod]
         public void UnlockNotification_ProgressLineCollapsesAndProgressValuesAreEmpty()
         {
@@ -970,6 +1034,114 @@ namespace PlayniteAchievements.Tests.ViewModels
         }
 
         [TestMethod]
+        public void FrameVignetteImage_ReplacesBothVignetteLayers_AndShowsOnlyAnExistingImage()
+        {
+            var settings = new PersistedSettings();
+            settings.NotificationStyle.Frame.FrameVignette = FrameVignetteStyle.Image;
+            settings.NotificationStyle.FrameBackgroundImagePath =
+                Path.Combine(Path.GetTempPath(), "PlayAchMissing_" + Guid.NewGuid().ToString("N") + ".png");
+
+            var missing = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+            Assert.IsFalse(missing.FrameShowRadialVignette);
+            Assert.IsFalse(missing.FrameShowBottomWash);
+            Assert.IsFalse(missing.FrameShowBackgroundImage);
+            Assert.IsNull(missing.FrameBackgroundImage);
+
+            var path = Path.Combine(Path.GetTempPath(), "PlayAchFrameBg_" + Guid.NewGuid().ToString("N") + ".png");
+            File.WriteAllBytes(path, Convert.FromBase64String(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2NkYGD4DwABBAEAgh8sXQAAAABJRU5ErkJggg=="));
+            try
+            {
+                settings.NotificationStyle.FrameBackgroundImagePath = path;
+                var present = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.IsTrue(present.FrameShowBackgroundImage);
+                Assert.IsNotNull(present.FrameBackgroundImage);
+
+                settings.NotificationStyle.Frame.FrameVignette = FrameVignetteStyle.Full;
+                var full = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.IsFalse(full.FrameShowBackgroundImage, "a kept path does not draw outside the Image choice");
+                Assert.IsTrue(full.FrameShowRadialVignette);
+                Assert.IsTrue(full.FrameShowBottomWash);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [TestMethod]
+        public void ImageKeyframe_FrameDrawsThatMoment_AndTheToastCapturePinsOnlyItsOwnSlots()
+        {
+            var gif = GifFixture.WriteTempGif(GifFixture.BuildGif(
+                1, 1, new[] { 0xFF0000, 0x0000FF },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 0 }, DelayCentiseconds = 10 },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 1 }, DelayCentiseconds = 10 }));
+            try
+            {
+                var settings = new PersistedSettings();
+                var style = settings.NotificationStyle;
+                style.Frame.FrameVignette = FrameVignetteStyle.Image;
+                style.FrameBackgroundImagePath = gif;
+                style.ToastBackgroundImagePath = gif;
+
+                var firstFrame = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.AreEqual(0xFF0000, PixelOf(firstFrame.FrameBackgroundImage));
+                Assert.IsNull(firstFrame.ToastCaptureStill(gif), "no keyframe leaves the capture live");
+
+                style.Frame.ImageKeyframeMs = 150;
+                style.Toast.ImageKeyframeMs = 150;
+                var keyed = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+                Assert.AreEqual(0x0000FF, PixelOf(keyed.FrameBackgroundImage));
+                Assert.AreEqual(0x0000FF, PixelOf(keyed.ToastCaptureStill(gif)));
+                Assert.IsNull(keyed.ToastCaptureStill(Path.Combine(Path.GetTempPath(), "other.gif")),
+                    "an image outside the style's slots is left as it is");
+            }
+            finally
+            {
+                GifFixture.DeleteTempPayload(gif);
+            }
+        }
+
+        [TestMethod]
+        public void FrameAnimationTime_PlaysFromTheFirstFrameAndLoops_IgnoringTheKeyframe()
+        {
+            var gif = GifFixture.WriteTempGif(GifFixture.BuildGif(
+                1, 1, new[] { 0xFF0000, 0x0000FF },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 0 }, DelayCentiseconds = 10 },
+                new GifFixture.Frame { Width = 1, Height = 1, Indices = new byte[] { 1 }, DelayCentiseconds = 10 }));
+            try
+            {
+                var settings = new PersistedSettings();
+                settings.NotificationStyle.Frame.FrameVignette = FrameVignetteStyle.Image;
+                settings.NotificationStyle.Frame.ImageKeyframeMs = 150;
+                settings.NotificationStyle.FrameBackgroundImagePath = gif;
+                var vm = new AchievementToastViewModel(new AchievementUnlockedEventArgs(), settings);
+
+                Assert.AreEqual(1, vm.FrameAnimationTimelines().Count);
+                Assert.AreEqual(0x0000FF, PixelOf(vm.FrameBackgroundImage), "the screenshot uses the keyframe");
+
+                vm.FrameAnimationTimeMs = 0;
+                Assert.AreEqual(0xFF0000, PixelOf(vm.FrameBackgroundImage), "the video starts at the first frame");
+                vm.FrameAnimationTimeMs = 150;
+                Assert.AreEqual(0x0000FF, PixelOf(vm.FrameBackgroundImage));
+                vm.FrameAnimationTimeMs = 250;
+                Assert.AreEqual(0xFF0000, PixelOf(vm.FrameBackgroundImage), "the loop starts over");
+            }
+            finally
+            {
+                GifFixture.DeleteTempPayload(gif);
+            }
+        }
+
+        private static int PixelOf(ImageSource image)
+        {
+            Assert.IsInstanceOfType(image, typeof(BitmapSource));
+            var pixels = new int[1];
+            new FormatConvertedBitmap((BitmapSource)image, PixelFormats.Bgra32, null, 0).CopyPixels(pixels, 4, 0);
+            return pixels[0] & 0xFFFFFF;
+        }
+
+        [TestMethod]
         public void FrameVignetteBrushes_UpperHalfGrowsCoverageBeyondAlphaStacking()
         {
             var strongSettings = new PersistedSettings();
@@ -1196,6 +1368,93 @@ namespace PlayniteAchievements.Tests.ViewModels
                 new PersistedSettings());
 
             Assert.IsNull(viewModel.FriendAvatar, "Notifications never fetch over the network.");
+        }
+
+        [DataTestMethod]
+        [DataRow("Default")]
+        [DataRow("default")]
+        public void DefaultCategory_IsHiddenOnToastAndFrame(string category)
+        {
+            var viewModel = CategoryToast(category);
+
+            Assert.IsFalse(viewModel.ShowCategory);
+            Assert.IsFalse(viewModel.FrameShowCategory);
+            Assert.IsFalse(viewModel.ShowGameCategorySeparator);
+        }
+
+        [TestMethod]
+        public void NamedCategory_IsShownOnToastAndFrame()
+        {
+            var viewModel = CategoryToast("Story");
+
+            Assert.IsTrue(viewModel.ShowCategory);
+            Assert.IsTrue(viewModel.FrameShowCategory);
+        }
+
+        [TestMethod]
+        public void NestedCategory_ShowsOnlyItsLeaf()
+        {
+            var viewModel = CategoryToast("DLC::Season Pass");
+
+            Assert.AreEqual("Season Pass", viewModel.Category);
+            Assert.IsTrue(viewModel.ShowCategory);
+        }
+
+        private static AchievementToastViewModel CategoryToast(string category)
+        {
+            return new AchievementToastViewModel(
+                new AchievementUnlockedEventArgs { GameName = "Some Game", Category = category },
+                new PersistedSettings
+                {
+                    NotificationStyle = new NotificationStyleSettings
+                    {
+                        Toast = new NotificationSurfaceStyle { ShowCategory = true, ShowGameName = true },
+                        Frame = new NotificationSurfaceStyle { ShowCategory = true, ShowGameName = true }
+                    }
+                });
+        }
+
+        [TestMethod]
+        public void PlatinumCapstone_DrawsThePlatinumTrophyBadge()
+        {
+            LocalizationAssemblyInitializer.RunOnSta(() =>
+            {
+                var settings = new PersistedSettings();
+                var platinum = new AchievementToastViewModel(
+                    new AchievementUnlockedEventArgs { IsCapstone = true, TrophyType = "platinum", RarityTier = "Rare" },
+                    settings);
+                var plain = new AchievementToastViewModel(
+                    new AchievementUnlockedEventArgs { IsCapstone = true, RarityTier = "Rare" },
+                    settings);
+
+                var trophyPixels = RenderPixels(RarityAppearanceHelper.CreateTrophyPreview("TrophyPlatinum", settings));
+                var completedPixels = RenderPixels(RarityAppearanceHelper.CreateCompletedBadgePreview(settings));
+
+                CollectionAssert.AreEqual(trophyPixels, RenderPixels(platinum.BadgeImage));
+                CollectionAssert.AreEqual(completedPixels, RenderPixels(plain.BadgeImage));
+                CollectionAssert.AreNotEqual(trophyPixels, completedPixels);
+
+                // The swap is the badge only: the platinum capstone keeps the capstone's colors and sound.
+                Assert.IsTrue(platinum.UsesCompletionColors);
+                Assert.AreEqual(UnlockSoundTier.Capstone, platinum.SoundTier);
+            });
+        }
+
+        private static byte[] RenderPixels(ImageSource source)
+        {
+            Assert.IsNotNull(source);
+            const int size = 32;
+            var visual = new DrawingVisual();
+            using (var context = visual.RenderOpen())
+            {
+                context.DrawImage(source, new Rect(0, 0, size, size));
+            }
+
+            var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            var pixels = new byte[size * size * 4];
+            bitmap.CopyPixels(pixels, size * 4, 0);
+            return pixels;
         }
 
         [TestMethod]

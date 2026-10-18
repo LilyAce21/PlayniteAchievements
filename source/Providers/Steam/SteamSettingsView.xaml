@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:settings="clr-namespace:PlayniteAchievements.Providers.Settings"
-             xmlns:steam="clr-namespace:PlayniteAchievements.Providers.Steam"
              xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
+             xmlns:steam="clr-namespace:PlayniteAchievements.Providers.Steam"
              mc:Ignorable="d"
              d:DesignHeight="600"
              d:DesignWidth="700">
@@ -118,7 +118,14 @@
                 <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SteamHuntersCategories}"
                                      Hint="{DynamicResource LOCPlayAch_Settings_SteamHuntersCategories_Help}"
                                      Margin="0">
-                    <CheckBox IsChecked="{Binding Settings.UseSteamHuntersForCategories, Mode=TwoWay}"/>
+                    <ComboBox SelectedValue="{Binding Settings.SteamHuntersCategoryMode, Mode=TwoWay}"
+                              SelectedValuePath="Tag"
+                              MinWidth="160"
+                              HorizontalAlignment="Left">
+                        <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_Override_Off}" Tag="{x:Static steam:SteamHuntersCategoryMode.Off}"/>
+                        <ComboBoxItem Content="{DynamicResource LOCPlayAch_Common_Merge}" Tag="{x:Static steam:SteamHuntersCategoryMode.Merge}"/>
+                        <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_SteamHuntersCategories_Override}" Tag="{x:Static steam:SteamHuntersCategoryMode.Override}"/>
+                    </ComboBox>
                 </controls:SettingRow>
             </Border>
 

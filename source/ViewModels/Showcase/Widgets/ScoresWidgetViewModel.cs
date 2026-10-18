@@ -7,10 +7,12 @@ using LiveCharts.Wpf;
 using Playnite.SDK;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Overview;
 using PlayniteAchievements.Services.Showcase;
 using PlayniteAchievements.ViewModels;
+using ObservableObject = PlayniteAchievements.Common.ObservableObject;
 
 namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 {
@@ -18,10 +20,12 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
     /// One score card plus its cumulative score-over-time series for the mini line chart
     /// rendered under the card.
     /// </summary>
-    public sealed class ScoreCardWithHistoryViewModel
+    public sealed class ScoreCardWithHistoryViewModel : ObservableObject
     {
         private static readonly Func<double, string> AxisLabelFormatter =
             value => value.ToString("N0", FormattingCulture.Current);
+
+        private ScoreCardBadgePosition _badgePosition;
 
         public ScoreCardWithHistoryViewModel(
             ScoreCardViewModel card,
@@ -41,16 +45,28 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
             HistoryStartText = historyStartText;
             HistoryEndText = historyEndText;
             var hasHistory = historyValues != null && historyValues.Count > 0;
-            var frame = ScoreHistoryAxis.Frame(
-                currentScore,
-                hasHistory ? historyValues.Min() : currentScore,
-                hasHistory ? historyValues.Max() : currentScore);
+            var windowMin = hasHistory ? historyValues.Min() : currentScore;
+            var windowMax = hasHistory ? historyValues.Max() : currentScore;
+            // Points cards have no tiers, so their chart has no tier lines.
+            var frame = card?.ScoreType.IsPoints == true
+                ? ScoreHistoryAxis.FrameWithoutTiers(currentScore, windowMin, windowMax)
+                : ScoreHistoryAxis.Frame(currentScore, windowMin, windowMax);
             HistoryMinValue = frame.Min;
             HistoryAxisMax = frame.Max;
             TierSections = BuildSections(frame, card?.AccentBrush, card?.NextTierAccentBrush);
         }
 
         public ScoreCardViewModel Card { get; }
+
+        /// <summary>
+        /// Set in place by the widget, so flipping a side re-binds the card instead of
+        /// rebuilding it and re-plotting its chart.
+        /// </summary>
+        public ScoreCardBadgePosition BadgePosition
+        {
+            get => _badgePosition;
+            set => SetValue(ref _badgePosition, value);
+        }
 
         public ChartValues<int> HistoryValues { get; }
 
@@ -124,8 +140,8 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 
     /// <summary>
     /// Backs the Scores widget by reusing the existing <see cref="ScoreCardViewModel"/> /
-    /// ScoreCardControl. Shows the collection and/or prestige card per the score mode, laid out in
-    /// a UniformGrid whose orientation follows the viewport. Each card carries a cumulative score
+    /// ScoreCardControl. Shows the one score card the widget is set to (the UniformGrid host keeps
+    /// a single cell). The card carries a cumulative score
     /// history line derived from the projection that fills whatever height the cell leaves under
     /// the card; density only scales the card width.
     /// </summary>
@@ -143,8 +159,7 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
         // full-library snapshot generation per Scores widget.
         private IReadOnlyList<ShowcaseScorePoint> _builtHistory;
         private WeakReference<OverviewDataSnapshot> _builtSnapshot;
-        private ShowcaseScoreMode _builtMode;
-        private ShowcaseScoreHistoryMode _builtHistoryMode;
+        private ScoreCardType _builtType;
         private bool _builtShowChart;
 
         public BulkObservableCollection<ScoreCardWithHistoryViewModel> Cards { get; } =
@@ -161,35 +176,33 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
         protected override void Refresh()
         {
             var snapshot = Projection?.Snapshot ?? new OverviewDataSnapshot();
-            var mode = ShowcaseWidgetOptions.GetScoreMode(Projection?.Instance);
-            var includeCollection = mode != ShowcaseScoreMode.Prestige;
-            var includePrestige = mode != ShowcaseScoreMode.Collection;
-            var count = (includeCollection ? 1 : 0) + (includePrestige ? 1 : 0);
-            var tall = Orientation == WidgetViewportOrientation.Tall;
+            var instance = Projection?.Instance;
+            var type = ShowcaseWidgetOptions.GetScoreCardType(instance);
 
-            Rows = count > 1 && tall ? 2 : 1;
-            Columns = count > 1 && !tall ? 2 : 1;
+            Rows = 1;
+            Columns = 1;
             IsFeatured = true;
             MaxCardWidth = Density == WidgetViewportDensity.Expanded ? 440 : 360;
+            var badgePosition = ShowcaseWidgetOptions.GetScoreCardBadgePosition(instance);
+            var useCustomColors = ShowcaseWidgetOptions.GetScoreCardUseCustomColors(instance);
+            var showTotal = ShowcaseWidgetOptions.GetScoreCardShowTotal(instance);
+            foreach (var existing in Cards)
+            {
+                existing.BadgePosition = badgePosition;
+                existing.Card.SetUseCustomColors(useCustomColors);
+                existing.Card.SetShowTotal(showTotal);
+            }
 
             var history = Projection?.ScoreHistory ?? new List<ShowcaseScorePoint>();
-            // Two points is the least that draws a line at all; the option then decides which
-            // cards spend their space on one.
-            var showChart = history.Count >= 2;
-            var historyMode = ShowcaseWidgetOptions.GetScoreHistoryMode(Projection?.Instance);
-            var showCollectionChart = showChart &&
-                (historyMode == ShowcaseScoreHistoryMode.Dual ||
-                    historyMode == ShowcaseScoreHistoryMode.Collection);
-            var showPrestigeChart = showChart &&
-                (historyMode == ShowcaseScoreHistoryMode.Dual ||
-                    historyMode == ShowcaseScoreHistoryMode.Prestige);
+            // Two points is the least that draws a line at all; the option then decides whether
+            // the card spends its space on one.
+            var showChart = history.Count >= 2 && ShowcaseWidgetOptions.GetScoreHistoryShown(instance);
             OverviewDataSnapshot builtSnapshot = null;
             _builtSnapshot?.TryGetTarget(out builtSnapshot);
-            if (Cards.Count > 0 &&
+            if (Cards.Count == 1 &&
                 ReferenceEquals(_builtHistory, history) &&
                 ReferenceEquals(builtSnapshot, Projection?.Snapshot) &&
-                _builtMode == mode &&
-                _builtHistoryMode == historyMode &&
+                _builtType == type &&
                 _builtShowChart == showChart)
             {
                 return;
@@ -199,12 +212,11 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
             _builtSnapshot = Projection?.Snapshot == null
                 ? null
                 : new WeakReference<OverviewDataSnapshot>(Projection.Snapshot);
-            _builtMode = mode;
-            _builtHistoryMode = historyMode;
+            _builtType = type;
             _builtShowChart = showChart;
 
             var rangeCaption = TimeWindowText.Describe(
-                ShowcaseTimelineOptions.GetWindow(Projection?.Instance),
+                ShowcaseTimelineOptions.GetWindow(instance),
                 history.Count > 0 ? history[0].Date : (DateTime?)null);
             var culture = FormattingCulture.Current;
             var historyLabels = history
@@ -215,49 +227,24 @@ namespace PlayniteAchievements.ViewModels.Showcase.Widgets
 
             var uniformBadges = PlayniteAchievementsPlugin.Instance?.Settings?.Persisted?
                 .UseUniformRarityBadges ?? false;
-            var cards = new List<ScoreCardWithHistoryViewModel>();
-            if (includeCollection)
+            var card = new ScoreCardViewModel(type);
+            card.SetUseCustomColors(useCustomColors);
+            card.SetShowTotal(showTotal);
+            card.ApplyFor(type, snapshot, uniformBadges);
+            Cards.ReplaceAll(new[]
             {
-                var card = new ScoreCardViewModel(ScoreCardType.Collection);
-                card.Apply(
-                    snapshot.CollectorScore,
-                    snapshot.CollectorLevel,
-                    snapshot.CollectorLevelProgress,
-                    snapshot.CollectorRank,
-                    uniformBadges);
-                cards.Add(new ScoreCardWithHistoryViewModel(
+                new ScoreCardWithHistoryViewModel(
                     card,
-                    snapshot.CollectorScore,
-                    new ChartValues<int>(history.Select(point => point.CollectionScore)),
+                    snapshot.GetScore(type),
+                    new ChartValues<int>(history.Select(point => point.GetScore(type))),
                     historyLabels,
-                    showCollectionChart,
+                    showChart,
                     rangeCaption,
                     historyStart,
-                    historyEnd));
-            }
-
-            if (includePrestige)
-            {
-                var card = new ScoreCardViewModel(ScoreCardType.Prestige);
-                card.Apply(
-                    snapshot.PrestigeScore,
-                    snapshot.PrestigeLevel,
-                    snapshot.PrestigeLevelProgress,
-                    snapshot.PrestigeRank,
-                    uniformBadges);
-                cards.Add(new ScoreCardWithHistoryViewModel(
-                    card,
-                    snapshot.PrestigeScore,
-                    new ChartValues<int>(history.Select(point => point.PrestigeScore)),
-                    historyLabels,
-                    showPrestigeChart,
-                    rangeCaption,
-                    historyStart,
-                    historyEnd));
-            }
-
-            Cards.ReplaceAll(cards);
-        }
-
-    }
+                    historyEnd)
+                {
+                    BadgePosition = badgePosition
+                }
+            });
+        }    }
 }

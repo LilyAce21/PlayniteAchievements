@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using PlayniteAchievements.Providers.RPCS3;
+using PlayniteAchievements.Providers.PlayStationTrophies;
 using System;
 using System.IO;
 using System.Linq;
@@ -21,7 +22,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
+                var trophies = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
 
                 Assert.AreEqual(2, trophies.Count);
                 Assert.AreEqual(0, trophies[0].Id);
@@ -45,7 +46,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
+                var trophies = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
 
                 Assert.AreEqual(1, trophies.Count);
                 Assert.AreEqual("Trophy", trophies[0].Name);
@@ -71,11 +72,11 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                var french = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, "fr", null);
+                var french = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, "fr", null);
                 Assert.AreEqual("Nom Francais", french[0].Name);
                 Assert.AreEqual("Detail Francais", french[0].Description);
 
-                var defaulted = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
+                var defaulted = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
                 Assert.AreEqual("Default Name", defaulted[0].Name);
             }
             finally
@@ -97,7 +98,7 @@ namespace PlayniteAchievements.Providers.Tests
             try
             {
                 // "cs" (Czech) has no PS3 numeric language id.
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, "cs", null);
+                var trophies = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, "cs", null);
 
                 Assert.AreEqual(1, trophies.Count);
                 Assert.AreEqual("Default Name", trophies[0].Name);
@@ -126,7 +127,7 @@ namespace PlayniteAchievements.Providers.Tests
                 "</trophyconf>";
             var trpBytes = BuildBinaryTrp(1, ("TROPCONF.SFM", Utf8(tropconf)), ("TROP.SFM", Utf8(tropSfm)));
 
-            Assert.IsTrue(Rpcs3TrophyParser.TryReadTrpIdentity(trpBytes, out var npCommId, out var titleName));
+            Assert.IsTrue(TrophyConfParser.TryReadTrpIdentity(trpBytes, out var npCommId, out var titleName));
             Assert.AreEqual("NPWR01433_00", npCommId);
             Assert.AreEqual("Sly 2", titleName);
         }
@@ -141,7 +142,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
+                var trophies = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
 
                 Assert.AreEqual(0, trophies.Count);
             }
@@ -159,7 +160,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
+                var trophies = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
 
                 Assert.AreEqual(0, trophies.Count);
             }
@@ -185,7 +186,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                var trophies = Rpcs3TrophyParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
+                var trophies = TrophyConfParser.ParseTrophyDefinitionsFromTrp(trpPath, null, null);
 
                 Assert.AreEqual(1, trophies.Count);
                 Assert.AreEqual("Fake Trophy", trophies[0].Name);
@@ -204,7 +205,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                Assert.AreEqual("NPWR00950_00", Rpcs3TrophyParser.ExtractNpCommId(trpPath, null));
+                Assert.AreEqual("NPWR00950_00", TrophyConfParser.ExtractNpCommId(trpPath, null));
             }
             finally
             {
@@ -219,7 +220,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             try
             {
-                Assert.AreEqual("NPWR22222_00", Rpcs3TrophyParser.ExtractNpCommId(trpPath, null));
+                Assert.AreEqual("NPWR22222_00", TrophyConfParser.ExtractNpCommId(trpPath, null));
             }
             finally
             {
@@ -239,7 +240,7 @@ namespace PlayniteAchievements.Providers.Tests
             // Corrupt the second entry's data offset to point past end of file.
             WriteUInt64BE(bytes, 0x30 + 64 + 32, (ulong)bytes.Length + 100);
 
-            var entries = Rpcs3TrpArchiveReader.ReadEntries(bytes);
+            var entries = TrpArchiveReader.ReadEntries(bytes);
 
             Assert.IsNotNull(entries);
             Assert.AreEqual(1, entries.Count);
@@ -254,7 +255,7 @@ namespace PlayniteAchievements.Providers.Tests
 
             WriteUInt32BE(bytes, 0x10, 100000);
 
-            Assert.IsNull(Rpcs3TrpArchiveReader.ReadEntries(bytes));
+            Assert.IsNull(TrpArchiveReader.ReadEntries(bytes));
         }
 
         private static string BuildTrophyConfXml(string npCommId, params (int Id, string Name, string Detail)[] trophies)

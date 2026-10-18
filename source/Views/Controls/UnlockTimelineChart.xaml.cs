@@ -86,7 +86,35 @@ namespace PlayniteAchievements.Views.Controls
             nameof(MaxBarCount), typeof(int), typeof(UnlockTimelineChart), new PropertyMetadata(400));
 
         public static readonly DependencyProperty AxisForegroundProperty = DependencyProperty.Register(
-            nameof(AxisForeground), typeof(Brush), typeof(UnlockTimelineChart), new PropertyMetadata(null));
+            nameof(AxisForeground), typeof(Brush), typeof(UnlockTimelineChart), new PropertyMetadata(null, OnAxisForegroundChanged));
+
+        /// <summary>
+        /// The axis lines' brush: the axis label color at half strength. The label color always
+        /// reads against the chart's surface, where the border brush can fall back to a background
+        /// color and vanish.
+        /// </summary>
+        private static readonly DependencyProperty AxisLineBrushProperty = DependencyProperty.Register(
+            nameof(AxisLineBrush), typeof(Brush), typeof(UnlockTimelineChart), new PropertyMetadata(null));
+
+        private const double AxisLineOpacity = 0.5;
+
+        private Brush AxisLineBrush => (Brush)GetValue(AxisLineBrushProperty);
+
+        private static void OnAxisForegroundChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            Brush line = null;
+            if (e.NewValue is Brush brush)
+            {
+                line = brush.CloneCurrentValue();
+                line.Opacity = brush.Opacity * AxisLineOpacity;
+                if (line.CanFreeze)
+                {
+                    line.Freeze();
+                }
+            }
+
+            d.SetValue(AxisLineBrushProperty, line);
+        }
 
         public static readonly DependencyProperty SeparatorStrokeProperty = DependencyProperty.Register(
             nameof(SeparatorStroke), typeof(Brush), typeof(UnlockTimelineChart), new PropertyMetadata(null));
@@ -99,6 +127,17 @@ namespace PlayniteAchievements.Views.Controls
 
         public static readonly DependencyProperty TooltipForegroundProperty = DependencyProperty.Register(
             nameof(TooltipForeground), typeof(Brush), typeof(UnlockTimelineChart), new PropertyMetadata(null));
+
+        /// <summary>The column to shade as the active selection; -1 shades none.</summary>
+        public static readonly DependencyProperty HighlightedIndexProperty = DependencyProperty.Register(
+            nameof(HighlightedIndex), typeof(int), typeof(UnlockTimelineChart), new PropertyMetadata(-1, OnHighlightedIndexChanged));
+
+        /// <summary>A click on a column, carrying its position along the axis.</summary>
+        public static readonly RoutedEvent ColumnClickedEvent = EventManager.RegisterRoutedEvent(
+            "ColumnClicked",
+            RoutingStrategy.Bubble,
+            typeof(ChartClickEventHandler),
+            typeof(UnlockTimelineChart));
 
         private readonly Axis _axisX;
         private readonly Axis _axisY;
@@ -146,17 +185,113 @@ namespace PlayniteAchievements.Views.Controls
             _axisY.SetBinding(Axis.ForegroundProperty, Bind(nameof(AxisForeground)));
             _axisY.SetResourceReference(Axis.FontSizeProperty, "PlayAch.FontSize.Caption");
 
+            // Axis lines: the baseline under the bars and the line up the left edge, in the
+            // axis label color at half strength (AxisLineBrush). LiveCharts has no
+            // axis line, so each is an empty section on the plot's edge; an empty section's
+            // rectangle is as thick as StrokeThickness, and with no stroke the fill draws it.
+            // The X axis shifts sections half a column to centre them on bars, so the left
+            // edge is half a column before the first.
+            _axisY.Sections.Add(CreateAxisLine(0));
+            _axisX.Sections.Add(CreateAxisLine(-0.5));
+
             Chart.AxisX.Add(_axisX);
             Chart.AxisY.Add(_axisY);
 
-            _tooltip = new CartesianChartTooltip();
+            _tooltip = new CartesianChartTooltip { StackedRows = true };
             _tooltip.SetBinding(CartesianChartTooltip.SurfaceBrushProperty, Bind(nameof(TooltipSurfaceBrush)));
             _tooltip.SetBinding(CartesianChartTooltip.OutlineBrushProperty, Bind(nameof(TooltipOutlineBrush)));
             _tooltip.SetBinding(ForegroundProperty, Bind(nameof(TooltipForeground)));
             _tooltip.SetBinding(CartesianChartTooltip.HeaderLabelsProperty, Bind(nameof(TooltipLabels)));
             Chart.DataTooltip = _tooltip;
 
+            // A selected column stands out by the others fading, styled on the drawn bars
+            // themselves so plain and stacked (platform split) columns match and line up exactly.
+            // Every draw can create new bars, so the styling runs again after each one.
+            Chart.UpdaterTick += sender => ApplyHighlight();
+            Chart.DataClick += OnChartDataClick;
+
             SizeChanged += OnSizeChanged;
+        }
+
+        /// <summary>How strongly the unselected columns fade while one is selected.</summary>
+        private const double UnselectedColumnOpacity = 0.18;
+
+        /// <summary>The outline drawn round the selected column, in the text color for contrast with the accent fill.</summary>
+        private const double SelectedColumnStroke = 1.5;
+
+        public int HighlightedIndex
+        {
+            get => (int)GetValue(HighlightedIndexProperty);
+            set => SetValue(HighlightedIndexProperty, value);
+        }
+
+        private static void OnHighlightedIndexChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ((UnlockTimelineChart)d).ApplyHighlight();
+        }
+
+        // Each stacked segment of the selected column gets the outline, so the platform split
+        // reads as one outlined column with its segment edges inside.
+        private void ApplyHighlight()
+        {
+            var index = HighlightedIndex;
+            var outline = index < 0 ? null : TryFindResource("PlayAch.Brush.Text") as Brush;
+            foreach (var series in Series ?? new SeriesCollection())
+            {
+                if (series?.Values == null)
+                {
+                    continue;
+                }
+
+                foreach (var point in series.Values.GetPoints(series))
+                {
+                    if (!(BarOf(point?.View) is System.Windows.Shapes.Rectangle bar))
+                    {
+                        continue;
+                    }
+
+                    var selected = (int)Math.Round(point.X) == index;
+                    bar.Opacity = index < 0 || selected ? 1 : UnselectedColumnOpacity;
+                    bar.Stroke = selected ? outline : null;
+                    bar.StrokeThickness = selected ? SelectedColumnStroke : 0;
+                }
+            }
+        }
+
+        private static System.Reflection.PropertyInfo _barProperty;
+
+        // LiveCharts 0.9.7 draws each column through its internal ColumnPointView, whose public
+        // Rectangle property is the drawn bar; it is reached by reflection since the type is internal.
+        private static object BarOf(object pointView)
+        {
+            if (pointView == null)
+            {
+                return null;
+            }
+
+            var property = _barProperty;
+            if (property == null || property.DeclaringType != pointView.GetType())
+            {
+                property = pointView.GetType().GetProperty("Rectangle");
+                if (property == null)
+                {
+                    return null;
+                }
+
+                _barProperty = property;
+            }
+
+            return property.GetValue(pointView);
+        }
+
+        private void OnChartDataClick(object sender, ChartPoint point)
+        {
+            if (point == null || double.IsNaN(point.X))
+            {
+                return;
+            }
+
+            RaiseEvent(new ChartClickEventArgs(ColumnClickedEvent, this) { Index = (int)Math.Round(point.X) });
         }
 
         public SeriesCollection Series
@@ -268,6 +403,20 @@ namespace PlayniteAchievements.Views.Controls
         }
 
         private Binding Bind(string path) => new Binding(path) { Source = this };
+
+        private AxisSection CreateAxisLine(double value)
+        {
+            var line = new AxisSection
+            {
+                Value = value,
+                SectionWidth = 0,
+                StrokeThickness = 1,
+                Stroke = null,
+                IsHitTestVisible = false
+            };
+            line.SetBinding(AxisSection.FillProperty, new Binding { Path = new PropertyPath(AxisLineBrushProperty), Source = this });
+            return line;
+        }
 
         private static void OnRenderRevisionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {

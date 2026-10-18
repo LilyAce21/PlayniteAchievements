@@ -24,7 +24,8 @@ namespace PlayniteAchievements.Services.Images
             NotificationImageSlot.FrameBadgeUncommon,
             NotificationImageSlot.FrameBadgeRare,
             NotificationImageSlot.FrameBadgeUltraRare,
-            NotificationImageSlot.FrameBadgeCompletion
+            NotificationImageSlot.FrameBadgeCompletion,
+            NotificationImageSlot.FrameBackground
         };
 
         public static string GetPath(NotificationStyleSettings style, NotificationImageSlot slot)
@@ -58,6 +59,8 @@ namespace PlayniteAchievements.Services.Images
                     return style.Frame.BadgeImages.UltraRarePath;
                 case NotificationImageSlot.FrameBadgeCompletion:
                     return style.Frame.BadgeImages.CompletionPath;
+                case NotificationImageSlot.FrameBackground:
+                    return style.FrameBackgroundImagePath;
                 default:
                     return null;
             }
@@ -104,6 +107,9 @@ namespace PlayniteAchievements.Services.Images
                     break;
                 case NotificationImageSlot.FrameBadgeCompletion:
                     style.Frame.BadgeImages.CompletionPath = path;
+                    break;
+                case NotificationImageSlot.FrameBackground:
+                    style.FrameBackgroundImagePath = path;
                     break;
             }
         }

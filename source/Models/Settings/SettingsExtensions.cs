@@ -39,6 +39,7 @@ namespace PlayniteAchievements.Models.Settings
 
             // Friend Settings (Friends must be copied before FriendMergeGroups because the
             // merge-group setter normalizes against the current Friends collection)
+            target.PreserveCachedUnlocksOnRefresh = source.PreserveCachedUnlocksOnRefresh;
             target.EnableFriendsFeatures = source.EnableFriendsFeatures;
             target.IncludeUnownedFriendGames = source.IncludeUnownedFriendGames;
             target.AutoDiscoverFriendProviderKeys = source.AutoDiscoverFriendProviderKeys != null
@@ -59,6 +60,9 @@ namespace PlayniteAchievements.Models.Settings
             // Update and Refresh Settings
             target.EnablePeriodicUpdates = source.EnablePeriodicUpdates;
             target.IncludeHiddenGamesInBulkScans = source.IncludeHiddenGamesInBulkScans;
+            target.IncludeHiddenGamesInSummaries = source.IncludeHiddenGamesInSummaries;
+            target.RefreshExclusionFilterPresetIds = new HashSet<Guid>(source.RefreshExclusionFilterPresetIds);
+            target.SummaryExclusionFilterPresetIds = new HashSet<Guid>(source.SummaryExclusionFilterPresetIds);
             target.PeriodicUpdateHours = source.PeriodicUpdateHours;
             target.EnableFriendsPeriodicUpdates = source.EnableFriendsPeriodicUpdates;
             target.FriendsPeriodicUpdateHours = source.FriendsPeriodicUpdateHours;
@@ -77,7 +81,7 @@ namespace PlayniteAchievements.Models.Settings
             target.RecentRefreshGamesCount = source.RecentRefreshGamesCount;
             target.DefaultOverviewRefreshMode = source.DefaultOverviewRefreshMode;
             target.CustomRefreshPresets = source.CustomRefreshPresets != null
-                ? new List<CustomRefreshPreset>(CustomRefreshPreset.NormalizePresets(source.CustomRefreshPresets, CustomRefreshPreset.MaxPresetCount))
+                ? new List<CustomRefreshPreset>(CustomRefreshPreset.NormalizePresets(source.CustomRefreshPresets))
                 : new List<CustomRefreshPreset>();
 
             // Hotkey Settings
@@ -89,12 +93,14 @@ namespace PlayniteAchievements.Models.Settings
             target.EnableOpenSettingsHotkey = source.EnableOpenSettingsHotkey;
             target.EnableCategoryModeHotkey = source.EnableCategoryModeHotkey;
             target.EnableTestUnlockHotkey = source.EnableTestUnlockHotkey;
+            target.EnableWorkshopHotkey = source.EnableWorkshopHotkey;
             target.ViewAchievementsHotkey = source.ViewAchievementsHotkey;
             target.ManageAchievementsHotkey = source.ManageAchievementsHotkey;
             target.OverviewHotkey = source.OverviewHotkey;
             target.OpenSettingsHotkey = source.OpenSettingsHotkey;
             target.CategoryModeHotkey = source.CategoryModeHotkey;
             target.TestUnlockHotkey = source.TestUnlockHotkey;
+            target.WorkshopHotkey = source.WorkshopHotkey;
 
             target.HiddenManageSidebarStatGroups = source.HiddenManageSidebarStatGroups;
             target.EnableCaptureTestFolder = source.EnableCaptureTestFolder;
@@ -118,6 +124,7 @@ namespace PlayniteAchievements.Models.Settings
             target.CaptureDelaySeconds = source.CaptureDelaySeconds;
             target.MaxConcurrentToasts = source.MaxConcurrentToasts;
             target.ToastPosition = source.ToastPosition;
+            target.NotificationRenderMode = source.NotificationRenderMode;
             target.EnableControllerVibration = source.EnableControllerVibration;
             target.ControllerVibrationStrengthPercent = source.ControllerVibrationStrengthPercent;
             target.ControllerVibrationDurationMs = source.ControllerVibrationDurationMs;
@@ -126,6 +133,10 @@ namespace PlayniteAchievements.Models.Settings
             target.AllowThemeUnlockSounds = source.AllowThemeUnlockSounds;
             target.UnlockSoundVolumePercent = source.UnlockSoundVolumePercent;
             target.UnlockSounds = source.UnlockSounds?.Clone() ?? UnlockSoundSettings.CreateDefault();
+            target.ProviderUnlockSounds = source.ProviderUnlockSounds.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value?.Clone(),
+                StringComparer.OrdinalIgnoreCase);
             target.UnlockSoundsSeededFromUniPlaySong = source.UnlockSoundsSeededFromUniPlaySong;
             target.EnableUnlockScreenshots = source.EnableUnlockScreenshots;
             target.UnlockScreenshotClean = source.UnlockScreenshotClean;
@@ -135,6 +146,7 @@ namespace PlayniteAchievements.Models.Settings
             target.UnlockScreenshotSuffixWithToast = source.UnlockScreenshotSuffixWithToast;
             target.UnlockScreenshotSuffixFramed = source.UnlockScreenshotSuffixFramed;
             target.UnlockScreenshotDirectory = source.UnlockScreenshotDirectory;
+            target.LibraryLinks = LibraryLink.CloneAll(source.LibraryLinks);
             target.ScreenshotResolution = source.ScreenshotResolution;
             target.UnlockScreenshotCleanRarities = source.UnlockScreenshotCleanRarities;
             target.UnlockScreenshotCleanAlwaysCaptureCompletion = source.UnlockScreenshotCleanAlwaysCaptureCompletion;
@@ -205,17 +217,10 @@ namespace PlayniteAchievements.Models.Settings
                     StringComparer.OrdinalIgnoreCase)
                 : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             target.IncludeUnplayedGames = source.IncludeUnplayedGames;
-            target.ShowOverviewCollectionScoreCard = source.ShowOverviewCollectionScoreCard;
-            target.ShowOverviewPrestigeScoreCard = source.ShowOverviewPrestigeScoreCard;
-            target.ShowOverviewPieCharts = source.ShowOverviewPieCharts;
-            target.ShowOverviewGamesPieChart = source.ShowOverviewGamesPieChart;
-            target.ShowOverviewProviderPieChart = source.ShowOverviewProviderPieChart;
-            target.ShowOverviewRarityPieChart = source.ShowOverviewRarityPieChart;
-            target.ShowOverviewTrophyPieChart = source.ShowOverviewTrophyPieChart;
-            target.ShowOverviewPiePercentages = source.ShowOverviewPiePercentages;
-            target.OverviewPieSmallSliceMode = source.OverviewPieSmallSliceMode;
-            target.OverviewPieIncludeLocked = source.OverviewPieIncludeLocked;
-            target.ShowOverviewBarCharts = source.ShowOverviewBarCharts;
+            target.OverviewScoreCard1 = source.OverviewScoreCard1?.Clone();
+            target.OverviewScoreCard2 = source.OverviewScoreCard2?.Clone();
+            target.ShowOverviewScoreCard1 = source.ShowOverviewScoreCard1;
+            target.ShowOverviewScoreCard2 = source.ShowOverviewScoreCard2;
             target.ShowTopMenuBarButton = source.ShowTopMenuBarButton;
             target.ShowCompletedProgressColoring = source.ShowCompletedProgressColoring;
             target.TintMissableLocks = source.TintMissableLocks;
@@ -252,6 +257,9 @@ namespace PlayniteAchievements.Models.Settings
             target.CompactLockedListSortMode = source.CompactLockedListSortMode;
             target.CompactLockedListSortDescending = source.CompactLockedListSortDescending;
             target.Showcase = source.Showcase?.Clone();
+            target.OverviewMiniShowcase = source.OverviewMiniShowcase?.Clone();
+            target.OverviewMiniShowcaseHeight = source.OverviewMiniShowcaseHeight;
+            target.ShowOverviewMiniShowcase = source.ShowOverviewMiniShowcase;
             target.GridOptions = source.GridOptions?.Clone() ?? new GridOptionsCatalog();
             target.StartPageActivityScope = source.StartPageActivityScope;
             target.StartPageProgressScope = source.StartPageProgressScope;
@@ -275,8 +283,6 @@ namespace PlayniteAchievements.Models.Settings
                     kvp => kvp.Value?.Clone(),
                     StringComparer.OrdinalIgnoreCase)
                 : new Dictionary<string, WindowPlacementState>(StringComparer.OrdinalIgnoreCase);
-            target.OverviewTimeWindow = source.OverviewTimeWindow;
-            target.OverviewTimelineGranularity = source.OverviewTimelineGranularity;
             target.ViewAchievementsTimeWindow = source.ViewAchievementsTimeWindow;
             target.ViewAchievementsTimelineGranularity = source.ViewAchievementsTimelineGranularity;
             target.ViewAchievementsTimelineVisible = source.ViewAchievementsTimelineVisible;

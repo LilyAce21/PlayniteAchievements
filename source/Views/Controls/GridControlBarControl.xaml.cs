@@ -31,6 +31,30 @@ namespace PlayniteAchievements.Views.Controls
                 typeof(GridControlBarControl),
                 new PropertyMetadata(true, OnVisibilityPropertyChanged));
 
+        /// <summary>
+        /// Whether the filters may drop below the search box and wrap across lines when the bar
+        /// is too narrow for one line. Off keeps the single-line bar. Inherited, so a host such as
+        /// a showcase widget sets it once for every control bar inside it.
+        /// </summary>
+        public static readonly DependencyProperty WrapItemsProperty =
+            DependencyProperty.RegisterAttached(
+                "WrapItems",
+                typeof(bool),
+                typeof(GridControlBarControl),
+                new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.Inherits));
+
+        public static bool GetWrapItems(DependencyObject element) =>
+            (bool)element.GetValue(WrapItemsProperty);
+
+        public static void SetWrapItems(DependencyObject element, bool value) =>
+            element.SetValue(WrapItemsProperty, value);
+
+        public bool WrapItems
+        {
+            get => (bool)GetValue(WrapItemsProperty);
+            set => SetValue(WrapItemsProperty, value);
+        }
+
         public GridControlBarControl()
         {
             InitializeComponent();
@@ -127,6 +151,49 @@ namespace PlayniteAchievements.Views.Controls
             if ((sender as FrameworkElement)?.DataContext is GridActionButton item)
             {
                 item.Invoke();
+            }
+        }
+
+        // The popup closes on the press outside it, so the press on the button that closed it must
+        // not reopen it on the release that completes the click.
+        private void DateRange_Click(object sender, RoutedEventArgs e)
+        {
+            if (!((sender as FrameworkElement)?.Tag is System.Windows.Controls.Primitives.Popup popup))
+            {
+                return;
+            }
+
+            if (popup.Tag is DateTime closedAt && (DateTime.UtcNow - closedAt).TotalMilliseconds < 300)
+            {
+                return;
+            }
+
+            popup.IsOpen = true;
+        }
+
+        private void DateRangePopup_Closed(object sender, EventArgs e)
+        {
+            if (sender is System.Windows.Controls.Primitives.Popup popup)
+            {
+                popup.Tag = DateTime.UtcNow;
+            }
+        }
+
+        private void DateRangeClearFrom_Click(object sender, RoutedEventArgs e)
+        {
+            ((sender as FrameworkElement)?.DataContext as GridDateRangeFilter)?.ClearFrom();
+        }
+
+        private void DateRangeClearTo_Click(object sender, RoutedEventArgs e)
+        {
+            ((sender as FrameworkElement)?.DataContext as GridDateRangeFilter)?.ClearTo();
+        }
+
+        private void DateRangeClear_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender as FrameworkElement)?.DataContext is GridDateRangeFilter item)
+            {
+                item.Clear();
             }
         }
 

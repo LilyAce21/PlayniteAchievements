@@ -11,7 +11,7 @@ namespace PlayniteAchievements.Providers
         private const string ConsoleMobileGroupResourceKey = "LOCPlayAch_Settings_ProviderGroup_ConsoleMobile";
         private const string EmulatorRetroGroupResourceKey = "LOCPlayAch_Settings_ProviderGroup_EmulatorsRetro";
         private const string ManualAggregatorGroupResourceKey = "LOCPlayAch_Settings_ProviderGroup_ManualAggregators";
-        private const string OtherGroupResourceKey = "LOCPlayAch_Settings_ProviderGroup_Other";
+        private const string OtherGroupResourceKey = "LOCOther";
 
         private static readonly HashSet<string> StorefrontProviders =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -31,6 +31,7 @@ namespace PlayniteAchievements.Providers
             {
                 "PSN",
                 "Xbox",
+                "Meta",
                 "Apple",
                 "GooglePlay"
             };
@@ -40,6 +41,7 @@ namespace PlayniteAchievements.Providers
             {
                 "RetroAchievements",
                 "ShadPS4",
+                "Vita3K",
                 "Xenia",
                 "RPCS3"
             };
@@ -56,8 +58,7 @@ namespace PlayniteAchievements.Providers
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "GooglePlay",
-                "Apple",
-                "Ubisoft"
+                "Apple"
             };
 
         public static bool ShouldHideFromSetupSurfaces(string providerKey)

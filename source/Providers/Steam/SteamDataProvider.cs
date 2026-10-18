@@ -47,8 +47,7 @@ namespace PlayniteAchievements.Providers.Steam
                     return ProviderOverrideValidation.Valid(appId.ToString(CultureInfo.InvariantCulture));
                 }
 
-                return ProviderOverrideValidation.Invalid(
-                    "LOCPlayAch_Menu_SteamAppId_InvalidId");
+                return ProviderOverrideValidation.InvalidId("440");
             });
 
         private readonly SteamHttpClient _steamClient;
@@ -90,13 +89,16 @@ namespace PlayniteAchievements.Providers.Steam
             var steamHuntersApiClient = new SteamHuntersApiClient(
                 (url, ct) => _sessionManager.OffscreenViews.GetPageTextAsync(url, ct),
                 logger);
+            var categoryArtDownloader = new SteamCategoryArtDownloader(
+                () => PlayniteAchievementsPlugin.Instance?.DiskImageService,
+                logger);
             _steamHuntersCategoryEnricher = new SteamHuntersCategoryEnricher(
                 steamHuntersApiClient,
                 logger,
-                () => PlayniteAchievementsPlugin.Instance?.DiskImageService);
+                categoryArtDownloader);
             _tokenResolver = new SteamWebApiTokenResolver(_sessionManager, logger);
             _sessionManager.SetClearInMemoryAuthState(_steamClient.ClearInMemoryAuthState);
-            _scanner = new SteamScanner(settings, _steamClient, steamApiClient, _tokenResolver, _steamHuntersCategoryEnricher, api, logger);
+            _scanner = new SteamScanner(settings, _steamClient, steamApiClient, _tokenResolver, _steamHuntersCategoryEnricher, api, logger, categoryArtDownloader: categoryArtDownloader);
             _friendsProvider = new SteamFriendsProvider(_steamClient, steamApiClient, _scanner, _tokenResolver, _steamHuntersCategoryEnricher, _sessionManager, logger);
             if (steamApiTokenService != null)
             {

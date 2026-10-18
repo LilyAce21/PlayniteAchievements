@@ -140,6 +140,12 @@ namespace PlayniteAchievements.ViewModels
         public bool IsEditSessionActive => _editingClone != null;
 
         /// <summary>
+        /// The persisted settings a Cancel would restore, or null outside an edit session; for
+        /// cleanup that must keep what the snapshot still references.
+        /// </summary>
+        public PersistedSettings EditSnapshotPersisted => _editingClone?.Persisted;
+
+        /// <summary>
         /// Applies <paramref name="update"/> to the live settings and, while a settings window is
         /// open, to its edit snapshot too, for bookkeeping that records work already done outside
         /// the settings (such as text written to the library) and so must survive a Cancel.
@@ -244,6 +250,7 @@ namespace PlayniteAchievements.ViewModels
             var openSettingsLabel = L("LOCPlayAch_Landing_OpenSettings");
             var categoryModeLabel = L("LOCPlayAch_CategorySummaries_ToggleToolTip");
             var testUnlockLabel = L("LOCPlayAch_Hotkeys_FireTestNotification");
+            var workshopLabel = L("LOCPlayAch_Workshop_Title");
             var invalidMessage = L("LOCPlayAch_Hotkeys_InvalidShortcut");
             var duplicateMessage = L("LOCPlayAch_Hotkeys_DuplicateShortcut");
 
@@ -253,6 +260,7 @@ namespace PlayniteAchievements.ViewModels
             var openSettingsValid = TryValidateHotkey(openSettingsLabel, persisted.OpenSettingsHotkey, invalidMessage, errors, out var openSettingsGesture);
             var categoryModeValid = TryValidateHotkey(categoryModeLabel, persisted.CategoryModeHotkey, invalidMessage, errors, out var categoryModeGesture);
             var testUnlockValid = TryValidateHotkey(testUnlockLabel, persisted.TestUnlockHotkey, invalidMessage, errors, out var testUnlockGesture);
+            var workshopValid = TryValidateHotkey(workshopLabel, persisted.WorkshopHotkey, invalidMessage, errors, out var workshopGesture);
 
             var assignedGestures = new List<AchievementHotkeyGesture>();
             AddDuplicateHotkeyError(viewValid, viewGesture, assignedGestures, duplicateMessage, errors);
@@ -261,18 +269,14 @@ namespace PlayniteAchievements.ViewModels
             AddDuplicateHotkeyError(openSettingsValid, openSettingsGesture, assignedGestures, duplicateMessage, errors);
             AddDuplicateHotkeyError(categoryModeValid, categoryModeGesture, assignedGestures, duplicateMessage, errors);
             AddDuplicateHotkeyError(testUnlockValid, testUnlockGesture, assignedGestures, duplicateMessage, errors);
+            AddDuplicateHotkeyError(workshopValid, workshopGesture, assignedGestures, duplicateMessage, errors);
         }
 
         private void ApplyThemeResources()
         {
-            var resources = Application.Current?.Resources;
-            if (resources != null)
-            {
-                PlayAchResourceService.Apply(
-                    resources,
-                    Settings?.Persisted?.ResourceOverrides,
-                    Settings?.Persisted);
-            }
+            PlayAchResourceService.ApplyToApplication(
+                Settings?.Persisted?.ResourceOverrides,
+                Settings?.Persisted);
         }
 
         private static void AddDuplicateHotkeyError(

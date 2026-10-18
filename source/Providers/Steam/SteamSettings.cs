@@ -1,4 +1,6 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Providers.Settings;
 using System;
@@ -19,9 +21,6 @@ namespace PlayniteAchievements.Providers.Steam
     /// </summary>
     public sealed class SteamAccountSettings : PlayniteAchievements.Common.ObservableObject
     {
-        private bool _useSteamHuntersForCategories;
-        private ObservableCollection<SteamIgnoredFriend> _ignoredFriends =
-            new ObservableCollection<SteamIgnoredFriend>();
         private string _accountId = Guid.NewGuid().ToString("N");
         private string _displayName = string.Empty;
         private string _steamUserId = string.Empty;
@@ -116,7 +115,7 @@ namespace PlayniteAchievements.Providers.Steam
         private bool _includeFamilySharedGames = true;
         private string _importedGameMetadataSourceId = string.Empty;
         private SteamExistingGameImportBehavior _existingGameImportBehavior = SteamExistingGameImportBehavior.OverwriteExisting;
-        private bool _useSteamHuntersForCategories;
+        private SteamHuntersCategoryMode _steamHuntersCategoryMode = SteamHuntersCategoryMode.Merge;
         private ObservableCollection<SteamIgnoredFriend> _ignoredFriends = new ObservableCollection<SteamIgnoredFriend>();
 
         /// <inheritdoc />
@@ -128,10 +127,59 @@ namespace PlayniteAchievements.Providers.Steam
             set => SetValue(ref _steamInstallPathOverride, value);
         }
 
-        public bool UseSteamHuntersForCategories
+        /// <summary>
+        /// Whether and how SteamHunters categories combine with Steam's own achievement sets.
+        /// </summary>
+        [JsonConverter(typeof(StringEnumConverter))]
+        public SteamHuntersCategoryMode SteamHuntersCategoryMode
         {
-            get => _useSteamHuntersForCategories;
-            set => SetValue(ref _useSteamHuntersForCategories, value);
+            get => _steamHuntersCategoryMode;
+            set
+            {
+                SetValue(ref _steamHuntersCategoryMode, value);
+                OnPropertyChanged(nameof(UseSteamHuntersForCategories));
+            }
+        }
+
+        [JsonIgnore]
+        public bool UseSteamHuntersForCategories => SteamHuntersCategoryMode != SteamHuntersCategoryMode.Off;
+
+        /// <inheritdoc />
+        public override void DeserializeFromJson(string json)
+        {
+            base.DeserializeFromJson(json);
+            ApplyLegacySteamHuntersSetting(json);
+        }
+
+        // Settings saved before the mode existed carry the checkbox UseSteamHuntersForCategories
+        // (default off). Unchecked maps to Off and checked to Merge; JSON that already has a mode
+        // keeps it.
+        private void ApplyLegacySteamHuntersSetting(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            JObject obj;
+            try
+            {
+                obj = JObject.Parse(json);
+            }
+            catch (JsonException)
+            {
+                return;
+            }
+
+            if (obj[nameof(SteamHuntersCategoryMode)] != null ||
+                obj[nameof(UseSteamHuntersForCategories)]?.Type != JTokenType.Boolean)
+            {
+                return;
+            }
+
+            SteamHuntersCategoryMode = obj.Value<bool>(nameof(UseSteamHuntersForCategories))
+                ? SteamHuntersCategoryMode.Merge
+                : SteamHuntersCategoryMode.Off;
         }
 
         public ObservableCollection<SteamIgnoredFriend> IgnoredFriends
@@ -198,7 +246,7 @@ namespace PlayniteAchievements.Providers.Steam
 
         /// <summary>
         /// Legacy field used only for backward-compat migration and the IsAuthenticated quick-check.
-        /// Do NOT write to this to modify account credentials — use SteamAccountSettings directly.
+        /// Do NOT write to this to modify account credentials â€” use SteamAccountSettings directly.
         /// Populated by SyncLegacyFieldsFromDefaultAccount() and EnsureSteamAccountsInitialized().
         /// </summary>
         public string SteamUserId
@@ -210,7 +258,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             set
             {
-                // Store value only. Never propagate to any account — doing so would
+                // Store value only. Never propagate to any account â€” doing so would
                 // overwrite whichever account happens to be default at write-time,
                 // causing cross-account contamination in multi-account mode.
                 SetValue(ref _steamUserId, value?.Trim() ?? string.Empty);
@@ -412,6 +460,21 @@ namespace PlayniteAchievements.Providers.Steam
             _steamUserId = defaultAccount.SteamUserId?.Trim() ?? string.Empty;
             _steamWebApiKey = defaultAccount.SteamWebApiKey?.Trim() ?? string.Empty;
         }
+    }
+
+    public enum SteamHuntersCategoryMode
+    {
+        /// <summary>SteamHunters is not used; categories come from Steam's achievement sets only.</summary>
+        Off = 0,
+
+        /// <summary>
+        /// Steam's named achievement sets keep their category; SteamHunters categorizes the
+        /// rest and adds obtainability.
+        /// </summary>
+        Merge = 1,
+
+        /// <summary>SteamHunters categories replace Steam's achievement sets.</summary>
+        Override = 2
     }
 
     public sealed class SteamIgnoredFriend

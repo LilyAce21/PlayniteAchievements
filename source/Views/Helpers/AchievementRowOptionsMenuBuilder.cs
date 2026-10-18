@@ -241,14 +241,14 @@ namespace PlayniteAchievements.Views.Helpers
             switch (action)
             {
                 case AchievementMarkerToggle.CapstoneAction.Remove:
-                    return $"{capstone} — {L(resourceOwner, "LOCPlayAch_Button_Remove")}";
+                    return $"{capstone} — {L(resourceOwner, "LOCRemoveLabel")}";
                 case AchievementMarkerToggle.CapstoneAction.Replace:
                     var replace = L(resourceOwner, "LOCPlayAch_Button_Replace");
                     return string.IsNullOrWhiteSpace(displacedDisplayName)
                         ? $"{capstone} — {replace}"
                         : $"{capstone} — {replace}: {displacedDisplayName}";
                 default:
-                    return $"{capstone} — {L(resourceOwner, "LOCPlayAch_Button_Add")}";
+                    return $"{capstone} — {L(resourceOwner, "LOCAddTitle")}";
             }
         }
 
@@ -320,7 +320,7 @@ namespace PlayniteAchievements.Views.Helpers
 
             var typesMenu = new MenuItem
             {
-                Header = L(resourceOwner, "LOCPlayAch_Common_Label_Type")
+                Header = L(resourceOwner, "LOCTypeLabel")
             };
             var effectiveTypes = AchievementCategoryTypeHelper.ParseValues(context.CategoryType);
             foreach (var categoryType in AchievementCategoryTypeHelper.AssignableCategoryTypes)
@@ -361,7 +361,7 @@ namespace PlayniteAchievements.Views.Helpers
                     }
                 }));
             menu.Items.Add(CreateMenuItem(
-                L(resourceOwner, "LOCPlayAch_Button_Clear"),
+                L(resourceOwner, "LOCClearLabel"),
                 () =>
                 {
                     if (ClearCategories(context))
@@ -441,7 +441,7 @@ namespace PlayniteAchievements.Views.Helpers
 
             var menu = new MenuItem
             {
-                Header = L(resourceOwner, "LOCPlayAch_ManageAchievements_Tab_Notes")
+                Header = L(resourceOwner, "LOCNotesLabel")
             };
 
             var viewItem = CreateMenuItem(
@@ -471,7 +471,8 @@ namespace PlayniteAchievements.Views.Helpers
                 return;
             }
 
-            normalizedMap[context.ApiName] = merged;
+            normalizedMap[context.ApiName] = AchievementCategoryTypeHelper.NormalizeOrDefault(
+                AchievementCategoryTypeHelper.StripDerivedTypes(merged));
             CurrentOverridesService?.SetAchievementCategoryTypeOverrides(context.GameId, normalizedMap);
             NotifySummaryRowsChanged(context.GameId);
             context.ApplyCategoryType(merged);
@@ -491,7 +492,8 @@ namespace PlayniteAchievements.Views.Helpers
                 return;
             }
 
-            normalizedMap[context.ApiName] = remaining;
+            normalizedMap[context.ApiName] = AchievementCategoryTypeHelper.NormalizeOrDefault(
+                AchievementCategoryTypeHelper.StripDerivedTypes(remaining));
             CurrentOverridesService?.SetAchievementCategoryTypeOverrides(context.GameId, normalizedMap);
             NotifySummaryRowsChanged(context.GameId);
             context.ApplyCategoryType(remaining);
@@ -568,7 +570,9 @@ namespace PlayniteAchievements.Views.Helpers
                 CurrentStore);
             var normalizedMap = CloneStringMap(map);
             normalizedMap[context.ApiName] = normalizedCategory;
-            CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, normalizedMap);
+            MaintainIfRescoped(
+                context.GameId,
+                CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, normalizedMap) == true);
             NotifySummaryRowsChanged(context.GameId);
             context.ApplyCategoryLabel(normalizedCategory);
             return true;
@@ -593,10 +597,26 @@ namespace PlayniteAchievements.Views.Helpers
                 return false;
             }
 
-            CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, categoryMap, typeMap);
+            MaintainIfRescoped(
+                context.GameId,
+                CurrentOverridesService?.SetAchievementCategoryOverrides(context.GameId, categoryMap, typeMap) == true);
 
             NotifySummaryRowsChanged(context.GameId);
             return true;
+        }
+
+        /// <summary>
+        /// Brings a moved auto capstone's unlock into step with what it now stands for, since no
+        /// refresh follows a hand edit. Quiet: the user moved it, the game reported nothing.
+        /// </summary>
+        private static void MaintainIfRescoped(Guid gameId, bool rescoped)
+        {
+            if (rescoped)
+            {
+                PlayniteAchievementsPlugin.Instance?.AutoCapstoneMaintainer?.Maintain(
+                    gameId,
+                    announceUnlocks: false);
+            }
         }
 
         private static void SetFilterState(

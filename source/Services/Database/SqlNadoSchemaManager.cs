@@ -70,6 +70,7 @@ namespace PlayniteAchievements.Services.Database
                 LibrarySourceName TEXT NULL,
                 IconPath TEXT NULL,
                 CoverPath TEXT NULL,
+                RaritySource TEXT NULL,
                 FirstSeenUtc TEXT NOT NULL,
                 LastUpdatedUtc TEXT NOT NULL
             );");
@@ -699,6 +700,7 @@ namespace PlayniteAchievements.Services.Database
             EnsureColumn(db, "Games", "ProviderGameKey", "TEXT NULL COLLATE NOCASE", gamesColumns, ref backupPath);
             EnsureColumn(db, "Games", "IconPath", "TEXT NULL", gamesColumns, ref backupPath);
             EnsureColumn(db, "Games", "CoverPath", "TEXT NULL", gamesColumns, ref backupPath);
+            EnsureColumn(db, "Games", "RaritySource", "TEXT NULL", gamesColumns, ref backupPath);
 
             usersColumns = GetColumnNames(db, "Users");
             EnsureColumn(db, "Users", "AvatarUrl", "TEXT NULL", usersColumns, ref backupPath);
@@ -984,6 +986,7 @@ namespace PlayniteAchievements.Services.Database
             EnsureRequiredColumn(gamesColumns, "ProviderGameKey", "Games", missing);
             EnsureRequiredColumn(gamesColumns, "IconPath", "Games", missing);
             EnsureRequiredColumn(gamesColumns, "CoverPath", "Games", missing);
+            EnsureRequiredColumn(gamesColumns, "RaritySource", "Games", missing);
 
             var usersColumns = GetColumnNames(db, "Users");
             EnsureRequiredColumn(usersColumns, "ProviderKey", "Users", missing);

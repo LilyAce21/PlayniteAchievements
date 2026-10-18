@@ -87,11 +87,16 @@ namespace PlayniteAchievements.Services.Achievements
                             ? null
                             : resolveCustomProviderKey?.Invoke(customData.CustomProviderId),
                         GameName = resolveGameName?.Invoke(gameId),
+                        RaritySource = RaritySource.None,
                         LastUpdatedUtc = DateTime.UtcNow
                     };
                     summaryData.Games.Add(game);
                     gamesByGameId[gameId] = game;
                 }
+
+                game.RaritySource = CustomAchievementProjectionService.CombineRaritySource(
+                    game.RaritySource,
+                    CustomAchievementProjectionService.ResolveRaritySource(customData.CustomAchievements));
 
                 var platinumApiNames = new List<string>();
                 foreach (var achievement in visible)
@@ -253,6 +258,7 @@ namespace PlayniteAchievements.Services.Achievements
 
             game.CollectionScoreTotal = AddClamped(game.CollectionScoreTotal, AchievementScoreCalculator.GetCollectionValue(achievement.Rarity));
             game.PrestigeScoreTotal = AddClamped(game.PrestigeScoreTotal, AchievementScoreCalculator.GetPrestigeValue(achievement.GlobalPercentUnlocked, achievement.Rarity));
+            game.PlatformScorePointsTotal = AddClamped(game.PlatformScorePointsTotal, achievement.Points ?? 0);
             AddRarity(game, achievement.Rarity, possible: true);
             AddTrophy(game, achievement.TrophyType, possible: true);
 
@@ -265,6 +271,10 @@ namespace PlayniteAchievements.Services.Achievements
             game.CollectionScore = AddClamped(game.CollectionScore, AchievementScoreCalculator.GetCollectionValue(achievement.Rarity));
             game.PrestigeScore = AddClamped(game.PrestigeScore, AchievementScoreCalculator.GetPrestigeValue(achievement.GlobalPercentUnlocked, achievement.Rarity));
             game.Points = AddClamped(game.Points, achievement.Points ?? 0);
+            if (!AchievementCategoryTypeHelper.IsSoftcore(achievement.CategoryType))
+            {
+                game.PlatformScorePoints = AddClamped(game.PlatformScorePoints, achievement.Points ?? 0);
+            }
             AddRarity(game, achievement.Rarity, possible: false);
             AddTrophy(game, achievement.TrophyType, possible: false);
             if (achievement.UnlockTimeUtc.HasValue &&

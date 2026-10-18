@@ -114,7 +114,28 @@ $patchArgs = @(
     "--",
     "."
 ) + $excludePathspecs
-$patchResult = Invoke-FmGit $repositoryRoot $patchArgs
+# Update leaves upstream-added files untracked until the merge is committed. A diff
+# against the real index would interpret those files as deletions. Build a temporary
+# index from the baseline and the working tree without changing the user's staging.
+$previousIndexFile = $env:GIT_INDEX_FILE
+$exportIndexFile = Join-Path ([IO.Path]::GetTempPath()) ("fork-export-" + [Guid]::NewGuid().ToString("N") + ".index")
+try
+{
+    $env:GIT_INDEX_FILE = $exportIndexFile
+    Invoke-FmGit $repositoryRoot @("read-tree", $baselineCommit) | Out-Null
+    # The diff below excludes maintenance/protected paths. Keep add's pathspec
+    # simple so excluded ignored directories do not make Git reject the command.
+    Invoke-FmGit $repositoryRoot @("add", "--all", "--", ".") | Out-Null
+    $patchResult = Invoke-FmGit $repositoryRoot $patchArgs
+}
+finally
+{
+    $env:GIT_INDEX_FILE = $previousIndexFile
+    if (Test-Path -LiteralPath $exportIndexFile)
+    {
+        Remove-Item -LiteralPath $exportIndexFile -Force
+    }
+}
 $patchText = ($patchResult.Output -join "`n")
 if (-not [string]::IsNullOrEmpty($patchText))
 {

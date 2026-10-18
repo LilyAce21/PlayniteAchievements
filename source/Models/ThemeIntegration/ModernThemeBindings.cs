@@ -397,6 +397,13 @@ namespace PlayniteAchievements.Models.ThemeIntegration
         private int _collectorMastery;
         [DontSerialize]
         private int _prestigeMastery;
+        private int _gamerscoreScore;
+        private int _gamerscoreTotal;
+        private int _epicXpScore;
+        private int _epicXpTotal;
+        private int _retroPointsScore;
+        private int _retroPointsTotal;
+        private List<PointsScoreItem> _pointsScores = new List<PointsScoreItem>();
 
         [DontSerialize]
         private readonly BulkObservableCollection<GameAchievementSummary> _steamGames = new BulkObservableCollection<GameAchievementSummary>();
@@ -1720,6 +1727,64 @@ namespace PlayniteAchievements.Models.ThemeIntegration
             set => SetValue(ref _prestigeMastery, value < 0 ? 0 : value);
         }
 
+        /// <summary>Gamerscore: unlocked Points of Xbox and Xenia games (by effective provider key).</summary>
+        [DontSerialize]
+        public int GamerscoreScore
+        {
+            get => _gamerscoreScore;
+            set => SetValue(ref _gamerscoreScore, value < 0 ? 0 : value);
+        }
+
+        /// <summary>Points of every achievement in Xbox and Xenia games, unlocked or not: the most GamerscoreScore can reach.</summary>
+        [DontSerialize]
+        public int GamerscoreTotal
+        {
+            get => _gamerscoreTotal;
+            set => SetValue(ref _gamerscoreTotal, value < 0 ? 0 : value);
+        }
+
+        /// <summary>Epic XP: unlocked Points of Epic games.</summary>
+        [DontSerialize]
+        public int EpicXpScore
+        {
+            get => _epicXpScore;
+            set => SetValue(ref _epicXpScore, value < 0 ? 0 : value);
+        }
+
+        /// <summary>Points of every achievement in Epic games, unlocked or not: the most EpicXpScore can reach.</summary>
+        [DontSerialize]
+        public int EpicXpTotal
+        {
+            get => _epicXpTotal;
+            set => SetValue(ref _epicXpTotal, value < 0 ? 0 : value);
+        }
+
+        /// <summary>RetroAchievements points: hardcore unlocked Points of RetroAchievements games.</summary>
+        [DontSerialize]
+        public int RetroPointsScore
+        {
+            get => _retroPointsScore;
+            set => SetValue(ref _retroPointsScore, value < 0 ? 0 : value);
+        }
+
+        /// <summary>Points of every achievement in RetroAchievements games, unlocked or not: the most RetroPointsScore can reach.</summary>
+        [DontSerialize]
+        public int RetroPointsTotal
+        {
+            get => _retroPointsTotal;
+            set => SetValue(ref _retroPointsTotal, value < 0 ? 0 : value);
+        }
+
+        /// <summary>
+        /// Every points family with points to earn, most earned first: Gamerscore (Xbox and Xenia),
+        /// PlayStation (PSN, RPCS3 and ShadPS4), Epic XP, RetroAchievements, and one per other provider.
+        /// </summary>
+        [DontSerialize]
+        public List<PointsScoreItem> PointsScores
+        {
+            get => _pointsScores;
+            set => SetValue(ref _pointsScores, value ?? new List<PointsScoreItem>());
+        }
         [DontSerialize]
         public List<AchievementDetail> AllAchievementsUnlockAsc
         {

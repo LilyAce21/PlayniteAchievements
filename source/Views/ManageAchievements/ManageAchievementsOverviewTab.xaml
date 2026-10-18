@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers"
+             xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
              mc:Ignorable="d"
              d:DesignHeight="600"
              d:DesignWidth="800">
@@ -11,6 +12,7 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <helpers:SharedResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/CommonResources.xaml"/>
                 <helpers:SharedResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/ManageAchievementsScopedControlStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
@@ -22,6 +24,34 @@
                 <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}" />
                 <Setter Property="Opacity" Value="{StaticResource PlayAch.Opacity.Subtle}" />
                 <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+
+            <!-- The Workshop source line's icon buttons: the glyph (the button's string Content)
+                 drawn as vector geometry, as on the Library page. -->
+            <DataTemplate x:Key="OverviewGlyphContentTemplate">
+                <controls:GlyphIcon Glyph="{Binding}"
+                                    Size="16"
+                                    FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    SnapsToDevicePixels="True" />
+            </DataTemplate>
+            <Style x:Key="OverviewIconButtonStyle" TargetType="Button" BasedOn="{StaticResource PlayAch.Button.ToolbarIconStyle}">
+                <Setter Property="Margin" Value="4,0,0,0" />
+                <Setter Property="ContentTemplate" Value="{StaticResource OverviewGlyphContentTemplate}" />
+            </Style>
+
+            <!-- A small rounded state tag (Edited, Update available), as on the Library page. -->
+            <Style x:Key="OverviewTagStyle" TargetType="Border">
+                <Setter Property="BorderThickness" Value="{StaticResource PlayAch.Thickness.Border}" />
+                <Setter Property="CornerRadius" Value="{StaticResource PlayAch.Radius.PillSmall}" />
+                <Setter Property="Padding" Value="8,1" />
+                <Setter Property="Margin" Value="6,0,0,0" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="OverviewTagTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Caption}" />
             </Style>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -50,7 +80,7 @@
                             <WrapPanel Margin="{StaticResource PlayAch.Thickness.Top.Sm}">
                                 <Border Style="{StaticResource MetaChipStyle}">
                                     <TextBlock Style="{StaticResource ChipTextStyle}">
-                                        <Run Text="{DynamicResource LOCPlayAch_ManageAchievements_Overview_Provider}" /><Run Text=": " /><Run Text="{Binding ProviderName, Mode=OneWay}" />
+                                        <Run Text="{DynamicResource LOCPlatformTitle}" /><Run Text=": " /><Run Text="{Binding ProviderName, Mode=OneWay}" />
                                     </TextBlock>
                                 </Border>
                                 <Border Style="{StaticResource MetaChipStyle}">
@@ -81,7 +111,7 @@
                         <StackPanel Grid.Column="1"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Top">
-                            <Button Content="{DynamicResource LOCPlayAch_Button_Clear}"
+                            <Button Content="{DynamicResource LOCClearLabel}"
                                     Command="{Binding ClearGameDataCommand}"
                                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                                     MinWidth="100"
@@ -164,7 +194,7 @@
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                                         VerticalAlignment="Center"
                                         Margin="{StaticResource PlayAch.Thickness.Left.Sm}" />
-                                <Button Content="{DynamicResource LOCPlayAch_Button_Clear}"
+                                <Button Content="{DynamicResource LOCClearLabel}"
                                         Command="{Binding ClearProviderOverrideCommand}"
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                                         VerticalAlignment="Center"
@@ -198,7 +228,7 @@
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                                         VerticalAlignment="Center"
                                         Margin="{StaticResource PlayAch.Thickness.Left.Sm}" />
-                                <Button Content="{DynamicResource LOCPlayAch_Button_Clear}"
+                                <Button Content="{DynamicResource LOCClearLabel}"
                                         Command="{Binding ClearExophaseEnrichmentSlugCommand}"
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                                         VerticalAlignment="Center"
@@ -212,17 +242,30 @@
                             <!-- Exclusion: one choice between the refresh and summary exclusions. -->
                             <TextBlock Grid.Row="4" Grid.Column="0"
                                        Style="{StaticResource SettingLabelStyle}"
-                                       Text="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ExclusionHeader}"
-                                       ToolTip="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ExclusionHint}" />
-                            <ComboBox Grid.Row="4" Grid.Column="1"
-                                      ItemsSource="{Binding ExclusionModeOptions}"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectedValuePath="Mode"
-                                      SelectedValue="{Binding ExclusionMode, Mode=TwoWay}"
-                                      Width="200"
-                                      Padding="8,4"
-                                      HorizontalAlignment="Left"
-                                      Margin="0,2" />
+                                       Text="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ExclusionHeader}" />
+                            <WrapPanel Grid.Row="4" Grid.Column="1"
+                                       Orientation="Horizontal">
+                                <ComboBox ItemsSource="{Binding ExclusionModeOptions}"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Mode"
+                                          SelectedValue="{Binding ExclusionMode, Mode=TwoWay}"
+                                          Width="200"
+                                          Padding="8,4"
+                                          HorizontalAlignment="Left"
+                                          Margin="0,2" />
+                                <!-- Which side owns the choice when saved filters are in play. -->
+                                <TextBlock Style="{StaticResource SettingStatusStyle}"
+                                           Text="{DynamicResource LOCPlayAch_ManageAchievements_Exclusion_SetByFilter}"
+                                           Visibility="{Binding IsExclusionSetByFilter, Converter={StaticResource BoolToVis}}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Left.Sm}" />
+                                <Button Content="{DynamicResource LOCPlayAch_ManageAchievements_Exclusion_FollowFilters}"
+                                        Command="{Binding FollowSavedFiltersCommand}"
+                                        Visibility="{Binding IsExclusionOverridingFilter, Converter={StaticResource BoolToVis}}"
+                                        Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
+                                        VerticalAlignment="Center"
+                                        Margin="{StaticResource PlayAch.Thickness.Left.Sm}" />
+                            </WrapPanel>
 
                             <!-- Separate locked icons: per-game override of the global setting. -->
                             <TextBlock Grid.Row="5" Grid.Column="0"
@@ -275,17 +318,87 @@
                                    ToolTip="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_CustomDataHint}"
                                    VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Button Content="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ExportButton}"
-                                    Command="{Binding ExportCustomCommand}"
+                            <Button Content="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ExportButton}" ContentTemplate="{DynamicResource PlayAch.ButtonContent.Export}"
+                                    Click="ContextMenuButton_Click"
                                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
-                                    Margin="{StaticResource PlayAch.Thickness.Right.Sm}" />
-                            <Button Content="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ImportButton}"
-                                    Command="{Binding ImportCustomJsonCommand}"
+                                    Margin="{StaticResource PlayAch.Thickness.Right.Sm}">
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{DynamicResource LOCPlayAch_Workshop_Menu_ToFile}"
+                                                  Command="{Binding ExportCustomCommand}" />
+                                        <MenuItem Header="{DynamicResource LOCPlayAch_Workshop_Share}"
+                                                  Command="{Binding ShareToWorkshopCommand}" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
+                            <Button Content="{DynamicResource LOCImportLabel}" ContentTemplate="{DynamicResource PlayAch.ButtonContent.Import}"
+                                    Click="ContextMenuButton_Click"
                                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
-                                    Margin="{StaticResource PlayAch.Thickness.Right.Sm}" />
+                                    Margin="{StaticResource PlayAch.Thickness.Right.Sm}">
+                                <Button.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{DynamicResource LOCPlayAch_Workshop_Menu_FromFile}"
+                                                  Command="{Binding ImportCustomJsonCommand}" />
+                                        <MenuItem Header="{DynamicResource LOCPlayAch_Workshop_Menu_FromWorkshop}"
+                                                  Command="{Binding ImportFromWorkshopCommand}" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                            </Button>
                             <Button Content="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataButton}"
                                     Command="{Binding ClearCustomDataCommand}"
                                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- The Workshop item this data came from: its version and state, and Update
+                         (download, merge), Reset (as published) and Unlink. -->
+                    <Grid Margin="0,8,0,0"
+                          Visibility="{Binding HasWorkshopSource, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <WrapPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource PlayAch.Brush.Text}" TextWrapping="Wrap">
+                                <Run Text="{DynamicResource LOCPlayAch_Workshop_Title}" /><Run Text=": " /><Run Text="{Binding WorkshopSourceName, Mode=OneWay}" FontWeight="SemiBold" />
+                            </TextBlock>
+                            <TextBlock Style="{StaticResource OverviewMutedTextStyle}"
+                                       Text="{Binding WorkshopSourceVersionText}"
+                                       VerticalAlignment="Center"
+                                       Margin="6,0,0,0"
+                                       Visibility="{Binding HasWorkshopSourceVersion, Converter={StaticResource BoolToVis}}" />
+                            <Border Style="{StaticResource OverviewTagStyle}"
+                                    BorderBrush="{DynamicResource PlayAch.Brush.AuthPending}"
+                                    Visibility="{Binding WorkshopSourceIsEdited, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{DynamicResource LOCPlayAch_Library_Edited}"
+                                           Style="{StaticResource OverviewTagTextStyle}"
+                                           Foreground="{DynamicResource PlayAch.Brush.AuthPending}" />
+                            </Border>
+                            <Border Style="{StaticResource OverviewTagStyle}"
+                                    BorderBrush="{DynamicResource PlayAch.Brush.Accent}"
+                                    Visibility="{Binding WorkshopSourceHasUpdate, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{DynamicResource LOCPlayAch_Workshop_UpdateAvailable}"
+                                           Style="{StaticResource OverviewTagTextStyle}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Accent}" />
+                            </Border>
+                        </WrapPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="&#xEF08;"
+                                    Style="{StaticResource OverviewIconButtonStyle}"
+                                    ToolTip="{DynamicResource LOCPlayAch_Workshop_Update}"
+                                    AutomationProperties.Name="{DynamicResource LOCPlayAch_Workshop_Update}"
+                                    Visibility="{Binding WorkshopSourceHasUpdate, Converter={StaticResource BoolToVis}}"
+                                    Command="{Binding UpdateWorkshopDataCommand}" />
+                            <Button Content="&#xEE0B;"
+                                    Style="{StaticResource OverviewIconButtonStyle}"
+                                    ToolTip="{DynamicResource LOCResetLabel}"
+                                    AutomationProperties.Name="{DynamicResource LOCResetLabel}"
+                                    Command="{Binding ResetWorkshopDataCommand}" />
+                            <Button Content="&#xEDF8;"
+                                    Style="{StaticResource OverviewIconButtonStyle}"
+                                    ToolTip="{DynamicResource LOCPlayAch_Library_Unlink}"
+                                    AutomationProperties.Name="{DynamicResource LOCPlayAch_Library_Unlink}"
+                                    Command="{Binding UnlinkWorkshopDataCommand}" />
                         </StackPanel>
                     </Grid>
 

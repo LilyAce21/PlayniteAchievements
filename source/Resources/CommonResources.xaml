@@ -206,7 +206,7 @@
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Padding" Value="0"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource PlayAch.FontFamily.Icon}"/>
         <Setter Property="FontSize" Value="15"/>
         <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -248,7 +248,7 @@
         <Setter Property="Height" Value="30"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Padding" Value="0"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource PlayAch.FontFamily.Icon}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -280,6 +280,139 @@
         </Setter>
     </Style>
 
+    <!-- The like affordance the Workshop browse list and the Library page share: a heart that
+         fills once this install has liked the item, with the item's count beside it. The row
+         supplies LikeCount, IsLiked, CanLike and ToggleLikeCommand, and the button stays hidden
+         until the Workshop's like service has answered. -->
+    <Style x:Key="PlayAch.Workshop.LikeButtonStyle" TargetType="Button">
+        <Setter Property="Padding" Value="4,1"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text.Secondary}"/>
+        <Setter Property="Command" Value="{Binding ToggleLikeCommand}"/>
+        <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Workshop_Like}"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" CornerRadius="4" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:GlyphIcon x:Name="Glyph"
+                                                Glyph="&#xEF44;"
+                                                Size="13"
+                                                Margin="0,0,4,0"
+                                                VerticalAlignment="Center"
+                                                FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                                Foreground="{TemplateBinding Foreground}"/>
+                            <TextBlock Text="{Binding LikeCount}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsLiked}" Value="True">
+                            <Setter TargetName="Glyph" Property="Glyph" Value="&#xEF45;"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource PlayAch.Brush.Accent}"/>
+                        </DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource PlayAch.Brush.Border}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.72"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding CanLike}" Value="True">
+                <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsLiked}" Value="True">
+                <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Workshop_Unlike}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The same like affordance as a heart on its own, large enough to be the thing a reader
+         aims at: it leads the Workshop row, left of the cover, and sits in the detail pane. The
+         count lives with the other counts at the end of the row, not here. -->
+    <Style x:Key="PlayAch.Workshop.LikeToggleStyle" TargetType="Button">
+        <Setter Property="Padding" Value="6"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text.Secondary}"/>
+        <Setter Property="Command" Value="{Binding ToggleLikeCommand}"/>
+        <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Workshop_Like}"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" CornerRadius="16" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <controls:GlyphIcon x:Name="Glyph"
+                                            Glyph="&#xEF44;"
+                                            Size="20"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                            Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsLiked}" Value="True">
+                            <Setter TargetName="Glyph" Property="Glyph" Value="&#xEF45;"/>
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource PlayAch.Brush.Accent}"/>
+                        </DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource PlayAch.Brush.Border}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.72"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding CanLike}" Value="True">
+                <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsLiked}" Value="True">
+                <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Workshop_Unlike}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Import and Export button faces: the editor toolbar's download and upload glyphs before
+         the localized word, so every Import and Export in the plugin reads the same. Content
+         stays the localized string; the template only adds the glyph. -->
+    <DataTemplate x:Key="PlayAch.ButtonContent.Import">
+        <StackPanel Orientation="Horizontal">
+            <controls:GlyphIcon Glyph="&#xEF08;"
+                                Size="14"
+                                Margin="0,0,6,0"
+                                VerticalAlignment="Center"
+                                FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+        </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="PlayAch.ButtonContent.Export">
+        <StackPanel Orientation="Horizontal">
+            <controls:GlyphIcon Glyph="&#xF01C;"
+                                Size="14"
+                                Margin="0,0,6,0"
+                                VerticalAlignment="Center"
+                                FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+        </StackPanel>
+    </DataTemplate>
+
     <!-- Small round "i" for explaining a surface, sized to sit beside a caption without pulling
          weight away from it. One definition so the score surfaces that carry it (the Scores widget
          and the start page score card) stay identical. -->
@@ -291,8 +424,10 @@
         <Setter Property="Width" Value="18"/>
         <Setter Property="Height" Value="18"/>
         <Setter Property="MinHeight" Value="0"/>
-        <Setter Property="Content" Value="&#xE946;"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <!-- IcoFont has no outlined info-circle (EF4E is a filled disc), so the ring is the
+             border below and the glyph is the bare "i" (EF50). -->
+        <Setter Property="Content" Value="&#xEF50;"/>
+        <Setter Property="FontFamily" Value="{DynamicResource PlayAch.FontFamily.Icon}"/>
         <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Caption}"/>
         <Setter Property="Opacity" Value="{StaticResource PlayAch.Opacity.Subtle}"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -304,7 +439,9 @@
                             Width="{TemplateBinding Width}"
                             Height="{TemplateBinding Height}"
                             CornerRadius="9"
-                            Background="{TemplateBinding Background}">
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding Foreground}"
+                            BorderThickness="1">
                         <TextBlock Text="{TemplateBinding Content}"
                                    Foreground="{TemplateBinding Foreground}"
                                    FontFamily="{TemplateBinding FontFamily}"
@@ -335,7 +472,7 @@
         <Setter Property="Height" Value="32"/>
         <Setter Property="MinHeight" Value="0"/>
         <Setter Property="Padding" Value="0"/>
-        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="FontFamily" Value="{DynamicResource PlayAch.FontFamily.Icon}"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
         <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.PopupSurface}"/>
@@ -1311,6 +1448,20 @@
     </Style>
 
     <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource PlayAch.ToolbarButtonStyle}"/>
+
+    <!-- Icon-only toolbar button: an IcoFont glyph as the content and the label in the tooltip,
+         which a disabled button still shows. One definition so the Manage Achievements editor
+         toolbar and the notification appearance toolbar render their glyphs identically. -->
+    <Style x:Key="PlayAch.Button.ToolbarIconStyle" TargetType="Button" BasedOn="{StaticResource PlayAch.Button.BaseStyle}">
+        <Setter Property="MinHeight" Value="30"/>
+        <Setter Property="Width" Value="34"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="FontFamily" Value="{DynamicResource PlayAch.FontFamily.Icon}"/>
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
+    </Style>
 
     <Style x:Key="PlayAch.SectionHeaderTextStyle" TargetType="TextBlock" BasedOn="{StaticResource PlayAch.TextBlock.BaseStyle}">
         <Setter Property="FontSize" Value="{StaticResource PlayAch.FontSize.SectionHeader}"/>

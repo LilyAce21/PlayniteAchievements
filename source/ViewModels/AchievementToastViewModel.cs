@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -12,6 +13,8 @@ using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.GameCustomData;
+using PlayniteAchievements.Services.Images;
+using PlayniteAchievements.Services.Images.Webm;
 using PlayniteAchievements.Services.UI;
 using PlayniteAchievements.Views.Helpers;
 
@@ -90,9 +93,13 @@ namespace PlayniteAchievements.ViewModels
             // The scope's style first, then the kind's own copy when it has one. The settings
             // mockup passes the style it is editing as styleOverride and goes through the same
             // narrowing, so the preview and a live notification cannot disagree.
+            var scopeStyle = styleOverride ?? resolved.Style;
             _style = NotificationStyleResolver.ApplyKind(
-                styleOverride ?? resolved.Style,
+                scopeStyle,
                 NotificationKindResolver.Resolve(_args));
+            // Motion is read before the kind narrowing: every card in a stack moves together,
+            // so it follows the scope rather than any one card's kind.
+            MotionSurface = scopeStyle?.Toast;
             ToastUseThemeStyling =
                 toastUseThemeStylingOverride ?? resolved.ToastUseThemeStyling;
             FrameUseThemeStyling =
@@ -103,6 +110,12 @@ namespace PlayniteAchievements.ViewModels
         }
 
         public bool ToastUseThemeStyling { get; }
+
+        /// <summary>
+        /// The scope's toast style (game, provider or global, without the kind's own copy), which
+        /// the toast service reads the entrance and exit motion and the position from.
+        /// </summary>
+        internal NotificationSurfaceStyle MotionSurface { get; }
 
         public bool FrameUseThemeStyling { get; }
 
@@ -136,6 +149,10 @@ namespace PlayniteAchievements.ViewModels
         // Fire-test preview only: forces the template source for this notification. Null for
         // real unlocks. Read by the notification service when resolving the wave's template.
         internal Services.UI.NotificationTemplatePreviewSource? PreviewTemplateSource => _args.PreviewTemplateSource;
+
+        // Fire-test preview only: the exact template to render, which wins over
+        // PreviewTemplateSource. Null for real unlocks. Read by ToastSurfaceFactory.
+        internal System.Windows.DataTemplate PreviewTemplateOverride => _args.PreviewTemplateOverride;
         internal string AchievementName => ResolveAchievementName(_args);
         internal int AchievementNumber => _args.AchievementNumber;
         internal AchievementUnlockedEventArgs SourceEventArgs => _args;
@@ -166,16 +183,15 @@ namespace PlayniteAchievements.ViewModels
 
         /// <summary>
         /// Computes <see cref="NotifyReadyAtUtc"/>: the unlock observation (or the enqueue instant
-        /// when no observation stamp exists, e.g. friend unlocks) plus the configured notification
-        /// delay. Previews and test fires are exempt and always ready, matching the capture-delay
-        /// exemptions.
+        /// when no observation stamp exists, e.g. friend unlocks) plus the unlock's effective
+        /// notification delay. Previews and test fires are exempt and always ready, matching the
+        /// capture-delay exemptions.
         /// </summary>
         internal static DateTime ComputeNotifyReadyUtc(
             AchievementUnlockedEventArgs args,
-            PersistedSettings settings,
+            double delaySeconds,
             DateTime enqueuedUtc)
         {
-            var delaySeconds = settings?.NotificationDelaySeconds ?? 0;
             if (args == null || args.IsPreview || args.IsTestFire || delaySeconds <= 0)
             {
                 return default(DateTime);
@@ -347,6 +363,10 @@ namespace PlayniteAchievements.ViewModels
         public bool ShowInlineBadge => _style.Toast.InlineRarityBadge && HasBadgeData;
         public bool FrameShowInlineBadge => _style.Frame.InlineRarityBadge && HasBadgeData;
 
+        // The same badge drawn inline before the game name on the game/category line.
+        public bool ShowInlineGameBadge => _style.Toast.InlineGameRarityBadge && HasBadgeData;
+        public bool FrameShowInlineGameBadge => _style.Frame.InlineGameRarityBadge && HasBadgeData;
+
         // The rarity/trophy badge drawn larger on the right, replacing the provider icon. Shares
         // the same badge image sources as the footer/inline badges.
         public bool ShowRightBadge => _style.Toast.RightRarityBadge && HasBadgeData;
@@ -363,10 +383,11 @@ namespace PlayniteAchievements.ViewModels
         public bool HasFriendAvatar => !string.IsNullOrWhiteSpace(FriendAvatar);
 
         // A category that just repeats the game name (common for single-list providers) reads as
-        // a duplicate, so it is force-hidden in both the toast and the frame.
+        // a duplicate, so it is force-hidden in both the toast and the frame. The Default bucket
+        // reads as blank (see Category), so it is hidden the same way the grid cells blank it.
         private bool HasDistinctCategory =>
-            !string.IsNullOrWhiteSpace(_args.Category) &&
-            !string.Equals(_args.Category?.Trim(), _args.GameName?.Trim(), StringComparison.OrdinalIgnoreCase);
+            !string.IsNullOrWhiteSpace(Category) &&
+            !string.Equals(Category, _args.GameName?.Trim(), StringComparison.OrdinalIgnoreCase);
 
         // Unlock timestamp bindings (local time, current-culture formatting like the grids'
         // UnlockTimeText). A midnight time-of-day means a date-only provider timestamp, so the
@@ -407,9 +428,27 @@ namespace PlayniteAchievements.ViewModels
         public bool FrameShowShineBorder => _style.Frame.ShowRarityGlow && HardcoreTakesBorder;
 
         // Frame vignette chrome: the radial edge vignette shows only for Full; the bottom contrast
-        // wash shows for Full and Bottom. None removes both, leaving the raw screenshot.
+        // wash shows for Full and Bottom. None removes both, leaving the raw screenshot; Image
+        // replaces both with the style's frame background image.
         public bool FrameShowRadialVignette => _style.Frame.FrameVignette == FrameVignetteStyle.Full;
-        public bool FrameShowBottomWash => _style.Frame.FrameVignette != FrameVignetteStyle.None;
+        public bool FrameShowBottomWash =>
+            _style.Frame.FrameVignette == FrameVignetteStyle.Full ||
+            _style.Frame.FrameVignette == FrameVignetteStyle.Bottom;
+
+        /// <summary>
+        /// The frame background image, synchronously decoded for the offscreen render; null when
+        /// the vignette is not set to <see cref="FrameVignetteStyle.Image"/> or the file is
+        /// missing or unreadable. The template stretches it over the whole shot.
+        /// </summary>
+        public ImageSource FrameBackgroundImage =>
+            _style.Frame.FrameVignette == FrameVignetteStyle.Image
+                ? LoadFrameImage(_style.FrameBackgroundImagePath)
+                : null;
+
+        public bool FrameShowBackgroundImage =>
+            _style.Frame.FrameVignette == FrameVignetteStyle.Image &&
+            !string.IsNullOrWhiteSpace(_style.FrameBackgroundImagePath) &&
+            File.Exists(_style.FrameBackgroundImagePath);
 
         // Original stop alphas of the built-in frame vignette gradients (what strength 50
         // reproduces); scaled per-stop by the surface's vignette strength setting.
@@ -648,7 +687,10 @@ namespace PlayniteAchievements.ViewModels
         // clicked. The line is kept (see MaskedDescription) so the card's rows sit where they
         // would for any other achievement.
         public string Description => IsDescriptionMasked ? MaskedDescription : _args.Description;
-        public string Category => _args.Category;
+        // The category's leaf name, as the grid cells show it: "DLC::Season Pass" reads as
+        // "Season Pass", and the Default bucket reads as blank.
+        public string Category =>
+            Services.Achievements.AchievementCategoryTypeHelper.ToCategoryLabelCellText(_args.Category);
         public string GameName => _args.GameName;
 
         // Absolute local paths to the Playnite game's icon and cover art; null when the game has
@@ -971,12 +1013,15 @@ namespace PlayniteAchievements.ViewModels
         }
 
         // Secondary rarity/trophy/capstone badge. Completion notifications resolve to null
-        // naturally (no capstone, trophy, or rarity data on them).
+        // naturally (no capstone, trophy, or rarity data on them). A capstone that is the
+        // platinum trophy draws the platinum, matching the grids' completion spot.
         public ImageSource BadgeImage => CreateBadge(IsCapstone);
+
+        private bool IsPlatinumCapstone => IsCapstone && TrophyType == "Platinum";
 
         private ImageSource CreateBadge(bool completed)
         {
-            if (completed)
+            if (completed && !IsPlatinumCapstone)
             {
                 return RarityAppearanceHelper.CreateCompletedBadgePreview(_settings);
             }
@@ -1028,20 +1073,176 @@ namespace PlayniteAchievements.ViewModels
         // decoding) so an overwritten badge file at the same managed slot path never shows a
         // stale cached bitmap.
         public object ToastBadgeSource =>
-            (object)AchievementIconResolver.ApplyCacheBust(ResolveCustomBadgePath(_style.Toast.BadgeImages)) ?? BadgeImage;
+            ToastImageSource(ResolveCustomBadgePath(_style.Toast.BadgeImages)) ?? BadgeImage;
 
         // Toast icon-swap source for the completion trigger, mirroring CompletedBadgeImage.
         public object ToastCompletedBadgeSource =>
-            (object)AchievementIconResolver.ApplyCacheBust(NullIfBlank(_style.Toast.BadgeImages.CompletionPath)) ?? CompletedBadgeImage;
+            ToastImageSource(NullIfBlank(_style.Toast.BadgeImages.CompletionPath)) ?? CompletedBadgeImage;
+
+        /// <summary>
+        /// Images decoded ahead of an offscreen render (the Workshop preview image), keyed by the
+        /// absolute path the style names them by. A toast image found here binds as the decoded
+        /// image, since the async loader never runs on a card that is not on screen. Null for
+        /// live notifications.
+        /// </summary>
+        internal IReadOnlyDictionary<string, ImageSource> PreloadedImages { get; set; }
+
+        /// <summary>
+        /// Shows the toast's slot images (background and badges) as their stills at the toast
+        /// surface's keyframe instead of animating; the first frame when no keyframe is set. Set
+        /// before the template is built: the appearance editor's paused preview.
+        /// </summary>
+        internal bool HoldToastImagesAtKeyframe { get; set; }
+
+        private int ToastKeyframeMs => Math.Max(0, _style.Toast.ImageKeyframeMs ?? 0);
+
+        private int FrameKeyframeMs => Math.Max(0, _style.Frame.ImageKeyframeMs ?? 0);
+
+        /// <summary>
+        /// The still the with-notification screenshot shows for the toast image at
+        /// <paramref name="path"/>: its frame at the toast surface's keyframe, when the path is
+        /// one of the toast's own slot images, animated, and a keyframe is set. Null otherwise,
+        /// which leaves that image as it is on screen.
+        /// </summary>
+        internal ImageSource ToastCaptureStill(string path)
+        {
+            return _style.Toast.ImageKeyframeMs.HasValue && IsToastSlotImage(path)
+                ? AnimatedImageKeyframe.TryDecodeAt(path, ToastKeyframeMs)
+                : null;
+        }
+
+        /// <summary>
+        /// Decodes the toast's animated slot images at its keyframe on a worker, so the
+        /// with-notification screenshot finds them cached. Nothing to do without a keyframe.
+        /// </summary>
+        internal void PrefetchToastCaptureStills()
+        {
+            if (!_style.Toast.ImageKeyframeMs.HasValue)
+            {
+                return;
+            }
+
+            var paths = ToastSlotImagePaths().ToList();
+            var timeMs = ToastKeyframeMs;
+            Task.Run(() =>
+            {
+                foreach (var path in paths)
+                {
+                    AnimatedImageKeyframe.TryDecodeAt(path, timeMs);
+                }
+            });
+        }
+
+        private IEnumerable<string> ToastSlotImagePaths()
+        {
+            var badges = _style.Toast.BadgeImages;
+            return new[]
+                {
+                    _style.ToastBackgroundImagePath,
+                    badges.CommonPath,
+                    badges.UncommonPath,
+                    badges.RarePath,
+                    badges.UltraRarePath,
+                    badges.CompletionPath
+                }
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private bool IsToastSlotImage(string path)
+        {
+            return !string.IsNullOrWhiteSpace(path) &&
+                   ToastSlotImagePaths().Any(slot => string.Equals(slot, path, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // The keyframe still for a toast image while the preview holds them, else null.
+        private ImageSource HeldToastImage(string path)
+        {
+            return HoldToastImagesAtKeyframe && !string.IsNullOrWhiteSpace(path)
+                ? AnimatedImageKeyframe.TryDecodeAt(path, ToastKeyframeMs)
+                : null;
+        }
+
+        // A toast image binding: the held keyframe still or the preloaded image for the path when
+        // there is one, else the cache-busted path for AsyncImage; null for a blank path.
+        private object ToastImageSource(string path)
+        {
+            var held = HeldToastImage(path);
+            if (held != null)
+            {
+                return held;
+            }
+
+            if (TryGetPreloadedImage(path, out var image))
+            {
+                return image;
+            }
+
+            return AchievementIconResolver.ApplyCacheBust(path);
+        }
+
+        private bool TryGetPreloadedImage(string path, out ImageSource image)
+        {
+            image = null;
+            return !string.IsNullOrWhiteSpace(path)
+                   && PreloadedImages != null
+                   && PreloadedImages.TryGetValue(path, out image)
+                   && image != null;
+        }
 
         // Frame equivalents read the frame surface's own badge set. The frame is rendered
         // offscreen, so images must be synchronously decoded (an async load renders blank);
-        // animated GIFs contribute their first frame.
+        // animated images contribute their frame at the frame surface's keyframe.
         public ImageSource FrameBadgeImage =>
-            LoadSyncImage(ResolveCustomBadgePath(_style.Frame.BadgeImages)) ?? BadgeImage;
+            LoadFrameImage(ResolveCustomBadgePath(_style.Frame.BadgeImages)) ?? BadgeImage;
 
         public ImageSource FrameCompletedBadgeImage =>
-            LoadSyncImage(NullIfBlank(_style.Frame.BadgeImages.CompletionPath)) ?? CompletedBadgeImage;
+            LoadFrameImage(NullIfBlank(_style.Frame.BadgeImages.CompletionPath)) ?? CompletedBadgeImage;
+
+        // A frame slot image: an animated file's frame at the frame keyframe, else the still.
+        private ImageSource LoadFrameImage(string path)
+        {
+            if (FrameAnimationTimeMs is long timeMs)
+            {
+                var duration = AnimatedImageKeyframe.DurationMs(path);
+                return (duration > 0 ? AnimatedImageKeyframe.TryDecodeAt(path, (int)(timeMs % duration)) : null)
+                       ?? LoadSyncImage(path);
+            }
+
+            return (FrameKeyframeMs > 0 ? AnimatedImageKeyframe.TryDecodeAt(path, FrameKeyframeMs) : null)
+                   ?? LoadSyncImage(path);
+        }
+
+        /// <summary>
+        /// Time into the framed video, in milliseconds, at which the frame is drawn: each
+        /// animated slot image shows its frame at that time, looping from its first frame, in
+        /// place of the keyframe (which is for screenshots). Null draws the screenshot frame.
+        /// Set around one chrome render on the UI thread.
+        /// </summary>
+        internal long? FrameAnimationTimeMs { get; set; }
+
+        /// <summary>
+        /// The frame timelines (delays in ms) of the frame surface's animated slot images: the
+        /// background while the vignette shows it, the badge for this unlock, and the completion
+        /// badge. Empty when none is animated, so the framed video's frame is one still.
+        /// </summary>
+        internal IReadOnlyList<IReadOnlyList<int>> FrameAnimationTimelines()
+        {
+            var badges = _style.Frame.BadgeImages;
+            var paths = new[]
+            {
+                _style.Frame.FrameVignette == FrameVignetteStyle.Image ? _style.FrameBackgroundImagePath : null,
+                ResolveCustomBadgePath(badges),
+                NullIfBlank(badges.CompletionPath)
+            };
+
+            return paths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(AnimatedImageKeyframe.TryReadFrameDelays)
+                .Where(delays => delays != null)
+                .ToList();
+        }
 
         /// <summary>
         /// Provider icon geometry key for the toast/frame provider icon (rendered via
@@ -1098,9 +1299,13 @@ namespace PlayniteAchievements.ViewModels
         /// stable ImageSource owned by its persistent host so rebuilding the preview does not
         /// restart the GIF. ToastBackgroundImagePath remains available to existing templates.
         /// </summary>
-        public object ToastBackgroundRenderSource => _useToastBackgroundRenderSourceOverride
-            ? (object)_toastBackgroundRenderSourceOverride
-            : ToastBackgroundImagePath;
+        public object ToastBackgroundRenderSource => HeldToastImage(_style.ToastBackgroundImagePath) is ImageSource held
+            ? held
+            : _useToastBackgroundRenderSourceOverride
+                ? (object)_toastBackgroundRenderSourceOverride
+                : TryGetPreloadedImage(_style.ToastBackgroundImagePath, out var preloaded)
+                    ? preloaded
+                    : (object)ToastBackgroundImagePath;
 
         /// <summary>
         /// Completes this notification's image loads. Surfaces that render synchronously have to
@@ -1423,14 +1628,17 @@ namespace PlayniteAchievements.ViewModels
             var descriptionMaxLines =
                 (showGameName || showCategory || (!isFrame && IsProgressUpdate)) ? 1 : 2;
 
-            // Name-line offset: a positive value indents the title line to the right; a negative
-            // value indents every other line instead, so the title line (with its inline badge)
-            // never slides left under the icon column. The standalone completion notification has
-            // no inline badge (its title is "Game Complete!"), and a progress notification hides
-            // every badge placement, so the offset does not apply to either.
+            // Badge-line offset: a positive value indents the line carrying the inline badge to the
+            // right; a negative value indents every other line instead, so the badge line never
+            // slides left under the icon column. The badge line is the game/category line when the
+            // badge sits inline before the game name, and the title line otherwise. The standalone
+            // completion notification has no inline badge (its title is "Game Complete!"), and a
+            // progress notification hides every badge placement, so the offset does not apply to
+            // either.
             var offset = IsGameCompleted || IsProgressUpdate ? 0 : surface.TitleLineOffset;
-            var titleIndent = offset > 0 ? offset : 0;
+            var badgeLineIndent = offset > 0 ? offset : 0;
             var otherIndent = offset < 0 ? -offset : 0;
+            var badgeOnGameLine = surface.InlineGameRarityBadge;
 
             // Extra top/bottom padding applied to every line.
             var linePadding = surface.LinePadding is double lp && lp > 0 ? lp : 0;
@@ -1487,7 +1695,10 @@ namespace PlayniteAchievements.ViewModels
                             contentShadow,
                             showGameName,
                             showCategory,
-                            isFrame ? FrameShowGameCategorySeparator : ShowGameCategorySeparator));
+                            isFrame ? FrameShowGameCategorySeparator : ShowGameCategorySeparator,
+                            isFrame ? FrameShowInlineGameBadge : ShowInlineGameBadge,
+                            isFrame ? (object)FrameBadgeImage : ToastBadgeSource,
+                            isFrame ? FrameBadgeSize : ToastBadgeSize));
                         break;
                     case NotificationSurfaceStyle.LineProgress:
                         // Toast only: progress notifications never produce a screenshot, so the
@@ -1515,7 +1726,8 @@ namespace PlayniteAchievements.ViewModels
             {
                 var line = lines[i];
                 line.RowIndex = i;
-                line.LeftIndent = line is ToastTitleLine ? titleIndent : otherIndent;
+                var isBadgeLine = badgeOnGameLine ? line is ToastGameCategoryLine : line is ToastTitleLine;
+                line.LeftIndent = isBadgeLine ? badgeLineIndent : otherIndent;
                 line.VerticalPadding = linePadding;
                 line.ImageShadow = imageShadow;
                 ApplyLineEmphasis(line, surface, innerShadow, textBrush);
@@ -1738,6 +1950,11 @@ namespace PlayniteAchievements.ViewModels
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
                 return null;
+            }
+
+            if (ImageFormats.IsWebmExtension(ImageFormats.GetExtension(path)))
+            {
+                return WebmStill.TryDecode(path, 0);
             }
 
             try

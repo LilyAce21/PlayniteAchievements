@@ -24,9 +24,9 @@ namespace PlayniteAchievements.Tests.Views
             var focusOrder = ReadFocusButtonOrder();
 
             Assert.AreEqual(
-                5,
+                6,
                 xamlOrder.Count,
-                "Expected 5 tabs in the nav rail; update this test if a tab was added or removed.");
+                "Expected 6 tabs in the nav rail; update this test if a tab was added or removed.");
 
             CollectionAssert.AreEqual(
                 xamlOrder,
@@ -69,7 +69,7 @@ namespace PlayniteAchievements.Tests.Views
             // with it.
             var formerHeaderKeys = new[]
             {
-                "LOCPlayAch_Common_General",
+                "LOCGeneralLabel",
                 "LOCPlayAch_Settings_Appearance",
                 "LOCPlayAch_Settings_Maintenance_Title",
                 "LOCPlayAch_Achievements"

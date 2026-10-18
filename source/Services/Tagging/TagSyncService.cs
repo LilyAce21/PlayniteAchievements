@@ -14,6 +14,7 @@ using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.Logging;
+using PlayniteAchievements.Services.Rules;
 
 namespace PlayniteAchievements.Services.Tagging
 {
@@ -234,10 +235,7 @@ namespace PlayniteAchievements.Services.Tagging
                 else if (e.PropertyName == nameof(TaggingSettings.SetCompletionStatus) ||
                          e.PropertyName == nameof(TaggingSettings.CompletionStatusId))
                 {
-                    if (taggingSettings.SetCompletionStatus && taggingSettings.EnableTagging)
-                    {
-                        SyncCompletionStatus();
-                    }
+                    SyncCompletionStatus();
                 }
             }
             catch (Exception ex)
@@ -357,17 +355,12 @@ namespace PlayniteAchievements.Services.Tagging
                             updatedCount++;
                         }
 
-                        // Also update completion status in the same pass. Keyed off the
+                        // Also reconcile completion status in the same pass. Keyed off the
                         // game's own completion, not the Completed tag, so disabling that
                         // tag does not disable completion status syncing.
-                        if (targetCompletionStatusId.HasValue)
+                        if (ApplyCompletionStatus(game, evaluation.Completion, targetCompletionStatusId))
                         {
-                            if (evaluation.IsCompleted &&
-                                game.CompletionStatusId != targetCompletionStatusId.Value)
-                            {
-                                game.CompletionStatusId = targetCompletionStatusId.Value;
-                                _api.Database.Games.Update(game);
-                            }
+                            _api.Database.Games.Update(game);
                         }
                     }
                     catch (Exception ex)
@@ -386,6 +379,9 @@ namespace PlayniteAchievements.Services.Tagging
 
             _logger.Info($"Tag sync complete: {updatedCount} games updated");
         }
+
+        /// <summary>
+        /// Synchronizes tags for specific games (e.g., after a refresh).
         /// Does not show a progress dialog - runs silently in background.
         /// </summary>
         public void SyncTagsForGames(List<Guid> gameIds)
@@ -417,16 +413,11 @@ namespace PlayniteAchievements.Services.Tagging
                             var evaluation = EvaluateGame(game);
                             SyncGameTags(game, tagConfigs, evaluation.TagTypes);
 
-                            // Also update completion status if enabled. Keyed off the
-                            // game's own completion, not the Completed tag.
-                            if (targetStatusId.HasValue)
+                            // Also reconcile completion status. Keyed off the game's own
+                            // completion, not the Completed tag.
+                            if (ApplyCompletionStatus(game, evaluation.Completion, targetStatusId))
                             {
-                                if (evaluation.IsCompleted &&
-                                    game.CompletionStatusId != targetStatusId.Value)
-                                {
-                                    game.CompletionStatusId = targetStatusId.Value;
-                                    _api.Database.Games.Update(game);
-                                }
+                                _api.Database.Games.Update(game);
                             }
                         }
                         catch (Exception ex)
@@ -800,6 +791,15 @@ namespace PlayniteAchievements.Services.Tagging
         {
             public List<TagType> TagTypes;
             public bool IsCompleted;
+
+            /// <summary>
+            /// True when the evaluation stopped before looking at completion, as it does for an
+            /// excluded game, so <see cref="IsCompleted"/> says nothing about the game.
+            /// </summary>
+            public bool CompletionUnknown;
+
+            /// <summary>Completion for the status rule: null when unknown.</summary>
+            public bool? Completion => CompletionUnknown ? (bool?)null : IsCompleted;
         }
 
         /// <summary>
@@ -873,6 +873,7 @@ namespace PlayniteAchievements.Services.Tagging
             if (GameCustomDataLookup.IsExcludedFromRefreshes(gameId, Settings))
             {
                 types.Add(TagType.Excluded);
+                result.CompletionUnknown = true;
                 return result;
             }
 
@@ -902,6 +903,7 @@ namespace PlayniteAchievements.Services.Tagging
             if (data.ExcludedByUser)
             {
                 types.Add(TagType.Excluded);
+                result.CompletionUnknown = true;
                 return result;
             }
 
@@ -982,40 +984,40 @@ namespace PlayniteAchievements.Services.Tagging
                     }
                 }
 
-                // Delete only the exact tag names from config
-                var removalConfigs = Tagging?.TagConfigs;
-                if (removalConfigs != null)
+                // Delete only the tags this plugin tracks by id. Matching by name would also
+                // delete a user's own tag that happens to share a configured name.
+                var deletedTagIds = new HashSet<Guid>();
+                foreach (var tagId in GetAllTrackedTagIds())
                 {
-                    var tagNames = removalConfigs.Values
-                        .Where(c => c != null && !string.IsNullOrWhiteSpace(c.DisplayName))
-                        .Select(c => c.DisplayName)
-                        .ToList();
-
-                    foreach (var tagName in tagNames)
+                    var tag = _api.Database.Tags.Get(tagId);
+                    if (tag == null)
                     {
-                        var tag = _api.Database.Tags
-                            .FirstOrDefault(t => t.Name?.Equals(tagName, StringComparison.OrdinalIgnoreCase) ?? false);
+                        deletedTagIds.Add(tagId);
+                        continue;
+                    }
 
-                        if (tag != null)
-                        {
-                            try
-                            {
-                                _api.Database.Tags.Remove(tag);
-                                _logger.Debug($"Deleted tag: {tag.Name}");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.Error(ex, $"Failed to delete tag: {tag.Name}");
-                            }
-                        }
+                    try
+                    {
+                        _api.Database.Tags.Remove(tag);
+                        deletedTagIds.Add(tagId);
+                        _logger.Debug($"Deleted tag: {tag.Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, $"Failed to delete tag: {tag.Name}");
                     }
                 }
 
+                ForgetDeletedTagIds(deletedTagIds);
                 _logger.Info($"Tag removal complete: {removedCount} games updated");
             }, progressOptions);
 
             // Clear the tag ID cache
             _tagIdCache.Clear();
+
+            // Completion status is part of tag sync, so turning tagging off takes back the
+            // statuses it set as well.
+            ReleaseCompletionStatuses();
         }
 
         /// <summary>
@@ -1073,35 +1075,24 @@ namespace PlayniteAchievements.Services.Tagging
         }
 
         /// <summary>
-        /// Syncs completion status for completed games.
+        /// Reconciles every game's completion status with the current settings: completed games
+        /// take the configured status, and statuses this plugin set are restored once they no
+        /// longer apply.
         /// </summary>
         public void SyncCompletionStatus()
         {
-            if (!(Tagging?.SetCompletionStatus ?? false))
+            if (!(TaggingEnabled && (Tagging?.SetCompletionStatus ?? false)))
             {
+                ReleaseCompletionStatuses();
                 return;
             }
 
-            var completionStatusId = Tagging?.CompletionStatusId;
-            Guid? targetStatusId;
-
-            if (completionStatusId.HasValue && completionStatusId.Value != Guid.Empty)
+            var targetStatusId = GetCompletionStatusId();
+            if (!targetStatusId.HasValue)
             {
-                targetStatusId = completionStatusId;
-            }
-            else
-            {
-                // Find the default "Completed" status
-                var completedStatus = _api.Database.CompletionStatuses
-                    .FirstOrDefault(s => s.Name?.Equals("Completed", StringComparison.OrdinalIgnoreCase) ?? false);
-
-                if (completedStatus == null)
-                {
-                    _logger.Warn("Could not find 'Completed' status in database");
-                    return;
-                }
-
-                targetStatusId = completedStatus.Id;
+                _logger.Warn("Could not find 'Completed' status in database");
+                ReleaseCompletionStatuses();
+                return;
             }
 
             var progressOptions = new GlobalProgressOptions(
@@ -1132,9 +1123,8 @@ namespace PlayniteAchievements.Services.Tagging
 
                         try
                         {
-                            if (IsGameCompleted(game) && game.CompletionStatusId != targetStatusId)
+                            if (ApplyCompletionStatus(game, EvaluateGame(game).Completion, targetStatusId))
                             {
-                                game.CompletionStatusId = targetStatusId.Value;
                                 _api.Database.Games.Update(game);
                                 updatedCount++;
                             }
@@ -1149,6 +1139,123 @@ namespace PlayniteAchievements.Services.Tagging
                 _logger.Info($"Completion status sync complete: {updatedCount} games updated");
             }, progressOptions);
         }
+
+        /// <summary>
+        /// Restores every completion status this plugin set, for when the feature or tagging is
+        /// turned off. Only games holding a claim are visited, so this costs nothing per game.
+        /// </summary>
+        private void ReleaseCompletionStatuses()
+        {
+            var store = Store;
+            if (store == null)
+            {
+                return;
+            }
+
+            var gameIds = store.QueryAll(records => records
+                .Where(data => data != null &&
+                               (RuleReconciler.FindClaim(data, RuleFields.CompletionStatus) != null ||
+                                RuleReconciler.IsPinned(data, RuleFields.CompletionStatus)))
+                .Select(data => data.PlayniteGameId)
+                .ToList());
+            if (gameIds.Count == 0)
+            {
+                return;
+            }
+
+            var restoredCount = 0;
+            using (_api.Database.BufferedUpdate())
+            {
+                foreach (var gameId in gameIds)
+                {
+                    var game = _api.Database.Games.Get(gameId);
+                    if (game == null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        if (ApplyCompletionStatus(game, isCompleted: false, targetStatusId: null))
+                        {
+                            _api.Database.Games.Update(game);
+                            restoredCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, $"Failed to restore completion status for game {game.Name}");
+                    }
+                }
+            }
+
+            _logger.Info($"Completion status release complete: {restoredCount} games restored");
+        }
+
+        /// <summary>
+        /// Applies the completion status rule to one game through <see cref="RuleReconciler"/>:
+        /// a completed game takes the target status, and a status this plugin set is restored to
+        /// what it was once the game is no longer completed or the feature is off. A status the
+        /// user chose is never overwritten. Returns whether the game's status changed, in which
+        /// case the caller must write the game.
+        /// </summary>
+        /// <param name="isCompleted">Null when the game's completion is unknown, which leaves its
+        /// status alone while the feature is on.</param>
+        private bool ApplyCompletionStatus(Game game, bool? isCompleted, Guid? targetStatusId)
+        {
+            var store = Store;
+            if (game == null || store == null || (targetStatusId.HasValue && !isCompleted.HasValue))
+            {
+                return false;
+            }
+
+            const string field = RuleFields.CompletionStatus;
+            var current = ToStatusText(game.CompletionStatusId);
+            var desired = isCompleted == true && targetStatusId.HasValue ? ToStatusText(targetStatusId.Value) : null;
+            var stored = store.TryLoad(game.Id, out var data) ? data : null;
+            var decision = RuleReconciler.Decide(
+                field,
+                current,
+                desired,
+                RuleReconciler.FindClaim(stored, field),
+                RuleReconciler.IsPinned(stored, field));
+            if (decision.IsNoOp)
+            {
+                return false;
+            }
+
+            if (decision.StateChanged)
+            {
+                store.Update(
+                    game.Id,
+                    record => RuleReconciler.ApplyState(record, field, decision),
+                    affectsSummaryData: false,
+                    affectsOverrideMirror: false);
+            }
+
+            if (!decision.Write)
+            {
+                return false;
+            }
+
+            game.CompletionStatusId = ResolveExistingStatusId(decision.Value);
+            return true;
+        }
+
+        private static string ToStatusText(Guid statusId)
+        {
+            return statusId == Guid.Empty ? null : statusId.ToString("D");
+        }
+
+        /// <summary>The stored status id, or no status when it was deleted since.</summary>
+        private Guid ResolveExistingStatusId(string value)
+        {
+            return Guid.TryParse(value, out var statusId) && _api.Database.CompletionStatuses.Get(statusId) != null
+                ? statusId
+                : Guid.Empty;
+        }
+
+        private static GameCustomDataStore Store => PlayniteAchievementsPlugin.Instance?.GameCustomDataStore;
 
         /// <summary>
         /// Gets or creates a tag with the specified name and returns its ID.

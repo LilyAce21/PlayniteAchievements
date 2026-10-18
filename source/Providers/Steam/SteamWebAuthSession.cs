@@ -82,6 +82,14 @@ namespace PlayniteAchievements.Providers.Steam
         private static readonly Regex AttributeLoyaltyTokenPattern =
             new Regex(@"data-loyalty_webapi_token\s*=\s*""(?<token>[^""]+)""", RegexOptions.IgnoreCase);
 
+        // Redesigned (server-rendered) community pages carry the token as strWebAPIToken inside
+        // the valve-ssr-data loader JSON, where it is a string-escaped JSON document.
+        private static readonly Regex SsrTokenPattern =
+            new Regex(@"\\?""strWebAPIToken\\?""\s*:\s*\\?""(?<token>[A-Za-z0-9._\-]+)", RegexOptions.IgnoreCase);
+
+        private static readonly Regex EncodedSsrTokenPattern =
+            new Regex(@"&quot;strWebAPIToken&quot;\s*:\s*&quot;(?<token>[A-Za-z0-9._\-]+)", RegexOptions.IgnoreCase);
+
         public static SteamWebAuthSession Parse(
             string source,
             string cookieSteamId64 = null,
@@ -112,7 +120,9 @@ namespace PlayniteAchievements.Providers.Steam
                 EncodedLoyaltyTokenPattern,
                 JsonLoyaltyTokenPattern,
                 EncodedTokenPattern,
-                JsonTokenPattern);
+                JsonTokenPattern,
+                SsrTokenPattern,
+                EncodedSsrTokenPattern);
             var token = match?.Groups["token"].Value?.Trim();
             return string.IsNullOrWhiteSpace(token) ? null : token;
         }

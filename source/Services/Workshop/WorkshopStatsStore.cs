@@ -1,0 +1,323 @@
+using Playnite.SDK;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace PlayniteAchievements.Services.Workshop
+{
+    /// <summary>
+    /// The Workshop statistics every surface reads: an item's install count, its like count, and
+    /// whether this install has liked it. One instance is shared by Browse and the Library page,
+    /// so a press on either is seen by both. A press applies locally first and asks the service
+    /// after, and a refused call puts the local state back.
+    /// </summary>
+    public sealed class WorkshopStatsStore
+    {
+        private readonly WorkshopStatsClient _client;
+        private readonly WorkshopIdentityStore _identity;
+        private readonly ILogger _logger;
+        private readonly object _sync = new object();
+        private readonly Dictionary<string, long> _likes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, long> _installs = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+        private Task<bool> _load;
+        private bool _cacheRead;
+
+        public WorkshopStatsStore(WorkshopStatsClient client, WorkshopIdentityStore identity, ILogger logger = null)
+        {
+            _client = client ?? throw new ArgumentNullException(nameof(client));
+            _identity = identity ?? throw new ArgumentNullException(nameof(identity));
+            _logger = logger;
+        }
+
+        /// <summary>Where the last answer is kept, so a window has counts before the service replies.</summary>
+        private string CachePath =>
+            _identity.Directory == null ? null : System.IO.Path.Combine(_identity.Directory, "stats.json");
+
+        private sealed class CacheFile
+        {
+            public Dictionary<string, long> Likes { get; set; }
+            public Dictionary<string, long> Installs { get; set; }
+        }
+
+        /// <summary>
+        /// Shows the counts the last fetch wrote, so hearts and numbers are on screen while the
+        /// service is still answering. Read once; a fetch replaces whatever this put up.
+        /// </summary>
+        private void ReadCache()
+        {
+            var path = CachePath;
+            if (_cacheRead || path == null || !System.IO.File.Exists(path))
+            {
+                _cacheRead = true;
+                return;
+            }
+
+            _cacheRead = true;
+            try
+            {
+                var cached = Newtonsoft.Json.JsonConvert.DeserializeObject<CacheFile>(System.IO.File.ReadAllText(path));
+                if (cached == null)
+                {
+                    return;
+                }
+
+                lock (_sync)
+                {
+                    Replace(_likes, cached.Likes);
+                    Replace(_installs, cached.Installs);
+                }
+
+                IsAvailable = true;
+                RaiseChanged(null);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug($"Failed reading the cached Workshop statistics: {ex.Message}");
+            }
+        }
+
+        private void WriteCache()
+        {
+            var path = CachePath;
+            if (path == null)
+            {
+                return;
+            }
+
+            try
+            {
+                CacheFile file;
+                lock (_sync)
+                {
+                    file = new CacheFile
+                    {
+                        Likes = new Dictionary<string, long>(_likes, StringComparer.OrdinalIgnoreCase),
+                        Installs = new Dictionary<string, long>(_installs, StringComparer.OrdinalIgnoreCase)
+                    };
+                }
+
+                System.IO.Directory.CreateDirectory(_identity.Directory);
+                System.IO.File.WriteAllText(path, Newtonsoft.Json.JsonConvert.SerializeObject(file));
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug($"Failed writing the cached Workshop statistics: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Raised with an item's id after one of its counts or its liked state changed, on the
+        /// thread that changed it; a null id means every item changed, as when the listing
+        /// arrives. Lists subscribe once and raise the affected row's properties.
+        /// </summary>
+        public event EventHandler<string> StatsChanged;
+
+        /// <summary>
+        /// True once a listing has been read. Until then no count is known to be true, so the
+        /// surfaces leave the numbers and the like button out rather than show a zero.
+        /// </summary>
+        public bool IsAvailable { get; private set; }
+
+        /// <summary>
+        /// Reads the listing once per session. Later callers await the same fetch. False when the
+        /// service could not be reached, which leaves <see cref="IsAvailable"/> false.
+        /// </summary>
+        public Task<bool> EnsureLoadedAsync(CancellationToken cancel)
+        {
+            ReadCache();
+            lock (_sync)
+            {
+                if (_load == null)
+                {
+                    _load = LoadAsync(cancel);
+                }
+
+                return _load;
+            }
+        }
+
+        private async Task<bool> LoadAsync(CancellationToken cancel)
+        {
+            var voter = _identity.TryGetSubmitterHash();
+            var snapshot = await _client.FetchAsync(voter, cancel).ConfigureAwait(false);
+            if (snapshot == null)
+            {
+                lock (_sync)
+                {
+                    _load = null;
+                }
+
+                return false;
+            }
+
+            lock (_sync)
+            {
+                Replace(_likes, snapshot.Likes);
+                Replace(_installs, snapshot.Installs);
+            }
+
+            // The service is the record of what this key has liked; a key copied from another
+            // install brings its likes with it this way.
+            if (voter != null)
+            {
+                _identity.SetLikedItemIds(snapshot.Mine);
+            }
+
+            IsAvailable = true;
+            WriteCache();
+            RaiseChanged(null);
+            return true;
+        }
+
+        private static void Replace(Dictionary<string, long> target, Dictionary<string, long> source)
+        {
+            target.Clear();
+            foreach (var pair in source ?? new Dictionary<string, long>())
+            {
+                target[pair.Key] = pair.Value;
+            }
+        }
+
+        public long LikesFor(string itemId) => CountFor(_likes, itemId);
+
+        public long InstallsFor(string itemId) => CountFor(_installs, itemId);
+
+        private long CountFor(Dictionary<string, long> counts, string itemId)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return 0;
+            }
+
+            lock (_sync)
+            {
+                return counts.TryGetValue(itemId, out var count) ? count : 0;
+            }
+        }
+
+        public bool IsLiked(string itemId) => _identity.IsLiked(itemId);
+
+        /// <summary>
+        /// Turns this install's like for an item on or off. The change shows at once and is sent
+        /// to the service; a failure undoes it and leaves the count as the service last gave it.
+        /// </summary>
+        public async Task ToggleLikeAsync(string itemId, CancellationToken cancel)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return;
+            }
+
+            var liked = !_identity.IsLiked(itemId);
+            ApplyLike(itemId, liked, liked ? 1 : -1);
+
+            // Liking is the first thing that needs an identity on an install that has never
+            // shared, so this is where the submitter key is created.
+            var voter = _identity.GetSubmitterHash();
+            var count = await _client.SetLikeAsync(itemId, voter, liked, cancel).ConfigureAwait(false);
+            if (count == null)
+            {
+                ApplyLike(itemId, !liked, liked ? -1 : 1);
+                return;
+            }
+
+            SetCount(_likes, itemId, count.Value);
+            RaiseChanged(itemId);
+        }
+
+        /// <summary>
+        /// Adds this install to an item's install count. Called once an install has succeeded, so
+        /// the number counts installs rather than the package fetches a preview also makes. A
+        /// service that cannot be reached simply loses the count.
+        /// </summary>
+        public async Task RecordInstallAsync(string itemId, CancellationToken cancel)
+        {
+            if (string.IsNullOrWhiteSpace(itemId))
+            {
+                return;
+            }
+
+            var count = await _client.RecordInstallAsync(itemId, cancel).ConfigureAwait(false);
+            if (count == null)
+            {
+                return;
+            }
+
+            SetCount(_installs, itemId, count.Value);
+            RaiseChanged(itemId);
+        }
+
+        /// <summary>
+        /// Likes the items this install owns that it has not liked yet, so an author's own work
+        /// carries their like without them pressing anything.
+        /// </summary>
+        public async Task LikeOwnItemsAsync(IEnumerable<WorkshopItem> items, CancellationToken cancel)
+        {
+            if (!IsAvailable || items == null)
+            {
+                return;
+            }
+
+            var voter = _identity.TryGetSubmitterHash();
+            if (voter == null)
+            {
+                return;
+            }
+
+            var mine = items
+                .Where(item => WorkshopIdentityStore.IsOwnedBy(item, voter) && !_identity.IsLiked(item.Id))
+                .Select(item => item.Id)
+                .ToList();
+
+            foreach (var id in mine)
+            {
+                cancel.ThrowIfCancellationRequested();
+                ApplyLike(id, true, 1);
+                var count = await _client.SetLikeAsync(id, voter, true, cancel).ConfigureAwait(false);
+                if (count == null)
+                {
+                    ApplyLike(id, false, -1);
+                    continue;
+                }
+
+                SetCount(_likes, id, count.Value);
+                RaiseChanged(id);
+            }
+        }
+
+        private void ApplyLike(string itemId, bool liked, long delta)
+        {
+            _identity.SetLiked(itemId, liked);
+            lock (_sync)
+            {
+                _likes.TryGetValue(itemId, out var count);
+                _likes[itemId] = Math.Max(0, count + delta);
+            }
+
+            RaiseChanged(itemId);
+        }
+
+        private void SetCount(Dictionary<string, long> counts, string itemId, long count)
+        {
+            lock (_sync)
+            {
+                counts[itemId] = Math.Max(0, count);
+            }
+        }
+
+        private void RaiseChanged(string itemId)
+        {
+            try
+            {
+                StatsChanged?.Invoke(this, itemId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "A Workshop statistics change handler failed.");
+            }
+        }
+    }
+}

@@ -148,7 +148,7 @@ namespace PlayniteAchievements.GuildWars2.Tests
 
             // Every tier shares one icon, so the threshold is the only thing telling the rows apart.
             Assert.AreEqual("Slayer (10)", Find(results, "1:t1").DisplayName);
-            Assert.AreEqual("Slayer (1,000)", Find(results, "1:t4").DisplayName);
+            Assert.AreEqual("Slayer (" + 1000.ToString("N0") + ")", Find(results, "1:t4").DisplayName);
         }
 
         [TestMethod]

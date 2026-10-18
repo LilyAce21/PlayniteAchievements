@@ -12,6 +12,7 @@ using PlayniteAchievements.ViewModels.ManageAchievements;
 using PlayniteAchievements.Views.Helpers;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -28,17 +29,6 @@ namespace PlayniteAchievements.Views.ManageAchievements
     public partial class ManageAchievementsEditorTab : UserControl, IFullscreenControllerNavigable
     {
         private static readonly Regex HttpUrlRegex = new Regex(@"https?://[^\s""'<>]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly string[] SupportedImageExtensions =
-        {
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".bmp",
-            ".gif",
-            ".tif",
-            ".tiff"
-        };
-
         private const string DragDataFormat = "PlayniteAchievements.ManageAchievementsEditorRows";
 
         /// <summary>
@@ -139,6 +129,11 @@ namespace PlayniteAchievements.Views.ManageAchievements
             PreviewDragOver += EditorTab_PreviewDragOver;
             PreviewDrop += EditorTab_EndArtworkDrag;
             DragLeave += EditorTab_EndArtworkDrag;
+
+            // Text commits on keyboard focus loss, not logical focus loss: switching to another
+            // window keeps logical focus in the box, and the cell's EditOnClickPresenter then
+            // swaps the box out for its display face, so a LostFocus commit never ran.
+            AddHandler(LostKeyboardFocusEvent, new KeyboardFocusChangedEventHandler(EditorTab_LostKeyboardFocus), true);
             CategoryPicker.CreateRequested += CategoryPicker_CreateRequested;
             SeedCategoryPicker();
 
@@ -204,6 +199,11 @@ namespace PlayniteAchievements.Views.ManageAchievements
         /// </remarks>
         public void Cleanup()
         {
+            // A box can still hold an uncommitted edit when the window closes without a focus
+            // change reaching it.
+            FlushFocusedEditorText();
+            RemoveHandler(LostKeyboardFocusEvent, new KeyboardFocusChangedEventHandler(EditorTab_LostKeyboardFocus));
+
             // First, while the grid, the view model and the settings object are all still alive:
             // disposing flushes the pending width writes, which needs all three.
             _columnPersistence?.Dispose();
@@ -309,6 +309,15 @@ namespace PlayniteAchievements.Views.ManageAchievements
             }
 
             view.Filter = candidate => ViewModel?.MatchesFilter(candidate as AchievementEditorRow) != false;
+
+            // Live filtering on the retest token, so a filter change can move only the rows whose
+            // match changed instead of resetting the grid. See ViewModel_FilterChanged.
+            if (view is ICollectionViewLiveShaping live && live.CanChangeLiveFiltering)
+            {
+                live.LiveFilteringProperties.Clear();
+                live.LiveFilteringProperties.Add(nameof(AchievementEditorRow.FilterRetestToken));
+                live.IsLiveFiltering = true;
+            }
         }
 
         private void DetachFilter()
@@ -317,12 +326,68 @@ namespace PlayniteAchievements.Views.ManageAchievements
             if (view != null)
             {
                 view.Filter = null;
+                if (view is ICollectionViewLiveShaping live && live.CanChangeLiveFiltering)
+                {
+                    live.IsLiveFiltering = false;
+                    live.LiveFilteringProperties.Clear();
+                }
             }
         }
 
         private void ViewModel_FilterChanged(object sender, EventArgs e)
         {
-            CollectionViewSource.GetDefaultView(ViewModel?.AchievementRows)?.Refresh();
+            SyncFilteredRows();
+        }
+
+        // Moved rows times total rows past which a reset is cheaper; see SyncFilteredRows.
+        private const long FilterSyncWorkBudget = 250000;
+
+        /// <summary>
+        /// Brings the view in line with the filter by retesting only the rows whose match changed.
+        /// A reset would rebuild every visible row, including the ones that stay; this leaves those
+        /// containers in place, so only rows entering the view are realized.
+        /// </summary>
+        /// <remarks>
+        /// Each moved row costs time in proportion to the list's length, so the switch to a reset is
+        /// on moved rows times total rows rather than on a count. Measured: on 642 rows, moving 582
+        /// out took 38 ms against 160 ms for a reset; on 5,000 rows, moving 4,940 took 2,087 ms
+        /// against 288 ms, and even 120 lost (216 ms against 148 ms).
+        /// </remarks>
+        private void SyncFilteredRows()
+        {
+            var rows = ViewModel?.AchievementRows;
+            var view = CollectionViewSource.GetDefaultView(rows);
+            if (view == null)
+            {
+                return;
+            }
+
+            if (!(view is ICollectionViewLiveShaping live) || live.IsLiveFiltering != true)
+            {
+                view.Refresh();
+                return;
+            }
+
+            var shown = new HashSet<AchievementEditorRow>(view.OfType<AchievementEditorRow>());
+            var changed = new List<AchievementEditorRow>();
+            foreach (var row in rows)
+            {
+                if (row != null && ViewModel.MatchesFilter(row) != shown.Contains(row))
+                {
+                    changed.Add(row);
+                }
+            }
+
+            if ((long)changed.Count * rows.Count > FilterSyncWorkBudget)
+            {
+                view.Refresh();
+                return;
+            }
+
+            foreach (var row in changed)
+            {
+                row.RequestFilterRetest();
+            }
         }
 
         private void ToggleDetailsPaneButton_Click(object sender, RoutedEventArgs e)
@@ -1179,7 +1244,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
 
             var dialog = new OpenFileDialog
             {
-                Filter = "Image Files (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff|All Files (*.*)|*.*",
+                Filter = ImageFormats.BuildOpenFileDialogFilter(includeAllFiles: true),
                 CheckFileExists = true,
                 Multiselect = false
             };
@@ -1201,6 +1266,15 @@ namespace PlayniteAchievements.Views.ManageAchievements
 
             SetIconPath(row, variant, null);
             e.Handled = true;
+        }
+
+        // An image dropped on or pasted into a details-pane icon slot.
+        private void IconPickTarget_Picked(object sender, FilePickedEventArgs e)
+        {
+            if (TryResolveRowAndVariant(sender as FrameworkElement, out var row, out var variant))
+            {
+                SetIconPath(row, variant, e.PickedSource);
+            }
         }
 
         private void IconDropTarget_PreviewDragOver(object sender, DragEventArgs e)
@@ -1236,6 +1310,67 @@ namespace PlayniteAchievements.Views.ManageAchievements
             {
                 e.Handled = true;
             }
+        }
+
+        /// <summary>
+        /// Accepts dropped text on a resting Name or Description cell. A cell open for editing is
+        /// left to its text box, which inserts the text at the drop point itself.
+        /// </summary>
+        private void TextDropCell_PreviewDragOver(object sender, DragEventArgs e)
+        {
+            if (sender is Controls.EditOnClickPresenter presenter && presenter.IsEditing)
+            {
+                return;
+            }
+
+            e.Effects = ReadDroppedCellText(e.Data) != null ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// Replaces the cell's field with the dropped text, on the row it was dropped on.
+        /// </summary>
+        private void TextDropCell_Drop(object sender, DragEventArgs e)
+        {
+            if (!(sender is Controls.EditOnClickPresenter presenter) || presenter.IsEditing)
+            {
+                return;
+            }
+
+            e.Handled = true;
+            var row = EditorCellRouting.ResolveRow(presenter);
+            var field = EditorCellRouting.GetField(presenter);
+            var text = ReadDroppedCellText(e.Data);
+            if (row == null || string.IsNullOrEmpty(field) || text == null)
+            {
+                return;
+            }
+
+            // A name is a single line; a description keeps its line breaks.
+            if (field == nameof(AchievementEditorRow.DisplayName))
+            {
+                text = Regex.Replace(text, @"\s*[\r\n]+\s*", " ");
+            }
+
+            if (!string.Equals(text, ReadRoutedCellText(row, field), StringComparison.Ordinal))
+            {
+                WriteRoutedCellText(row, field, text);
+            }
+        }
+
+        /// <summary>
+        /// The trimmed plain text a drag carries, or null for a file drop or a drag without text.
+        /// </summary>
+        private static string ReadDroppedCellText(IDataObject data)
+        {
+            if (data == null || data.GetDataPresent(DataFormats.FileDrop))
+            {
+                return null;
+            }
+
+            var text = (ReadDroppedText(data, DataFormats.UnicodeText) ??
+                        ReadDroppedText(data, DataFormats.Text))?.Trim();
+            return string.IsNullOrEmpty(text) ? null : text;
         }
 
         private void NumericTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -1372,7 +1507,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
             // Category and type, the same two the Category tab's row menu offers.
             var categoryMenu = new MenuItem
             {
-                Header = ResourceProvider.GetString("LOCPlayAch_Common_Label_Category"),
+                Header = ResourceProvider.GetString("LOCCategoryLabel"),
                 IsEnabled = selection.All(row => row.CanEditAssignments)
             };
 
@@ -1381,7 +1516,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
 
             var typeMenu = new MenuItem
             {
-                Header = ResourceProvider.GetString("LOCPlayAch_Common_Label_Type"),
+                Header = ResourceProvider.GetString("LOCTypeLabel"),
                 IsEnabled = selection.All(row => row.CanEditAssignments)
             };
             AppendCategoryTypeItems(typeMenu.Items, selection);
@@ -1401,7 +1536,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 ResourceProvider.GetString("LOCPlayAch_ManageAchievements_Editor_Revert"),
                 viewModel.RevertCommand));
             menu.Items.Add(CreateCommandMenuItem(
-                ResourceProvider.GetString("LOCPlayAch_Button_Delete"),
+                ResourceProvider.GetString("LOCPlayAch_Common_Delete"),
                 viewModel.DeleteCommand));
 
             return menu;
@@ -1447,12 +1582,46 @@ namespace PlayniteAchievements.Views.ManageAchievements
         }
 
         /// <summary>
-        /// Commits a routed cell's text box on focus loss, which is when every editable box in
-        /// this tab commits.
+        /// Commits a text box in this tab when keyboard focus leaves it, which is when every
+        /// editable box here commits, including when the window itself is deactivated.
         /// </summary>
-        private void RoutedCellTextBox_Commit(object sender, RoutedEventArgs e)
+        private void EditorTab_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
-            CommitRoutedCellTextBox(sender as TextBox);
+            CommitEditorTextBox(e.OriginalSource as TextBox);
+        }
+
+        private void FlushFocusedEditorText()
+        {
+            var focused = FocusManager.GetFocusedElement(FocusManager.GetFocusScope(this)) as TextBox;
+            if (focused != null && IsAncestorOf(focused))
+            {
+                CommitEditorTextBox(focused);
+            }
+        }
+
+        /// <summary>
+        /// Routed grid cells write through their routed target; the details pane's boxes push
+        /// their two-way binding.
+        /// </summary>
+        private void CommitEditorTextBox(TextBox textBox)
+        {
+            if (textBox == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(EditorCellRouting.GetField(textBox)))
+            {
+                CommitRoutedCellTextBox(textBox);
+                return;
+            }
+
+            var binding = textBox.GetBindingExpression(TextBox.TextProperty);
+            var mode = binding?.ParentBinding.Mode;
+            if (mode == BindingMode.TwoWay || mode == BindingMode.OneWayToSource)
+            {
+                binding.UpdateSource();
+            }
         }
 
         /// <summary>
@@ -1509,45 +1678,64 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 return;
             }
 
-            var target = EditorCellRouting.ResolveTarget(ViewModel, row);
+            // Guarded against the cell's own row, as the date cell is: a focus loss with nothing
+            // typed, such as switching windows, must not stamp this row's text across a selection.
             var value = textBox.Text;
-            switch (field)
+            if (string.Equals(value, ReadRoutedCellText(row, field), StringComparison.Ordinal))
             {
-                case nameof(AchievementEditorRow.DisplayName):
-                    target.DisplayName = value;
-                    break;
+                return;
+            }
 
-                case nameof(AchievementEditorRow.Description):
-                    target.Description = value;
-                    break;
-
-                case nameof(AchievementEditorRow.TimeText):
-                    target.TimeText = value;
-                    break;
-
-                case nameof(AchievementEditorRow.RarityInput):
-                    target.RarityInput = value;
-                    break;
-
-                case nameof(AchievementEditorRow.PointsText):
-                    target.PointsText = value;
-                    break;
-
-                case nameof(AchievementEditorRow.ProgressNumText):
-                    target.ProgressNumText = value;
-                    break;
-
-                case nameof(AchievementEditorRow.ProgressDenomText):
-                    target.ProgressDenomText = value;
-                    break;
-
-                default:
-                    return;
+            var target = EditorCellRouting.ResolveTarget(ViewModel, row);
+            if (!WriteRoutedCellText(target, field, value))
+            {
+                return;
             }
 
             // The setters normalize and can refuse, so the box shows what was stored rather than
             // what was typed.
             textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+        }
+
+        /// <summary>
+        /// Writes a routed cell's text to <paramref name="target"/> through the row's own setter.
+        /// False when the field is not a text field.
+        /// </summary>
+        private static bool WriteRoutedCellText(AchievementEditorRow target, string field, string value)
+        {
+            switch (field)
+            {
+                case nameof(AchievementEditorRow.DisplayName): target.DisplayName = value; return true;
+                case nameof(AchievementEditorRow.Description): target.Description = value; return true;
+                case nameof(AchievementEditorRow.TimeText): target.TimeText = value; return true;
+                case nameof(AchievementEditorRow.RarityInput): target.RarityInput = value; return true;
+                case nameof(AchievementEditorRow.PointsText): target.PointsText = value; return true;
+                case nameof(AchievementEditorRow.ProgressNumText): target.ProgressNumText = value; return true;
+                case nameof(AchievementEditorRow.ProgressDenomText): target.ProgressDenomText = value; return true;
+                default: return false;
+            }
+        }
+
+        /// <summary>
+        /// The text a routed cell shows for its own row, as the box's one-way binding reads it.
+        /// </summary>
+        private static string ReadRoutedCellText(AchievementEditorRow row, string field)
+        {
+            string text;
+            switch (field)
+            {
+                case nameof(AchievementEditorRow.DisplayName): text = row.DisplayName; break;
+                case nameof(AchievementEditorRow.Description): text = row.Description; break;
+                case nameof(AchievementEditorRow.TimeText): text = row.TimeText; break;
+                case nameof(AchievementEditorRow.RarityInput): text = row.RarityInput; break;
+                case nameof(AchievementEditorRow.PointsText): text = row.PointsText; break;
+                case nameof(AchievementEditorRow.ProgressNumText): text = row.ProgressNumText; break;
+                case nameof(AchievementEditorRow.ProgressDenomText): text = row.ProgressDenomText; break;
+                default: return null;
+            }
+
+            // A null source renders as an empty box.
+            return text ?? string.Empty;
         }
 
         /// <summary>
@@ -1874,7 +2062,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
             }
 
             items.Add(CreateMenuItem(
-                ResourceProvider.GetString("LOCPlayAch_Button_Clear"),
+                ResourceProvider.GetString("LOCClearLabel"),
                 () => viewModel.SetCategoryForSelection(null)));
         }
 
@@ -2104,7 +2292,7 @@ namespace PlayniteAchievements.Views.ManageAchievements
                 }
 
                 var files = data.GetData(DataFormats.FileDrop) as string[];
-                imagePath = files?.FirstOrDefault(IsSupportedImageFile);
+                imagePath = files?.FirstOrDefault(ImageDropHelper.IsSupportedImageFile);
                 return !string.IsNullOrWhiteSpace(imagePath);
             }
             catch
@@ -2165,33 +2353,6 @@ namespace PlayniteAchievements.Views.ManageAchievements
             catch
             {
                 return null;
-            }
-        }
-
-        private static bool IsSupportedImageFile(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            {
-                return false;
-            }
-
-            var extension = Path.GetExtension(path) ?? string.Empty;
-            if (!SupportedImageExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            try
-            {
-                using (var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                {
-                    BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
-                    return true;
-                }
-            }
-            catch
-            {
-                return false;
             }
         }
 

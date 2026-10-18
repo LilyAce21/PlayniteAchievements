@@ -91,7 +91,7 @@ namespace PlayniteAchievements.Tests.Models
             Assert.AreEqual(180, providers[0].Value);
             Assert.AreEqual("Other", providers[1].Key);
             Assert.AreEqual(50, providers[1].Value);
-            Assert.AreEqual("LOCPlayAch_Showcase_Other", providers[1].LabelKey);
+            Assert.AreEqual("LOCOther", providers[1].LabelKey);
 
             instance.SetOption("Grouping", ShowcasePointsGrouping.Game);
             var games = ShowcaseWidgetProjectionService.BuildNativePoints(snapshot, instance);
@@ -964,6 +964,60 @@ namespace PlayniteAchievements.Tests.Models
             // Gap days carry the cumulative value forward.
             var afterUnlock = points.First(point => point.Date >= endDate.AddDays(-1));
             Assert.AreEqual(expectedCollection, afterUnlock.CollectionScore);
+        }
+
+        [TestMethod]
+        public void ScoreHistory_SumsPlatformPointsByTheGamesEffectiveKey()
+        {
+            var endDate = new DateTime(2026, 7, 31);
+            var exophaseXboxGame = Guid.NewGuid();
+            var retroGame = Guid.NewGuid();
+            var optedOutGame = Guid.NewGuid();
+            AchievementDisplayItem Unlock(Guid? gameId, string providerKey, int points, string categoryType, DateTime? when) =>
+                new AchievementDisplayItem
+                {
+                    PlayniteGameId = gameId,
+                    ProviderKey = providerKey,
+                    PointsValue = points,
+                    CategoryType = categoryType,
+                    Unlocked = true,
+                    Rarity = RarityTier.Common,
+                    GlobalPercentUnlocked = 70,
+                    UnlockTimeUtc = when
+                };
+            var snapshot = new OverviewDataSnapshot
+            {
+                GameSummaries = new List<GameSummaryItem>
+                {
+                    new GameSummaryItem { PlayniteGameId = exophaseXboxGame, ProviderKey = "Xbox", PointsFamily = "Xbox" },
+                    new GameSummaryItem { PlayniteGameId = retroGame, ProviderKey = "RetroAchievements", PointsFamily = "RetroAchievements" },
+                    // Set to count toward no card: its unlocks stay out of every points line.
+                    new GameSummaryItem { PlayniteGameId = optedOutGame, ProviderKey = "Xbox", PointsFamily = null }
+                },
+                Achievements = new List<AchievementDisplayItem>
+                {
+                    // Raw provider key Exophase; the game's effective key makes it Gamerscore.
+                    Unlock(exophaseXboxGame, "Exophase", 100, null, endDate.AddDays(-2)),
+                    Unlock(null, "Xenia", 50, null, null),
+                    Unlock(null, "Epic", 40, null, endDate),
+                    Unlock(retroGame, "RetroAchievements", 10, "Base|Hardcore", endDate.AddDays(-1)),
+                    Unlock(retroGame, "RetroAchievements", 25, "Base|Softcore", endDate.AddDays(-1)),
+                    Unlock(null, "Steam", 999, null, endDate),
+                    Unlock(optedOutGame, "Xbox", 700, null, endDate)
+                }
+            };
+            var instance = new ShowcaseWidgetInstanceSettings { Kind = ShowcaseWidgetKind.Scores };
+
+            var points = ShowcaseWidgetProjectionService.BuildScoreHistory(snapshot, instance, endDate);
+
+            var last = points[points.Count - 1];
+            Assert.AreEqual(150, last.Gamerscore);
+            Assert.AreEqual(40, last.EpicXp);
+            Assert.AreEqual(10, last.RetroPoints);
+            Assert.AreEqual(999, last.GetPoints("Steam"));
+            Assert.AreEqual(150, last.GetScore(PlayniteAchievements.Models.Achievements.Scoring.ScoreCardType.Gamerscore));
+            // The undated Xenia unlock is a baseline from the first point.
+            Assert.AreEqual(50, points[0].Gamerscore);
         }
 
         [TestMethod]

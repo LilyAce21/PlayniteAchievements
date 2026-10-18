@@ -1,7 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Playnite.SDK;
 using PlayniteAchievements.Providers.RPCS3;
-using PlayniteAchievements.Providers.RPCS3.Models;
+using PlayniteAchievements.Providers.PlayStationTrophies;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,10 +19,10 @@ namespace PlayniteAchievements.Providers.Tests
             var path = WriteTempTropusr(BuildTropusr(
                 (5u, 1u, (ulong)(unlockTime.Ticks / 10)),
                 (0u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy>
+            var trophies = new List<NpTrophy>
             {
-                new Rpcs3Trophy { Id = 0 },
-                new Rpcs3Trophy { Id = 5 }
+                new NpTrophy { Id = 0 },
+                new NpTrophy { Id = 5 }
             };
 
             try
@@ -42,7 +42,7 @@ namespace PlayniteAchievements.Providers.Tests
         public void TryParseTrophyUnlockData_ValidZeroProgress_IsAuthoritative()
         {
             var path = WriteTempTropusr(BuildTropusr((0u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy> { new Rpcs3Trophy { Id = 0, Unlocked = true } };
+            var trophies = new List<NpTrophy> { new NpTrophy { Id = 0, Unlocked = true } };
 
             try
             {
@@ -61,7 +61,7 @@ namespace PlayniteAchievements.Providers.Tests
             var path = WriteTempTropusr(BuildTropusr(
                 (0u, 1u, 0ul),
                 (99u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy> { new Rpcs3Trophy { Id = 0 } };
+            var trophies = new List<NpTrophy> { new NpTrophy { Id = 0 } };
             var logger = new CapturingLogger();
 
             try
@@ -81,7 +81,7 @@ namespace PlayniteAchievements.Providers.Tests
             var path = WriteTempTropusr(BuildTropusr(
                 (0u, 1u, 0ul),
                 (0u, 0u, 0ul)));
-            var trophies = new List<Rpcs3Trophy> { new Rpcs3Trophy { Id = 0, Unlocked = true } };
+            var trophies = new List<NpTrophy> { new NpTrophy { Id = 0, Unlocked = true } };
 
             try
             {
@@ -91,6 +91,84 @@ namespace PlayniteAchievements.Providers.Tests
                 File.WriteAllBytes(path, new byte[] { 0x81, 0x8F, 0x54 });
                 Assert.IsFalse(Rpcs3TrophyParser.TryParseTrophyUnlockData(path, trophies, null));
                 Assert.IsTrue(trophies[0].Unlocked);
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
+        [TestMethod]
+        public void TryParseTrophyProgress_ReadsUnlockedCachedIds()
+        {
+            var unlockTime = new DateTime(638400000000000000L, DateTimeKind.Utc);
+            var path = WriteTempTropusr(BuildTropusr(
+                (0u, 1u, (ulong)(unlockTime.Ticks / 10)),
+                (1u, 0u, 0ul)));
+
+            try
+            {
+                Assert.IsTrue(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1 }, out var unlocked));
+                CollectionAssert.AreEqual(new[] { 0 }, unlocked.Keys.ToArray());
+                Assert.AreEqual(unlockTime, unlocked[0]);
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
+        [TestMethod]
+        public void TryParseTrophyProgress_IgnoresStateRecordsTheCacheDoesNotList()
+        {
+            var path = WriteTempTropusr(BuildTropusr(
+                (0u, 1u, 0ul),
+                (1u, 0u, 0ul),
+                (2u, 1u, 0ul)));
+
+            try
+            {
+                Assert.IsTrue(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1 }, out var unlocked));
+                CollectionAssert.AreEqual(new[] { 0 }, unlocked.Keys.ToArray());
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
+        [TestMethod]
+        public void TryParseTrophyProgress_MatchesNonContiguousIdsByRecordedId()
+        {
+            var path = WriteTempTropusr(BuildTropusr(
+                (300u, 1u, 0ul),
+                (7u, 0u, 0ul)));
+
+            try
+            {
+                Assert.IsTrue(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 7, 300 }, out var unlocked));
+                CollectionAssert.AreEqual(new[] { 300 }, unlocked.Keys.ToArray());
+            }
+            finally
+            {
+                DeleteTempFile(path);
+            }
+        }
+
+        [TestMethod]
+        public void TryParseTrophyProgress_MissingCachedIdOrTruncatedFile_Fails()
+        {
+            var bytes = BuildTropusr((0u, 1u, 0ul), (1u, 0u, 0ul));
+            var path = WriteTempTropusr(bytes);
+
+            try
+            {
+                Assert.IsFalse(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1, 2 }, out var unlocked));
+                Assert.AreEqual(0, unlocked.Count);
+
+                File.WriteAllBytes(path, bytes.Take(bytes.Length - 3).ToArray());
+                Assert.IsFalse(Rpcs3TrophyParser.TryParseTrophyProgress(path, new[] { 0, 1 }, out unlocked));
+                Assert.AreEqual(0, unlocked.Count);
             }
             finally
             {

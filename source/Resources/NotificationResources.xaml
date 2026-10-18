@@ -1,5 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+                    mc:Ignorable="po"
                     xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers"
                     xmlns:vm="clr-namespace:PlayniteAchievements.ViewModels">
     <!--
@@ -37,21 +40,20 @@
     -->
     <Storyboard x:Key="PlayAch.Storyboard.ToastSlideIn">
         <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(TranslateTransform.Y)"
-                         Duration="0:0:0.24"
+                         Duration="0:0:0.3"
                          FillBehavior="HoldEnd">
             <DoubleAnimation.EasingFunction>
-                <BackEase EasingMode="EaseOut"
-                          Amplitude="0.35"/>
+                <SineEase EasingMode="EaseOut"/>
             </DoubleAnimation.EasingFunction>
         </DoubleAnimation>
     </Storyboard>
 
     <Storyboard x:Key="PlayAch.Storyboard.ToastSlideOut">
         <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(TranslateTransform.Y)"
-                         Duration="0:0:0.2"
+                         Duration="0:0:0.25"
                          FillBehavior="HoldEnd">
             <DoubleAnimation.EasingFunction>
-                <CubicEase EasingMode="EaseIn"/>
+                <SineEase EasingMode="EaseIn"/>
             </DoubleAnimation.EasingFunction>
         </DoubleAnimation>
     </Storyboard>
@@ -70,7 +72,7 @@
         on the surface templates); this static resource remains the reference default and keeps
         older custom templates that reference it working.
     -->
-    <DropShadowEffect x:Key="PlayAch.Effect.ContentShadow"
+    <DropShadowEffect x:Key="PlayAch.Effect.ContentShadow" po:Freeze="True"
                       BlurRadius="5"
                       ShadowDepth="1"
                       Direction="315"
@@ -283,22 +285,36 @@
     <DataTemplate DataType="{x:Type vm:ToastGameCategoryLine}">
         <!-- "game name • category" as one bounded, left-aligned string: the category stays
              adjacent to the game name and the pair trims together with a trailing ellipsis
-             rather than overflowing into the provider-icon column. The wrapper stacks the
-             second halo layer under the outer one. -->
-        <Grid Effect="{Binding TextShadow}">
-        <TextBlock helpers:InlineMarkdownFormatter.MarkupText="{Binding GameCategoryText}"
-                   Style="{DynamicResource PlayAch.TextBlock.BaseStyle}"
-                   Foreground="{DynamicResource PlayAch.Brush.Text}"
-                   FontSize="{Binding FontSize}"
-                   FontFamily="{Binding FontFamily}"
-                   FontWeight="{Binding FontWeight}"
-                   FontStyle="{Binding FontStyle}"
-                   TextDecorations="{Binding TextDecorations}"
-                   TextWrapping="NoWrap"
-                   TextTrimming="CharacterEllipsis"
-                   Effect="{Binding TextShadowInner}"
-                   Visibility="{Binding HasGameCategoryContent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-        </Grid>
+             rather than overflowing into the provider-icon column. The optional inline rarity
+             badge sits before it, carrying the image shadow outside the text-shadow wrapper; the
+             wrapper stacks the second halo layer under the outer one. -->
+        <DockPanel LastChildFill="True">
+            <Image DockPanel.Dock="Left"
+                   helpers:AsyncImage.Uri="{Binding InlineBadgeSource}"
+                   helpers:AsyncImage.DecodePixel="64"
+                   Width="{Binding InlineBadgeSize}"
+                   Height="{Binding InlineBadgeSize}"
+                   VerticalAlignment="Center"
+                   Margin="0,0,5,0"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   Effect="{Binding ImageShadow}"
+                   Visibility="{Binding ShowInlineBadge, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            <Grid Effect="{Binding TextShadow}">
+            <TextBlock helpers:InlineMarkdownFormatter.MarkupText="{Binding GameCategoryText}"
+                       Style="{DynamicResource PlayAch.TextBlock.BaseStyle}"
+                       Foreground="{DynamicResource PlayAch.Brush.Text}"
+                       FontSize="{Binding FontSize}"
+                       FontFamily="{Binding FontFamily}"
+                       FontWeight="{Binding FontWeight}"
+                       FontStyle="{Binding FontStyle}"
+                       TextDecorations="{Binding TextDecorations}"
+                       TextWrapping="NoWrap"
+                       TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Center"
+                       Effect="{Binding TextShadowInner}"
+                       Visibility="{Binding HasGameCategoryContent, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+            </Grid>
+        </DockPanel>
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type vm:ToastProgressLine}">

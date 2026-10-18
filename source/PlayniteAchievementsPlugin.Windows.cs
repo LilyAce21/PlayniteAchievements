@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Playnite.SDK;
+using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.ViewModels;
 using PlayniteAchievements.ViewModels.ManageAchievements;
 
@@ -71,9 +73,10 @@ namespace PlayniteAchievements
         public void OpenManageAchievementsView(
             Guid gameId,
             ManageAchievementsTab initialTab = ManageAchievementsTab.Overview,
-            bool selectManageCategoriesSubTab = false)
+            bool selectManageCategoriesSubTab = false,
+            NotificationSurface? notificationsSurface = null)
         {
-            _windowService.OpenManageAchievementsView(gameId, initialTab, selectManageCategoriesSubTab);
+            _windowService.OpenManageAchievementsView(gameId, initialTab, selectManageCategoriesSubTab, notificationsSurface);
         }
 
         public void OpenLocalAchievementsEditorView(Guid gameId)
@@ -94,6 +97,163 @@ namespace PlayniteAchievements
         private void OpenOverviewWindow()
         {
             _windowService.OpenOverviewWindow();
+        }
+
+        /// <summary>
+        /// Opens the Workshop browser, optionally landing on one kind's tab or on the game-data
+        /// items that match one library game.
+        /// </summary>
+        internal void OpenWorkshopWindow(Guid? focusGameId = null, Services.Workshop.WorkshopItemKind? focusKind = null)
+        {
+            var view = new Views.Workshop.WorkshopControl(this, _logger, focusGameId, focusKind);
+            _windowService.OpenManagedPopout(
+                ResourceProvider.GetString("LOCPlayAch_Workshop_Title"),
+                view,
+                new Views.Helpers.WindowOptions
+                {
+                    ShowMinimizeButton = true,
+                    ShowMaximizeButton = true,
+                    ShowCloseButton = true,
+                    CanBeResizable = true,
+                    Width = 1100,
+                    Height = 720
+                },
+                "Workshop",
+                () => view.Cleanup());
+        }
+
+        /// <summary>
+        /// Opens the share dialog for one shareable thing: a kind, plus the game or showcase page
+        /// when the kind is per-game or per-page. Returns false when nothing of that kind can be
+        /// shared right now (for example no custom unlock sounds).
+        /// </summary>
+        internal bool OpenWorkshopShare(
+            Services.Workshop.WorkshopItemKind kind,
+            System.Windows.Window owner,
+            Guid? gameId = null,
+            string pageId = null,
+            System.Collections.Generic.IReadOnlyDictionary<Services.Workshop.BundleParts, string> bundlePartFiles = null,
+            string packagePath = null,
+            string defaultName = null,
+            string libraryItemId = null,
+            string publishedItemId = null)
+        {
+            // A saved preset is shared as the file it already is; everything else is one of the
+            // live-settings candidates the share service lists.
+            var candidate = !string.IsNullOrWhiteSpace(packagePath)
+                ? new Services.Workshop.WorkshopShareCandidate
+                {
+                    Kind = kind,
+                    Label = ViewModels.Workshop.WorkshopItemViewModel.KindLabelFor(kind) + " \u00b7 " + defaultName,
+                    DefaultName = defaultName,
+                    PackagePath = packagePath,
+                    LibraryItemId = libraryItemId,
+                    PublishedItemId = publishedItemId
+                }
+                : WorkshopShareService.ListCandidates().FirstOrDefault(c =>
+                    c.Kind == kind
+                    && (gameId == null || c.GameId == gameId)
+                    && (pageId == null || string.Equals(c.PageId, pageId, StringComparison.Ordinal)));
+            if (candidate == null)
+            {
+                return false;
+            }
+
+            // A composed theme travels as the parts the user picked; the files live in the
+            // caller's scratch folder for the life of this modal dialog.
+            candidate.BundlePartFiles = bundlePartFiles;
+
+            var dialog = new Views.Workshop.WorkshopShareDialog(this, _logger, candidate, WorkshopShareService, WorkshopIdentityStore);
+            ShowWorkshopShareDialog(dialog, ResourceProvider.GetString("LOCPlayAch_Workshop_Share"), owner);
+            return true;
+        }
+
+        /// <summary>
+        /// Opens the form for changing the details of a Workshop item this install published,
+        /// filled in from the Workshop.
+        /// </summary>
+        internal void OpenWorkshopEdit(Services.Workshop.WorkshopItem item, System.Windows.Window owner)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.Id))
+            {
+                return;
+            }
+
+            var dialog = new Views.Workshop.WorkshopShareDialog(this, _logger, item, WorkshopShareService, WorkshopIdentityStore);
+            ShowWorkshopShareDialog(dialog, ResourceProvider.GetString("LOCPlayAch_Common_Edit"), owner);
+        }
+
+        private void ShowWorkshopShareDialog(Views.Workshop.WorkshopShareDialog dialog, string title, System.Windows.Window owner)
+        {
+            var window = Views.Helpers.PlayniteUiProvider.CreateExtensionWindow(
+                title,
+                dialog,
+                new Views.Helpers.WindowOptions
+                {
+                    ShowMinimizeButton = false,
+                    ShowMaximizeButton = false,
+                    ShowCloseButton = true,
+                    CanBeResizable = true,
+                    Width = 620,
+                    Height = 640
+                });
+
+            try
+            {
+                if (window.Owner == null)
+                {
+                    window.Owner = owner ?? PlayniteApi?.Dialogs?.GetCurrentAppWindow();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            dialog.RequestClose += (s, args) => window.Close();
+            window.ShowDialog();
+            dialog.Cleanup();
+        }
+
+        /// <summary>Opens the settings on the Workshop tab, on <paramref name="pageKey"/> when given.</summary>
+        internal void OpenWorkshopSettings(string pageKey = null)
+        {
+            OpenSettingsAt(new Models.Settings.SettingsNavigationRequest(Models.Settings.SettingsNavigationRequest.WorkshopTab, pageKey));
+        }
+
+        /// <summary>
+        /// Shows a place in the settings. An open settings window switches to it and comes to
+        /// the front; otherwise the settings open on it: the Playnite settings dialog on desktop,
+        /// the managed popout in fullscreen. The place is handed over through
+        /// <see cref="Views.SettingsControl.PendingNavigation"/> because neither opener takes one.
+        /// </summary>
+        internal void OpenSettingsAt(Models.Settings.SettingsNavigationRequest request)
+        {
+            var live = Views.SettingsControl.Live;
+            if (live != null)
+            {
+                live.NavigateTo(request);
+                System.Windows.Window.GetWindow(live)?.Activate();
+                return;
+            }
+
+            Views.SettingsControl.PendingNavigation = request;
+            if (IsFullscreenMode())
+            {
+                OpenSettingsWindow();
+            }
+            else
+            {
+                OpenSettingsView();
+            }
+        }
+
+        /// <summary>
+        /// Opens the Overview window on the Showcase on one page; an Overview window already open
+        /// switches to it.
+        /// </summary>
+        internal void OpenShowcasePage(string pageId)
+        {
+            _windowService.OpenOverviewWindow(pageId);
         }
 
         /// <summary>
@@ -165,6 +325,42 @@ namespace PlayniteAchievements
         private void ToggleOverviewWindowFromHotkey()
         {
             _windowService.ToggleOverviewWindowFromHotkey();
+        }
+
+        /// <summary>
+        /// The Workshop hotkey and main-menu entry: the Settings > Workshop tab. An open settings
+        /// window switches to that tab; otherwise the tab opens on its own in a popout, which comes to the front on
+        /// the next press or closes when it is already active, so repeated presses never build a
+        /// second one and reload the index.
+        /// </summary>
+        private void ToggleWorkshopTabWindow()
+        {
+            if (Views.SettingsControl.Live != null)
+            {
+                OpenWorkshopSettings();
+                return;
+            }
+
+            if (_windowService.TryToggleOpenWindowHosting<Views.Settings.Workshop.WorkshopSettingsTab>())
+            {
+                return;
+            }
+
+            var view = new Views.Settings.Workshop.WorkshopSettingsTab(_settingsViewModel.Settings, this, _logger);
+            _windowService.OpenManagedPopout(
+                ResourceProvider.GetString("LOCPlayAch_Workshop_Title"),
+                view,
+                new Views.Helpers.WindowOptions
+                {
+                    ShowMinimizeButton = true,
+                    ShowMaximizeButton = true,
+                    ShowCloseButton = true,
+                    CanBeResizable = true,
+                    Width = 1100,
+                    Height = 720
+                },
+                "WorkshopSettingsPopout",
+                () => view.Dispose());
         }
 
         private bool _settingsViewOpen;

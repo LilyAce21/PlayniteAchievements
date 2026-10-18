@@ -1,5 +1,4 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using PlayniteAchievements.Providers.RPCS3;
 using PlayniteAchievements.Providers.ShadPS4;
 using PlayniteAchievements.Providers.Steam.Local;
 using PlayniteAchievements.Providers.Xenia;
@@ -260,40 +259,6 @@ namespace PlayniteAchievements.Providers.Tests
             }
         }
 
-        [TestMethod]
-        public void Rpcs3ProgressReader_RequiresCompleteCachedIdSet()
-        {
-            var directory = CreateTempDirectory();
-            try
-            {
-                var path = Path.Combine(directory, "TROPUSR.DAT");
-                WriteRpcs3TropUsr(path, new[] { (0, true), (1, false) });
-
-                Assert.IsTrue(
-                    Rpcs3TrophyParser.TryParseTrophyProgress(
-                        path,
-                        new[] { 0, 1 },
-                        out var unlocked));
-                CollectionAssert.AreEqual(new[] { 0 }, unlocked.Keys.ToArray());
-
-                using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
-                {
-                    stream.SetLength(stream.Length - 3);
-                }
-
-                Assert.IsFalse(
-                    Rpcs3TrophyParser.TryParseTrophyProgress(
-                        path,
-                        new[] { 0, 1 },
-                        out unlocked));
-                Assert.AreEqual(0, unlocked.Count);
-            }
-            finally
-            {
-                Directory.Delete(directory, true);
-            }
-        }
-
         private static string CreateTempDirectory()
         {
             var path = Path.Combine(
@@ -462,34 +427,6 @@ namespace PlayniteAchievements.Providers.Tests
                 WriteBigEndian(writer, flags);
                 WriteBigEndian(writer, unlockTime);
             }
-        }
-
-        private static void WriteRpcs3TropUsr(
-            string path,
-            IEnumerable<(int Id, bool Unlocked)> trophies)
-        {
-            var magic = HexToBytes("0000000400000050000000");
-            using (var stream = File.Create(path))
-            {
-                foreach (var trophy in trophies)
-                {
-                    stream.Write(magic, 0, magic.Length);
-                    var entry = new byte[29];
-                    entry[0] = (byte)trophy.Id;
-                    if (trophy.Unlocked)
-                    {
-                        entry[12] = 1;
-                    }
-                    stream.Write(entry, 0, entry.Length);
-                }
-            }
-        }
-
-        private static byte[] HexToBytes(string value)
-        {
-            return Enumerable.Range(0, value.Length / 2)
-                .Select(index => Convert.ToByte(value.Substring(index * 2, 2), 16))
-                .ToArray();
         }
 
         private static void WriteBigEndian(BinaryWriter writer, ushort value)

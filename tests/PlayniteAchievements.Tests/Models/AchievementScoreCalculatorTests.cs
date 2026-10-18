@@ -326,6 +326,32 @@ namespace PlayniteAchievements.Tests.Models
             }
         }
 
+        /// <summary>Cards off custom colors read the shipped badges under a "ScoreDefault" prefix.</summary>
+        [TestMethod]
+        public void RankPresentation_ScoreCardBadgeIconUsesShippedKeysWithoutCustomColors()
+        {
+            foreach (var rank in new[]
+            {
+                AchievementRank.Bronze5,
+                AchievementRank.Silver5,
+                AchievementRank.Gold5,
+                AchievementRank.Plat5,
+                AchievementRank.Master1
+            })
+            {
+                foreach (var uniform in new[] { false, true })
+                {
+                    Assert.AreEqual(
+                        "ScoreDefault" + AchievementRankPresentation.GetBadgeIconKey(rank, uniform),
+                        AchievementRankPresentation.GetScoreCardBadgeIconKey(rank, uniform, useCustomColors: false),
+                        $"{rank}, uniform={uniform}");
+                }
+            }
+
+            Assert.AreEqual("ScoreBadgeCompletedGame", AchievementRankPresentation.GetScoreCardMasteryIconKey(useCustomColors: true));
+            Assert.AreEqual("ScoreDefaultBadgeCompletedGame", AchievementRankPresentation.GetScoreCardMasteryIconKey(useCustomColors: false));
+        }
+
         private static AchievementDetail Achievement(
             RarityTier rarity,
             bool unlocked,

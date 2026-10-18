@@ -281,11 +281,7 @@ namespace PlayniteAchievements.Providers.Manual
                         LockedIconPath = SteamApiClient.BuildAchievementIconUrl(appId, ach.IconGray),
                         Hidden = ach.Hidden,
                         Unlocked = false,
-                        UnlockTimeUtc = null,
-                        Rarity = GetFallbackRarity(
-                            ach.Hidden,
-                            null,
-                            null)
+                        UnlockTimeUtc = null
                     };
 
                     var normalizedPercent = NormalizePercent(globalPercent);
@@ -480,23 +476,6 @@ namespace PlayniteAchievements.Providers.Manual
             }
 
             return value;
-        }
-
-        private static RarityTier GetFallbackRarity(bool hidden, int? progressNum, int? progressDenom)
-        {
-            if ((progressNum.HasValue || progressDenom.HasValue) &&
-                progressDenom.HasValue &&
-                progressDenom.Value > 0)
-            {
-                return RarityTier.Uncommon;
-            }
-
-            if (hidden)
-            {
-                return RarityTier.Rare;
-            }
-
-            return RarityTier.Common;
         }
 
         #region Steam Store Search API Models

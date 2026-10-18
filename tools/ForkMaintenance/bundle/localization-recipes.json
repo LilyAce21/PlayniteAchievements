@@ -838,11 +838,6 @@
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Category_RenameDialog_Title\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eRename Category Label\u003c/sys:String\u003e"
                         },
                         {
-                            "key":  "LOCPlayAch_ManageAchievements_Custom_ResetConfirm",
-                            "baseXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Custom_ResetConfirm\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eReset all achievement customization for this game?\n\nThis deletes this game\u0027s custom achievements, edited names, descriptions, points, trophy types and unlock times, hidden marks, notes, icon overrides, categories, types, filters, goals, custom order, and capstone. Achievements from the platform are loaded again afterwards. This cannot be undone.\u003c/sys:String\u003e",
-                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Custom_ResetConfirm\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eReset all achievement customization for this game?\r\n\r\nThis deletes this game\u0027s custom achievements, edited names, descriptions, points, trophy types and unlock times, hidden marks, notes, icon overrides, categories, types, filters, goals, custom order, and capstone. Achievements from the platform are loaded again afterwards. This cannot be undone.\u003c/sys:String\u003e"
-                        },
-                        {
                             "key":  "LOCPlayAch_ManageAchievements_ExophaseHint",
                             "baseXml":  null,
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_ExophaseHint\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eCheck to force Exophase for this game. Unchecked games use Exophase if their platform is in Managed Platforms.\u003c/sys:String\u003e"
@@ -861,16 +856,6 @@
                             "key":  "LOCPlayAch_ManageAchievements_Manual_ReplaceProviderWarning",
                             "baseXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Manual_ReplaceProviderWarning\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eEnable manual tracking?\n\nManual tracking can replace this game\u0027s cached achievement data from {0}.\u003c/sys:String\u003e",
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Manual_ReplaceProviderWarning\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eEnable manual tracking?\r\n\r\nManual tracking can replace this game\u0027s cached achievement data from {0}.\u003c/sys:String\u003e"
-                        },
-                        {
-                            "key":  "LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirm",
-                            "baseXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirm\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eClear all custom data for \"{0}\"?\n\nThis deletes this game\u0027s manual links, capstones, custom icons, notification appearance, ordering, categories, exclusions, and platform overrides. Cached achievement data is kept.\u003c/sys:String\u003e",
-                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirm\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eClear all custom data for \"{0}\"?\r\n\r\nThis deletes this game\u0027s manual links, capstones, custom icons, notification appearance, ordering, categories, exclusions, and platform overrides. Cached achievement data is kept.\u003c/sys:String\u003e"
-                        },
-                        {
-                            "key":  "LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirmManual",
-                            "baseXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirmManual\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eClear all custom data for \"{0}\"?\n\nThis game\u0027s achievements come from a manual link, so clearing deletes the link and the achievements it produced, along with this game\u0027s capstones, custom icons, notification appearance, ordering, categories, exclusions, and platform overrides. This cannot be undone.\u003c/sys:String\u003e",
-                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirmManual\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eClear all custom data for \"{0}\"?\r\n\r\nThis game\u0027s achievements come from a manual link, so clearing deletes the link and the achievements it produced, along with this game\u0027s capstones, custom icons, notification appearance, ordering, categories, exclusions, and platform overrides. This cannot be undone.\u003c/sys:String\u003e"
                         },
                         {
                             "key":  "LOCPlayAch_ManageAchievements_Overrides_RaHeader",
@@ -1793,11 +1778,6 @@
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Settings_ViewAchievementsGridSort\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eView Achievements Grid\u003c/sys:String\u003e"
                         },
                         {
-                            "key":  "LOCPlayAch_Showcase_DeleteTrackConfirm",
-                            "baseXml":  "\u003csys:String x:Key=\"LOCPlayAch_Showcase_DeleteTrackConfirm\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eThese widgets have no empty cells to move into and will be deleted:\n\n{0}\n\nContinue?\u003c/sys:String\u003e",
-                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Showcase_DeleteTrackConfirm\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eThese widgets have no empty cells to move into and will be deleted:\r\n\r\n{0}\r\n\r\nContinue?\u003c/sys:String\u003e"
-                        },
-                        {
                             "key":  "LOCPlayAch_Sidebar_GamesOverview",
                             "baseXml":  null,
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Sidebar_GamesOverview\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eGames Overview\u003c/sys:String\u003e"
@@ -1869,7 +1849,7 @@
                         },
                         {
                             "key":  "LOCPlayAch_ThemeMigration_AutoMigratedRestart",
-                            "baseXml":  "\u003csys:String x:Key=\"LOCPlayAch_ThemeMigration_AutoMigratedRestart\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eRestart Playnite to apply the changes.\u003c/sys:String\u003e",
+                            "baseXml":  null,
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_ThemeMigration_AutoMigratedRestart\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eClick this notification to restart Playnite and apply the changes.\u003c/sys:String\u003e"
                         },
                         {

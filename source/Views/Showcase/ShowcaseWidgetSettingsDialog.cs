@@ -21,12 +21,16 @@ namespace PlayniteAchievements.Views.Showcase
         private readonly ShowcaseWidgetInstanceSettings _sourceWidget;
         private readonly ShowcaseWidgetInstanceSettings _workingWidget;
         private readonly ShowcaseProfileSettings _workingProfile;
+        private readonly bool _linked;
+        private readonly bool _includeScoreHistory;
         private TextBox _titleBox;
         private ShowcaseProfileSettingsEditor _profileEditor;
 
-        private ShowcaseWidgetSettingsDialog(ShowcaseWidgetInstanceSettings widget)
+        private ShowcaseWidgetSettingsDialog(ShowcaseWidgetInstanceSettings widget, bool linked, bool includeScoreHistory)
         {
+            _includeScoreHistory = includeScoreHistory;
             _sourceWidget = widget ?? throw new ArgumentNullException(nameof(widget));
+            _linked = linked;
             _workingWidget = widget.Clone();
             _workingProfile = (widget.Profile ?? new ShowcaseProfileSettings()).Clone();
             Resources.MergedDictionaries.Add(new ResourceDictionary
@@ -43,14 +47,19 @@ namespace PlayniteAchievements.Views.Showcase
 
         public bool Saved { get; private set; }
 
-        public static bool Show(ShowcaseWidgetInstanceSettings widget)
+        /// <param name="linked">
+        /// True for a widget linked to the overview: its title comes from the overview's
+        /// selections, so no title field is offered.
+        /// </param>
+        /// <param name="includeScoreHistory">False for a score card with no history chart, such as the Overview header's.</param>
+        public static bool Show(ShowcaseWidgetInstanceSettings widget, bool linked = false, bool includeScoreHistory = true)
         {
             if (widget == null)
             {
                 return false;
             }
 
-            var editor = new ShowcaseWidgetSettingsDialog(widget);
+            var editor = new ShowcaseWidgetSettingsDialog(widget, linked, includeScoreHistory);
             var title = string.Format(
                 FormattingCulture.Current,
                 Localize("LOCPlayAch_Showcase_WidgetSettingsTitle"),
@@ -100,10 +109,13 @@ namespace PlayniteAchievements.Views.Showcase
             scroll.Content = panel;
             root.Children.Add(scroll);
 
-            _titleBox = ShowcaseProfileSettingsEditor.AddTextBox(
-                panel,
-                Localize("LOCPlayAch_Showcase_CustomTitle"),
-                _workingWidget.CustomTitle);
+            if (!_linked)
+            {
+                _titleBox = ShowcaseProfileSettingsEditor.AddTextBox(
+                    panel,
+                    Localize("LOCPlayAch_Showcase_CustomTitle"),
+                    _workingWidget.CustomTitle);
+            }
 
             if (_workingWidget.Kind == ShowcaseWidgetKind.Profile)
             {
@@ -112,13 +124,17 @@ namespace PlayniteAchievements.Views.Showcase
                 panel.Children.Add(_profileEditor);
             }
 
-            if (ShowcaseWidgetOptionsControl.HasOptions(_workingWidget.Kind))
+            // An unlinked widget always has its title alignment and background rows; a linked one
+            // (titled by the overview, or an Overview header card) has only its kind's options.
+            if (!_linked || ShowcaseWidgetOptionsControl.HasOptions(_workingWidget.Kind))
             {
                 panel.Children.Add(new ShowcaseWidgetOptionsControl(
                     _workingWidget,
                     publishChanges: false,
                     margin: new Thickness(0),
-                    loadStyles: false));
+                    loadStyles: false,
+                    includeScoreHistory: _includeScoreHistory,
+                    backgroundDefault: _linked ? (bool?)null : true));
             }
 
             var buttons = new StackPanel
@@ -129,14 +145,14 @@ namespace PlayniteAchievements.Views.Showcase
             buttons.SetResourceReference(MarginProperty, "PlayAch.Thickness.Top.Md");
             var cancel = new Button
             {
-                Content = Localize("LOCPlayAch_Button_Cancel"),
+                Content = Localize("LOCCancelLabel"),
                 MinWidth = 82
             };
             cancel.SetResourceReference(MarginProperty, "PlayAch.Thickness.Right.Sm");
             cancel.Click += (_, __) => Window.GetWindow(this)?.Close();
             var save = new Button
             {
-                Content = Localize("LOCPlayAch_Button_Save"),
+                Content = Localize("LOCSaveLabel"),
                 MinWidth = 82,
                 IsDefault = true
             };
@@ -150,7 +166,10 @@ namespace PlayniteAchievements.Views.Showcase
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            _sourceWidget.CustomTitle = _titleBox.Text?.Trim();
+            if (_titleBox != null)
+            {
+                _sourceWidget.CustomTitle = _titleBox.Text?.Trim();
+            }
             _sourceWidget.Options = new Dictionary<string, string>(
                 _workingWidget.Options ?? new Dictionary<string, string>(),
                 StringComparer.OrdinalIgnoreCase);

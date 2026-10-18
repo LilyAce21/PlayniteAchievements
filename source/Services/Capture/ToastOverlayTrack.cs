@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using PlayniteAchievements.Models.Settings;
 
 namespace PlayniteAchievements.Services.Capture
 {
@@ -35,8 +36,8 @@ namespace PlayniteAchievements.Services.Capture
         /// <summary>Track length: last sample time plus one sample interval.</summary>
         public double DurationSeconds { get; set; }
 
-        /// <summary>Whether the toast corner is on the client rect's right edge.</summary>
-        public bool AlignRight { get; set; }
+        /// <summary>Where the toast sits along the client rect's horizontal axis.</summary>
+        public ToastHorizontalAlignment HorizontalAlignment { get; set; }
 
         /// <summary>Whether the toast is horizontally centered in the client rect.</summary>
         public bool AlignCenterHorizontally { get; set; }
@@ -87,6 +88,13 @@ namespace PlayniteAchievements.Services.Capture
         /// rendered, which leaves the framed clip out.
         /// </summary>
         public FrameChromeImage FrameChrome { get; set; }
+
+        /// <summary>
+        /// Draws the frame's chrome over time when the frame carries animated images, so the
+        /// framed clip plays them; <see cref="FrameChrome"/> is then its first moment. Null when
+        /// the frame is a still.
+        /// </summary>
+        public FrameChromeAnimation FrameChromeAnimation { get; set; }
 
         /// <summary>One captured difference layer and the track time it was captured at.</summary>
         public struct TimedLayer
@@ -151,6 +159,13 @@ namespace PlayniteAchievements.Services.Capture
             /// baked fade froze at whatever opacity the first live render caught.
             /// </summary>
             public double HostOpacity;
+
+            /// <summary>
+            /// The slide host's scale at this tick, applied about the card's center. A zoom motion
+            /// animates it, and the recorded pixels are captured without it, so export shrinks the
+            /// destination rect by this. Zero (a sample that never set it) reads as 1.
+            /// </summary>
+            public double HostScale;
 
             /// <summary>Game client width at this tick, physical pixels (scales rects into video frames).</summary>
             public int ClientW;

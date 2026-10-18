@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Showcase;
 
@@ -118,6 +119,29 @@ namespace PlayniteAchievements.Tests.Services
             ShowcaseLayoutService.DeleteWidget(settings, two.InstanceId);
             _store.Prune(settings);
             Assert.IsFalse(File.Exists(stored));
+        }
+
+        [TestMethod]
+        public void Prune_KeepsImageWidgetPicturesOnPagesAndTheStartPage_AndRehomesRawOnes()
+        {
+            var stored = _store.Import(WriteSource("picture.png", 3));
+            var raw = WriteSource("raw.png", 4);
+            var settings = new ShowcaseSettings();
+            var onPage = ShowcaseLayoutService.CreateWidget(settings, ShowcaseWidgetKind.Image);
+            ShowcaseWidgetOptions.SetImagePath(onPage, stored);
+            var onStart = ShowcaseWidgetSettingsFactory.CreateDefault(ShowcaseWidgetKind.Image, "start");
+            ShowcaseWidgetOptions.SetImagePath(onStart, raw);
+            settings.StartPageInstances["start"] = onStart;
+
+            Assert.IsTrue(_store.MigrateAndPrune(settings));
+
+            Assert.IsTrue(File.Exists(stored));
+            var rehomed = ShowcaseWidgetOptions.GetImagePath(onStart);
+            Assert.IsTrue(_store.IsManaged(rehomed));
+            Assert.IsTrue(File.Exists(rehomed));
+            CollectionAssert.AreEquivalent(
+                new[] { stored, rehomed },
+                ShowcaseImageStore.ReferencedPaths(settings).ToList());
         }
 
         private string WriteSource(string name, params byte[] bytes)

@@ -1,5 +1,4 @@
 using HtmlAgilityPack;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PlayniteAchievements.Providers.Steam.Models;
 using System;
@@ -25,20 +24,8 @@ namespace PlayniteAchievements.Providers.Steam
         private static readonly Regex ProfileSteamIdPattern =
             new Regex(@"/profiles/(?<id>\d{17})(?:/|$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        private static readonly Regex GamesJsonPattern =
-            new Regex(@"(?:var|let|const)\s+rgGames\s*=\s*(?<json>\[.*?\]);", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
         private static readonly Regex AppPathPattern =
             new Regex("(?:^|[/:\"'])apps?/(?<id>\\d+)(?=$|[/?#\"'&<\\s])", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-        // Achievement anchors on the games page link to /stats/{appid}. Keying the earned/total
-        // hint off this numeric appid keeps the hint independent of display language and of the
-        // localized "ACHIEVEMENTS" row text that FindLikelyGameRow otherwise relies on.
-        private static readonly Regex StatsAppIdPattern =
-            new Regex(@"/stats/(?<id>\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-        private static readonly Regex AchievementRatioPattern =
-            new Regex(@"(\d+)\s*/\s*(\d+)", RegexOptions.Compiled);
 
         public static bool LooksLikeFriendsPayload(string html)
         {
@@ -105,6 +92,16 @@ namespace PlayniteAchievements.Providers.Steam
 
         public static List<SteamOwnedGame> ParseOwnedGames(string html)
         {
+            return ParseOwnedGames(html, out _);
+        }
+
+        /// <param name="isCompleteList">
+        /// True when the list came from a source that lists the whole library: the games page's
+        /// OwnedGames query or a full gamesList XML. Rendered rows, recently-played lists and the
+        /// profile's mostPlayedGames are partial.
+        /// </param>
+        public static List<SteamOwnedGame> ParseOwnedGames(string html, out bool isCompleteList)
+        {
             var result = new Dictionary<int, SteamOwnedGame>();
 
             var fromXml = TryParseOwnedGamesXml(html);
@@ -116,182 +113,72 @@ namespace PlayniteAchievements.Providers.Steam
                 }
             }
 
-            var fromSteamSsr = ParseOwnedGamesSteamSsr(html);
-            foreach (var game in fromSteamSsr)
+            var ssrRoot = SteamSsrPayload.TryParse(html);
+            isCompleteList =
+                (fromXml?.Count > 0 && TryExtractXmlPayload(html, "gamesList") != null) ||
+                HasOwnedGamesQueryData(ssrRoot);
+            foreach (var game in ParseOwnedGamesSteamSsr(ssrRoot))
             {
                 UpsertLargestPlaytime(result, game);
             }
 
-            var fromJson = ParseOwnedGamesJson(html);
-            foreach (var game in fromJson)
-            {
-                UpsertLargestPlaytime(result, game);
-            }
-
+            // The page renders only its first rows; the SSR owned-games query covers the whole
+            // library, so rendered rows only fill gaps when the payload is missing.
             foreach (var game in ParseOwnedGamesHtml(html))
             {
                 UpsertLargestPlaytime(result, game);
             }
 
-            // The modern games page embeds per-game achievement progress in the SSR React Query
-            // cache (window.SSR.renderContext) as one {appid,unlocked,total,...} object per game,
-            // covering the whole library, while the games themselves arrive via loaderData. This is
-            // the authoritative, complete, locale-independent source for the "X/Y" hint, so apply it
-            // across the merged result first.
-            OverlayAchievementProgressFromSsr(result, html);
-
-            // Fallback for the ~20 rows the page renders with a visible achievements anchor: key the
-            // hint off the appid in each /stats/{appid} href. Fills only games the SSR pass missed.
-            OverlayAchievementHintsByAppId(result, html);
+            // Per-game achievement progress arrives as one AchievementProgress query per game
+            // ({appid,unlocked,total,...}) covering the whole library. It is the authoritative,
+            // locale-independent source for the "X/Y" hint, so it overrides rendered-row text.
+            OverlayAchievementProgressFromSsr(result, ssrRoot);
 
             return result.Values.ToList();
         }
 
-        private static void OverlayAchievementProgressFromSsr(Dictionary<int, SteamOwnedGame> result, string html)
+        private static bool HasOwnedGamesQueryData(JObject ssrRoot)
         {
-            if (result == null || result.Count == 0 || string.IsNullOrWhiteSpace(html) ||
-                html.IndexOf("window.SSR", StringComparison.OrdinalIgnoreCase) < 0)
+            var owned = new Dictionary<int, SteamOwnedGame>();
+            foreach (var query in SteamSsrPayload.ReadQueries(ssrRoot) ?? Enumerable.Empty<JObject>())
             {
-                return;
-            }
-
-            var renderContextArgument = TryExtractJsonParseArgument(html, "window.SSR.renderContext");
-            if (string.IsNullOrWhiteSpace(renderContextArgument))
-            {
-                return;
-            }
-
-            try
-            {
-                var renderContextJson = JsonConvert.DeserializeObject<string>(renderContextArgument);
-                var renderContext = JObject.Parse(renderContextJson);
-                var queryDataJson = renderContext["queryData"]?.Value<string>();
-                if (string.IsNullOrWhiteSpace(queryDataJson))
+                if (IsOwnedGamesQuery(query["queryKey"]))
                 {
-                    return;
+                    AddOwnedGamesFromToken(owned, SteamSsrPayload.Data(query));
                 }
-
-                // Each game's progress is an individual React Query entry
-                // (state.data = {appid,unlocked,total,...}); a recursive walk collects them all.
-                AddAchievementProgressFromToken(result, JObject.Parse(queryDataJson));
             }
-            catch
+
+            return owned.Count > 0;
+        }
+
+        private static void OverlayAchievementProgressFromSsr(Dictionary<int, SteamOwnedGame> result, JObject ssrRoot)
+        {
+            var queries = SteamSsrPayload.ReadQueries(ssrRoot);
+            if (result == null || result.Count == 0 || queries == null)
             {
-                // Malformed or absent SSR payload: leave whatever the other sources supplied.
+                return;
+            }
+
+            foreach (var query in queries)
+            {
+                AddAchievementProgressFromToken(result, SteamSsrPayload.Data(query));
             }
         }
 
-        private static void OverlayAchievementHintsByAppId(Dictionary<int, SteamOwnedGame> result, string html)
-        {
-            if (result == null || result.Count == 0 || string.IsNullOrWhiteSpace(html) ||
-                (html.IndexOf("tab=achievements", StringComparison.OrdinalIgnoreCase) < 0 &&
-                 html.IndexOf("/stats/", StringComparison.OrdinalIgnoreCase) < 0))
-            {
-                return;
-            }
-
-            HtmlNodeCollection anchors;
-            try
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(html);
-                anchors = doc.DocumentNode.SelectNodes(
-                    "//a[contains(@href,'tab=achievements') or contains(@href,'/stats/')]");
-            }
-            catch
-            {
-                return;
-            }
-
-            if (anchors == null)
-            {
-                return;
-            }
-
-            foreach (var anchor in anchors)
-            {
-                var appId = ExtractStatsAppId(anchor.GetAttributeValue("href", null));
-                if (appId <= 0 || !result.TryGetValue(appId, out var existing))
-                {
-                    continue;
-                }
-
-                // The SSR pass is authoritative; only fill games it did not cover.
-                if (existing.AchievementsEarned.HasValue && existing.AchievementsTotal.HasValue)
-                {
-                    continue;
-                }
-
-                var (earned, total) = ExtractAchievementRatioNearAnchor(anchor);
-                if (!earned.HasValue || !total.HasValue)
-                {
-                    continue;
-                }
-
-                result[appId] = new SteamOwnedGame
-                {
-                    AppId = existing.AppId,
-                    Name = existing.Name,
-                    PlaytimeForever = Math.Max(0, existing.PlaytimeForever),
-                    Playtime2Weeks = existing.Playtime2Weeks,
-                    LastPlayedUnixSeconds = existing.LastPlayedUnixSeconds,
-                    AchievementsEarned = earned.Value,
-                    AchievementsTotal = total.Value
-                };
-            }
-        }
-
-        private static int ExtractStatsAppId(string href)
-        {
-            if (string.IsNullOrWhiteSpace(href))
-            {
-                return 0;
-            }
-
-            var match = StatsAppIdPattern.Match(href);
-            return match.Success
-                ? ParseInt(match.Groups["id"].Value)
-                : ExtractAppIdFromGameLink(href);
-        }
-
-        // Walks up from the achievements anchor to the nearest ancestor whose text contains an
-        // "earned/total" ratio. Starting at the anchor and widening keeps the match scoped to the
-        // same game row (rows are siblings), so it never picks up a neighbouring game's counts.
-        private static (int? Earned, int? Total) ExtractAchievementRatioNearAnchor(HtmlNode anchor)
-        {
-            var node = anchor;
-            for (var depth = 0; node != null && depth < 4; depth++, node = node.ParentNode)
-            {
-                var text = WebUtility.HtmlDecode(node.InnerText ?? string.Empty);
-                var match = AchievementRatioPattern.Match(text);
-                if (match.Success &&
-                    int.TryParse(match.Groups[1].Value, out var earned) &&
-                    int.TryParse(match.Groups[2].Value, out var total) &&
-                    total > 0)
-                {
-                    return (Math.Max(0, earned), total);
-                }
-            }
-
-            return (null, null);
-        }
-
-        private static List<SteamOwnedGame> ParseOwnedGamesSteamSsr(string html)
+        private static List<SteamOwnedGame> ParseOwnedGamesSteamSsr(JObject ssrRoot)
         {
             var result = new Dictionary<int, SteamOwnedGame>();
-            if (string.IsNullOrWhiteSpace(html) ||
-                (html.IndexOf("window.SSR", StringComparison.OrdinalIgnoreCase) < 0 &&
-                 html.IndexOf("OwnedGames", StringComparison.OrdinalIgnoreCase) < 0))
+            if (ssrRoot == null)
             {
                 return new List<SteamOwnedGame>();
             }
 
-            foreach (var game in ParseOwnedGamesFromRenderContext(html))
+            foreach (var game in ParseOwnedGamesFromQueries(ssrRoot))
             {
                 UpsertLargestPlaytime(result, game);
             }
 
-            foreach (var game in ParseOwnedGamesFromLoaderData(html))
+            foreach (var game in ParseOwnedGamesFromLoaderData(ssrRoot))
             {
                 UpsertLargestPlaytime(result, game);
             }
@@ -572,27 +459,17 @@ namespace PlayniteAchievements.Providers.Steam
             };
         }
 
-        private static List<SteamOwnedGame> ParseOwnedGamesFromRenderContext(string html)
+        private static List<SteamOwnedGame> ParseOwnedGamesFromQueries(JObject ssrRoot)
         {
             var result = new Dictionary<int, SteamOwnedGame>();
-            var renderContextArgument = TryExtractJsonParseArgument(html, "window.SSR.renderContext");
-            if (string.IsNullOrWhiteSpace(renderContextArgument))
+            var queries = SteamSsrPayload.ReadQueries(ssrRoot);
+            if (queries == null)
             {
                 return new List<SteamOwnedGame>();
             }
 
             try
             {
-                var renderContextJson = JsonConvert.DeserializeObject<string>(renderContextArgument);
-                var renderContext = JObject.Parse(renderContextJson);
-                var queryDataJson = renderContext["queryData"]?.Value<string>();
-                if (string.IsNullOrWhiteSpace(queryDataJson))
-                {
-                    return new List<SteamOwnedGame>();
-                }
-
-                var queryData = JObject.Parse(queryDataJson);
-                var queries = (queryData["queries"]?.OfType<JObject>() ?? Enumerable.Empty<JObject>()).ToList();
                 foreach (var query in queries)
                 {
                     var data = query["state"]?["data"];
@@ -615,26 +492,13 @@ namespace PlayniteAchievements.Providers.Steam
             return result.Values.ToList();
         }
 
-        private static List<SteamOwnedGame> ParseOwnedGamesFromLoaderData(string html)
+        private static List<SteamOwnedGame> ParseOwnedGamesFromLoaderData(JObject ssrRoot)
         {
             var result = new Dictionary<int, SteamOwnedGame>();
-            var loaderDataJson = TryExtractJsonArrayAssignment(html, "window.SSR.loaderData");
-            if (string.IsNullOrWhiteSpace(loaderDataJson))
-            {
-                return new List<SteamOwnedGame>();
-            }
-
             try
             {
-                foreach (var item in JArray.Parse(loaderDataJson))
+                foreach (var itemObject in SteamSsrPayload.ReadLoaderItems(ssrRoot))
                 {
-                    var itemJson = item.Type == JTokenType.String ? item.Value<string>() : item.ToString();
-                    if (string.IsNullOrWhiteSpace(itemJson))
-                    {
-                        continue;
-                    }
-
-                    var itemObject = JObject.Parse(itemJson);
                     var listData = itemObject["listData"] as JObject;
                     if (listData == null)
                     {
@@ -786,148 +650,6 @@ namespace PlayniteAchievements.Providers.Steam
             };
         }
 
-        private static string TryExtractJsonParseArgument(string html, string marker)
-        {
-            if (string.IsNullOrWhiteSpace(html) || string.IsNullOrWhiteSpace(marker))
-            {
-                return null;
-            }
-
-            var markerIndex = html.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (markerIndex < 0)
-            {
-                return null;
-            }
-
-            var parseIndex = html.IndexOf("JSON.parse", markerIndex, StringComparison.OrdinalIgnoreCase);
-            if (parseIndex < 0)
-            {
-                return null;
-            }
-
-            var openParenIndex = html.IndexOf('(', parseIndex);
-            if (openParenIndex < 0)
-            {
-                return null;
-            }
-
-            var stringStartIndex = html.IndexOf('"', openParenIndex);
-            return TryExtractJsonStringLiteral(html, stringStartIndex);
-        }
-
-        private static string TryExtractJsonArrayAssignment(string html, string marker)
-        {
-            if (string.IsNullOrWhiteSpace(html) || string.IsNullOrWhiteSpace(marker))
-            {
-                return null;
-            }
-
-            var markerIndex = html.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (markerIndex < 0)
-            {
-                return null;
-            }
-
-            var equalsIndex = html.IndexOf('=', markerIndex);
-            if (equalsIndex < 0)
-            {
-                return null;
-            }
-
-            var arrayStartIndex = html.IndexOf('[', equalsIndex);
-            return TryExtractBalancedJson(html, arrayStartIndex, '[', ']');
-        }
-
-        private static string TryExtractJsonStringLiteral(string text, int startIndex)
-        {
-            if (string.IsNullOrEmpty(text) ||
-                startIndex < 0 ||
-                startIndex >= text.Length ||
-                text[startIndex] != '"')
-            {
-                return null;
-            }
-
-            var escaped = false;
-            for (var i = startIndex + 1; i < text.Length; i++)
-            {
-                var ch = text[i];
-                if (escaped)
-                {
-                    escaped = false;
-                    continue;
-                }
-
-                if (ch == '\\')
-                {
-                    escaped = true;
-                    continue;
-                }
-
-                if (ch == '"')
-                {
-                    return text.Substring(startIndex, i - startIndex + 1);
-                }
-            }
-
-            return null;
-        }
-
-        private static string TryExtractBalancedJson(string text, int startIndex, char openChar, char closeChar)
-        {
-            if (string.IsNullOrEmpty(text) ||
-                startIndex < 0 ||
-                startIndex >= text.Length ||
-                text[startIndex] != openChar)
-            {
-                return null;
-            }
-
-            var depth = 0;
-            var inString = false;
-            var escaped = false;
-            for (var i = startIndex; i < text.Length; i++)
-            {
-                var ch = text[i];
-                if (inString)
-                {
-                    if (escaped)
-                    {
-                        escaped = false;
-                    }
-                    else if (ch == '\\')
-                    {
-                        escaped = true;
-                    }
-                    else if (ch == '"')
-                    {
-                        inString = false;
-                    }
-
-                    continue;
-                }
-
-                if (ch == '"')
-                {
-                    inString = true;
-                }
-                else if (ch == openChar)
-                {
-                    depth++;
-                }
-                else if (ch == closeChar)
-                {
-                    depth--;
-                    if (depth == 0)
-                    {
-                        return text.Substring(startIndex, i - startIndex + 1);
-                    }
-                }
-            }
-
-            return null;
-        }
-
         private static int? ReadInt(JToken token)
         {
             if (token == null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined)
@@ -965,42 +687,6 @@ namespace PlayniteAchievements.Providers.Steam
             return long.TryParse(token.Value<string>(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
                 ? parsed
                 : (long?)null;
-        }
-
-        private static List<SteamOwnedGame> ParseOwnedGamesJson(string html)
-        {
-            var result = new List<SteamOwnedGame>();
-            if (string.IsNullOrWhiteSpace(html))
-            {
-                return result;
-            }
-
-            var match = GamesJsonPattern.Match(html);
-            if (!match.Success)
-            {
-                return result;
-            }
-
-            try
-            {
-                var games = JsonConvert.DeserializeObject<List<SteamCommunityGameJson>>(match.Groups["json"].Value) ??
-                            new List<SteamCommunityGameJson>();
-                return games
-                    .Where(game => game != null && game.AppId > 0)
-                    .Select(game => new SteamOwnedGame
-                    {
-                        AppId = game.AppId,
-                        Name = NormalizeText(game.Name),
-                        PlaytimeForever = Math.Max(0, game.PlaytimeForever ?? 0),
-                        Playtime2Weeks = game.Playtime2Weeks.HasValue ? Math.Max(0, game.Playtime2Weeks.Value) : (int?)null,
-                        LastPlayedUnixSeconds = game.LastPlayedUnixSeconds ?? game.LastPlayed
-                    })
-                    .ToList();
-            }
-            catch
-            {
-                return result;
-            }
         }
 
         private static List<SteamOwnedGame> ParseOwnedGamesHtml(string html)
@@ -1156,9 +842,7 @@ namespace PlayniteAchievements.Providers.Steam
                 return (null, null);
             }
 
-            var anchor = row.SelectSingleNode(
-                ".//a[contains(@href, 'tab=achievements')]") ??
-                row.SelectSingleNode(".//a[contains(@href, '/stats/')]");
+            var anchor = row.SelectSingleNode(".//a[contains(@href, '/achievements/')]");
             var scope = anchor?.ParentNode ?? row;
             var text = WebUtility.HtmlDecode(scope.InnerText ?? string.Empty);
 
@@ -1381,25 +1065,5 @@ namespace PlayniteAchievements.Providers.Steam
             return cleaned;
         }
 
-        private sealed class SteamCommunityGameJson
-        {
-            [JsonProperty("appid")]
-            public int AppId { get; set; }
-
-            [JsonProperty("name")]
-            public string Name { get; set; }
-
-            [JsonProperty("playtime_forever")]
-            public int? PlaytimeForever { get; set; }
-
-            [JsonProperty("playtime_2weeks")]
-            public int? Playtime2Weeks { get; set; }
-
-            [JsonProperty("rtime_last_played")]
-            public long? LastPlayedUnixSeconds { get; set; }
-
-            [JsonProperty("last_played")]
-            public long? LastPlayed { get; set; }
-        }
     }
 }

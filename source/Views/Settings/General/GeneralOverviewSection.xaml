@@ -60,8 +60,8 @@
                             ToolTip="{DynamicResource LOCPlayAch_Settings_TabDisplay}"
                             AutomationProperties.Name="{DynamicResource LOCPlayAch_Settings_TabDisplay}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock FontFamily="Segoe MDL2 Assets"
-                                       FontSize="20" Margin="0,0,10,0" Text="&#xE7F4;" Foreground="{DynamicResource PlayAch.Brush.Accent}"/>
+                            <controls:GlyphIcon FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                       Size="20" Margin="0,0,10,0" VerticalAlignment="Center" Glyph="&#xEA48;" Foreground="{DynamicResource PlayAch.Brush.Accent}"/>
                             <TextBlock Text="{DynamicResource LOCPlayAch_Settings_TabDisplay}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
@@ -69,12 +69,12 @@
                     <Button Grid.Column="1" Style="{StaticResource ProminentLinkButtonStyle}"
                             Click="JumpToTab_Click"
                             CommandParameter="Providers"
-                            ToolTip="{DynamicResource LOCPlayAch_CustomRefresh_ProvidersHeader}"
-                            AutomationProperties.Name="{DynamicResource LOCPlayAch_CustomRefresh_ProvidersHeader}">
+                            ToolTip="{DynamicResource LOCPlatformsTitle}"
+                            AutomationProperties.Name="{DynamicResource LOCPlatformsTitle}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock FontFamily="Segoe MDL2 Assets"
-                                       FontSize="20" Margin="0,0,10,0" Text="&#xE753;" Foreground="{DynamicResource PlayAch.Brush.Accent}"/>
-                            <TextBlock Text="{DynamicResource LOCPlayAch_CustomRefresh_ProvidersHeader}" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            <controls:GlyphIcon FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                       Size="20" Margin="0,0,10,0" VerticalAlignment="Center" Glyph="&#xEA30;" Foreground="{DynamicResource PlayAch.Brush.Accent}"/>
+                            <TextBlock Text="{DynamicResource LOCPlatformsTitle}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
 
@@ -84,8 +84,8 @@
                             ToolTip="{DynamicResource LOCPlayAch_ThemeMigration_Title}"
                             AutomationProperties.Name="{DynamicResource LOCPlayAch_ThemeMigration_Title}">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock FontFamily="Segoe MDL2 Assets"
-                                       FontSize="20" Margin="0,0,10,0" Text="&#xE8AB;" Foreground="{DynamicResource PlayAch.Brush.Accent}"/>
+                            <controls:GlyphIcon FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                       Size="20" Margin="0,0,10,0" VerticalAlignment="Center" Glyph="&#xEF18;" Foreground="{DynamicResource PlayAch.Brush.Accent}"/>
                             <TextBlock Text="{DynamicResource LOCPlayAch_ThemeMigration_Title}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                         </StackPanel>
                     </Button>
@@ -98,7 +98,6 @@
                                    Style="{StaticResource SectionHeaderStyle}"/>
 
                         <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_EnableFriendsFeatures}"
-                                             Hint="{DynamicResource LOCPlayAch_Settings_EnableFriendsFeatures_Description}"
                                              Margin="0">
                             <CheckBox IsChecked="{Binding Persisted.EnableFriendsFeatures}"/>
                         </controls:SettingRow>
@@ -213,8 +212,8 @@
                             AutomationProperties.Name="GitHub Wiki">
                         <DockPanel>
                             <Viewbox Style="{StaticResource LinkIconBoxStyle}">
-                                <TextBlock FontFamily="Segoe MDL2 Assets"
-                                           Text="&#xE736;"
+                                <TextBlock FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                                           Text="&#xEAD2;"
                                            Foreground="{DynamicResource PlayAch.Brush.Text}"/>
                             </Viewbox>
                             <StackPanel VerticalAlignment="Center">

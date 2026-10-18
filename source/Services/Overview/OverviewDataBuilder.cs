@@ -155,6 +155,7 @@ namespace PlayniteAchievements.Services.Overview
             // Disposed explicitly below rather than with a using, so the scope covers the loop
             // and not the phases that follow it.
             var gameRowScope = PerfScope.Start(_logger, "Overview.Build.GameRows", thresholdMs: 25);
+            var platformScores = new PlatformScoreTotals();
             gameRowScope?.SetContext("games=" + games.Count);
 
             for (var i = 0; i < games.Count; i++)
@@ -170,6 +171,7 @@ namespace PlayniteAchievements.Services.Overview
                 }
 
                 var providerKey = ResolveEffectiveProviderKey(game.ProviderKey, game.ProviderPlatformKey);
+                var pointsFamily = PointsFamilies.FromProviderKey(providerKey);
 
                 // Memoized with the visuals below rather than resolved per game: there are a
                 // few dozen provider keys and a library's worth of games, and the name is a
@@ -213,11 +215,15 @@ namespace PlayniteAchievements.Services.Overview
                     UncommonCount = game.UncommonCount,
                     RareCount = game.RareCount,
                     UltraRareCount = game.UltraRareCount,
+                    ShowsRarity = game.RaritySource != RaritySource.None,
                     CollectionScore = game.CollectionScore,
                     PrestigeScore = game.PrestigeScore,
                     CollectionScoreTotal = game.CollectionScoreTotal,
                     PrestigeScoreTotal = game.PrestigeScoreTotal,
                     Points = game.Points,
+                    PlatformScorePoints = game.PlatformScorePoints,
+                    PlatformScorePointsTotal = game.PlatformScorePointsTotal,
+                    PointsFamily = pointsFamily,
                     TotalCommonPossible = game.TotalCommonPossible,
                     TotalUncommonPossible = game.TotalUncommonPossible,
                     TotalRarePossible = game.TotalRarePossible,
@@ -250,6 +256,7 @@ namespace PlayniteAchievements.Services.Overview
                 snapshot.TotalUltraRare += game.UltraRareCount;
                 snapshot.CollectorScore = AddClamped(snapshot.CollectorScore, game.CollectionScore);
                 snapshot.PrestigeScore = AddClamped(snapshot.PrestigeScore, game.PrestigeScore);
+                platformScores.AddToFamily(pointsFamily, game.PlatformScorePoints, game.PlatformScorePointsTotal);
                 snapshot.TotalCommonPossible += game.TotalCommonPossible;
                 snapshot.TotalUncommonPossible += game.TotalUncommonPossible;
                 snapshot.TotalRarePossible += game.TotalRarePossible;
@@ -316,6 +323,8 @@ namespace PlayniteAchievements.Services.Overview
                 ? (double)snapshot.TotalUnlocked / snapshot.TotalAchievements * 100
                 : 0;
             ApplyScoreSnapshotFromValues(snapshot, snapshot.CollectorScore, snapshot.PrestigeScore);
+            snapshot.ApplyPlatformScores(platformScores);
+            ScoreCardChoices.PublishFamiliesWithPoints(platformScores);
 
             Common.LeakWatch.Track("OverviewSnapshot.full", snapshot);
             return snapshot;
@@ -383,10 +392,10 @@ namespace PlayniteAchievements.Services.Overview
                 return null;
             }
 
-            var playniteGame = gameData.Game;
-            if (playniteGame == null && gameData.PlayniteGameId.HasValue)
+            var playniteGame = ResolvePlayniteGame(gameData);
+            if (IsLeftOutAsHidden(settings, playniteGame))
             {
-                playniteGame = _playniteApi?.Database?.Games?.Get(gameData.PlayniteGameId.Value);
+                return null;
             }
 
             var providerKey = gameData.EffectiveProviderKey;
@@ -642,7 +651,9 @@ namespace PlayniteAchievements.Services.Overview
                 // An excluded game contributes nothing to summary surfaces, matching the delta path
                 // (BuildGameFragment returns no fragment for it); otherwise its pins appeared on a
                 // full build and turned into placeholders on the next delta.
-                if (gameData?.Achievements == null || gameData.ExcludedFromSummaries)
+                if (gameData?.Achievements == null ||
+                    gameData.ExcludedFromSummaries ||
+                    IsLeftOutAsHidden(settings, ResolvePlayniteGame(gameData)))
                 {
                     continue;
                 }
@@ -922,6 +933,25 @@ namespace PlayniteAchievements.Services.Overview
             var presentation = CreateGamePresentation(playniteGame);
             cache[playniteGameId.Value] = presentation;
             return presentation;
+        }
+
+        private static bool IsLeftOutAsHidden(
+            PlayniteAchievementsSettings settings,
+            Playnite.SDK.Models.Game playniteGame)
+        {
+            return playniteGame?.Hidden == true &&
+                   settings?.Persisted?.IncludeHiddenGamesInSummaries == false;
+        }
+
+        private Playnite.SDK.Models.Game ResolvePlayniteGame(GameAchievementData gameData)
+        {
+            var playniteGame = gameData?.Game;
+            if (playniteGame == null && gameData?.PlayniteGameId.HasValue == true)
+            {
+                playniteGame = _playniteApi?.Database?.Games?.Get(gameData.PlayniteGameId.Value);
+            }
+
+            return playniteGame;
         }
 
         private GamePresentation CreateGamePresentation(Playnite.SDK.Models.Game playniteGame)

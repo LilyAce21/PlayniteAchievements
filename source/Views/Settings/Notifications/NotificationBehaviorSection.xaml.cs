@@ -1,35 +1,33 @@
 using System;
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
-// WinForms dialog: the WPF Microsoft.Win32 picker renders legacy-style on .NET Framework.
-using DialogResult = System.Windows.Forms.DialogResult;
-using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
 using Playnite.SDK;
 using PlayniteAchievements.Models;
-using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.UI;
-using PlayniteAchievements.ViewModels;
 
 namespace PlayniteAchievements.Views.Settings.Notifications
 {
     /// <summary>
-    /// Notification settings: the Behavior page. What fires (the four enable switches), how it
-    /// fires (duration, delay, concurrency, screen corner), and what accompanies it (controller
-    /// vibration and the per-tier unlock sounds). Capture settings live in
-    /// <see cref="NotificationCapturesSection"/>, per-provider overrides in
-    /// <see cref="NotificationPlatformsSection"/>, and styling in
-    /// <see cref="General.NotificationAppearanceSection"/>.
+    /// Notification settings: the Behavior page. What fires (the four enable switches) and how it
+    /// fires (duration, delay, concurrency, screen corner, controller vibration). Capture settings
+    /// live in <see cref="NotificationCapturesSection"/>, per-provider overrides in
+    /// <see cref="NotificationPlatformsSection"/>, and styling and unlock sounds in
+    /// <see cref="NotificationAppearanceSection"/>.
     /// </summary>
+    /// <remarks>
+    /// In game mode (Manage Achievements) the section edits one game's
+    /// <see cref="GameNotificationBehaviorOverride"/> instead, and hides the rows that stay
+    /// app-wide (duration, concurrency, render mode, vibration) and position, which a game sets
+    /// through its own style.
+    /// </remarks>
     public partial class NotificationBehaviorSection : UserControl, IDisposable
     {
         private readonly PlayniteAchievementsSettings _settings;
-        private readonly PersistedSettingsSubscription _persistedSubscription;
-        private readonly UnlockSoundSettingsViewModel _unlockSoundsViewModel;
         private readonly ILogger _logger;
+        private readonly GameNotificationOverrideScope<GameNotificationBehaviorOverride> _gameScope;
 
         public NotificationBehaviorSection()
         {
@@ -43,98 +41,69 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             : this()
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            if (plugin == null) throw new ArgumentNullException(nameof(plugin));
             _logger = logger;
-
-            _persistedSubscription = new PersistedSettingsSubscription(
-                _settings,
-                OnPersistedPropertyChanged);
-
-            // DataContext island: the per-tier sound rows carry their own view model.
-            _unlockSoundsViewModel = new UnlockSoundSettingsViewModel(settings, plugin.UnlockSounds, logger);
-            UnlockSoundRows.DataContext = _unlockSoundsViewModel;
         }
 
-        private void UnlockSoundBrowse_Click(object sender, RoutedEventArgs e)
+        /// <summary>Game mode: edits the game's own behavior for <paramref name="gameId"/>.</summary>
+        internal NotificationBehaviorSection(
+            PlayniteAchievementsSettings settings,
+            PlayniteAchievementsPlugin plugin,
+            ILogger logger,
+            Guid gameId,
+            string providerKey)
+            : this(settings, plugin, logger)
         {
-            if (!((sender as FrameworkElement)?.DataContext is UnlockSoundRowItem row))
+            _gameScope = new GameNotificationOverrideScope<GameNotificationBehaviorOverride>(
+                plugin?.GameCustomDataStore,
+                gameId,
+                data => data.NotificationBehaviorOverride,
+                (data, value) => data.NotificationBehaviorOverride = value,
+                () => GameNotificationBehaviorOverride.FromEffective(
+                    settings.Persisted,
+                    settings.Persisted?.GetProviderNotificationOverride(providerKey)),
+                value => value.Clone(),
+                plugin?.PlayniteApi,
+                logger);
+            _gameScope.Changed += (s, e) => ApplyGameScope();
+
+            ContentPanel.Margin = new Thickness(0);
+            GameCustomizeCheckBox.Visibility = Visibility.Visible;
+            foreach (var globalOnly in new FrameworkElement[]
             {
-                return;
+                DurationGlobalRow, MaxConcurrentGlobalRow, PositionGlobalRow, RenderModeGlobalRow, VibrationGlobalRow, VibrationGlobalPanel
+            })
+            {
+                globalOnly.Visibility = Visibility.Collapsed;
             }
 
-            var dialog = new OpenFileDialog
-            {
-                Filter = UnlockSoundResolver.BuildOpenFileDialogFilter(),
-                CheckFileExists = true,
-                Multiselect = false
-            };
+            // The snapshot has no friends switch of its own; the global feature toggle still decides.
+            BindingOperations.ClearBinding(FriendUnlockToastsRow, VisibilityProperty);
+            FriendUnlockToastsRow.Visibility = settings.Persisted?.EnableFriendsFeatures == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
-            if (dialog.ShowDialog() == DialogResult.OK)
-            {
-                row.CustomPath = dialog.FileName;
-            }
+            _gameScope.Load();
         }
 
-        private void UnlockSoundClear_Click(object sender, RoutedEventArgs e)
+        /// <summary>Re-reads the game's behavior after its custom data changed elsewhere.</summary>
+        internal void RefreshGameData()
         {
-            if ((sender as FrameworkElement)?.DataContext is UnlockSoundRowItem row)
-            {
-                row.CustomPath = null;
-            }
+            _gameScope?.Load();
         }
 
-        private void UnlockSoundTest_Click(object sender, RoutedEventArgs e)
+        private void ApplyGameScope()
         {
-            Keyboard.ClearFocus();
-            if ((sender as FrameworkElement)?.DataContext is UnlockSoundRowItem row)
-            {
-                _unlockSoundsViewModel?.Test(row);
-            }
+            SettingsBody.DataContext = new GameNotificationOverrideContext<GameNotificationBehaviorOverride>(_gameScope.Current);
+            SettingsBody.IsEnabled = _gameScope.IsCustomized;
+            GameCustomizeCheckBox.IsChecked = _gameScope.IsCustomized;
         }
 
-        /// <summary>
-        /// Plays what a theme ships for this tier. One candidate is not worth a menu, so the button
-        /// plays it outright; two means the desktop and the fullscreen theme ship different files
-        /// for the tier and the listener has to pick, which is the case this exists for. Either can
-        /// be heard without restarting Playnite into the other mode.
-        /// </summary>
-        private void UnlockSoundTheme_Click(object sender, RoutedEventArgs e)
+        private void GameCustomizeCheckBox_Click(object sender, RoutedEventArgs e)
         {
-            Keyboard.ClearFocus();
-            if (!(sender is Button button) || !(button.DataContext is UnlockSoundRowItem row))
+            if (_gameScope != null && !_gameScope.SetCustomized(GameCustomizeCheckBox.IsChecked == true))
             {
-                return;
+                GameCustomizeCheckBox.IsChecked = _gameScope.IsCustomized;
             }
-
-            if (row.ThemeCandidates.Count == 0)
-            {
-                return;
-            }
-
-            if (row.ThemeCandidates.Count == 1)
-            {
-                _unlockSoundsViewModel?.TestFile(row.ThemeCandidates[0].Path);
-                return;
-            }
-
-            var menu = button.ContextMenu;
-            if (menu == null)
-            {
-                return;
-            }
-
-            menu.Items.Clear();
-            foreach (var candidate in row.ThemeCandidates)
-            {
-                var path = candidate.Path;
-                var item = new MenuItem { Header = candidate.Label };
-                item.Click += (s, args) => _unlockSoundsViewModel?.TestFile(path);
-                menu.Items.Add(item);
-            }
-
-            menu.PlacementTarget = button;
-            menu.Placement = PlacementMode.Bottom;
-            menu.IsOpen = true;
         }
 
         /// <summary>
@@ -166,41 +135,9 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             }
         }
 
-        private void OnPersistedPropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            switch (e?.PropertyName)
-            {
-                case null:
-                case "":
-                case nameof(PersistedSettings.UnlockSounds):
-                    // The persisted instance was replaced (Cancel) or the slot object swapped.
-                    _unlockSoundsViewModel?.Refresh();
-                    break;
-                case nameof(PersistedSettings.AllowThemeUnlockSounds):
-                    // Changes which file each tier resolves to, so the rows are restated and the
-                    // host's preloaded set is rebuilt.
-                    _unlockSoundsViewModel?.Refresh();
-                    _unlockSoundsViewModel?.ScheduleApply();
-                    break;
-                case nameof(PersistedSettings.UnlockSoundVolumePercent):
-                case nameof(PersistedSettings.EnableUnlockSounds):
-                    _unlockSoundsViewModel?.ScheduleApply();
-                    break;
-            }
-
-            // The tier badges are drawn from the rarity appearance settings, so they have to be
-            // rebuilt when those change while this page is open.
-            if (!string.IsNullOrEmpty(e?.PropertyName) &&
-                RarityAppearanceHelper.IsAppearanceSettingPropertyName(e.PropertyName))
-            {
-                _unlockSoundsViewModel?.Refresh();
-            }
-        }
-
         public void Dispose()
         {
-            _persistedSubscription?.Dispose();
-            _unlockSoundsViewModel?.Dispose();
+            _gameScope?.Dispose();
         }
     }
 }

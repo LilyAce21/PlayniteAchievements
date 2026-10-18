@@ -72,6 +72,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
 
         private static void Discover(DependencyObject node)
         {
+            if (_enableNamedList && node is Image completionImage) AdaptCompletionIcon(completionImage);
             if (_enableNamedList && (node is TextBlock || node is Rectangle)) AdaptDetailHeader((FrameworkElement)node);
             if (node is ListBox list && IsMigrated(list))
             {
@@ -80,6 +81,38 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 return;
             }
             for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++) Discover(VisualTreeHelper.GetChild(node, i));
+        }
+
+        private static void AdaptCompletionIcon(Image image)
+        {
+            if (BindingOperations.GetMultiBinding(image, UIElement.VisibilityProperty)?.Converter is CompletionIconConverter)
+            {
+                BindingOperations.GetMultiBindingExpression(image, UIElement.VisibilityProperty)?.UpdateTarget();
+                return;
+            }
+            if (image.ReadLocalValue(UIElement.VisibilityProperty) != DependencyProperty.UnsetValue || image.Style == null) return;
+            var paths = image.Style.Triggers.OfType<DataTrigger>().Select(trigger => (trigger.Binding as Binding)?.Path?.Path).ToList();
+            var prefix = new[] { "", "AchievementsViewModel.SelectedGame.", "OverlayTrophyGame." }
+                .FirstOrDefault(candidate => paths.Contains(candidate + "HasPlatinum") && paths.Contains(candidate + "HasCapstoneUnlocked"));
+            if (prefix == null) return;
+            var binding = new MultiBinding { Mode = BindingMode.OneWay, Converter = new CompletionIconConverter() };
+            foreach (var path in new[] { "HasPlatinum", "HasCapstoneUnlocked", "PlatinumCount", "GoldCount", "SilverCount", "BronzeCount", "Total" })
+                binding.Bindings.Add(new Binding(prefix + path) { Mode = BindingMode.OneWay });
+            BindingOperations.SetBinding(image, UIElement.VisibilityProperty, binding);
+        }
+
+        private sealed class CompletionIconConverter : IMultiValueConverter
+        {
+            public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+            {
+                if (values.Length != 7) return DependencyProperty.UnsetValue;
+                if (Equals(values[0], true) || Equals(values[1], true)) return Visibility.Visible;
+                if (values.Skip(2).Any(value => value == DependencyProperty.UnsetValue)) return Visibility.Collapsed;
+                var total = System.Convert.ToInt32(values[6], culture);
+                var unlocked = values.Skip(2).Take(4).Sum(value => Math.Max(0, System.Convert.ToInt32(value, culture)));
+                return total > 0 && unlocked >= total ? Visibility.Visible : Visibility.Collapsed;
+            }
+            public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
         }
 
         private static void AdaptDetailHeader(FrameworkElement control)
@@ -127,6 +160,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
 
         private static void RefreshVisuals(DependencyObject node)
         {
+            if (node is Image completionImage) AdaptCompletionIcon(completionImage);
             if (node is TextBlock || node is Rectangle)
             {
                 var control = (FrameworkElement)node;

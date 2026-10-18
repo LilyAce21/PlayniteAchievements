@@ -128,6 +128,7 @@ namespace PlayniteAchievements.Services.Database
             public string PlayniteGameId { get; set; }
             public string GameName { get; set; }
             public string LibrarySourceName { get; set; }
+            public string RaritySource { get; set; }
         }
 
         /// <summary>
@@ -632,7 +633,8 @@ namespace PlayniteAchievements.Services.Database
                         g.ProviderGameKey AS ProviderGameKey,
                         g.PlayniteGameId AS PlayniteGameId,
                         g.GameName AS GameName,
-                        g.LibrarySourceName AS LibrarySourceName
+                        g.LibrarySourceName AS LibrarySourceName,
+                        g.RaritySource AS RaritySource
                       FROM UserGameProgress ugp
                       INNER JOIN Users u ON u.Id = ugp.UserId
                       INNER JOIN Games g ON g.Id = ugp.GameId
@@ -695,6 +697,7 @@ namespace PlayniteAchievements.Services.Database
                             g.PlayniteGameId AS PlayniteGameId,
                             g.GameName AS GameName,
                             g.LibrarySourceName AS LibrarySourceName,
+                            g.RaritySource AS RaritySource,
                             ROW_NUMBER() OVER (
                                 PARTITION BY ugp.CacheKey
                                 ORDER BY ugp.LastUpdatedUtc DESC, ugp.Id DESC
@@ -718,7 +721,8 @@ namespace PlayniteAchievements.Services.Database
                         ProviderGameKey,
                         PlayniteGameId,
                         GameName,
-                        LibrarySourceName
+                        LibrarySourceName,
+                        RaritySource
                     FROM LatestProgress
                     WHERE RowNum = 1
                     ORDER BY LastUpdatedUtc DESC, UserGameProgressId DESC;").ToList();
@@ -5444,7 +5448,7 @@ namespace PlayniteAchievements.Services.Database
                 customData.AchievementCategoryTypeOverrides.TryGetValue(apiName, out var categoryTypeOverride) &&
                 !string.IsNullOrWhiteSpace(categoryTypeOverride))
             {
-                item.CategoryType = AchievementCategoryTypeHelper.NormalizeOrDefault(categoryTypeOverride);
+                item.CategoryType = AchievementCategoryTypeHelper.ApplyOverride(item.CategoryType, categoryTypeOverride);
             }
 
             item.AchievementNote = customData.AchievementNotes != null &&
@@ -6606,9 +6610,9 @@ namespace PlayniteAchievements.Services.Database
 
                 db.ExecuteNonQuery(
                     @"INSERT INTO Games
-                        (ProviderKey, ProviderPlatformKey, ProviderGameId, ProviderGameKey, PlayniteGameId, GameName, LibrarySourceName, FirstSeenUtc, LastUpdatedUtc)
+                        (ProviderKey, ProviderPlatformKey, ProviderGameId, ProviderGameKey, PlayniteGameId, GameName, LibrarySourceName, RaritySource, FirstSeenUtc, LastUpdatedUtc)
                       VALUES
-                        (?, ?, ?, ?, ?, ?, ?, ?, ?);",
+                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
                     providerKey,
                     DbValue(data.ProviderPlatformKey),
                     DbParam(providerGameId),
@@ -6616,10 +6620,16 @@ namespace PlayniteAchievements.Services.Database
                     DbValue(playniteGameId),
                     DbValue(data.GameName),
                     DbValue(data.LibrarySourceName),
+                    DbValue(data.RaritySource?.ToString()),
                     nowIso,
                     updatedIso);
                 return db.ExecuteScalar<long>("SELECT last_insert_rowid();");
             }
+
+            var storedRaritySource = db.ExecuteScalar<string>(
+                "SELECT RaritySource FROM Games WHERE Id = ?;",
+                game.Id);
+            var raritySource = SqlNadoCacheBehavior.ResolveRaritySourceToWrite(data.RaritySource, storedRaritySource);
 
             db.ExecuteNonQuery(
                 @"UPDATE Games
@@ -6629,6 +6639,7 @@ namespace PlayniteAchievements.Services.Database
                       PlayniteGameId = ?,
                       GameName = ?,
                       LibrarySourceName = ?,
+                      RaritySource = ?,
                       LastUpdatedUtc = ?
                   WHERE Id = ?;",
                 DbValue(data.ProviderPlatformKey),
@@ -6637,6 +6648,7 @@ namespace PlayniteAchievements.Services.Database
                 DbValue(playniteGameId),
                 DbValue(data.GameName),
                 DbValue(data.LibrarySourceName),
+                DbValue(raritySource?.ToString()),
                 updatedIso,
                 game.Id);
 
@@ -7266,6 +7278,7 @@ namespace PlayniteAchievements.Services.Database
                 ProviderKey = progress?.ProviderKey,
                 ProviderPlatformKey = progress?.ProviderPlatformKey,
                 LibrarySourceName = progress?.LibrarySourceName,
+                RaritySource = SqlNadoCacheBehavior.ParseRaritySource(progress?.RaritySource),
                 HasAchievements = progress != null && progress.HasAchievements != 0,
                 // ExcludedByUser is populated by callers from settings
                 GameName = progress?.GameName,

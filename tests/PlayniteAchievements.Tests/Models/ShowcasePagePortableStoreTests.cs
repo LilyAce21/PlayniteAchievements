@@ -230,6 +230,63 @@ namespace PlayniteAchievements.Tests.Models
         }
 
         [TestMethod]
+        public void RoundTrip_BundlesAnImageWidgetsPictureAndKeepsTextWidgetContent()
+        {
+            var (settings, grids, page, _, _) = BuildSource();
+            var picture = Path.Combine(_tempDirectory, "picture.png");
+            File.WriteAllBytes(picture, new byte[] { 5, 6, 7 });
+            var image = AddWidget(settings, page, ShowcaseWidgetKind.Image);
+            ShowcaseWidgetOptions.SetImagePath(image, picture);
+            ShowcaseWidgetOptions.SetImageFitMode(image, ShowcaseImageFitMode.Fit);
+            var text = AddWidget(settings, page, ShowcaseWidgetKind.Text);
+            ShowcaseWidgetOptions.SetText(text, "**Hello**\nworld");
+            ShowcaseWidgetOptions.SetFontFamily(text, "Georgia");
+            var path = Path.Combine(_tempDirectory, "page.pashowcase");
+
+            var built = ShowcasePagePortableStore.BuildPortable(settings, grids, page.PageId);
+            Assert.AreEqual("images/picture.png", ShowcaseWidgetOptions.GetImagePath(
+                built.Widgets.Single(w => w.Kind == ShowcaseWidgetKind.Image)));
+            Assert.AreEqual(picture, ShowcaseWidgetOptions.GetImagePath(image), "source untouched");
+            ShowcasePagePortableStore.Write(path, built);
+
+            var portable = ShowcasePagePortableStore.Read(path);
+            string handed = null;
+            var imported = ShowcasePagePortableStore.ApplyPortable(
+                settings,
+                grids,
+                portable,
+                page.PageId,
+                file =>
+                {
+                    handed = file;
+                    return @"C:\store\def.png";
+                });
+            ShowcasePagePortableStore.DeleteExtractedImages(portable);
+
+            Assert.IsNotNull(handed);
+            var importedImage = WidgetOf(settings, imported, ShowcaseWidgetKind.Image);
+            Assert.AreEqual(@"C:\store\def.png", ShowcaseWidgetOptions.GetImagePath(importedImage));
+            Assert.AreEqual(ShowcaseImageFitMode.Fit, ShowcaseWidgetOptions.GetImageFitMode(importedImage));
+            var importedText = WidgetOf(settings, imported, ShowcaseWidgetKind.Text);
+            Assert.AreEqual("**Hello**\nworld", ShowcaseWidgetOptions.GetText(importedText));
+            Assert.AreEqual("Georgia", ShowcaseWidgetOptions.GetFontFamily(importedText));
+        }
+
+        [TestMethod]
+        public void Export_DropsAnImageWidgetsPictureWhoseFileIsGone()
+        {
+            var (settings, grids, page, _, _) = BuildSource();
+            var image = AddWidget(settings, page, ShowcaseWidgetKind.Image);
+            ShowcaseWidgetOptions.SetImagePath(image, Path.Combine(_tempDirectory, "missing.png"));
+
+            var portable = ShowcasePagePortableStore.BuildPortable(settings, grids, page.PageId);
+
+            Assert.IsNull(ShowcaseWidgetOptions.GetImagePath(
+                portable.Widgets.Single(w => w.Kind == ShowcaseWidgetKind.Image)));
+            Assert.AreEqual(0, portable.BundledImages.Count);
+        }
+
+        [TestMethod]
         public void Import_ReseedsDefaultPinCollections()
         {
             var (settings, grids, page, _, _) = BuildSource();
@@ -379,6 +436,20 @@ namespace PlayniteAchievements.Tests.Models
         {
             var widget = ShowcaseLayoutService.CreateWidget(settings, ShowcaseWidgetKind.Profile);
             widget.Profile = profile;
+            var block = page.Blocks
+                .OrderBy(candidate => candidate.Row)
+                .ThenBy(candidate => candidate.Column)
+                .First(candidate => candidate.WidgetInstanceId == null);
+            Assert.IsTrue(ShowcaseLayoutService.PlaceWidget(settings, page.PageId, block.BlockId, widget.InstanceId));
+            return widget;
+        }
+
+        private static ShowcaseWidgetInstanceSettings AddWidget(
+            ShowcaseSettings settings,
+            ShowcasePageSettings page,
+            ShowcaseWidgetKind kind)
+        {
+            var widget = ShowcaseLayoutService.CreateWidget(settings, kind);
             var block = page.Blocks
                 .OrderBy(candidate => candidate.Row)
                 .ThenBy(candidate => candidate.Column)

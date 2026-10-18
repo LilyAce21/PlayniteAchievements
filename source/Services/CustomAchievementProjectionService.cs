@@ -74,6 +74,49 @@ namespace PlayniteAchievements.Services
             return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
         }
 
+        /// <summary>
+        /// Merges imported definitions into existing ones by ID: a matching ID is replaced in
+        /// place, keeping the local unlock state and progress, and anything else is appended.
+        /// Returns a new list holding the existing definitions and clones of the imported ones;
+        /// neither input nor any existing definition is modified.
+        /// </summary>
+        public static List<CustomAchievementDefinition> MergeDefinitionsById(
+            IEnumerable<CustomAchievementDefinition> existing,
+            IEnumerable<CustomAchievementDefinition> imported,
+            out int added,
+            out int updated)
+        {
+            added = 0;
+            updated = 0;
+            var merged = (existing ?? Enumerable.Empty<CustomAchievementDefinition>())
+                .Where(definition => definition != null)
+                .ToList();
+            foreach (var definition in (imported ?? Enumerable.Empty<CustomAchievementDefinition>()).Where(definition => definition != null))
+            {
+                var id = NormalizeId(definition.Id);
+                var index = string.IsNullOrWhiteSpace(id)
+                    ? -1
+                    : merged.FindIndex(candidate => string.Equals(
+                        NormalizeId(candidate.Id),
+                        id,
+                        StringComparison.OrdinalIgnoreCase));
+                if (index >= 0)
+                {
+                    var replacement = definition.Clone();
+                    GameCustomData.PortablePersonalState.CarryLocal(merged[index], replacement);
+                    merged[index] = replacement;
+                    updated++;
+                }
+                else
+                {
+                    merged.Add(definition.Clone());
+                    added++;
+                }
+            }
+
+            return merged;
+        }
+
         public static string GenerateId(string displayName, ISet<string> existingIds = null)
         {
             var baseId = Slugify(displayName);
@@ -179,6 +222,7 @@ namespace PlayniteAchievements.Services
                 ProviderKey = ProviderKey,
                 ProviderPlatformKey = NormalizeText(providerPlatformKey),
                 LibrarySourceName = game?.Source?.Name,
+                RaritySource = ResolveRaritySource(definitions) ?? RaritySource.None,
                 HasAchievements = true,
                 GameName = game?.Name,
                 PlayniteGameId = playniteGameId,
@@ -247,6 +291,53 @@ namespace PlayniteAchievements.Services
                    num.Value <= denom.Value
                 ? num
                 : null;
+        }
+
+        /// <summary>
+        /// The rarity source custom definitions establish: Percent when any sets a percent, Tier
+        /// when any names a tier, null when none sets rarity.
+        /// </summary>
+        public static RaritySource? ResolveRaritySource(IEnumerable<CustomAchievementDefinition> definitions)
+        {
+            RaritySource? result = null;
+            foreach (var definition in definitions ?? Enumerable.Empty<CustomAchievementDefinition>())
+            {
+                if (definition == null)
+                {
+                    continue;
+                }
+
+                if (NormalizePercent(definition.GlobalPercentUnlocked).HasValue)
+                {
+                    return RaritySource.Percent;
+                }
+
+                if (RarityTierExtensions.TryParse(definition.Rarity, out _))
+                {
+                    result = RaritySource.Tier;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// The stronger of two rarity sources, Percent over Tier over None, keeping null only
+        /// when both are null.
+        /// </summary>
+        public static RaritySource? CombineRaritySource(RaritySource? first, RaritySource? second)
+        {
+            if (!first.HasValue)
+            {
+                return second;
+            }
+
+            if (!second.HasValue)
+            {
+                return first;
+            }
+
+            return (RaritySource)Math.Max((int)first.Value, (int)second.Value);
         }
 
         private static RarityTier ParseRarity(string value)

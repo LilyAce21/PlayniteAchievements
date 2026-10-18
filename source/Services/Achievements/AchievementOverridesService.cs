@@ -5,6 +5,7 @@ using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.Manual;
 using PlayniteAchievements.Services.Cache;
 using PlayniteAchievements.Services.GameCustomData;
+using PlayniteAchievements.Services.Rules;
 using Playnite.SDK;
 using System;
 using System.Collections.Generic;
@@ -521,20 +522,25 @@ namespace PlayniteAchievements.Services.Achievements
         // library rollup reads - the game's counts, filters and summary art are all unchanged by
         // it - so these writes are scoped out of the library-wide summary and projection passes.
         // Callers repaint their own rows in place, which is what keeps the edit visible.
-        public void SetAchievementCategoryOverrides(Guid gameId, IReadOnlyDictionary<string, string> categoryOverrides)
+        //
+        // Each returns true when the write moved an auto capstone into or out of the default
+        // category and so changed what it stands for; the caller re-derives it.
+        public bool SetAchievementCategoryOverrides(Guid gameId, IReadOnlyDictionary<string, string> categoryOverrides)
         {
             if (gameId == Guid.Empty)
             {
-                return;
+                return false;
             }
 
+            var rescoped = false;
             _gameCustomDataStore.Update(
                 gameId,
                 customData =>
                 {
-                    ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                    rescoped = ReplaceCategoryRescopingAutoCapstones(customData, categoryOverrides);
                 },
                 affectsSummaryData: false);
+            return rescoped;
         }
 
         public void SetAchievementCategoryTypeOverrides(Guid gameId, IReadOnlyDictionary<string, string> categoryTypeOverrides)
@@ -553,24 +559,51 @@ namespace PlayniteAchievements.Services.Achievements
                 affectsSummaryData: false);
         }
 
-        public void SetAchievementCategoryOverrides(
+        public bool SetAchievementCategoryOverrides(
             Guid gameId,
             IReadOnlyDictionary<string, string> categoryOverrides,
             IReadOnlyDictionary<string, string> categoryTypeOverrides)
         {
             if (gameId == Guid.Empty)
             {
-                return;
+                return false;
             }
 
+            var rescoped = false;
             _gameCustomDataStore.Update(
                 gameId,
                 customData =>
                 {
-                    ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                    rescoped = ReplaceCategoryRescopingAutoCapstones(customData, categoryOverrides);
                     ReplaceOverrideField(customData, categoryTypeOverrides, (entry, value) => entry.CategoryType = value);
                 },
                 affectsSummaryData: false);
+            return rescoped;
+        }
+
+        /// <summary>
+        /// Replaces the category labels and re-scopes any auto capstone the replacement moved, see
+        /// <see cref="AutoCapstoneScope.Rescope"/>. True when one changed scope.
+        /// </summary>
+        private static bool ReplaceCategoryRescopingAutoCapstones(
+            GameCustomDataFile customData,
+            IReadOnlyDictionary<string, string> categoryOverrides)
+        {
+            var before = CloneOverrides(customData);
+            ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+            var after = customData.AchievementOverrides;
+
+            var rescoped = AutoCapstoneScope.Rescope(
+                customData.CustomAchievements,
+                apiName => before.TryGetValue(apiName, out var entry) ? entry?.Category : null,
+                apiName => after != null && after.TryGetValue(apiName, out var entry) ? entry?.Category : null);
+            if (rescoped == null)
+            {
+                return false;
+            }
+
+            customData.CustomAchievements = rescoped;
+            return true;
         }
 
         /// <summary>
@@ -583,29 +616,45 @@ namespace PlayniteAchievements.Services.Achievements
         /// queue a library-wide overview recompute per click for nothing. Pass true only when the
         /// game-summary category selection actually changed, since that does drive the game's row.
         /// </param>
-        public void SetAchievementCategoryAssignmentAndMetadata(
+        /// <param name="rescopeAutoCapstones">
+        /// True when the write files achievements somewhere new, so a moved auto capstone takes the
+        /// scope of where it went. False for a rename or a re-nesting, which carries the members
+        /// along and leaves what each capstone stands for alone.
+        /// </param>
+        public bool SetAchievementCategoryAssignmentAndMetadata(
             Guid gameId,
             IReadOnlyDictionary<string, string> categoryOverrides,
             IReadOnlyDictionary<string, string> categoryTypeOverrides,
             IReadOnlyList<string> categoryOrder,
             IReadOnlyDictionary<string, CategoryImageOverrideData> categoryImageOverrides,
             GameSummaryCategoryData gameSummaryCategory,
-            bool affectsSummaryData = true)
+            bool affectsSummaryData = true,
+            bool rescopeAutoCapstones = false)
         {
             if (gameId == Guid.Empty)
             {
-                return;
+                return false;
             }
 
+            var rescoped = false;
             _gameCustomDataStore.Update(gameId, customData =>
             {
-                ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                if (rescopeAutoCapstones)
+                {
+                    rescoped = ReplaceCategoryRescopingAutoCapstones(customData, categoryOverrides);
+                }
+                else
+                {
+                    ReplaceOverrideField(customData, categoryOverrides, (entry, value) => entry.Category = value);
+                }
+
                 ReplaceOverrideField(customData, categoryTypeOverrides, (entry, value) => entry.CategoryType = value);
                 customData.AchievementCategoryOrder = CopyCategoryOrder(categoryOrder);
                 customData.AchievementCategoryImageOverrides = CopyCategoryImageOverrides(categoryImageOverrides);
                 customData.GameSummaryCategory = GameCustomDataNormalizer.NormalizeGameSummaryCategory(gameSummaryCategory);
             },
             affectsSummaryData);
+            return rescoped;
         }
 
         /// <param name="affectsSummaryData">
@@ -1278,33 +1327,11 @@ namespace PlayniteAchievements.Services.Achievements
             {
                 _gameCustomDataStore.Update(gameId, customData =>
                 {
-                    var merged = (customData.CustomAchievements ?? new List<CustomAchievementDefinition>())
-                        .Where(definition => definition != null)
-                        .ToList();
-                    foreach (var definition in imported.Where(definition => definition != null))
-                    {
-                        var id = CustomAchievementProjectionService.NormalizeId(definition.Id);
-                        var index = string.IsNullOrWhiteSpace(id)
-                            ? -1
-                            : merged.FindIndex(existing => string.Equals(
-                                CustomAchievementProjectionService.NormalizeId(existing.Id),
-                                id,
-                                StringComparison.OrdinalIgnoreCase));
-                        if (index >= 0)
-                        {
-                            var replacement = definition.Clone();
-                            PortablePersonalState.CarryLocal(merged[index], replacement);
-                            merged[index] = replacement;
-                            updatedCount++;
-                        }
-                        else
-                        {
-                            merged.Add(definition.Clone());
-                            addedCount++;
-                        }
-                    }
-
-                    customData.CustomAchievements = merged;
+                    customData.CustomAchievements = CustomAchievementProjectionService.MergeDefinitionsById(
+                        customData.CustomAchievements,
+                        imported,
+                        out addedCount,
+                        out updatedCount);
                 });
             }
 
@@ -1364,58 +1391,6 @@ namespace PlayniteAchievements.Services.Achievements
 
                 customData.AutoCapstoneGenerated = true;
             });
-        }
-
-        /// <summary>
-        /// Removes a game's auto capstones and clears its generation marker, so generation handles
-        /// it afresh. Temporary, for testing generation; a platinum that generation nominated
-        /// stays nominated, since nothing records which nominations it made.
-        /// </summary>
-        /// <returns>True when the game had anything to clear.</returns>
-        public bool ClearAutoCapstones(Guid gameId)
-        {
-            if (gameId == Guid.Empty ||
-                !_gameCustomDataStore.TryLoad(gameId, out var stored) ||
-                stored == null ||
-                (!stored.AutoCapstoneGenerated &&
-                 stored.CustomAchievements?.Any(definition => definition?.IsAutoCapstone == true) != true))
-            {
-                return false;
-            }
-
-            _gameCustomDataStore.Update(gameId, customData =>
-            {
-                var removed = new HashSet<string>(
-                    (customData.CustomAchievements ?? new List<CustomAchievementDefinition>())
-                        .Where(definition => definition?.IsAutoCapstone == true)
-                        .Select(definition => CustomAchievementProjectionService.BuildApiName(definition.Id)),
-                    StringComparer.OrdinalIgnoreCase);
-
-                if (removed.Count > 0)
-                {
-                    customData.CustomAchievements = customData.CustomAchievements
-                        .Where(definition => definition != null && !definition.IsAutoCapstone)
-                        .ToList();
-                    customData.Capstones = customData.Capstones?
-                        .Where(assignment => !removed.Contains((assignment?.ApiName ?? string.Empty).Trim()))
-                        .ToList();
-                    customData.AchievementOrder = customData.AchievementOrder?
-                        .Where(apiName => !removed.Contains((apiName ?? string.Empty).Trim()))
-                        .ToList();
-
-                    var overrides = CloneOverrides(customData);
-                    foreach (var apiName in removed)
-                    {
-                        overrides.Remove(apiName);
-                    }
-
-                    StoreOverrides(customData, overrides);
-                }
-
-                customData.AutoCapstoneGenerated = false;
-            });
-
-            return true;
         }
 
         /// <summary>
@@ -1535,6 +1510,7 @@ namespace PlayniteAchievements.Services.Achievements
             _gameCustomDataStore.Update(playniteGameId, customData =>
             {
                 customData.ExcludedFromSummaries = excluded ? true : (bool?)null;
+                RuleReconciler.RecordUserWrite(customData, RuleFields.ExcludedFromSummaries);
             });
         }
 
@@ -1820,23 +1796,8 @@ namespace PlayniteAchievements.Services.Achievements
             _gameCustomDataStore.Update(playniteGameId, customData =>
             {
                 customData.ExcludedFromRefreshes = excluded ? true : (bool?)null;
+                RuleReconciler.RecordUserWrite(customData, RuleFields.ExcludedFromRefreshes);
             });
-        }
-
-        private static Dictionary<string, string> CopyStringOverrides(IReadOnlyDictionary<string, string> values)
-        {
-            if (values == null)
-            {
-                return null;
-            }
-
-            var copy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var pair in values)
-            {
-                copy[pair.Key] = pair.Value;
-            }
-
-            return copy;
         }
 
         private static List<string> CopyApiNames(IEnumerable<string> values)

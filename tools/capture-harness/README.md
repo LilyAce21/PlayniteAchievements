@@ -27,6 +27,34 @@ the standalone artifact-analysis tools remain x64.
 Needs Visual Studio 2022 or the Build Tools (the script finds Roslyn itself, whatever the edition) and the
 .NET Framework 4.6.2 targeting pack.
 
+### Notification performance trials
+
+Build the plugin in Release, then compile just the GPU workload and card benchmark:
+
+```powershell
+tools\capture-harness\build.ps1 -Configuration Release -Only TemplateBench,GameLoad
+tools\capture-harness\Run-NotificationTrials.ps1 -ReferencePlugin C:\path\to\reference\Release -IncludeLiveMotion
+```
+
+The runner alternates reference/candidate order and writes logs to `artifacts\notification-perf`.
+It uses the local Playnite notification settings, five cycles per run, a saturated borderless D3D11
+workload, and no desktop capture by default. `-Scale 1` tests normal size; the default `-Scale 4`
+stresses large cards. `-Priority 2` tests normal GPU scheduling; `-Priority 5` matches the plugin's
+notification boost. `-IncludeLiveMotion` also tests continuous animation without the motion cache
+or quiet scope. Run trials sequentially on the interactive desktop with other GPU benchmarks stopped.
+
+Use `-Capture` in a separate run to sample desktop updates. The recorder runs in its own process at
+normal GPU priority. Capture consumes GPU time, so those game FPS numbers must not be mixed with
+capture-free results. `missed` counts desktop updates the recorder could not acquire; `changed/s`
+is a lower bound when updates are missed. `wpf/s` counts distinct WPF rendering callbacks, not
+displayed frames. Neither counter verifies hardware VRR/scanout. Disabled capture prints `n/a`.
+
+For visual changes, `TemplateBench --template original.xaml --compare candidate.xaml --kind rare`
+compares actual desktop pixels. Check common, rare, completion, and progress cards as well as
+fractional scales; passing one text layout is insufficient. An identical-template control should
+report zero differences. Realtime scheduling can increase toast cadence at the game's expense;
+compare game FPS and notification cadence separately before calling a change an optimization.
+
 ### Sharing these
 
 Only `CaptureHarness` needs the plugin: it drives the recorder, exporter and re-encoder by reflection, so
@@ -305,7 +333,12 @@ display's own period read from the OS.
 ```powershell
 tools\capture-harness\bin\SlideCadenceProbe.exe [--repeats 5] [--load N]
     [--card-width 442] [--card-height 138] [--glow 12] [--nested]
+    [--ease back:0.35|cubic|quad|quint|sine|expo:6|power:3|linear] [--duration 240]
+    [--only A,B] [--verify] [--truth]
 ```
+
+`--ease` and `--duration` set the slide curve (always ease-out) and length for every mechanism and for
+`--truth`; the defaults are the shipped `BackEase` 0.35 over 240 ms.
 
 The geometry flags matter more than they look: the default 442x138 card with a 12-radius shadow pins
 every transform variant at 100% of refresh on a quick display, and a variant measured with no headroom
@@ -384,6 +417,247 @@ A `BitmapCache` still buys nothing: `TransformCached` did not beat `Transform` a
 which is now explained rather than merely observed - there is no per-frame rasterization for a cache to
 save. Its numbers, and `TransformNoPadding`'s, varied run to run by enough (20-38 frames) that only
 `Transform`'s stable 22-23 should be read as a measurement; repeat those two before acting on them.
+
+#### Under GPU load, DWM is the ceiling, not the window
+
+`TransformDwm` replaces the layered window with a non-layered one: `AllowsTransparency` off, a
+transparent `HwndSource` background, and `DwmExtendFrameIntoClientArea` with -1 margins.
+That removes the per-frame software readback and `UpdateLayeredWindow` call.
+`--verify` confirms both window kinds show a magenta backdrop through the travel padding and draw the
+card opaque, so the comparison is like for like.
+The `dwmHz` column is DWM's own composed-frame count (`DwmGetCompositionTimingInfo.cFrame`) across the
+slide.
+
+Measured on the 165 Hz display at a reported user's physical card size
+(`--card-width 1164 --card-height 248 --glow 36 --nested`, 7 repeats):
+
+| load | `Transform` | `TransformDwm` | DWM itself |
+|---|---|---|---|
+| none | 165 Hz | 165 Hz | 135-159 Hz |
+| `--load 1` | 82.5 Hz | 82.5 Hz | 78-91 Hz |
+| `--load 3` | 41-55 Hz | 55 Hz | 48-53 Hz |
+
+The slide runs at whatever rate DWM composes at, and DWM slows down when other processes saturate the
+GPU.
+No window mechanism in this process can beat that: the non-layered window matches the layered one
+within run-to-run noise, and `--gpu-priority 4` (`D3DKMTSetProcessSchedulingPriorityClass` HIGH,
+accepted with status 0) moved nothing either.
+A notification over a GPU-bound game therefore animates at roughly the rate DWM is composing at the
+time, whatever the toast window is made of.
+
+#### Ground truth: real clock helps when idle, nothing helps under load
+
+`--truth` (SlideTruth.cs) measures where the card actually was on screen at the instant each frame
+was presented, via DXGI desktop duplication: each duplicated frame carries `LastPresentTime` on the
+`Stopwatch` QPC clock, and one pixel column through the card over a magenta backdrop gives its edge.
+Each slide is fitted to the curve with a free constant latency and position offset, so `residualSd`
+counts uneven steps, not delay. `SLIDE_TRUTH_DUMP=1` prints every presented frame.
+The `skewSd`/`errSd` columns of the cadence table cannot settle this: `TransformClock` is measured
+against the clock it is driven by, so it scores near zero by construction.
+
+`TransformClock` pauses the storyboard and seeks it every frame to `Stopwatch` time since Begin.
+Measured on the 165 Hz display at `--card-width 1164 --card-height 248 --glow 36 --nested`,
+9 repeats, median residual (spread of all runs):
+
+| load | `Transform` (WPF clock) | `TransformClock` (real clock) |
+|---|---|---|
+| none | 7.4 px (4.1-15.5) | 1.9 px (1.0-18.8) |
+| `--load 1` | 11.2 px (4.0-17.4) | 11.2 px (7.4-16.5) |
+| `--load 3` | 21.6 px (15.9-28.7) | 21.3 px (14.8-27.3) |
+
+Idle, the real clock removes most of the unevenness. Under GPU load both are equally uneven:
+the error is now the varying delay between building a frame and DWM presenting it (raw dumps show
+the same position presented three times, then a 79 px jump), and no clock read at build time can
+predict that delay.
+
+The default `BackEase` (amplitude 0.35) also concentrates the motion: the card reaches its rest
+offset about 100 ms into the 240 ms slide and spends the rest in the overshoot, so most of the
+visible travel happens in a handful of frames at peak speed. Residual in pixels is speed times
+timing error, so a curve that spreads the travel over the whole duration lowers it in proportion.
+
+#### At the user's device size, the layered surface is the ceiling and a DWM window lifts it
+
+Re-measured at the device-pixel geometry of a reported VRR user's card
+(`--card-width 2328 --card-height 496 --glow 72 --nested`; 1164x248 at 200%), 2026-10-08.
+Frames of an ideal 40 at 165 Hz, idle, across three runs:
+
+| mechanism | frames |
+|---|---|
+| `TransformClock` (layered, real clock: what ships) | 22-29 |
+| `TransformNoPadding` | 34-35 |
+| `TransformDwm` | 35-39 |
+| `TransformDwmClock` (DWM window, real clock) | 40 |
+
+`--truth`, 9 repeats, median residual:
+
+| load | `TransformClock` | `TransformDwmClock` |
+|---|---|---|
+| none | 12.7 px | 4.7 px |
+| `--load 1` | 16.4 px | 16.9 px |
+
+So the earlier "a non-layered window does not help" holds only under GPU load. With headroom, the
+layered window's per-frame surface copy, which grows with device pixels, is what drops frames, and a
+DWM window removes it. On a VRR display DWM composes at the game's present rate, so frames this
+process fails to deliver are dropped on top of the game's own unevenness.
+
+What a DWM window loses, checked with `--verify`:
+
+- Click-through. A layered window passes clicks through its fully transparent pixels; a DWM window
+  takes every click in its rectangle, travel padding included (`WindowFromPoint` lands on it).
+- `Window.Opacity`, which only applies with `AllowsTransparency`. `DWMWA_CLOAK` hides the window
+  instead (the card reads as the backdrop while cloaked).
+- Adding `WS_EX_LAYERED` back to a non-transparent WPF window to get both does not work: the bit is
+  dropped from the extended style even through a `WM_STYLECHANGING` hook, and
+  `SetLayeredWindowAttributes` then fails with error 87. `WS_EX_TRANSPARENT` and `WS_EX_NOACTIVATE` do stick.
+
+#### Under load, the curve is the lever
+
+`--truth --load 1` at the same geometry, 9 repeats, median residual (spread of all runs):
+
+| curve / duration | `TransformClock` | `TransformDwmClock` |
+|---|---|---|
+| back 0.35 / 240 ms (shipped) | 17.7 px | 11.0 px |
+| back 0.15 / 240 ms | 10.5 px | 12.1 px |
+| cubic / 240 ms | 10.2 px | 10.2 px |
+| sine / 240 ms | 8.1-8.3 px | 7.4-10.7 px |
+| sine / 280 ms | 7.7 px | 9.5 px |
+| sine / 300 ms | 6.6 px (5.7-9.8) | 8.6 px |
+| sine / 320 ms | 6.8 px | 7.6 px |
+| cubic / 360 ms | 8.2 px | 8.8 px |
+| sine / 360 ms | 5.4-5.5 px | 5.9-6.8 px |
+| quint / 400 ms | 6.2 px | 8.0 px |
+
+Idle, `TransformDwmClock` with sine / 300 ms measured 2.1 px; the idle DWM column is the noisiest,
+with single runs above 10 px at most settings.
+
+Removing the overshoot and spreading the travel across the slide is what helps once DWM sets the
+rate: sine ease-out moves on most presented frames (29 of 35 at 360 ms) where the shipped curve
+moves on 7 of 21, so a late frame is a small step instead of a jump. Sine / 300 ms keeps most of the
+360 ms gain at a quicker entrance.
+
+## The hold probe
+
+```powershell
+tools\capture-harness\bin\HoldProbe.exe [--card-width 2328] [--card-height 496] [--glow 72]
+    [--repeats 5] [--seconds 4] [--load N] [--only A,B] [--shape notch|rect|soft] [--fps 50]
+    [--scale 1] [--compare-only] [--dump <dir>]
+```
+
+Prices the seconds a notification rests on screen, and checks on screen that cheaper layerings look the
+same. The card mirrors the bundled `AchievementToast.xaml`: a glow layer with the border-glow
+`DropShadowEffect` pulsed through `Effect.Opacity` (as `RarityGlowPulse` does with `Target="Effect"`)
+over a backing copy of the background, then an effect-free content layer with the visible background
+copy and text lines carrying the nested shadow pair. The background is a synthetic animated bitmap
+updated like `GifPlayer` updates its `WriteableBitmap`; `notch` gives it binary alpha that is the same
+in every frame (a GIF's case), `soft` a fading edge (a translucent WebM's case). Windows are
+DWM-composited, as revealed notifications are.
+
+Per variant it reports the composition rate the UI thread held, DWM's composed frames, and this
+process's CPU time per second. Then each candidate is frozen at the same background frame and pulse
+value over a solid backdrop and compared pixel for pixel with Shipped (the backdrop matters: without it
+the transparent areas read the console behind the card as it prints).
+
+Measured 2026-10-08 on the 165 Hz display at the default geometry (a 1164x248 card at 200%), medians of
+5 interleaved runs:
+
+| variant | idle cpu ms/s | `--load 1` composed | on screen vs Shipped, notch | soft |
+|---|---|---|---|---|
+| Shipped | 363-406 | 59-62% | - | - |
+| FrozenBacking (backing copy a still) | 336-394 | 58-60% | 3 px, max 1 level | 252k px, max 49 levels |
+| CachedGlow (BitmapCache, pulse on layer Opacity) | 344 | 61% | 185k px, max 4 levels | max 42 levels |
+| CachedText (BitmapCache per text line) | 266 | 63% | 90k px, max 114 levels | same |
+| SplitGlow (glow layer in its own window behind) | 223-246 | 66-72% | 3 px, max 1 level | - |
+| SplitAllLive (glow, background and text in three windows) | 223 | 97% | 1 px, max 1 level | 162k px, max 1 level |
+| NoTextShadow (price, not a candidate) | 188-191 | 97-98% | - | - |
+| PulseOff (price) | 133-141 | - | - | - |
+| NoGlow (price) | 125 | - | - | - |
+
+What it establishes:
+
+- WPF does not keep an effect's output. Any redraw of a region re-runs every effect in it, and the pulse
+  redraws the whole card at the refresh rate, so the text shadows run 165 times a second. They are what
+  drops frames under load: without them the card holds 97-98% instead of about 60%.
+- `BitmapCache` stops the re-runs but changes pixels: up to 4 levels on the glow, and visibly heavier
+  glyph edges on cached text (up to 114 levels), with or without `SnapsToDevicePixels`.
+- WPF tracks redraws per window, and DWM blends the windows' retained surfaces. Splitting the layers into
+  windows stacked in the template's order leaves each one redrawing only when its own content changes:
+  the text window never, after its first frame. On screen it matches the single window to within
+  1 level (8-bit rounding of the blend order), on binary and soft alpha alike.
+- Freezing the backing copy is lossless only for binary alpha that is the same in every frame, and buys
+  nothing on its own while the pulse runs; with the layers split it is not needed.
+
+Forcing `TextOptions.TextHintingMode` (Fixed, Animated) or `TextRenderingMode` (Grayscale, Aliased) on
+a cached line (`--cache-hint`, `--cache-render`) left the difference exactly unchanged (89,746 pixels,
+max 114 levels), so it comes from how the cached layer is composited, not from text rasterization;
+`--cache-snap` made it worse.
+
+### Motion: `--motion slide|fade|zoom`
+
+With `--motion`, the background and pulse stand still (as the quiet gate holds them during a
+notification's motion) and the card cycles its entrance and exit continuously at the shipped sine /
+300 ms, on the slide host's transform group as the plugin animates it. `CachedHost` caches that host
+for the motion; `--pose` freezes the comparison at a shown fraction (1 at rest), `--snap` / `--snap-live`
+round the slide offset to whole device pixels, `--host-cache-snap` sets the cache's
+`SnapsToDevicePixels`, and `--host-cache-scale` its `RenderAtScale`.
+
+Composed rate held, `--load 1`, default geometry, medians of 3:
+
+| motion | Shipped | NoGlow | NoTextShadow | CachedHost |
+|---|---|---|---|---|
+| slide | 61% | 67% | 98% | 99% |
+| fade | 42% | 51% | 96% | 97% |
+| zoom | 43% (55% idle) | 53% | 98% | 99% |
+
+On screen against the live card:
+
+| case | difference |
+|---|---|
+| at rest, every motion | 0 px |
+| slide mid-motion, fractional offset | max 29-32 levels |
+| slide mid-motion, cache `SnapsToDevicePixels` vs live at the rounded offset | 0 px |
+| fade mid-motion | max 1 level |
+| zoom mid-motion | max 145-207 levels at `RenderAtScale` 1 or 2 (a scaled cache is resampled) |
+| `--scale 1.5` ancestor, cache at `RenderAtScale` 1 | max 249 levels even at rest |
+| `--scale 1.5` ancestor, cache at `RenderAtScale` 1.5: rest, rounded slide / mid-fade | 0 px / max 1 level |
+
+So during a motion the card's effects are what drop frames (the moving card is redrawn, and every effect
+re-run, each frame), and caching the host for the motion's span removes that cost. It matches the live
+card exactly when the cache renders at the card's full scale and snaps to device pixels, which rounds
+the slide to whole pixels; a fade is within 1 level; a zoom is not reproducible from a cache.
+
+WPF does not fold the display scale into the cache's resolution. Measured on a monitor set to 150%
+(`--at <x,y>` creates the windows per-monitor-v2 there and places them in physical pixels;
+`HoldProbe.exe.config` turns on WPF's per-monitor scaling, as Playnite runs with it, and the probe
+prints the scale the window actually renders at): a cache at `RenderAtScale` 1 differed by up to 225
+levels at rest, and at 1.5 matched exactly at rest for every motion, within 1 level mid-fade and on a
+snapped mid-slide, with zoom resampled as at 100%. The cache's scale is therefore the window's own
+device scale.
+
+### Split windows while moving: `SlideCadenceProbe --split-truth`
+
+```powershell
+tools\capture-harness\bin\SlideCadenceProbe.exe --split-truth [--repeats 10] [--load N]
+    [--ease sine] [--duration 300] [--card-width 2328] [--card-height 496] [--glow 72]
+```
+
+`SplitTruth.cs` slides three stacked DWM windows (the pulsing glow, a 50 fps animated background, text
+with its shadows) through one shared `TranslateTransform` set from the clock each frame, and reads every
+frame DWM presents through desktop duplication. Each window carries a solid marker in its own screen
+column (the back one in the glow margin); a frame is misaligned when the three marker edges are more than
+1 px apart.
+
+Measured 2026-10-08, sine / 300 ms at the default geometry, 10 slides each:
+
+| load | moving frames | misaligned | worst spread |
+|---|---|---|---|
+| none | 430 | 1 | 2 px |
+| `--load 1` | 269 | 21 | 58 px |
+
+Idle the windows move together; under GPU load each window's frame reaches DWM on its own, and one in
+thirteen presented frames shows them apart. A card split across windows must therefore stand still while
+split, and any change between one window and several is not guaranteed to land in a single frame under
+load. A group opacity (fade, zoom) also cannot be reproduced per layer: each layer faded separately lets
+the background show through the text mid-fade.
 
 ## The composer probe
 
