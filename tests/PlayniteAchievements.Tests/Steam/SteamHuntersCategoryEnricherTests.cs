@@ -742,7 +742,8 @@ namespace PlayniteAchievements.Steam.Tests
                     ? "Error 1015: You are being rate limited."
                     : "{\"groups\":[{\"name\":\"Multiplayer\",\"achievementApiNames\":[\"ach_1\"]}]}"),
                 null,
-                new RateLimiter(0, 3));
+                new RateLimiter(0, 3),
+                requestGapMs: 0);
 
             var response = await client.GetAchievementGroupsAsync(442070, CancellationToken.None);
 
@@ -761,7 +762,8 @@ namespace PlayniteAchievements.Steam.Tests
                     return Task.FromResult("Error 1015: You are being rate limited.");
                 },
                 null,
-                new RateLimiter(0, 2));
+                new RateLimiter(0, 2),
+                requestGapMs: 0);
 
             var response = await client.GetAchievementGroupsAsync(442070, CancellationToken.None);
 
@@ -772,7 +774,7 @@ namespace PlayniteAchievements.Steam.Tests
         private static SteamHuntersCategoryEnricher CreateEnricher(System.Func<string, string> respond)
         {
             return new SteamHuntersCategoryEnricher(
-                new SteamHuntersApiClient((url, ct) => Task.FromResult(respond(url)), null, new RateLimiter(0, 0)),
+                new SteamHuntersApiClient((url, ct) => Task.FromResult(respond(url)), null, new RateLimiter(0, 0), requestGapMs: 0),
                 null);
         }
     }
