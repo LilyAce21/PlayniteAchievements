@@ -544,7 +544,7 @@ Passende Plattform aktivieren oder die Authentifizierungseinstellungen überprü
     <sys:String x:Key="LOCPlayAch_Settings_ApplyAndSync">Anwenden &amp; synchronisieren</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_IncludeHiddenGamesInBulkRefreshes">Versteckte Spiele bei Aktualisierungen berücksichtigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_IncludeHiddenGamesInBulkRefreshes_Description">Bei Einzel- oder spezifizierten Aktualisierungen werden versteckte Spiele stets berücksichtigt.</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_IncludeHiddenGamesInSummaries">Include Hidden Games in Summaries</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_IncludeHiddenGamesInSummaries">Versteckte Spiele in Übersichten berücksichtigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_IncludeHiddenGamesInSummaries_Description">When off, games hidden in Playnite are left out of the Overview window, showcase widgets and theme totals. Their own achievement views still work.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ExclusionFilters_Description">Games matching any of the selected saved Playnite filters are excluded automatically, and included again once they stop matching. A game you include or exclude yourself keeps your choice.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_BarChartPreview">Histogramm</sys:String>
@@ -1467,8 +1467,8 @@ Fortfahren?</sys:String>
 
     <sys:String x:Key="LOCPlayAch_Showcase_Stat_TrackedGames">Verfolgte</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Stat_PlayedGames">Gespielte</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_Stat_CompletedGames">Vervollständigungen</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_Stat_ActiveDayRate">Freischaltungen / aktiver Tag</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Stat_CompletedGames">Vervollständigte</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Stat_ActiveDayRate">Erfolge/aktiver Tag</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Stat_ThirtyDayRate">30-Tage-Rate</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Stat_AverageGlobalUnlock">Durchschnittliche globale Freischaltung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Stat_CurrentStreak">Aktuelle Serie</sys:String>
@@ -1490,8 +1490,8 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Widget_NativePoints">Native Punkte</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Widget_IconMosaic">Mosaik</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Widget_ScreenshotSlideshow">Screenshot-Slideshow</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_Widget_RecentAchievements">Raster - Erfolge</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_Widget_GameSummaries">Raster - Spiele</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Widget_RecentAchievements">Erfolgetabelle</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Widget_GameSummaries">Spieletabelle</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_AchievementGridSource_All">Freigeschaltete Erfolge</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_AchievementGridSource_Pinned">Angeheftete Sammlung</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Widget_ActivityCalendar">Aktivitätskalender</sys:String>
@@ -1548,8 +1548,8 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_SubmitterKeyHint">Identifies your submissions so you can update or remove them later. Copy it to use the same identity on another Playnite install, or paste a key from one.</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_ReplaceKeyConfirm">Replace your submitter key with the one on the clipboard? Items submitted with the current key can no longer be updated from this install unless you paste it back.</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_InvalidKey">The clipboard does not contain a submitter key.</sys:String>
-    <sys:String x:Key="LOCPlayAch_Workshop_ExportBundle">Export bundle...</sys:String>
-    <sys:String x:Key="LOCPlayAch_Workshop_ImportBundle">Import bundle...</sys:String>
+    <sys:String x:Key="LOCPlayAch_Workshop_ExportBundle">Paket exportieren...</sys:String>
+    <sys:String x:Key="LOCPlayAch_Workshop_ImportBundle">Paket importieren...</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_BundlesHint">A bundle packs your colors, sounds, notification and frame into one .pabundle file. Importing one adds each part to its preset list.</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_CurrentSettings">Aktuelle Einstellungen</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_BundleComposerHint">Choose what each part of the bundle is built from: your current settings or a saved preset.</sys:String>
