@@ -37,6 +37,16 @@ namespace PlayniteAchievements.Providers
     {
         bool CanAttemptOfflineRefresh { get; }
     }
+
+    internal interface IDefinitionCachePreferenceProvider
+    {
+        Task<RebuildPayload> RefreshAsync(
+            IReadOnlyList<Game> gamesToRefresh,
+            Action<Game> onGameStarting,
+            Func<Game, GameAchievementData, Task> onGameCompleted,
+            bool preferCachedDefinitions,
+            CancellationToken cancel);
+    }
 }
 
 namespace PlayniteAchievements.Providers.Epic
