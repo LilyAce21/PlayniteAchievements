@@ -68,4 +68,20 @@ namespace PlayniteAchievements.Providers
     {
         bool CanAttemptOfflineRefresh { get; }
     }
+
+    /// <summary>
+    /// Optional current-user refresh overload for providers whose definition data comes from a
+    /// source worth sparing on frequent programmatic refreshes. With
+    /// <c>preferCachedDefinitions</c> set (RefreshOptions.PreferCachedDefinitions, used by the
+    /// in-game monitor) the provider reuses its stored definition data instead of re-fetching it.
+    /// </summary>
+    internal interface IDefinitionCachePreferenceProvider
+    {
+        Task<RebuildPayload> RefreshAsync(
+            IReadOnlyList<Game> gamesToRefresh,
+            Action<Game> onGameStarting,
+            Func<Game, GameAchievementData, Task> onGameCompleted,
+            bool preferCachedDefinitions,
+            CancellationToken cancel);
+    }
 }
