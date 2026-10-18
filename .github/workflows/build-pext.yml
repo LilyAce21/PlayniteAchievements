@@ -12,7 +12,7 @@ on:
       - "feature/**"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -51,7 +51,7 @@ jobs:
           $out = "source/bin/Release"
           $ver = ((Select-String -Path source/extension.yaml -Pattern '^Version:\s*(.+)$').Matches[0].Groups[1].Value).Trim()
           $id  = ((Select-String -Path source/extension.yaml -Pattern '^Id:\s*(.+)$').Matches[0].Groups[1].Value).Trim()
-          $zip = "$id`_$ver-display-recording.zip"
+          $zip = "$id`_$ver-psn-capstone.zip"
           Compress-Archive -Path "$out/*" -DestinationPath $zip -Force
           Rename-Item -Path $zip -NewName ($zip -replace '\.zip$','.pext')
           Get-ChildItem *.pext | Select-Object Name, Length
@@ -79,6 +79,13 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Attach the .pext to a release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $pext = Get-ChildItem *.pext | Select-Object -First 1
+          gh release create "pext-upstream-4.1.0.1" $pext.FullName --prerelease --title "PSN Capstone fork on upstream 4.1.0.1" --notes "Build of merge/upstream-4.1.0.1" --target "${{ github.sha }}"
       - name: Run the capstone and PSN tests
         id: mytests
         shell: pwsh
