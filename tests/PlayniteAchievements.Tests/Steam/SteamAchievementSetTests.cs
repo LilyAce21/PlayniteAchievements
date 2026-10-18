@@ -425,6 +425,52 @@ namespace PlayniteAchievements.Steam.Tests
                 Schema(new SchemaAchievement { Name = "A" }), "Game", 1).Count);
         }
 
+        [TestMethod]
+        public void CarryForwardCategories_CopiesStoredValuesExceptPreservedAndUnstored()
+        {
+            var achievements = new List<AchievementDetail>
+            {
+                new AchievementDetail { ApiName = "Base_1" },
+                new AchievementDetail { ApiName = "Set_1", Category = "The Pale Reach", CategoryType = "DLC" },
+                new AchievementDetail { ApiName = "New_1" }
+            };
+            var stored = new List<AchievementDetail>
+            {
+                new AchievementDetail { ApiName = " base_1 ", Category = "DREDGE|1.1", CategoryType = "Base|Update|Unobtainable" },
+                new AchievementDetail { ApiName = "Set_1", Category = "Stale", CategoryType = "Base" }
+            };
+
+            SteamAchievementSetMapper.CarryForwardCategories(
+                achievements,
+                stored,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Set_1" });
+
+            Assert.AreEqual("DREDGE|1.1", achievements[0].Category);
+            Assert.AreEqual("Base|Update|Unobtainable", achievements[0].CategoryType);
+            Assert.AreEqual("The Pale Reach", achievements[1].Category);
+            Assert.AreEqual("DLC", achievements[1].CategoryType);
+            Assert.IsNull(achievements[2].Category);
+            Assert.IsNull(achievements[2].CategoryType);
+        }
+
+        [TestMethod]
+        public void CarryForwardCategories_WithoutPreserveSet_CopiesEveryStoredRow()
+        {
+            var achievements = new List<AchievementDetail>
+            {
+                new AchievementDetail { ApiName = "Set_1", Category = "The Pale Reach", CategoryType = "DLC" }
+            };
+            var stored = new List<AchievementDetail>
+            {
+                new AchievementDetail { ApiName = "Set_1", Category = "Pale Reach", CategoryType = "DLC|Update" }
+            };
+
+            SteamAchievementSetMapper.CarryForwardCategories(achievements, stored, preserveApiNames: null);
+
+            Assert.AreEqual("Pale Reach", achievements[0].Category);
+            Assert.AreEqual("DLC|Update", achievements[0].CategoryType);
+        }
+
         // ------------------------------------------------------------------
         // API client outcomes
         // ------------------------------------------------------------------
