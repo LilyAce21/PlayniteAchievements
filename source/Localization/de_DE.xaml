@@ -665,8 +665,8 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_Style_Rarity_BadgeRight">Großes Abzeichen rechts</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_Style_Rarity_PercentUnderIcon">Unter Symbol</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_Style_Rarity_PercentWithBadge">Unterhalb Abzeichen</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_Style_Rarity_InlineBadge">Eingebettet mit Titel</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_Style_Rarity_InlineGameBadge">Eingebettet mit Spiel</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_Style_Rarity_InlineBadge">Eingebettet im Titel</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_Style_Rarity_InlineGameBadge">Eingebettet im Spiel</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_Style_ShowAccentStrip">Linker Seltenheitsakzent</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_Style_ShowCountdownBar">Timer-Leiste</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_Style_CountdownBarColor">Timer-Leistenfarbe</sys:String>
@@ -1039,7 +1039,7 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowOverviewPieIcons">Diagrammsymbole anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowOverviewPieLegend">Legende anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PieLegendPosition">Position der Legende</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_ScoreCardBadgePosition">Badge Position</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ScoreCardBadgePosition">Abzeichenposition</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ScoreCardUseCustomColors">Use Custom Rarity Colors</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ScoreCardShowTotal">Gesamtpunktzahl anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowTopMenuBarButton">Schaltfläche in oberer Menüleiste anzeigen</sys:String>
@@ -1064,7 +1064,7 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ColorNamesByRarity">Erfolgstitel nach Seltenheit färben</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ColorRarityTextByRarity">Seltenheitswert einfärben</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowNameAboveProgress">Titel über Fortschrittsleiste anzeigen</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_ShowRarityBadgesBelowProgress">Show Rarity Badges Below Progress Bar</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ShowRarityBadgesBelowProgress">Seltenheitsabzeichen unter Fortschrittsleiste anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PieIncludeLocked">Segment für Gesperrte anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_OverviewPieSmallSliceMode">Handhabung kleiner Segmente</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_OverviewPieSmallSliceMode_Exact">Exakt darstellen</sys:String>
@@ -1139,7 +1139,7 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Filter_Played">Gespielt</sys:String>
     <sys:String x:Key="LOCPlayAch_Filter_Unowned">Nicht in Besitz</sys:String>
     <sys:String x:Key="LOCPlayAch_Filter_Unplayed">Ungespielt</sys:String>
-    <sys:String x:Key="LOCPlayAch_Filter_AllTime">Gesamtzeitraum</sys:String>
+    <sys:String x:Key="LOCPlayAch_Filter_AllTime">Zeitraum</sys:String>
     <sys:String x:Key="LOCPlayAch_Filter_SinceDate">Since {0}</sys:String>
     <sys:String x:Key="LOCPlayAch_Filter_UntilDate">Until {0}</sys:String>
     <sys:String x:Key="LOCPlayAch_Dynamic_Visible">Sichtbar</sys:String>
@@ -1245,12 +1245,12 @@ Daten für in Besitz befindliche Spiele bleiben erhalten.</sys:String>
     <sys:String x:Key="LOCPlayAch_Rarity_Uncommon">Ungewöhnlich</sys:String>
     <sys:String x:Key="LOCPlayAch_Section_SyncUpdates">Datenabgleich</sys:String>
     <sys:String x:Key="LOCPlayAch_Section_Timeline">Erfolgshistogramm</sys:String>
-    <sys:String x:Key="LOCPlayAch_TimeRange_14D">14 Tage</sys:String>
-    <sys:String x:Key="LOCPlayAch_TimeRange_1M">1 Monat</sys:String>
-    <sys:String x:Key="LOCPlayAch_TimeRange_1Y">1 Jahr</sys:String>
-    <sys:String x:Key="LOCPlayAch_TimeRange_3M">3 Monate</sys:String>
-    <sys:String x:Key="LOCPlayAch_TimeRange_6M">6 Monate</sys:String>
-    <sys:String x:Key="LOCPlayAch_TimeRange_7D">7 Tage</sys:String>
+    <sys:String x:Key="LOCPlayAch_TimeRange_14D">14 T</sys:String>
+    <sys:String x:Key="LOCPlayAch_TimeRange_1M">1 M</sys:String>
+    <sys:String x:Key="LOCPlayAch_TimeRange_1Y">1 J</sys:String>
+    <sys:String x:Key="LOCPlayAch_TimeRange_3M">3 M</sys:String>
+    <sys:String x:Key="LOCPlayAch_TimeRange_6M">6 M</sys:String>
+    <sys:String x:Key="LOCPlayAch_TimeRange_7D">7 T</sys:String>
     <sys:String x:Key="LOCPlayAch_Timeline_NoUnlocksInPeriod">Keine Freischaltungen in diesem Zeitraum</sys:String>
     <sys:String x:Key="LOCPlayAch_Timeline_SplitByPlatform">Nach Plattform aufteilen</sys:String>
     <sys:String x:Key="LOCPlayAch_Playtime_HoursMinutes">{0} h {1} min</sys:String>
@@ -1397,7 +1397,7 @@ Fortfahren?</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_UnavailableGame">Unavailable game</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MoveEarlier">Move earlier</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_MoveLater">Move later</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_Range">Range</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Range">Zeitraum</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_Mode">Modus</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_TopN">Spitzeneinträge</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ItemCount">Elementanzahl</sys:String>
