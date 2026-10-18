@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PlayniteAchievements.Common;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Providers.Steam;
 using System.Collections.Generic;
@@ -732,10 +733,46 @@ namespace PlayniteAchievements.Steam.Tests
             Assert.AreEqual("DLC", achievements[0].CategoryType);
         }
 
+        [TestMethod]
+        public async Task GetAchievementGroupsAsync_ErrorPageThenJson_RetriesAndReturnsGroups()
+        {
+            var calls = 0;
+            var client = new SteamHuntersApiClient(
+                (url, ct) => Task.FromResult(++calls == 1
+                    ? "Error 1015: You are being rate limited."
+                    : "{\"groups\":[{\"name\":\"Multiplayer\",\"achievementApiNames\":[\"ach_1\"]}]}"),
+                null,
+                new RateLimiter(0, 3));
+
+            var response = await client.GetAchievementGroupsAsync(442070, CancellationToken.None);
+
+            Assert.AreEqual(2, calls);
+            Assert.AreEqual(1, response.Groups.Count);
+        }
+
+        [TestMethod]
+        public async Task GetAchievementGroupsAsync_PersistentErrorPage_GivesUpAfterRetries()
+        {
+            var calls = 0;
+            var client = new SteamHuntersApiClient(
+                (url, ct) =>
+                {
+                    calls++;
+                    return Task.FromResult("Error 1015: You are being rate limited.");
+                },
+                null,
+                new RateLimiter(0, 2));
+
+            var response = await client.GetAchievementGroupsAsync(442070, CancellationToken.None);
+
+            Assert.IsNull(response);
+            Assert.AreEqual(3, calls);
+        }
+
         private static SteamHuntersCategoryEnricher CreateEnricher(System.Func<string, string> respond)
         {
             return new SteamHuntersCategoryEnricher(
-                new SteamHuntersApiClient((url, ct) => Task.FromResult(respond(url)), null),
+                new SteamHuntersApiClient((url, ct) => Task.FromResult(respond(url)), null, new RateLimiter(0, 0)),
                 null);
         }
     }
