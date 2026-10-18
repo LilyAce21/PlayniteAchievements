@@ -1032,12 +1032,12 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowRarityGlow">Seltenheitsleuchten auf Symbolen freigeschalteter Erfolge anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_GameMetadataHeader">Metadaten</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ShowOverviewMiniShowcase">Minigalerie</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_PieCenter">Pie Center</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PieCenter">Diagrammzentrum</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PieCenter_Percentage">Prozentwert</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PieCenter_Empty">Leer</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PieCenter_Filled">Ausgefüllt</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_ShowOverviewPieIcons">Kreisdiagrammsymbole anzeigen</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_ShowOverviewPieLegend">Diagrammlegende anzeigen</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ShowOverviewPieIcons">Diagrammsymbole anzeigen</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ShowOverviewPieLegend">Legende anzeigen</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_PieLegendPosition">Position der Legende</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ScoreCardBadgePosition">Badge Position</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ScoreCardUseCustomColors">Use Custom Rarity Colors</sys:String>
