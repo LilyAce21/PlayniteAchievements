@@ -229,6 +229,47 @@ namespace PlayniteAchievements.Providers.Steam
         }
 
         /// <summary>
+        /// Copies Category and CategoryType from <paramref name="stored"/> onto achievements
+        /// another category source was expected to set but could not, so a refresh without that
+        /// source keeps what was stored instead of writing blanks over it. Achievements in
+        /// <paramref name="preserveApiNames"/> and those without a stored row keep their values.
+        /// </summary>
+        public static void CarryForwardCategories(
+            IList<AchievementDetail> achievements,
+            IEnumerable<AchievementDetail> stored,
+            ISet<string> preserveApiNames)
+        {
+            if (achievements == null || achievements.Count == 0 || stored == null)
+            {
+                return;
+            }
+
+            var storedByApiName = new Dictionary<string, AchievementDetail>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in stored)
+            {
+                var apiName = row?.ApiName?.Trim();
+                if (!string.IsNullOrWhiteSpace(apiName) && !storedByApiName.ContainsKey(apiName))
+                {
+                    storedByApiName[apiName] = row;
+                }
+            }
+
+            foreach (var achievement in achievements)
+            {
+                var apiName = achievement?.ApiName?.Trim();
+                if (string.IsNullOrWhiteSpace(apiName) ||
+                    preserveApiNames?.Contains(apiName) == true ||
+                    !storedByApiName.TryGetValue(apiName, out var row))
+                {
+                    continue;
+                }
+
+                achievement.Category = row.Category;
+                achievement.CategoryType = row.CategoryType;
+            }
+        }
+
+        /// <summary>
         /// One default art entry per set label: DLC sets use their DLC app's art, every other set
         /// the game's own, base first so a DLC label equal to the game name cannot take it.
         /// Same rule as the SteamHunters plan, so both sources key art files identically.
