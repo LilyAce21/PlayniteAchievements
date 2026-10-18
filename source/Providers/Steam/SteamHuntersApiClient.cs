@@ -16,22 +16,28 @@ namespace PlayniteAchievements.Providers.Steam
         // Characters of an unusable body kept in the log.
         private const int BodySnippetLength = 120;
 
-        // A bulk refresh sent about two requests a second and SteamHunters answered with an error
-        // page after ~150 of them (2026-10-18), so unusable responses are retried with backoff.
+        // Unspaced bulk refreshes sent about two requests a second and Cloudflare answered Error
+        // 1015 (rate limited) after 150-180 of them (2026-10-18), a block that outlasts the retry
+        // backoff. Requests are spaced by a short gap and unusable responses retried with backoff.
+        private const int RequestGapMs = 250;
         private static readonly RateLimiter SharedRateLimiter = new RateLimiter(1000, 3);
 
         private readonly Func<string, CancellationToken, Task<string>> _fetchPageText;
         private readonly ILogger _logger;
         private readonly RateLimiter _rateLimiter;
+        private readonly int _requestGapMs;
+        private int _madeRequest;
 
         public SteamHuntersApiClient(
             Func<string, CancellationToken, Task<string>> fetchPageText,
             ILogger logger,
-            RateLimiter rateLimiter = null)
+            RateLimiter rateLimiter = null,
+            int requestGapMs = RequestGapMs)
         {
             _fetchPageText = fetchPageText ?? throw new ArgumentNullException(nameof(fetchPageText));
             _logger = logger;
             _rateLimiter = rateLimiter ?? SharedRateLimiter;
+            _requestGapMs = Math.Max(0, requestGapMs);
         }
 
         /// <summary>
@@ -95,11 +101,16 @@ namespace PlayniteAchievements.Providers.Steam
             }
         }
 
-        // Retries an empty or non-JSON body (a navigation timeout or an error page) with the rate
-        // limiter's backoff.
+        // Spaces requests by the request gap and retries an empty or non-JSON body (a navigation
+        // timeout or an error page) with the rate limiter's backoff.
         private async Task<T> FetchJsonAsync<T>(string url, CancellationToken cancel)
             where T : class
         {
+            if (_requestGapMs > 0 && Interlocked.Exchange(ref _madeRequest, 1) == 1)
+            {
+                await Task.Delay(_requestGapMs, cancel).ConfigureAwait(false);
+            }
+
             return await _rateLimiter.ExecuteWithRetryAsync(
                 async () =>
                 {
