@@ -113,6 +113,9 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 ## Next release - TBD
 
+## 2026-10-18 - v4.1.0.1
+
+- v4.1.0 merge
 - Fixed `PS5-Experience` theme not showing the trophy for 100% games
 
 ## 2026-10-14 - v4.0.1.2
@@ -161,13 +164,13 @@ The entries below are fork-side changes, grouped by date. When a date includes a
   - It will respect all the default nd custom folders, for all acceptable files
   - The setting for the interval for this check is under `Local` platform in the top of the `Local Achievements Folders and Settings` (default is 5 seconds)
 
+## Old Changelogs
+<details>
+
 ## 2026-09-14 - v3.2.1.1
 
 - v3.2.1 merge
 - Made the extension setting to open quicker. It will now load the `Achievement Notification` UI only when entering in it's tab.
-
-## Old Changelogs
-<details>
 
 ## 2026-09-09 - v3.2.0.2
 
