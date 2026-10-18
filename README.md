@@ -113,6 +113,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 ## Next release - TBD
 
+- v4.1.0 merge
 - Fixed `PS5-Experience` theme not showing the trophy for 100% games
 
 ## 2026-10-14 - v4.0.1.2
