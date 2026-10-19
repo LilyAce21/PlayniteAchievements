@@ -85,7 +85,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $pext = Get-ChildItem *.pext | Select-Object -First 1
-          gh release create "pext-upstream-4.1.0.1" $pext.FullName --prerelease --title "PSN Capstone fork on upstream 4.1.0.1" --notes "Build of merge/upstream-4.1.0.1" --target "${{ github.sha }}"
+          gh release create "pext-$($env:GITHUB_SHA.Substring(0,7))" $pext.FullName --prerelease --title "PSN Capstone fork on upstream 4.1.0.1" --notes "Build of merge/upstream-4.1.0.1" --target "${{ github.sha }}"
       - name: Run the capstone and PSN tests
         id: mytests
         shell: pwsh
