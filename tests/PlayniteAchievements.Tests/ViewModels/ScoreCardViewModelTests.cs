@@ -133,9 +133,13 @@ namespace PlayniteAchievements.Tests.ViewModels
             var card = new ScoreCardViewModel(ScoreCardType.Prestige);
 
             card.Apply(12345, 42, 67, "Gold5", useUniformRarityBadges: false);
-            Assert.AreEqual("ScoreBadgeGoldPentagon", card.BadgeIconKey);
+            Assert.AreEqual("ScoreDefaultBadgeGoldPentagon", card.BadgeIconKey);
 
             card.RefreshBadgeStyle(useUniformRarityBadges: true);
+            Assert.AreEqual("ScoreDefaultBadgeGoldHexagon", card.BadgeIconKey);
+
+            // Custom colors swap to the badge set drawn in the configured rarity colors.
+            card.SetUseCustomColors(true);
             Assert.AreEqual("ScoreBadgeGoldHexagon", card.BadgeIconKey);
         }
 
@@ -316,6 +320,7 @@ namespace PlayniteAchievements.Tests.ViewModels
             try
             {
                 var card = new ScoreCardViewModel(ScoreCardType.Collection);
+                card.SetUseCustomColors(true);
 
                 card.Apply(12345, 42, 67, "Gold3", useUniformRarityBadges: false);
 
@@ -336,6 +341,7 @@ namespace PlayniteAchievements.Tests.ViewModels
             try
             {
                 var card = new ScoreCardViewModel(ScoreCardType.Collection);
+                card.SetUseCustomColors(true);
 
                 card.ApplyFromScore(PassLength, useUniformRarityBadges: false);
 
