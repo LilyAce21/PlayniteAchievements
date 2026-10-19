@@ -726,6 +726,7 @@
     <Compile Include="..\..\source\Services\Workshop\WorkshopSubmissionClient.cs" Link="Source\Services\Workshop\WorkshopSubmissionClient.cs" />
     <Compile Include="..\..\source\Services\Workshop\WorkshopStatsClient.cs" Link="Source\Services\Workshop\WorkshopStatsClient.cs" />
     <Compile Include="..\..\source\Services\Workshop\WorkshopStatsStore.cs" Link="Source\Services\Workshop\WorkshopStatsStore.cs" />
+    <Compile Include="..\..\source\Services\Workshop\WorkshopTags.cs" Link="Source\Services\Workshop\WorkshopTags.cs" />
     <Compile Include="..\..\source\ViewModels\Workshop\WorkshopItemViewModel.cs" Link="Source\ViewModels\Workshop\WorkshopItemViewModel.cs" />
     <Compile Include="..\..\source\Services\Workshop\GameCustomDataThreeWayMerge.cs" Link="Source\Services\Workshop\GameCustomDataThreeWayMerge.cs" />
     <Compile Include="..\..\source\Services\Workshop\Preview\GameCustomDataPreviewDiff.cs" Link="Source\Services\Workshop\Preview\GameCustomDataPreviewDiff.cs" />
