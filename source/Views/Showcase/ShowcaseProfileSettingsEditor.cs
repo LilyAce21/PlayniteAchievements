@@ -388,7 +388,7 @@ namespace PlayniteAchievements.Views.Showcase
                     Import(dialog.FileName);
                 }
             };
-            Grid.SetColumn(browse, 2);
+            Grid.SetColumn(browse, 3);
             row.Children.Add(browse);
             var paste = new Button
             {
@@ -404,7 +404,7 @@ namespace PlayniteAchievements.Views.Showcase
                     Import(path);
                 }
             };
-            Grid.SetColumn(paste, 3);
+            Grid.SetColumn(paste, 2);
             row.Children.Add(paste);
             var clear = new Button
             {
