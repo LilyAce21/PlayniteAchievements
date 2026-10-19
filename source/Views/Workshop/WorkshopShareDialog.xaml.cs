@@ -737,12 +737,7 @@ namespace PlayniteAchievements.Views.Workshop
                 Name = name,
                 Author = author,
                 Description = description,
-                Tags = TagsBox.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(tag => tag.Trim().ToLowerInvariant())
-                    .Where(tag => tag.Length > 0)
-                    .Distinct()
-                    .Take(10)
-                    .ToList(),
+                Tags = WorkshopTags.Parse(TagsBox.Text).Take(10).ToList(),
                 Readme = readme,
                 ExistingId = existingId
             };
