@@ -20,9 +20,23 @@ namespace PlayniteAchievements.Models.Settings
 
         public string Description { get; set; }
 
+        /// <summary>
+        /// True when the user emptied the description. A null <see cref="Description"/> alone
+        /// means "not customized" and falls back to the provider's text, so this flag is what lets
+        /// the description be removed and stay removed. Reverting drops the whole record.
+        /// </summary>
+        public bool ClearDescription { get; set; }
+
         public int? Points { get; set; }
 
         public string TrophyType { get; set; }
+
+        /// <summary>
+        /// True when the user set the trophy type to None. A null <see cref="TrophyType"/> alone
+        /// means "not customized" and falls back to the provider's tier, so this flag is what lets
+        /// the trophy be removed and stay removed. Reverting drops the whole record.
+        /// </summary>
+        public bool ClearTrophyType { get; set; }
 
         /// <summary>
         /// Corrected unlock timestamp for an achievement that is already unlocked. This does not
@@ -65,8 +79,10 @@ namespace PlayniteAchievements.Models.Settings
         public bool IsEmpty =>
             string.IsNullOrWhiteSpace(DisplayName) &&
             string.IsNullOrWhiteSpace(Description) &&
+            !ClearDescription &&
             !Points.HasValue &&
             string.IsNullOrWhiteSpace(TrophyType) &&
+            !ClearTrophyType &&
             !UnlockTimeUtc.HasValue &&
             !ClearUnlockTime &&
             string.IsNullOrWhiteSpace(Category) &&
@@ -82,8 +98,10 @@ namespace PlayniteAchievements.Models.Settings
             {
                 DisplayName = DisplayName,
                 Description = Description,
+                ClearDescription = ClearDescription,
                 Points = Points,
                 TrophyType = TrophyType,
+                ClearTrophyType = ClearTrophyType,
                 UnlockTimeUtc = UnlockTimeUtc,
                 ClearUnlockTime = ClearUnlockTime,
                 Category = Category,
