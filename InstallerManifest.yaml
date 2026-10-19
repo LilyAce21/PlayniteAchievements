@@ -1,6 +1,19 @@
 AddonId: PlayniteAchievements
 Packages:
 
+  - Version: 4.1.1
+    RequiredApiVersion: 6.14.0
+    ReleaseDate: 2026-10-19
+    PackageUrl: https://github.com/justin-delano/PlayniteAchievements/releases/download/v4.1.1/PlayniteAchievements_4_1_1.pext
+    Changelog:
+    - "[New] Filter the Workshop by tags, showing only items with the tags you pick or hiding them."
+    - "[Adjusted] Paste buttons beside image and sound slots."
+    - "[Fixed] Steam achievement categories no longer disappear when SteamHunters is slow or busy during large refreshes."
+    - "[Fixed] Clearing an achievement's trophy type or description in Manage Achievements now persists."
+    - "[Fixed] Improved stability of sharing and liking Workshop items."
+    - "[Fixed] Improved stability of notifications, recordings and captures."
+    - "As always, many additional improvements and fixes behind the scenes."
+
   - Version: 4.1.0
     RequiredApiVersion: 6.14.0
     ReleaseDate: 2026-10-17
