@@ -215,7 +215,7 @@
                                   ItemsSource="{Binding RevertableThemes}"
                                   DisplayMemberPath="BestDisplayName"
                                   SelectedValuePath="Path"
-                                  SelectedValue="{Binding SelectedRevertThemePath}"
+                                  SelectedValue="{Binding SelectedRevertThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   VerticalContentAlignment="Center"
                                   IsEnabled="{Binding HasRevertableThemes}"/>
 

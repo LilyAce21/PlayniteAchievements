@@ -1,5 +1,25 @@
 # Fork maintenance bundle
 
+## Bundle refresh — 2026-10-20
+
+This refresh also preserves the Solaris resource-key collision fix and its
+cross-file resource-reference regression test, the Revert button label and
+two-way selection bindings, and the detached migration page's name scope.
+The Release rebuild, 13 theme discovery/migration tests, and WPF rehosting
+binding check passed. Full Revert interaction in Playnite remains pending.
+The regenerated bundle passed a dry run in an isolated checkout of the v4.1.0
+baseline, including patch preflight, 155 overlays, localization, hashes, and
+protected-file checks.
+
+The bundle captures the current working fork against the existing v4.1.0
+baseline, including the missing English `LOCPlayAch_Button_Cancel` resource
+used by all three Maintenance log selection dialogs. The fix's Release rebuild
+passed with no errors and two existing CS0649 warnings. Live dialog verification
+remains pending. This refresh does not fetch upstream, commit, or push.
+The regenerated bundle passed the dry run in an isolated checkout of that
+baseline: three-way patch preflight, 155 overlay files, localization recipes,
+component hashes, and protected-file checks.
+
 ## v4.1.0 integration — 2026-10-18
 
 The current bundle targets upstream v4.1.0

@@ -4869,12 +4869,12 @@
                                               ItemsSource="{Binding RevertableThemes, ElementName=LegacyNotificationSettingsControlRoot}"
                                               DisplayMemberPath="BestDisplayName"
                                               SelectedValuePath="Path"
-                                              SelectedValue="{Binding SelectedRevertThemePath, ElementName=LegacyNotificationSettingsControlRoot}"
+                                              SelectedValue="{Binding SelectedRevertThemePath, ElementName=LegacyNotificationSettingsControlRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               VerticalContentAlignment="Center"
                                               IsEnabled="{Binding HasRevertableThemes, ElementName=LegacyNotificationSettingsControlRoot}"/>
 
                                     <Button Grid.Column="1"
-                                            Content="{DynamicResource LOCPlayAch_ThemeMigration_RevertButton}"
+                                            Content="{DynamicResource LOCPlayAch_ManageAchievements_Editor_Revert}"
                                             Click="RevertTheme_Click"
                                             Padding="14,6"
                                             Margin="16,0,0,0"

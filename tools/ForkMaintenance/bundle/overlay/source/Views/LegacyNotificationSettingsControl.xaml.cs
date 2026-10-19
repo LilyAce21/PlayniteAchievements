@@ -8692,6 +8692,16 @@ namespace PlayniteAchievements.Views
                 ThemeMigrationTab.Content = null;
             }
 
+            if (content is FrameworkElement contentElement)
+            {
+                // This page moves into SettingsControl, outside this control's name scope.
+                // Keep its ElementName bindings connected to the instance that owns both
+                // the selected theme paths and the click handlers.
+                var scope = new NameScope();
+                scope.RegisterName(nameof(LegacyNotificationSettingsControlRoot), this);
+                NameScope.SetNameScope(contentElement, scope);
+            }
+
             return content;
         }
 

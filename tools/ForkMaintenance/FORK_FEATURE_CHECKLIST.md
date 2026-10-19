@@ -68,6 +68,9 @@ at the repository root for remaining missing features and live-verification task
   from the plugin user data folder. Missing or locked files are reported individually.
 - Selection dialog instructions follow the theme text color, and Cancel uses the
   plugin localization key. Successful Open operations show no completion dialog.
+- The English resources include `LOCPlayAch_Button_Cancel` = `Cancel`; check
+  Open, Copy, and Delete selection dialogs for a translated label rather than
+  an unresolved resource-key placeholder (2026-10-20 bundle refresh).
 - Verify these dialogs in Playnite, including cancellation, copying active logs,
   and log recreation after deletion. The Release rebuild passed.
 
@@ -289,6 +292,15 @@ Primary fork areas:
   `PlayniteAchievements` panel/toggle names and their references, while migrating
   plugin bindings and custom-control prefixes. Restore the migration backup
   before migrating themes whose names were merged by the old migration.
+- Migration preserves theme resource keys and StaticResource/DynamicResource
+  references, including references in separate XAML files. Solaris must retain
+  both `SuccessStoryIcon` and `PlayniteAchievementsIcon` without duplicate keys.
+  Restore the original backup before migrating a previously damaged theme.
+- The Revert button has an English label. Its dropdown updates the selected
+  path in both settings pages. The detached Theme Migration page retains the
+  original control's name scope so its bindings and click handlers use the same
+  theme. Release rebuild and a WPF rehosting binding check passed; verify the
+  complete Revert action in Playnite against a theme with a backup.
 - PS5 Experience Limited migration marks the PS5Core trophy list with
   `Uid="PlayAch.Ps5TrophyProgress"`. The fork's runtime adapter corrects Local
   rows from their unlocked trophy counts and refreshes percentage, counter,
