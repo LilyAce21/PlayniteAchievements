@@ -8,7 +8,8 @@ namespace PlayniteAchievements.Services.Achievements
     /// </summary>
     /// <remarks>
     /// One copy on purpose. Each field is applied only when the override carries a value, so
-    /// clearing one falls back to the provider's own value rather than to blank.
+    /// clearing one falls back to the provider's own value rather than to blank. The exceptions
+    /// are the description, trophy type and unlock timestamp, whose explicit clear flags blank them.
     ///
     /// Deliberately absent: unlock status and rarity. Unlock status stays provider-owned so an edit
     /// cannot change unlocked counts, completion, or look like a real unlock to the in-game
@@ -41,6 +42,10 @@ namespace PlayniteAchievements.Services.Achievements
             {
                 target.Description = userOverride.Description;
             }
+            else if (userOverride.ClearDescription)
+            {
+                target.Description = null;
+            }
 
             if (userOverride.Points.HasValue)
             {
@@ -50,6 +55,10 @@ namespace PlayniteAchievements.Services.Achievements
             if (!string.IsNullOrWhiteSpace(userOverride.TrophyType))
             {
                 target.TrophyType = userOverride.TrophyType;
+            }
+            else if (userOverride.ClearTrophyType)
+            {
+                target.TrophyType = null;
             }
 
             // Either value is a customization, so the caller stores null to mean "back to whatever
