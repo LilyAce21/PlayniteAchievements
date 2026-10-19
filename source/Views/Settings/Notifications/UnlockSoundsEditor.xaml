@@ -77,6 +77,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <!-- The tier's own badge, drawn from the user's rarity appearance,
                                      so the table reads as the notifications it configures. -->
@@ -96,7 +97,8 @@
                                      picked file is copied and stored by the plugin, so neither its
                                      path nor its name is shown. While the scope is editable the
                                      label takes a dropped sound file, or a click and a pasted one. -->
-                                <Border Grid.Column="2"
+                                <Border x:Name="SoundSlot"
+                                        Grid.Column="2"
                                         Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                                         Background="Transparent"
                                         CornerRadius="3"
@@ -125,23 +127,30 @@
                                         Content="{DynamicResource LOCPlayAch_Button_Browse}"
                                         IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                         Margin="6,0,0,0"/>
+                                <Button Grid.Column="5"
+                                        Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                                        ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                                        ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                                        helpers:FilePickTarget.PasteTarget="{Binding ElementName=SoundSlot}"
+                                        IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        Margin="6,0,0,0"/>
                                 <!-- The wrapper carries the scope's editability, the button its
                                      own: a disabled parent wins. -->
-                                <Border Grid.Column="5"
+                                <Border Grid.Column="6"
                                         IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
                                     <Button Click="UnlockSoundClear_Click"
                                             Content="{DynamicResource LOCClearLabel}"
                                             IsEnabled="{Binding HasCustomPath}"
                                             Margin="6,0,0,0"/>
                                 </Border>
-                                <Button Grid.Column="6"
+                                <Button Grid.Column="7"
                                         Click="UnlockSoundTest_Click"
                                         Content="{DynamicResource LOCPlayAch_Button_Test}"
                                         Margin="6,0,0,0"/>
                                 <!-- Plays what a theme ships for this tier, in either Playnite
                                      mode, whatever the chain currently resolves to. Disabled when
                                      neither theme provides the tier. -->
-                                <Button Grid.Column="7"
+                                <Button Grid.Column="8"
                                         Click="UnlockSoundTheme_Click"
                                         Content="{DynamicResource LOCPlayAch_Settings_Style_FireTheme}"
                                         ToolTip="{DynamicResource LOCPlayAch_Settings_UnlockSoundTheme_Tooltip}"
