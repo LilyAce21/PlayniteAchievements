@@ -520,9 +520,19 @@ namespace PlayniteAchievements.Services.UI
                 }
             }
 
+            // A newer progress step for an achievement still waiting in the queue takes that
+            // item's place: one toast shows the latest count, its bar animating from the count
+            // last shown, instead of every intermediate step queueing a wave of its own.
+            var merged = FindQueuedProgressFor(args);
+            if (merged != null)
+            {
+                args.PreviousProgressNum = merged.PreviousProgressNum;
+                notifyReadyAtUtc = merged.NotifyReadyAtUtc;
+            }
+
             // PreviewStyleOverride is set only by settings fire-tests, so the fired notification
             // renders the exact style the editor mockup shows; real unlocks resolve normally.
-            _queue.Enqueue(new AchievementToastViewModel(
+            var vm = new AchievementToastViewModel(
                 args,
                 _settings?.Persisted,
                 styleOverride: args.PreviewStyleOverride,
@@ -532,12 +542,46 @@ namespace PlayniteAchievements.Services.UI
                 NeedsFramedClip = needsOverlayTrack &&
                     (UnlockClipVariantPolicy.Resolve(args, _settings?.Persisted, gameData) & ScreenshotVariants.Framed) != 0,
                 NotifyReadyAtUtc = notifyReadyAtUtc,
-            });
+            };
+            if (merged != null)
+            {
+                var items = _queue.ToList();
+                _queue.Clear();
+                foreach (var item in items)
+                {
+                    _queue.Enqueue(ReferenceEquals(item, merged) ? vm : item);
+                }
+            }
+            else
+            {
+                _queue.Enqueue(vm);
+            }
+
             if (!_processing)
             {
                 _processing = true;
                 _ = ProcessQueueAsync();
             }
+        }
+
+        /// <summary>
+        /// The queued, not yet shown progress notification for the same achievement of the same
+        /// game, or null. Previews and test fires never merge.
+        /// </summary>
+        private AchievementToastViewModel FindQueuedProgressFor(AchievementUnlockedEventArgs args)
+        {
+            if (!args.IsProgressUpdate || args.IsPreview || args.IsTestFire ||
+                string.IsNullOrEmpty(args.ApiName))
+            {
+                return null;
+            }
+
+            return _queue.FirstOrDefault(queued =>
+                queued.IsProgressUpdate &&
+                !queued.IsPreview &&
+                !queued.IsTestFire &&
+                queued.PlayniteGameId == args.PlayniteGameId &&
+                string.Equals(queued.ApiName, args.ApiName, StringComparison.Ordinal));
         }
 
         /// <summary>
