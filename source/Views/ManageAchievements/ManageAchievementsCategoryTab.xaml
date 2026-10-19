@@ -680,13 +680,13 @@
                                                 Focusable="True"
                                                 Click="ClearCategoryImageButton_Click" />
 
-                                        <Button Grid.Column="1"
+                                        <Button Grid.Column="2"
                                                 Content="..."
                                                 ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                                 Style="{StaticResource InlineBrowseButtonStyle}"
                                                 Click="BrowseCategoryImageButton_Click" />
 
-                                        <Button Grid.Column="2"
+                                        <Button Grid.Column="1"
                                                 Content="{DynamicResource LOCPlayAch_Button_Paste}"
                                                 ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
                                                 ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
