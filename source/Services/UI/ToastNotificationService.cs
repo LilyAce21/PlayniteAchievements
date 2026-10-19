@@ -367,12 +367,26 @@ namespace PlayniteAchievements.Services.UI
             var dispatcher = GetDispatcher();
             if (dispatcher == null || dispatcher.CheckAccess())
             {
-                EnqueueOnUi(e, needsOverlayTrack);
+                TryEnqueueOnUi(e, needsOverlayTrack);
                 return;
             }
 
             dispatcher.BeginInvoke(
-                new Action(() => EnqueueOnUi(e, needsOverlayTrack)), DispatcherPriority.Background);
+                new Action(() => TryEnqueueOnUi(e, needsOverlayTrack)), DispatcherPriority.Background);
+        }
+
+        // Runs as a dispatcher callback outside any wave, so a throw here would reach Playnite's
+        // unhandled-exception handler; the one notification is dropped instead.
+        private void TryEnqueueOnUi(AchievementUnlockedEventArgs args, bool needsOverlayTrack)
+        {
+            try
+            {
+                EnqueueOnUi(args, needsOverlayTrack);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, $"Failed to enqueue notification for '{args?.ApiName}'.");
+            }
         }
 
         /// <summary>
@@ -506,9 +520,19 @@ namespace PlayniteAchievements.Services.UI
                 }
             }
 
+            // A newer progress step for an achievement still waiting in the queue takes that
+            // item's place: one toast shows the latest count, its bar animating from the count
+            // last shown, instead of every intermediate step queueing a wave of its own.
+            var merged = FindQueuedProgressFor(args);
+            if (merged != null)
+            {
+                args.PreviousProgressNum = merged.PreviousProgressNum;
+                notifyReadyAtUtc = merged.NotifyReadyAtUtc;
+            }
+
             // PreviewStyleOverride is set only by settings fire-tests, so the fired notification
             // renders the exact style the editor mockup shows; real unlocks resolve normally.
-            _queue.Enqueue(new AchievementToastViewModel(
+            var vm = new AchievementToastViewModel(
                 args,
                 _settings?.Persisted,
                 styleOverride: args.PreviewStyleOverride,
@@ -518,12 +542,46 @@ namespace PlayniteAchievements.Services.UI
                 NeedsFramedClip = needsOverlayTrack &&
                     (UnlockClipVariantPolicy.Resolve(args, _settings?.Persisted, gameData) & ScreenshotVariants.Framed) != 0,
                 NotifyReadyAtUtc = notifyReadyAtUtc,
-            });
+            };
+            if (merged != null)
+            {
+                var items = _queue.ToList();
+                _queue.Clear();
+                foreach (var item in items)
+                {
+                    _queue.Enqueue(ReferenceEquals(item, merged) ? vm : item);
+                }
+            }
+            else
+            {
+                _queue.Enqueue(vm);
+            }
+
             if (!_processing)
             {
                 _processing = true;
                 _ = ProcessQueueAsync();
             }
+        }
+
+        /// <summary>
+        /// The queued, not yet shown progress notification for the same achievement of the same
+        /// game, or null. Previews and test fires never merge.
+        /// </summary>
+        private AchievementToastViewModel FindQueuedProgressFor(AchievementUnlockedEventArgs args)
+        {
+            if (!args.IsProgressUpdate || args.IsPreview || args.IsTestFire ||
+                string.IsNullOrEmpty(args.ApiName))
+            {
+                return null;
+            }
+
+            return _queue.FirstOrDefault(queued =>
+                queued.IsProgressUpdate &&
+                !queued.IsPreview &&
+                !queued.IsTestFire &&
+                queued.PlayniteGameId == args.PlayniteGameId &&
+                string.Equals(queued.ApiName, args.ApiName, StringComparison.Ordinal));
         }
 
         /// <summary>
@@ -2624,7 +2682,17 @@ namespace PlayniteAchievements.Services.UI
             // presented at DPI > 100% gets an HWND sized from unscaled DIPs, which clips content
             // inside the card. Pre-place before Show() so the HWND is created at its final rect on
             // the anchor monitor; ContentRendered/shown/snap remain as post-presentation corrections.
-            window.ContentRendered += (s, e) => PlaceWindow(window, "rendered");
+            window.ContentRendered += (s, e) =>
+            {
+                try
+                {
+                    PlaceWindow(window, "rendered");
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Debug(ex, "Toast placement on ContentRendered failed.");
+                }
+            };
 
             EventHandler onRendering = null;
             EventHandler onTrackSample = null;
@@ -2784,8 +2852,9 @@ namespace PlayniteAchievements.Services.UI
                 // presented before the next begins and the slide starts against a drained
                 // composition queue, at the price of two composed frames of extra latency. Game
                 // anchor only — a test fire out of game has no video — and only with recordings
-                // enabled, since nothing else consumes a track.
-                if (_activeIsGame && _activeReferenceHwnd != IntPtr.Zero &&
+                // enabled, since nothing else consumes a track. Progress waves never own a clip,
+                // so they skip the track entirely.
+                if (_activeIsGame && _activeReferenceHwnd != IntPtr.Zero && !wave[0].IsProgressUpdate &&
                     (_activeWaveCaptures?.EnableUnlockRecordings ?? _settings?.Persisted?.EnableUnlockRecordings ?? false))
                 {
                     trackRecorder = new ToastOverlayTrackRecorder(
@@ -4413,12 +4482,19 @@ namespace PlayniteAchievements.Services.UI
                 }
 
                 CompositionTarget.Rendering -= tick;
-                if (ReferenceEquals(_activeWindow, window))
+                try
                 {
-                    ToastWindowSurface.SetCloaked(window, false);
-                    var release = _releaseHeldSlide;
-                    _releaseHeldSlide = null;
-                    release?.Invoke();
+                    if (ReferenceEquals(_activeWindow, window))
+                    {
+                        ToastWindowSurface.SetCloaked(window, false);
+                        var release = _releaseHeldSlide;
+                        _releaseHeldSlide = null;
+                        release?.Invoke();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Debug(ex, "Toast reveal at motion start failed.");
                 }
 
                 started.TrySetResult(true);
@@ -4808,6 +4884,7 @@ namespace PlayniteAchievements.Services.UI
             // Held at its start (paused at zero by Begin and Pause below) until released; the
             // frames before that are not the slide's, so they are neither driven nor counted.
             var held = holdAtStart;
+            var tickFailed = false;
             EventHandler tick = (s, e) =>
             {
                 if (held || !ticks.TryAdvance(e, out _))
@@ -4817,13 +4894,24 @@ namespace PlayniteAchievements.Services.UI
 
                 if (driving)
                 {
-                    // At its end the card shows its rest, so the base values can return there too.
-                    if (clock.Elapsed.TotalMilliseconds >= durationMs)
+                    try
                     {
-                        RestoreRestBase();
-                    }
+                        // At its end the card shows its rest, so the base values can return there too.
+                        if (clock.Elapsed.TotalMilliseconds >= durationMs)
+                        {
+                            RestoreRestBase();
+                        }
 
-                    driving = DriveSlideByClock(storyboard, host, clock.Elapsed, durationMs);
+                        driving = DriveSlideByClock(storyboard, host, clock.Elapsed, durationMs);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (!tickFailed)
+                        {
+                            tickFailed = true;
+                            _logger?.Debug(ex, "Toast slide tick failed.");
+                        }
+                    }
                 }
 
                 var y = transform.Y;
@@ -5393,7 +5481,15 @@ namespace PlayniteAchievements.Services.UI
         {
             var quiet = _activeSlideQuiet;
             _activeSlideQuiet = null;
-            quiet?.Dispose();
+            // Also raised from storyboard Completed, a dispatcher callback outside any wave.
+            try
+            {
+                quiet?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, "Toast slide quiet-scope release failed.");
+            }
         }
 
         private void RestoreRestBase()

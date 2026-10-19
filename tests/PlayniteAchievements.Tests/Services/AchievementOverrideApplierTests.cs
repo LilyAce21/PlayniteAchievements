@@ -122,6 +122,42 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
+        public void Apply_ClearTrophyTypeAndDescription_BlanksBothTargets()
+        {
+            var detail = new FakeRow { TrophyType = "gold", Description = "Provider text" };
+            var row = new FakeRow { TrophyType = "gold", Description = "Provider text" };
+            var userOverride = new AchievementOverride { ClearTrophyType = true, ClearDescription = true };
+
+            AchievementOverrideApplier.Apply(detail, userOverride, hasManualLink: false);
+            AchievementOverrideApplier.Apply(row, userOverride, hasManualLink: false);
+
+            Assert.IsNull(detail.TrophyType);
+            Assert.IsNull(row.TrophyType);
+            Assert.IsNull(detail.Description);
+            Assert.IsNull(row.Description);
+        }
+
+        [TestMethod]
+        public void Apply_ClearFlags_LoseToExplicitValues()
+        {
+            var row = new FakeRow { TrophyType = "gold", Description = "Provider text" };
+
+            AchievementOverrideApplier.Apply(
+                row,
+                new AchievementOverride
+                {
+                    TrophyType = "bronze",
+                    ClearTrophyType = true,
+                    Description = "Rewritten",
+                    ClearDescription = true
+                },
+                hasManualLink: false);
+
+            Assert.AreEqual("bronze", row.TrophyType);
+            Assert.AreEqual("Rewritten", row.Description);
+        }
+
+        [TestMethod]
         public void Apply_LockedRow_DoesNotTakeAnUnlockTime()
         {
             var row = new FakeRow { Unlocked = false };

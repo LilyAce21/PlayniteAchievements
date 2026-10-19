@@ -354,6 +354,30 @@
                             <TextBox Width="240"
                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                      ToolTip="{DynamicResource LOCSearchLabel}"/>
+                            <Grid Width="180" Margin="8,0,0,0">
+                                <TextBox x:Name="TagFilterTextBox"
+                                         Text="{Binding TagFilterText, UpdateSourceTrigger=PropertyChanged, Delay=100}"/>
+                                <TextBlock Text="{DynamicResource LOCTagsLabel}"
+                                           Tag="{Binding Text, ElementName=TagFilterTextBox}"
+                                           Style="{StaticResource SearchPlaceholderTextStyle}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Left.Sm}"
+                                           Foreground="{DynamicResource PlayAch.Brush.Text}"
+                                           Opacity="{StaticResource PlayAch.Opacity.Placeholder}"
+                                           IsHitTestVisible="False"/>
+                            </Grid>
+                            <ToggleButton IsChecked="{Binding ExcludeTags}" Margin="4,0,0,0" MinWidth="70">
+                                <ToggleButton.Style>
+                                    <Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+                                        <Setter Property="Content" Value="{DynamicResource LOCPlayAch_Common_Include}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Content" Value="{DynamicResource LOCPlayAch_Common_Exclude}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ToggleButton.Style>
+                            </ToggleButton>
                             <ComboBox Width="180" Margin="8,0,0,0"
                                       ItemsSource="{Binding KindOptions}"
                                       SelectedItem="{Binding SelectedKind}"

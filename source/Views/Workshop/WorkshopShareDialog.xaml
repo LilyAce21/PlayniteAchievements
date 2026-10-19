@@ -66,10 +66,17 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="CoverBox" IsReadOnly="True" TextChanged="CoverBox_TextChanged"/>
-                        <Button Grid.Column="1" Content="{DynamicResource LOCPlayAch_Button_Browse}" Margin="6,0,0,0" Click="BrowseCover_Click"/>
-                        <Button x:Name="ClearCoverButton" Grid.Column="2" Content="{DynamicResource LOCClearLabel}" Margin="6,0,0,0" Click="ClearCover_Click"/>
+                        <Button Grid.Column="2" Content="..." ToolTip="{DynamicResource LOCPlayAch_Button_Browse}" Margin="6,0,0,0" Click="BrowseCover_Click"/>
+                        <Button Grid.Column="1"
+                                Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                                ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                                ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                                Margin="6,0,0,0"
+                                Click="PasteCover_Click"/>
+                        <Button x:Name="ClearCoverButton" Grid.Column="3" Content="{DynamicResource LOCClearLabel}" Margin="6,0,0,0" Click="ClearCover_Click"/>
                     </Grid>
                     <!-- The chosen cover itself, so the sharer sees what listings will show. -->
                     <Border x:Name="CoverImageFrame"

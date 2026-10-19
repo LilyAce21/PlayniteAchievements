@@ -748,7 +748,15 @@ namespace PlayniteAchievements.Services.Recording
             }
             finally
             {
-                RecordingStopped?.Invoke(this, new StoppedEventArgs(error));
+                // Raised on the poll thread, which has no outer handler: a subscriber throw would
+                // end the process.
+                try
+                {
+                    RecordingStopped?.Invoke(this, new StoppedEventArgs(error));
+                }
+                catch
+                {
+                }
             }
         }
 

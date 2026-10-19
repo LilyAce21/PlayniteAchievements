@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using PlayniteAchievements.Services.Sound;
 
@@ -32,7 +33,8 @@ namespace PlayniteAchievements.Views.Helpers
 
     /// <summary>
     /// Turns a slot's preview into its input: it takes keyboard focus on click, accepts a dropped
-    /// file (or browser image), and takes Ctrl+V or Shift+Insert from the clipboard. Every
+    /// file (or browser image), and takes Ctrl+V or Shift+Insert from the clipboard, as does a
+    /// button whose <see cref="PasteTargetProperty"/> names the slot. Every
     /// accepted input raises <see cref="PickedEvent"/> with the same source, so a slot handles drop
     /// and paste in one place. <see cref="KindProperty"/> decides what is accepted.
     /// </summary>
@@ -52,6 +54,17 @@ namespace PlayniteAchievements.Views.Helpers
                 typeof(FilePickTarget),
                 new PropertyMetadata(FilePickKind.Image));
 
+        /// <summary>
+        /// Set on a button to make it a visible Paste for a pick target: a click pastes the
+        /// clipboard into the target as Ctrl+V on the target would.
+        /// </summary>
+        public static readonly DependencyProperty PasteTargetProperty =
+            DependencyProperty.RegisterAttached(
+                "PasteTarget",
+                typeof(UIElement),
+                typeof(FilePickTarget),
+                new PropertyMetadata(null, OnPasteTargetChanged));
+
         public static readonly RoutedEvent PickedEvent =
             EventManager.RegisterRoutedEvent(
                 "Picked",
@@ -70,6 +83,12 @@ namespace PlayniteAchievements.Views.Helpers
 
         public static void SetKind(DependencyObject element, FilePickKind value) =>
             element.SetValue(KindProperty, value);
+
+        public static UIElement GetPasteTarget(DependencyObject element) =>
+            (UIElement)element.GetValue(PasteTargetProperty);
+
+        public static void SetPasteTarget(DependencyObject element, UIElement value) =>
+            element.SetValue(PasteTargetProperty, value);
 
         public static void AddPickedHandler(DependencyObject element, EventHandler<FilePickedEventArgs> handler) =>
             (element as UIElement)?.AddHandler(PickedEvent, handler);
@@ -122,11 +141,90 @@ namespace PlayniteAchievements.Views.Helpers
             }
         }
 
+        /// <summary>
+        /// A local image file a paste payload carries, for stores that take files only: a pasted
+        /// image file or text naming one, then raw image data saved into <paramref name="directory"/>.
+        /// URLs are skipped in favor of the image data a browser copies beside them.
+        /// </summary>
+        public static bool TryGetLocalImageFile(IDataObject data, string directory, out string path)
+        {
+            if (ImageDropHelper.TryGetImageSource(data, out path) && File.Exists(path))
+            {
+                return true;
+            }
+
+            return ClipboardImageFile.TryWrite(data, directory, out path);
+        }
+
+        /// <summary>Reads the clipboard through <see cref="TryGetLocalImageFile"/>.</summary>
+        public static bool TryPasteLocalImageFile(out string path)
+        {
+            path = null;
+            var clipboard = TryGetClipboard();
+            return clipboard != null &&
+                   TryGetLocalImageFile(clipboard, ClipboardImageFile.DefaultDirectory, out path);
+        }
+
+        /// <summary>
+        /// Pastes the clipboard into a pick target: raises <see cref="PickedEvent"/> on it exactly as
+        /// Ctrl+V does, so the target's handler takes the result. Does nothing when the clipboard
+        /// holds nothing the target accepts.
+        /// </summary>
+        public static void PasteInto(UIElement target)
+        {
+            var clipboard = target == null ? null : TryGetClipboard();
+            if (clipboard != null && TryGetPasteSource(target, clipboard, out var source))
+            {
+                Raise(target, source);
+            }
+        }
+
+        private static IDataObject TryGetClipboard()
+        {
+            try
+            {
+                return Clipboard.GetDataObject();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static bool TryGetSource(DependencyObject element, IDataObject data, out string source)
         {
             return GetKind(element) == FilePickKind.Sound
                 ? TryGetSoundFile(data, out source)
                 : ImageDropHelper.TryGetImageSource(data, out source);
+        }
+
+        // Paste also takes raw image data. Drag-over polls the payload repeatedly, so it stays on
+        // TryGetSource and never writes a file.
+        private static bool TryGetPasteSource(DependencyObject element, IDataObject data, out string source)
+        {
+            return TryGetSource(element, data, out source) ||
+                   (GetKind(element) == FilePickKind.Image &&
+                    ClipboardImageFile.TryWrite(data, ClipboardImageFile.DefaultDirectory, out source));
+        }
+
+        private static void OnPasteTargetChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is ButtonBase button)
+            {
+                button.Click -= OnPasteButtonClick;
+                if (e.NewValue != null)
+                {
+                    button.Click += OnPasteButtonClick;
+                }
+            }
+        }
+
+        private static void OnPasteButtonClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is DependencyObject button)
+            {
+                PasteInto(GetPasteTarget(button));
+            }
         }
 
         private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -191,20 +289,7 @@ namespace PlayniteAchievements.Views.Helpers
             }
 
             e.Handled = true;
-            IDataObject clipboard;
-            try
-            {
-                clipboard = Clipboard.GetDataObject();
-            }
-            catch
-            {
-                return;
-            }
-
-            if (TryGetSource(sender as DependencyObject, clipboard, out var source))
-            {
-                Raise(sender as UIElement, source);
-            }
+            PasteInto(sender as UIElement);
         }
 
         private static void Raise(UIElement element, string source)

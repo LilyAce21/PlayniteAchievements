@@ -413,6 +413,24 @@
         </StackPanel>
     </DataTemplate>
 
+    <!-- Paste button face for file pick slots: a clipboard with a page laid over it, sized to
+         sit beside the slot's "..." Browse button. Drawn as vector paths on a 16px grid because
+         IcoFont has no paste icon and its clipboard glyph blurs at this size. Content stays the
+         localized word so the button still has a name; the tooltip carries the word. -->
+    <DataTemplate x:Key="PlayAch.ButtonContent.Paste">
+        <Grid Width="16"
+              Height="16"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+            <Path Data="M7,14.5 H2.5 V3 H4.5 M10.5,3 H12.5 V6"
+                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                  StrokeThickness="1.5"
+                  StrokeLineJoin="Round"/>
+            <Path Data="M4.75,1.5 H10.25 V4.5 H4.75 Z M8,7.5 H14.5 V15.5 H8 Z"
+                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+        </Grid>
+    </DataTemplate>
+
     <!-- Small round "i" for explaining a surface, sized to sit beside a caption without pulling
          weight away from it. One definition so the score surfaces that carry it (the Scores widget
          and the start page score card) stay identical. -->

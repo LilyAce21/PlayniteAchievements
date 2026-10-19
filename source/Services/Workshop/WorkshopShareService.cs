@@ -415,7 +415,7 @@ namespace PlayniteAchievements.Services.Workshop
         {
             var receipt = await _client.SubmitAsync(
                 submission,
-                _identity.GetSubmitterHash(),
+                _identity.GetOrCreateSubmitterKey(),
                 packageKey,
                 previewKey,
                 PluginManifest.Version,

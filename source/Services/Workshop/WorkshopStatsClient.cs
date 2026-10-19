@@ -90,21 +90,23 @@ namespace PlayniteAchievements.Services.Workshop
 
         /// <summary>
         /// Records or withdraws this install's like for an item and returns the item's like count
-        /// as the service now holds it, or null when the call failed.
+        /// as the service now holds it, or null when the call failed. The like is sent with the
+        /// submitter key, which the service hashes into the voter, so nobody else can like or
+        /// unlike under this install's public hash.
         /// </summary>
-        public Task<long?> SetLikeAsync(string itemId, string voterHash, bool liked, CancellationToken cancel)
-            => Task.Run(() => SetLikeCoreAsync(itemId, voterHash, liked, cancel), cancel);
+        public Task<long?> SetLikeAsync(string itemId, string voterKey, bool liked, CancellationToken cancel)
+            => Task.Run(() => SetLikeCoreAsync(itemId, voterKey, liked, cancel), cancel);
 
-        private async Task<long?> SetLikeCoreAsync(string itemId, string voterHash, bool liked, CancellationToken cancel)
+        private async Task<long?> SetLikeCoreAsync(string itemId, string voterKey, bool liked, CancellationToken cancel)
         {
-            if (string.IsNullOrWhiteSpace(itemId) || string.IsNullOrWhiteSpace(voterHash))
+            if (string.IsNullOrWhiteSpace(itemId) || string.IsNullOrWhiteSpace(voterKey))
             {
                 return null;
             }
 
             return await PostAsync(
                 "/v1/likes",
-                new { itemId = itemId.Trim(), voterHash = voterHash.Trim().ToLowerInvariant(), liked },
+                new { itemId = itemId.Trim(), voterKey = voterKey.Trim().ToLowerInvariant(), liked },
                 $"Failed recording a Workshop like for {itemId}",
                 cancel).ConfigureAwait(false);
         }

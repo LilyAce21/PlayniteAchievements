@@ -80,7 +80,8 @@
                                          Text="{Binding Persisted.CaptureDirectory, UpdateSourceTrigger=LostFocus}"
                                          VerticalAlignment="Center"/>
                                 <Button Grid.Column="1"
-                                        Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                        Content="..."
+                                        ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                         Click="GameCaptureDirectory_Browse_Click"
                                         Margin="8,0,0,0"/>
                             </Grid>
@@ -241,7 +242,8 @@
                                          Text="{Binding Persisted.UnlockScreenshotDirectory, UpdateSourceTrigger=PropertyChanged}"
                                          VerticalAlignment="Center"/>
                                 <Button Grid.Column="1"
-                                        Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                        Content="..."
+                                        ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                         Click="ScreenshotDirectory_Browse_Click"
                                         Margin="8,0,0,0"/>
                             </Grid>
@@ -381,7 +383,8 @@
                                          Text="{Binding Persisted.UnlockRecordingDirectory, UpdateSourceTrigger=PropertyChanged}"
                                          VerticalAlignment="Center"/>
                                 <Button Grid.Column="1"
-                                        Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                        Content="..."
+                                        ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                         Click="RecordingDirectory_Browse_Click"
                                         Margin="8,0,0,0"/>
                             </Grid>

@@ -216,8 +216,7 @@ namespace PlayniteAchievements.Services.Workshop
 
             // Liking is the first thing that needs an identity on an install that has never
             // shared, so this is where the submitter key is created.
-            var voter = _identity.GetSubmitterHash();
-            var count = await _client.SetLikeAsync(itemId, voter, liked, cancel).ConfigureAwait(false);
+            var count = await _client.SetLikeAsync(itemId, _identity.GetOrCreateSubmitterKey(), liked, cancel).ConfigureAwait(false);
             if (count == null)
             {
                 ApplyLike(itemId, !liked, liked ? -1 : 1);
@@ -276,7 +275,7 @@ namespace PlayniteAchievements.Services.Workshop
             {
                 cancel.ThrowIfCancellationRequested();
                 ApplyLike(id, true, 1);
-                var count = await _client.SetLikeAsync(id, voter, true, cancel).ConfigureAwait(false);
+                var count = await _client.SetLikeAsync(id, _identity.GetOrCreateSubmitterKey(), true, cancel).ConfigureAwait(false);
                 if (count == null)
                 {
                     ApplyLike(id, false, -1);

@@ -150,6 +150,25 @@ namespace PlayniteAchievements.Tests.Services
         }
 
         [TestMethod]
+        public void HydrateAll_ClearTrophyTypeAndDescription_RemovesTheProviderValues()
+        {
+            // Choosing None stores a cleared state rather than an empty record: an empty record
+            // falls back to the provider's tier, which made None snap back to the imported value.
+            var details = Details("alpha");
+            details[0].TrophyType = "gold";
+            details[0].Description = "Provider text";
+
+            Hydrate(details, WithOverride("alpha", new AchievementOverride
+            {
+                ClearTrophyType = true,
+                ClearDescription = true
+            }));
+
+            Assert.IsNull(details[0].TrophyType);
+            Assert.IsNull(details[0].Description);
+        }
+
+        [TestMethod]
         public void HydrateAll_Overrides_NeverChangeUnlockStatusOrRarity()
         {
             // Unlock status and rarity are provider-owned: an override must not be able to move

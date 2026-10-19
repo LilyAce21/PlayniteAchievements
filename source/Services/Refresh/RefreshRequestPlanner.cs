@@ -188,7 +188,10 @@ namespace PlayniteAchievements.Services.Refresh
                     Scope = RefreshGameScope.Explicit,
                     PlayniteGameIds = request.GameIds,
                     RespectUserExclusions = false,
-                    ForceBypassExclusionsForExplicitIncludes = true
+                    ForceBypassExclusionsForExplicitIncludes = true,
+                    // The in-game monitor sends GameIds with this set; keep it so its frequent
+                    // refreshes reuse stored definition data.
+                    PreferCachedDefinitions = request.Options?.PreferCachedDefinitions == true
                 }.Clone();
             }
 

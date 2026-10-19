@@ -30,7 +30,11 @@ namespace PlayniteAchievements.ViewModels.Workshop
             {
                 item.Name, item.Description, item.Author, item.Game?.Name, string.Join(" ", item.Tags ?? new List<string>())
             }.Where(text => !string.IsNullOrWhiteSpace(text))).ToLowerInvariant();
+            TagSet = new HashSet<string>((item.Tags ?? new List<string>()).Select(WorkshopTags.Normalize));
         }
+
+        /// <summary>Normalized tags for exact-match tag filtering.</summary>
+        public HashSet<string> TagSet { get; }
 
         public WorkshopItem Item { get; }
 

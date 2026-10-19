@@ -1066,11 +1066,14 @@ namespace PlayniteAchievements.Services.GameCustomData
                 {
                     DisplayName = NormalizeString(pair.Value.DisplayName),
                     Description = NormalizeString(pair.Value.Description),
+                    // A stored value and a clear flag are mutually exclusive; the value wins.
+                    ClearDescription = pair.Value.ClearDescription && NormalizeString(pair.Value.Description) == null,
                     // A negative override is meaningless for a score total; drop rather than store.
                     Points = pair.Value.Points.HasValue && pair.Value.Points.Value >= 0
                         ? pair.Value.Points
                         : null,
                     TrophyType = NormalizeTrophyType(pair.Value.TrophyType),
+                    ClearTrophyType = pair.Value.ClearTrophyType && NormalizeTrophyType(pair.Value.TrophyType) == null,
                     UnlockTimeUtc = NormalizeUtc(pair.Value.UnlockTimeUtc),
                     // A stored timestamp and a clear flag are mutually exclusive; the timestamp wins.
                     ClearUnlockTime = pair.Value.ClearUnlockTime && !pair.Value.UnlockTimeUtc.HasValue,

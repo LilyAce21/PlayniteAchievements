@@ -265,7 +265,8 @@
                                 Orientation="Horizontal"
                                 Margin="0,0,0,8"
                                 Visibility="{Binding ShowFrameBackgroundPicker, Converter={StaticResource BoolToVis}}">
-                        <Border Tag="Background"
+                        <Border x:Name="FrameBackgroundSlot"
+                                Tag="Background"
                                 Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                                 helpers:FilePickTarget.IsEnabled="True"
                                 helpers:FilePickTarget.Picked="ImagePickTarget_Picked"
@@ -282,8 +283,15 @@
                                 Content="{DynamicResource LOCClearLabel}"
                                 Click="ImageClear_Click"
                                 VerticalAlignment="Center"/>
+                        <Button Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                                ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                                ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                                helpers:FilePickTarget.PasteTarget="{Binding ElementName=FrameBackgroundSlot}"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"/>
                         <Button Tag="Background"
-                                Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                Content="..."
+                                ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                 Click="ImageBrowse_Click"
                                 Margin="8,0,0,0"
                                 VerticalAlignment="Center"/>
@@ -989,6 +997,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
@@ -1005,7 +1014,8 @@
                                Foreground="{DynamicResource PlayAch.Brush.Text}"
                                VerticalAlignment="Center"
                                Margin="0,0,8,6"/>
-                    <Border Grid.Row="0" Grid.Column="1"
+                    <Border x:Name="BadgeCommonSlot"
+                            Grid.Row="0" Grid.Column="1"
                             Tag="BadgeCommon"
                             Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                             helpers:FilePickTarget.IsEnabled="True"
@@ -1030,10 +1040,18 @@
                             Click="ImageClear_Click"
                             Margin="0,0,0,6"
                             VerticalAlignment="Center"/>
-                    <Button Grid.Row="0" Grid.Column="3"
+                    <Button Grid.Row="0" Grid.Column="4"
                             Tag="BadgeCommon"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
+                            Margin="8,0,0,6"
+                            VerticalAlignment="Center"/>
+                    <Button Grid.Row="0" Grid.Column="3"
+                            Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                            ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                            helpers:FilePickTarget.PasteTarget="{Binding ElementName=BadgeCommonSlot}"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
 
@@ -1043,7 +1061,8 @@
                                Foreground="{DynamicResource PlayAch.Brush.Text}"
                                VerticalAlignment="Center"
                                Margin="0,0,8,6"/>
-                    <Border Grid.Row="1" Grid.Column="1"
+                    <Border x:Name="BadgeUncommonSlot"
+                            Grid.Row="1" Grid.Column="1"
                             Tag="BadgeUncommon"
                             Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                             helpers:FilePickTarget.IsEnabled="True"
@@ -1068,10 +1087,18 @@
                             Click="ImageClear_Click"
                             Margin="0,0,0,6"
                             VerticalAlignment="Center"/>
-                    <Button Grid.Row="1" Grid.Column="3"
+                    <Button Grid.Row="1" Grid.Column="4"
                             Tag="BadgeUncommon"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
+                            Margin="8,0,0,6"
+                            VerticalAlignment="Center"/>
+                    <Button Grid.Row="1" Grid.Column="3"
+                            Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                            ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                            helpers:FilePickTarget.PasteTarget="{Binding ElementName=BadgeUncommonSlot}"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
 
@@ -1081,7 +1108,8 @@
                                Foreground="{DynamicResource PlayAch.Brush.Text}"
                                VerticalAlignment="Center"
                                Margin="0,0,8,6"/>
-                    <Border Grid.Row="2" Grid.Column="1"
+                    <Border x:Name="BadgeRareSlot"
+                            Grid.Row="2" Grid.Column="1"
                             Tag="BadgeRare"
                             Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                             helpers:FilePickTarget.IsEnabled="True"
@@ -1106,10 +1134,18 @@
                             Click="ImageClear_Click"
                             Margin="0,0,0,6"
                             VerticalAlignment="Center"/>
-                    <Button Grid.Row="2" Grid.Column="3"
+                    <Button Grid.Row="2" Grid.Column="4"
                             Tag="BadgeRare"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
+                            Margin="8,0,0,6"
+                            VerticalAlignment="Center"/>
+                    <Button Grid.Row="2" Grid.Column="3"
+                            Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                            ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                            helpers:FilePickTarget.PasteTarget="{Binding ElementName=BadgeRareSlot}"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
 
@@ -1119,7 +1155,8 @@
                                Foreground="{DynamicResource PlayAch.Brush.Text}"
                                VerticalAlignment="Center"
                                Margin="0,0,8,6"/>
-                    <Border Grid.Row="3" Grid.Column="1"
+                    <Border x:Name="BadgeUltraRareSlot"
+                            Grid.Row="3" Grid.Column="1"
                             Tag="BadgeUltraRare"
                             Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                             helpers:FilePickTarget.IsEnabled="True"
@@ -1144,10 +1181,18 @@
                             Click="ImageClear_Click"
                             Margin="0,0,0,6"
                             VerticalAlignment="Center"/>
-                    <Button Grid.Row="3" Grid.Column="3"
+                    <Button Grid.Row="3" Grid.Column="4"
                             Tag="BadgeUltraRare"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
+                            Margin="8,0,0,6"
+                            VerticalAlignment="Center"/>
+                    <Button Grid.Row="3" Grid.Column="3"
+                            Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                            ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                            helpers:FilePickTarget.PasteTarget="{Binding ElementName=BadgeUltraRareSlot}"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
 
@@ -1157,7 +1202,8 @@
                                Foreground="{DynamicResource PlayAch.Brush.Text}"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"/>
-                    <Border Grid.Row="4" Grid.Column="1"
+                    <Border x:Name="BadgeCompletionSlot"
+                            Grid.Row="4" Grid.Column="1"
                             Tag="BadgeCompletion"
                             Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                             helpers:FilePickTarget.IsEnabled="True"
@@ -1182,10 +1228,18 @@
                             Click="ImageClear_Click"
                             Margin="0,0,0,0"
                             VerticalAlignment="Center"/>
-                    <Button Grid.Row="4" Grid.Column="3"
+                    <Button Grid.Row="4" Grid.Column="4"
                             Tag="BadgeCompletion"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"/>
+                    <Button Grid.Row="4" Grid.Column="3"
+                            Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                            ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                            helpers:FilePickTarget.PasteTarget="{Binding ElementName=BadgeCompletionSlot}"
                             Margin="8,0,0,0"
                             VerticalAlignment="Center"/>
                 </Grid>
@@ -1208,9 +1262,11 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0"
+                    <Border x:Name="ToastBackgroundSlot"
+                            Grid.Column="0"
                             Tag="Background"
                             Style="{DynamicResource PlayAch.FilePickTarget.Style}"
                             helpers:FilePickTarget.IsEnabled="True"
@@ -1230,10 +1286,18 @@
                             Click="ImageClear_Click"
                             Margin="0,0,0,0"
                             VerticalAlignment="Center"/>
-                    <Button Grid.Column="2"
+                    <Button Grid.Column="3"
                             Tag="Background"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"/>
+                    <Button Grid.Column="2"
+                            Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                            ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                            helpers:FilePickTarget.PasteTarget="{Binding ElementName=ToastBackgroundSlot}"
                             Margin="8,0,0,0"
                             VerticalAlignment="Center"/>
                 </Grid>

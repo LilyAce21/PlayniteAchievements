@@ -975,7 +975,8 @@ namespace PlayniteAchievements.Services.Refresh
             bool forceIconRefresh = false,
             IReadOnlyList<IDataProvider> providerScope = null,
             bool? runProvidersInParallelOverride = null,
-            TargetSelectionCache targetSelectionCache = null)
+            TargetSelectionCache targetSelectionCache = null,
+            bool preferCachedDefinitions = false)
         {
             var providers = providerScope == null
                 ? MaterializeProviderScope(await GetAuthenticatedProvidersAsync(cancel).ConfigureAwait(false))
@@ -1002,7 +1003,8 @@ namespace PlayniteAchievements.Services.Refresh
                 singleGameId,
                 forceIconRefresh,
                 runProvidersInParallelOverride,
-                initializeProgress: true).ConfigureAwait(false);
+                initializeProgress: true,
+                preferCachedDefinitions: preferCachedDefinitions).ConfigureAwait(false);
         }
 
         private async Task<RebuildPayload> ExecuteCurrentProviderPlansAsync(
@@ -1014,7 +1016,8 @@ namespace PlayniteAchievements.Services.Refresh
             Guid? singleGameId = null,
             bool forceIconRefresh = false,
             bool? runProvidersInParallelOverride = null,
-            bool initializeProgress = true)
+            bool initializeProgress = true,
+            bool preferCachedDefinitions = false)
         {
             var plans = providerPlans?
                 .Where(plan => plan?.Provider != null && plan.Games?.Count > 0)
@@ -1046,7 +1049,7 @@ namespace PlayniteAchievements.Services.Refresh
             var providerResults = await ProviderRefreshExecutor.ExecuteProvidersAsync(
                 plans,
                 runProvidersInParallel,
-                plan => ExecuteCurrentProviderPlanAsync(plan, progressScope, forceIconRefresh, cancel),
+                plan => ExecuteCurrentProviderPlanAsync(plan, progressScope, forceIconRefresh, preferCachedDefinitions, cancel),
                 cancel).ConfigureAwait(false);
 
             var payload = CreateCurrentRefreshPayload(providerResults);
@@ -1060,6 +1063,7 @@ namespace PlayniteAchievements.Services.Refresh
             ProviderRefreshExecutor.ProviderExecutionPlan plan,
             RefreshProgressScope progressScope,
             bool forceIconRefresh,
+            bool preferCachedDefinitions,
             CancellationToken cancel)
         {
             if (plan?.Provider == null || plan.Games == null || plan.Games.Count == 0)
@@ -1073,18 +1077,18 @@ namespace PlayniteAchievements.Services.Refresh
             var providerMemBaseline = MemoryDiagnostics.Capture();
             try
             {
-                return await plan.Provider.RefreshAsync(
-                    plan.Games,
-                    game => _refreshProgressReporter.ReportGameStarting(game, progressScope),
-                    (game, data) => _refreshProgressReporter.OnProviderGameCompletedAsync(
-                        plan.Provider,
-                        game,
-                        data,
-                        progressScope,
-                        cancel,
-                        (provider, refreshedGame, refreshedData, scope, token) =>
-                            OnGameRefreshed(provider, refreshedGame, refreshedData, scope, forceIconRefresh, token)),
-                    cancel).ConfigureAwait(false);
+                Action<Game> onGameStarting = game => _refreshProgressReporter.ReportGameStarting(game, progressScope);
+                Func<Game, GameAchievementData, Task> onGameCompleted = (game, data) => _refreshProgressReporter.OnProviderGameCompletedAsync(
+                    plan.Provider,
+                    game,
+                    data,
+                    progressScope,
+                    cancel,
+                    (provider, refreshedGame, refreshedData, scope, token) =>
+                        OnGameRefreshed(provider, refreshedGame, refreshedData, scope, forceIconRefresh, token));
+                return await (plan.Provider is IDefinitionCachePreferenceProvider cachePreferring
+                    ? cachePreferring.RefreshAsync(plan.Games, onGameStarting, onGameCompleted, preferCachedDefinitions, cancel)
+                    : plan.Provider.RefreshAsync(plan.Games, onGameStarting, onGameCompleted, cancel)).ConfigureAwait(false);
             }
             finally
             {
@@ -1305,6 +1309,7 @@ namespace PlayniteAchievements.Services.Refresh
             var currentOptions = resolved.CurrentUserOptions;
             var friendOptions = resolved.FriendOptions;
             var forceIconRefresh = resolved.Options?.ForceIconRefresh == true;
+            var preferCachedDefinitions = resolved.Options?.PreferCachedDefinitions == true;
 
             if (currentOptions == null)
             {
@@ -1327,7 +1332,8 @@ namespace PlayniteAchievements.Services.Refresh
                     forceIconRefresh,
                     resolved.CurrentProviderScope,
                     resolved.RunProvidersInParallelOverride,
-                    targetSelectionCache).ConfigureAwait(false);
+                    targetSelectionCache,
+                    preferCachedDefinitions).ConfigureAwait(false);
             }
 
             var currentProviders = MaterializeProviderScope(resolved.CurrentProviderScope);
@@ -1364,7 +1370,8 @@ namespace PlayniteAchievements.Services.Refresh
                     forceIconRefresh,
                     resolved.CurrentProviderScope,
                     resolved.RunProvidersInParallelOverride,
-                    targetSelectionCache).ConfigureAwait(false);
+                    targetSelectionCache,
+                    preferCachedDefinitions).ConfigureAwait(false);
             }
 
             if (!hasCurrentWork)
@@ -1458,6 +1465,7 @@ namespace PlayniteAchievements.Services.Refresh
                                     currentPlan,
                                     progressScope,
                                     forceIconRefresh,
+                                    preferCachedDefinitions,
                                     cancel).ConfigureAwait(false);
                                 FriendRefreshCoordinator.Merge(providerPayload, currentPayload);
                                 FriendRefreshCoordinator.MarkAuthFailure(providerPayload, provider.ProviderKey, currentPayload?.AuthRequired == true);
