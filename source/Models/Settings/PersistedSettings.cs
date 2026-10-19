@@ -205,6 +205,8 @@ namespace PlayniteAchievements.Models.Settings
         private bool _useTrophiesForRarity = false;
         private bool _roundRarityPercentages = false;
         private RarityColorSettings _rarityColors = RarityColorSettings.CreateDefault();
+        private RarityIconOverrideSettings _rarityIconOverrides = RarityIconOverrideSettings.CreateDefault();
+        private bool _capstonesUsePlatinumRarity = false;
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
@@ -2331,6 +2333,26 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// Optional custom image files replacing the drawn rarity, completed and trophy icons
+        /// everywhere they appear. Unset entries keep the built-in icon.
+        /// </summary>
+        public RarityIconOverrideSettings RarityIconOverrides
+        {
+            get => _rarityIconOverrides;
+            set => SetValue(ref _rarityIconOverrides, value?.Clone() ?? RarityIconOverrideSettings.CreateDefault());
+        }
+
+        /// <summary>
+        /// When true, auto and PSN capstones always take the top (Platinum / Ultra Rare) rarity tier
+        /// regardless of their rarity percentage. Normal achievements are unaffected.
+        /// </summary>
+        public bool CapstonesUsePlatinumRarity
+        {
+            get => _capstonesUsePlatinumRarity;
+            set => SetValue(ref _capstonesUsePlatinumRarity, value);
+        }
+
+        /// <summary>
         /// User-selected provider colors keyed by provider key. Providers without an entry use
         /// the brand color supplied by their IDataProvider implementation.
         /// </summary>
@@ -3549,6 +3571,8 @@ namespace PlayniteAchievements.Models.Settings
                 UseTrophiesForRarity = this.UseTrophiesForRarity,
                 RoundRarityPercentages = this.RoundRarityPercentages,
                 RarityColors = this.RarityColors?.Clone() ?? RarityColorSettings.CreateDefault(),
+                RarityIconOverrides = this.RarityIconOverrides?.Clone() ?? RarityIconOverrideSettings.CreateDefault(),
+                CapstonesUsePlatinumRarity = this.CapstonesUsePlatinumRarity,
                 ProviderColorOverrides = this.ProviderColorOverrides != null
                     ? new Dictionary<string, string>(
                         this.ProviderColorOverrides,
@@ -3723,6 +3747,8 @@ namespace PlayniteAchievements.Models.Settings
             UseTrophiesForRarity = defaults.UseTrophiesForRarity;
             RoundRarityPercentages = defaults.RoundRarityPercentages;
             RarityColors = RarityColorSettings.CreateDefault();
+            RarityIconOverrides = RarityIconOverrideSettings.CreateDefault();
+            CapstonesUsePlatinumRarity = defaults.CapstonesUsePlatinumRarity;
             ProviderColorOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ResourceOverrides = CreateDefaultResourceOverrides();
 

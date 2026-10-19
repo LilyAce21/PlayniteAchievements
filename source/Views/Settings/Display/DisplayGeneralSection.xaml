@@ -132,6 +132,18 @@
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_UseTrophiesForRarity}">
                         <CheckBox IsChecked="{Binding Persisted.UseTrophiesForRarity}"/>
                     </controls:SettingRow>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_CapstonesUsePlatinumRarity}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_CapstonesUsePlatinumRarity_Help}">
+                        <CheckBox IsChecked="{Binding Persisted.CapstonesUsePlatinumRarity}"/>
+                    </controls:SettingRow>
+                    <TextBlock Text="{DynamicResource LOCPlayAch_Settings_CustomRarityIcons}"
+                               Style="{StaticResource SectionHeaderStyle}"
+                               Margin="0,12,0,4"/>
+                    <TextBlock Text="{DynamicResource LOCPlayAch_Settings_CustomRarityIcons_Help}"
+                               TextWrapping="Wrap"
+                               Opacity="0.7"
+                               Margin="0,0,0,6"/>
+                    <StackPanel x:Name="RarityIconOverridesHost"/>
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_RoundRarityPercentages}"
                                          Hint="{DynamicResource LOCPlayAch_Settings_RoundRarityPercentages_Help}">
                         <CheckBox IsChecked="{Binding Persisted.RoundRarityPercentages}"/>

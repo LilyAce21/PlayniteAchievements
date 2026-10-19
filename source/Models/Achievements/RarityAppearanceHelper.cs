@@ -492,6 +492,79 @@ namespace PlayniteAchievements.Models.Achievements
             ApplyBadgeAlias(resources, RarityTier.Uncommon, settings?.UseUniformRarityBadges ?? false);
             ApplyBadgeAlias(resources, RarityTier.Rare, settings?.UseUniformRarityBadges ?? false);
             ApplyBadgeAlias(resources, RarityTier.UltraRare, settings?.UseUniformRarityBadges ?? false);
+            ApplyCustomIconOverrides(resources, settings);
+        }
+
+        /// <summary>
+        /// Replaces the drawn rarity / completed / trophy icons with the user's image files, one slot
+        /// at a time. Every surface reads these through the same resource keys, so setting them here
+        /// reaches the grids, rarity views, PlayStation trophy views and score cards at once. A slot
+        /// with no path (or an unreadable file) is left on the built-in icon.
+        /// </summary>
+        private static void ApplyCustomIconOverrides(ResourceDictionary resources, PersistedSettings settings)
+        {
+            var overrides = settings?.RarityIconOverrides;
+            if (resources == null || overrides == null)
+            {
+                return;
+            }
+
+            Apply(overrides.Common, "BadgeRarityCommon", "BadgeBronzeTriangle", "BadgeBronzeHexagon", "ScoreBadgeBronzeTriangle", "ScoreBadgeBronzeHexagon");
+            Apply(overrides.Uncommon, "BadgeRarityUncommon", "BadgeSilverSquare", "BadgeSilverHexagon", "ScoreBadgeSilverSquare", "ScoreBadgeSilverHexagon");
+            Apply(overrides.Rare, "BadgeRarityRare", "BadgeGoldPentagon", "BadgeGoldHexagon", "ScoreBadgeGoldPentagon", "ScoreBadgeGoldHexagon");
+            Apply(overrides.UltraRare, "BadgeRarityUltraRare", "BadgePlatinumHexagon", "ScoreBadgePlatinumHexagon");
+            Apply(overrides.Completed, "BadgeRarityCompleted", "BadgeCompletedGame", "ScoreBadgeCompletedGame");
+            Apply(overrides.TrophyBronze, "TrophyBronze");
+            Apply(overrides.TrophySilver, "TrophySilver");
+            Apply(overrides.TrophyGold, "TrophyGold");
+            Apply(overrides.TrophyPlatinum, "TrophyPlatinum");
+
+            void Apply(string path, params string[] keys)
+            {
+                var image = LoadCustomIcon(path);
+                if (image == null)
+                {
+                    return;
+                }
+
+                foreach (var key in keys)
+                {
+                    resources[key] = image;
+                }
+            }
+        }
+
+        private static ImageSource LoadCustomIcon(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            try
+            {
+                if (!System.IO.File.Exists(path))
+                {
+                    return null;
+                }
+
+                var image = new System.Windows.Media.Imaging.BitmapImage();
+                image.BeginInit();
+                image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                image.CreateOptions = System.Windows.Media.Imaging.BitmapCreateOptions.IgnoreImageCache;
+                image.UriSource = new Uri(path, UriKind.Absolute);
+                image.EndInit();
+                if (image.CanFreeze)
+                {
+                    image.Freeze();
+                }
+
+                return image;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public static ImageSource CreateBadgePreview(RarityTier tier, PersistedSettings settings)
@@ -514,7 +587,8 @@ namespace PlayniteAchievements.Models.Achievements
         {
             return string.Equals(propertyName, nameof(PersistedSettings.RarityColors), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.UseUniformRarityBadges), StringComparison.Ordinal) ||
-                   string.Equals(propertyName, nameof(PersistedSettings.UseTrophiesForRarity), StringComparison.Ordinal);
+                   string.Equals(propertyName, nameof(PersistedSettings.UseTrophiesForRarity), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.RarityIconOverrides), StringComparison.Ordinal);
         }
 
         private static void ApplyGeneratedBadgeResources(ResourceDictionary resources, PersistedSettings settings)

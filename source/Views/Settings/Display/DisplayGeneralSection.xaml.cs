@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
 using Playnite.SDK;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
@@ -50,6 +51,7 @@ namespace PlayniteAchievements.Views.Settings.Display
 
             UpdateGlowTierTexts();
             UpdateScoreCardNames();
+            BuildRarityIconOverrideRows();
         }
 
         /// <summary>The first Overview score card's type name, labeling its show toggle.</summary>
@@ -96,6 +98,100 @@ namespace PlayniteAchievements.Views.Settings.Display
             set => SetValue(RayGlowTiersTextProperty, value);
         }
 
+        private readonly List<Action> _iconRowRefreshers = new List<Action>();
+
+        private void BuildRarityIconOverrideRows()
+        {
+            if (RarityIconOverridesHost == null || _settings == null)
+            {
+                return;
+            }
+
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Rarity_Common"), o => o.Common, (o, v) => o.Common = v);
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Rarity_Uncommon"), o => o.Uncommon, (o, v) => o.Uncommon = v);
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Rarity_Rare"), o => o.Rare, (o, v) => o.Rare = v);
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Rarity_UltraRare"), o => o.UltraRare, (o, v) => o.UltraRare = v);
+            AddIconRow("Completed", o => o.Completed, (o, v) => o.Completed = v);
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Bronze"), o => o.TrophyBronze, (o, v) => o.TrophyBronze = v);
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Silver"), o => o.TrophySilver, (o, v) => o.TrophySilver = v);
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Gold"), o => o.TrophyGold, (o, v) => o.TrophyGold = v);
+            AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Platinum"), o => o.TrophyPlatinum, (o, v) => o.TrophyPlatinum = v);
+        }
+
+        private void AddIconRow(
+            string label,
+            Func<RarityIconOverrideSettings, string> read,
+            Action<RarityIconOverrideSettings, string> write)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var name = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center };
+            var path = new TextBox { IsReadOnly = true, Margin = new Thickness(0, 0, 6, 0) };
+            var browse = new Button { Content = "Browse...", Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 0, 6, 0) };
+            var clear = new Button { Content = "Default", Padding = new Thickness(10, 2, 10, 2) };
+            Grid.SetColumn(path, 1);
+            Grid.SetColumn(browse, 2);
+            Grid.SetColumn(clear, 3);
+            grid.Children.Add(name);
+            grid.Children.Add(path);
+            grid.Children.Add(browse);
+            grid.Children.Add(clear);
+
+            void Refresh()
+            {
+                var current = read(_settings?.Persisted?.RarityIconOverrides ?? RarityIconOverrideSettings.CreateDefault());
+                path.Text = string.IsNullOrWhiteSpace(current) ? "(built-in icon)" : current;
+                clear.IsEnabled = !string.IsNullOrWhiteSpace(current);
+            }
+
+            void Commit(string value)
+            {
+                var persisted = _settings?.Persisted;
+                if (persisted == null)
+                {
+                    return;
+                }
+
+                // The property setter clones, so edit a copy and assign it back to raise the change.
+                var next = (persisted.RarityIconOverrides ?? RarityIconOverrideSettings.CreateDefault()).Clone();
+                write(next, value);
+                persisted.RarityIconOverrides = next;
+                Refresh();
+            }
+
+            browse.Click += (s, e) =>
+            {
+                var dialog = new OpenFileDialog
+                {
+                    Filter = "Images (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico)|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.ico|PNG (*.png)|*.png|All files (*.*)|*.*",
+                    CheckFileExists = true,
+                    Multiselect = false
+                };
+
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    Commit(dialog.FileName);
+                }
+            };
+            clear.Click += (s, e) => Commit(null);
+
+            _iconRowRefreshers.Add(Refresh);
+            Refresh();
+            RarityIconOverridesHost.Children.Add(grid);
+        }
+
+        private void RefreshRarityIconOverrideRows()
+        {
+            foreach (var refresh in _iconRowRefreshers)
+            {
+                refresh();
+            }
+        }
+
         private void SoftGlowTiersButton_Click(object sender, RoutedEventArgs e)
         {
             RaritySelectorMenu.Open(
@@ -131,6 +227,7 @@ namespace PlayniteAchievements.Views.Settings.Display
         {
             UpdateGlowTierTexts();
             UpdateScoreCardNames();
+            RefreshRarityIconOverrideRows();
         }
 
         private void UpdateScoreCardNames()
