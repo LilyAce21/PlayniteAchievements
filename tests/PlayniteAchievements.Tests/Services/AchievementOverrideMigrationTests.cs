@@ -507,6 +507,46 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
+        public void Normalize_ClearTrophyTypeAndDescription_SurviveOnTheirOwn()
+        {
+            var result = Normalize(new GameCustomDataFile
+            {
+                AchievementOverrides = new Dictionary<string, AchievementOverride>
+                {
+                    ["ach_one"] = new AchievementOverride { ClearTrophyType = true },
+                    ["ach_two"] = new AchievementOverride { ClearDescription = true }
+                }
+            });
+
+            Assert.IsTrue(result.AchievementOverrides["ach_one"].ClearTrophyType);
+            Assert.IsTrue(result.AchievementOverrides["ach_two"].ClearDescription);
+        }
+
+        [TestMethod]
+        public void Normalize_ClearFlagsWithValues_KeepOnlyTheValues()
+        {
+            var result = Normalize(new GameCustomDataFile
+            {
+                AchievementOverrides = new Dictionary<string, AchievementOverride>
+                {
+                    ["ach_one"] = new AchievementOverride
+                    {
+                        TrophyType = "silver",
+                        ClearTrophyType = true,
+                        Description = "Rewritten",
+                        ClearDescription = true
+                    }
+                }
+            });
+
+            var entry = result.AchievementOverrides["ach_one"];
+            Assert.IsFalse(entry.ClearTrophyType);
+            Assert.IsFalse(entry.ClearDescription);
+            Assert.AreEqual("silver", entry.TrophyType);
+            Assert.AreEqual("Rewritten", entry.Description);
+        }
+
+        [TestMethod]
         public void NormalizePortable_FoldsLegacySchemaSevenPackage()
         {
             var portable = new GameCustomDataPortableFile
