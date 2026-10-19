@@ -253,7 +253,7 @@
                 <Setter Property="VerticalAlignment" Value="Center" />
             </Style>
 
-            <!-- Browse and Paste stacked beside an icon slot: two half-height buttons together
+            <!-- Paste and Browse stacked beside an icon slot: two half-height buttons together
                  span the 56px thumbnail, so the slot stays narrow enough for two across. -->
             <Style x:Key="InlineSlotButtonStyle" TargetType="Button" BasedOn="{StaticResource InlineBrowseButtonStyle}">
                 <Setter Property="Height" Value="26" />
@@ -2197,7 +2197,7 @@
                                      input: drop an image on it, or click it and paste a file, URL or
                                      image. The tooltip names the source; Clear sits on its corner so
                                      the slot stays narrow enough for two across the pane. The badge
-                                     and the Browse/Paste stack center on the thumbnail; the Custom/Default caption sits
+                                     and the Paste/Browse stack center on the thumbnail; the Custom/Default caption sits
                                      in its own row under it. -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -2261,17 +2261,17 @@
                                         </Grid>
 
                                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                            <Button Content="..."
-                                                    Tag="Unlocked"
-                                                    ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
-                                                    Style="{StaticResource InlineSlotButtonStyle}"
-                                                    Click="BrowseIconButton_Click" />
                                             <Button Content="{DynamicResource LOCPlayAch_Button_Paste}"
                                                     ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
                                                     ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
                                                     Style="{StaticResource InlineSlotButtonStyle}"
-                                                    Margin="8,4,0,0"
                                                     helpers:FilePickTarget.PasteTarget="{Binding ElementName=UnlockedIconSlot}" />
+                                            <Button Content="..."
+                                                    Tag="Unlocked"
+                                                    ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
+                                                    Style="{StaticResource InlineSlotButtonStyle}"
+                                                    Margin="8,4,0,0"
+                                                    Click="BrowseIconButton_Click" />
                                         </StackPanel>
 
                                         <TextBlock Grid.Row="1"
@@ -2337,17 +2337,17 @@
                                         </Grid>
 
                                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                            <Button Content="..."
-                                                    Tag="Locked"
-                                                    ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
-                                                    Style="{StaticResource InlineSlotButtonStyle}"
-                                                    Click="BrowseIconButton_Click" />
                                             <Button Content="{DynamicResource LOCPlayAch_Button_Paste}"
                                                     ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
                                                     ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
                                                     Style="{StaticResource InlineSlotButtonStyle}"
-                                                    Margin="8,4,0,0"
                                                     helpers:FilePickTarget.PasteTarget="{Binding ElementName=LockedIconSlot}" />
+                                            <Button Content="..."
+                                                    Tag="Locked"
+                                                    ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
+                                                    Style="{StaticResource InlineSlotButtonStyle}"
+                                                    Margin="8,4,0,0"
+                                                    Click="BrowseIconButton_Click" />
                                         </StackPanel>
 
                                         <TextBlock Grid.Row="1"
