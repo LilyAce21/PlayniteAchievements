@@ -260,6 +260,42 @@ namespace PlayniteAchievements.ThemeMigration.Tests
             }
         }
 
+        [TestMethod]
+        public async Task MigrateThemeAsync_PreservesDistinctResourceKeysAndCrossFileReferences()
+        {
+            var themesRoot = CreateThemesRoot();
+            try
+            {
+                var themePath = Path.Combine(themesRoot, "Fullscreen", "Solaris_resources");
+                Directory.CreateDirectory(themePath);
+                var mediaPath = Path.Combine(themePath, "Media.xaml");
+                File.WriteAllText(mediaPath,
+                    "<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">" +
+                    "<SolidColorBrush x:Key=\"SuccessStoryIcon\" Color=\"Red\"/>" +
+                    "<SolidColorBrush x:Key=\"PlayniteAchievementsIcon\" Color=\"Blue\"/>" +
+                    "<SolidColorBrush x:Key='SSHelper_Icon' Color='Green'/></ResourceDictionary>");
+                var viewPath = Path.Combine(themePath, "Main.xaml");
+                var view = "<Border Background=\"{StaticResource SuccessStoryIcon}\" " +
+                    "BorderBrush=\"{DynamicResource ResourceKey=SSHelper_Icon}\" " +
+                    "Tag=\"{StaticResource 'SuccessStoryIcon'}\"/>";
+                File.WriteAllText(viewPath, view);
+                var service = new ThemeMigrationService(new FakeLogger());
+                Assert.IsTrue((await service.MigrateThemeAsync(themePath)).Success);
+                var media = File.ReadAllText(mediaPath);
+                var document = System.Xml.Linq.XDocument.Parse(media);
+                var keys = document.Root.Elements().Select(element =>
+                    (string)element.Attribute(System.Xml.Linq.XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"))).ToArray();
+                CollectionAssert.AreEqual(new[] { "SuccessStoryIcon", "PlayniteAchievementsIcon", "SSHelper_Icon" }, keys);
+                Assert.AreEqual(view, File.ReadAllText(viewPath));
+                Assert.IsTrue((await service.MigrateThemeAsync(themePath)).Success);
+                Assert.AreEqual(media, File.ReadAllText(mediaPath));
+            }
+            finally
+            {
+                DeleteDirectory(themesRoot);
+            }
+        }
+
         private static int CountOccurrences(string content, string value)
         {
             var count = 0;

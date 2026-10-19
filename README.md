@@ -113,6 +113,9 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 ## Next release - TBD
 
+- Fixed the missing key for the `Cancel` button for the `Logs` buttons
+- Fixed the theme migration for `Solaris` theme
+
 ## 2026-10-18 - v4.1.0.1
 
 - v4.1.0 merge

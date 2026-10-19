@@ -642,20 +642,23 @@ namespace PlayniteAchievements.Services.ThemeMigration
             // Keep references to those names intact as well. Registered custom controls
             // still need their source prefix migrated so Playnite can instantiate them.
             var names = Regex.Matches(content,
-                @"(?<![\w:])(?:x:Name|Name|(?:Storyboard\.)?TargetName|ElementName)\s*=\s*(?:""(?<name>[^""]*)""|'(?<name>[^']*)'|(?<name>[\w]+))");
+                @"(?<![\w:])(?:(?:x:Name|Name|(?:Storyboard\.)?TargetName|ElementName)\s*=\s*(?:""(?<name>[^""]*)""|'(?<name>[^']*)'|(?<name>[\w]+))|x:Key\s*=\s*(?:""(?<key>[^""]*)""|'(?<key>[^']*)')|\{(?:StaticResource|DynamicResource)\s+(?:ResourceKey\s*=\s*)?(?:'(?<key>[^']*)'|""(?<key>[^""]*)""|(?<key>[^}\s]+)))");
             var protectedNames = new Dictionary<string, string>();
             var marker = "__ThemeName_" + Guid.NewGuid().ToString("N") + "_";
             var result = new StringBuilder();
             int position = 0;
             foreach (Match match in names)
             {
-                var name = match.Groups["name"];
+                // Resource keys are theme-owned even when they resemble custom control names.
+                // Protect resource lookups too, including lookups in other XAML files.
+                var name = match.Groups["key"].Success ? match.Groups["key"] : match.Groups["name"];
                 if (!name.Value.Contains("SuccessStory") && !name.Value.Contains("SSHelper"))
                 {
                     continue;
                 }
-                if (name.Value.StartsWith("SuccessStory_", StringComparison.Ordinal) ||
-                    name.Value.StartsWith("SSHelper_", StringComparison.Ordinal))
+                if (!match.Groups["key"].Success &&
+                    (name.Value.StartsWith("SuccessStory_", StringComparison.Ordinal) ||
+                    name.Value.StartsWith("SSHelper_", StringComparison.Ordinal)))
                 {
                     continue;
                 }
