@@ -284,7 +284,8 @@
                                 Click="ImageClear_Click"
                                 VerticalAlignment="Center"/>
                         <Button Tag="Background"
-                                Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                Content="..."
+                                ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                 Click="ImageBrowse_Click"
                                 Margin="8,0,0,0"
                                 VerticalAlignment="Center"/>
@@ -1041,7 +1042,8 @@
                             VerticalAlignment="Center"/>
                     <Button Grid.Row="0" Grid.Column="3"
                             Tag="BadgeCommon"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
@@ -1087,7 +1089,8 @@
                             VerticalAlignment="Center"/>
                     <Button Grid.Row="1" Grid.Column="3"
                             Tag="BadgeUncommon"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
@@ -1133,7 +1136,8 @@
                             VerticalAlignment="Center"/>
                     <Button Grid.Row="2" Grid.Column="3"
                             Tag="BadgeRare"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
@@ -1179,7 +1183,8 @@
                             VerticalAlignment="Center"/>
                     <Button Grid.Row="3" Grid.Column="3"
                             Tag="BadgeUltraRare"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
                             Margin="8,0,0,6"
                             VerticalAlignment="Center"/>
@@ -1225,7 +1230,8 @@
                             VerticalAlignment="Center"/>
                     <Button Grid.Row="4" Grid.Column="3"
                             Tag="BadgeCompletion"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
                             Margin="8,0,0,0"
                             VerticalAlignment="Center"/>
@@ -1282,7 +1288,8 @@
                             VerticalAlignment="Center"/>
                     <Button Grid.Column="2"
                             Tag="Background"
-                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                            Content="..."
+                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                             Click="ImageBrowse_Click"
                             Margin="8,0,0,0"
                             VerticalAlignment="Center"/>
