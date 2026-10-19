@@ -12,6 +12,13 @@ namespace PlayniteAchievements.Services.Database.Rows
     /// </remarks>
     internal sealed class AchievementOverrideMirrorEntry
     {
+        /// <summary>
+        /// Stored in <see cref="TrophyType"/> when the user removed the provider's trophy. The
+        /// summary join resolves the tier with <c>COALESCE(override, provider)</c>, so a non-null
+        /// value that matches no tier is what keeps the achievement out of every trophy count.
+        /// </summary>
+        public const string ClearedTrophyType = "none";
+
         public string ApiName { get; set; }
 
         public int? Points { get; set; }
