@@ -371,8 +371,8 @@ namespace PlayniteAchievements.Views.Showcase
 
             var browse = new Button
             {
-                Content = Localize("LOCPlayAch_Button_Browse"),
-                MinWidth = 82
+                Content = "...",
+                ToolTip = Localize("LOCPlayAch_Button_Browse")
             };
             browse.SetResourceReference(MarginProperty, "PlayAch.Thickness.Left.Sm");
             browse.Click += (_, __) =>
