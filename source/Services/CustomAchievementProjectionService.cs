@@ -186,7 +186,8 @@ namespace PlayniteAchievements.Services
                     TrophyType = NormalizeTrophyType(definition.TrophyType),
                     Hidden = definition.Hidden,
                     IsCapstone = definition.IsCapstone,
-                    Rarity = ResolveRarity(definition),
+                    Rarity = ParseRarity(definition.Rarity),
+                    IsAutoCapstone = definition.IsAutoCapstone,
                     GlobalPercentUnlocked = NormalizePercent(definition.GlobalPercentUnlocked),
                     ProgressNum = NormalizeProgressNum(definition.ProgressNum, definition.ProgressDenom),
                     ProgressDenom = NormalizeProgressDenom(definition.ProgressNum, definition.ProgressDenom),
@@ -338,22 +339,6 @@ namespace PlayniteAchievements.Services
             }
 
             return (RaritySource)Math.Max((int)first.Value, (int)second.Value);
-        }
-
-        /// <summary>
-        /// The rarity tier for a projected definition. Auto and PSN capstones can be pinned to the top
-        /// tier (Platinum) by setting, whatever rarity percentage they carry; everything else keeps
-        /// the tier its own data gives it.
-        /// </summary>
-        private static RarityTier ResolveRarity(CustomAchievementDefinition definition)
-        {
-            if (definition?.IsAutoCapstone == true &&
-                PlayniteAchievementsPlugin.Instance?.Settings?.Persisted?.CapstonesUsePlatinumRarity == true)
-            {
-                return RarityTier.UltraRare;
-            }
-
-            return ParseRarity(definition?.Rarity);
         }
 
         private static RarityTier ParseRarity(string value)

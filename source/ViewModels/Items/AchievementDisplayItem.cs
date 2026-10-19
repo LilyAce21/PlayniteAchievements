@@ -1251,6 +1251,15 @@ namespace PlayniteAchievements.ViewModels.Items
             }
         }
 
+        /// <summary>
+        /// True when this is an auto / PSN capstone and the "capstones use Platinum" option is on.
+        /// Swaps only the rarity-tier icon for the Platinum trophy; the real rarity tier, colors,
+        /// glow and counts are untouched.
+        /// </summary>
+        public bool UseCapstonePlatinumIcon =>
+            _source?.IsAutoCapstone == true &&
+            PlayniteAchievementsPlugin.Instance?.Settings?.Persisted?.CapstonesUsePlatinumRarity == true;
+
         public System.Windows.Media.Brush RarityBrush
         {
             get
@@ -1422,6 +1431,7 @@ namespace PlayniteAchievements.ViewModels.Items
             ShowFriendSpoilers = resolved.ShowFriendSpoilers;
             OnPropertyChanged(nameof(RarityBrush));
             OnPropertyChanged(nameof(RarityNameBrush));
+            OnPropertyChanged(nameof(UseCapstonePlatinumIcon));
         }
 
         /// <summary>
@@ -1778,6 +1788,7 @@ namespace PlayniteAchievements.ViewModels.Items
                 case nameof(PersistedSettings.SeparateLockedIconEnabledGameIds):
                 case nameof(PersistedSettings.UseUniformRarityBadges):
                 case nameof(PersistedSettings.RarityColors):
+                case nameof(PersistedSettings.CapstonesUsePlatinumRarity):
                 case nameof(PersistedSettings.LockedFallbackIconPath):
                 case nameof(PersistedSettings.HiddenFallbackIconPath):
                     return true;

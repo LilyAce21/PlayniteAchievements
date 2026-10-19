@@ -419,6 +419,9 @@
                             <DataTrigger Binding="{Binding Rarity}" Value="{x:Static models:RarityTier.Common}">
                                 <Setter Property="Source" Value="{DynamicResource BadgeRarityCommon}"/>
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding UseCapstonePlatinumIcon}" Value="True">
+                                <Setter Property="Source" Value="{DynamicResource TrophyPlatinum}"/>
+                            </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Image.Style>
@@ -471,6 +474,9 @@
                         </DataTrigger>
                         <DataTrigger Binding="{Binding Rarity}" Value="{x:Static models:RarityTier.Common}">
                             <Setter Property="Source" Value="{DynamicResource BadgeRarityCommon}"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding UseCapstonePlatinumIcon}" Value="True">
+                            <Setter Property="Source" Value="{DynamicResource TrophyPlatinum}"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>

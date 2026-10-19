@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -125,7 +126,10 @@ namespace PlayniteAchievements.Views.Controls
             "PlayAch.Brush.Trophy.Gold",
             "PlayAch.Brush.Trophy.Silver",
             "PlayAch.Brush.Trophy.Bronze"
-        };
+        }
+        .Concat(PlayniteAchievements.Models.Achievements.RarityAppearanceHelper.CustomIconResourceKeys)
+        .Distinct()
+        .ToArray();
 
         // Defaults are applied only when a saved layout is missing a key.
         private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, bool>> DefaultVisibilityByColumnSettingsKey =

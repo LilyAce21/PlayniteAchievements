@@ -496,6 +496,72 @@ namespace PlayniteAchievements.Models.Achievements
         }
 
         /// <summary>
+        /// Every resource key a custom icon can replace. Controls that merge RarityBadges.xaml or
+        /// TrophyBadges.xaml locally shadow the application-level (overridden) values, so they mirror
+        /// these keys from the application scope; see <see cref="KeepCustomIconResourcesMirrored"/>.
+        /// </summary>
+        public static readonly string[] CustomIconResourceKeys =
+        {
+            "BadgeRarityCommon", "BadgeBronzeTriangle", "BadgeBronzeHexagon", "ScoreBadgeBronzeTriangle", "ScoreBadgeBronzeHexagon",
+            "BadgeRarityUncommon", "BadgeSilverSquare", "BadgeSilverHexagon", "ScoreBadgeSilverSquare", "ScoreBadgeSilverHexagon",
+            "BadgeRarityRare", "BadgeGoldPentagon", "BadgeGoldHexagon", "ScoreBadgeGoldPentagon", "ScoreBadgeGoldHexagon",
+            "BadgeRarityUltraRare", "BadgePlatinumHexagon", "ScoreBadgePlatinumHexagon",
+            "BadgeRarityCompleted", "BadgeCompletedGame", "ScoreBadgeCompletedGame",
+            "TrophyBronze", "TrophySilver", "TrophyGold", "TrophyPlatinum"
+        };
+
+        /// <summary>
+        /// Copies the live (possibly user-overridden) icon resources from the application scope into
+        /// the element's own resources so a locally merged default dictionary cannot shadow them.
+        /// </summary>
+        public static void MirrorCustomIconResources(FrameworkElement element)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            foreach (var key in CustomIconResourceKeys)
+            {
+                try
+                {
+                    var resource = Application.Current?.TryFindResource(key);
+                    if (resource != null)
+                    {
+                        element.Resources[key] = resource;
+                    }
+                }
+                catch
+                {
+                    // Keep the statically merged defaults when application resources are unavailable.
+                }
+            }
+        }
+
+        /// <summary>
+        /// Mirrors the custom icon resources into the element while it is loaded and refreshes them
+        /// whenever the appearance settings change.
+        /// </summary>
+        public static void KeepCustomIconResourcesMirrored(FrameworkElement element)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            EventHandler onChanged = (s, e) =>
+                element.Dispatcher?.BeginInvoke(new Action(() => MirrorCustomIconResources(element)));
+
+            element.Loaded += (s, e) =>
+            {
+                AppearanceChanged -= onChanged;
+                AppearanceChanged += onChanged;
+                MirrorCustomIconResources(element);
+            };
+            element.Unloaded += (s, e) => AppearanceChanged -= onChanged;
+        }
+
+        /// <summary>
         /// Replaces the drawn rarity / completed / trophy icons with the user's image files, one slot
         /// at a time. Every surface reads these through the same resource keys, so setting them here
         /// reaches the grids, rarity views, PlayStation trophy views and score cards at once. A slot
@@ -559,11 +625,70 @@ namespace PlayniteAchievements.Models.Achievements
                     image.Freeze();
                 }
 
-                return image;
+                return TrimTransparentPadding(image);
             }
             catch
             {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Crops fully transparent borders so a custom icon fills its box and sits centered the way
+        /// the built-in glyphs do; a PNG with generous padding would otherwise render small and
+        /// off-center at 14-18px. Falls back to the untouched image on any problem.
+        /// </summary>
+        private static ImageSource TrimTransparentPadding(System.Windows.Media.Imaging.BitmapSource source)
+        {
+            try
+            {
+                var converted = source.Format == PixelFormats.Bgra32
+                    ? source
+                    : new System.Windows.Media.Imaging.FormatConvertedBitmap(source, PixelFormats.Bgra32, null, 0);
+                int width = converted.PixelWidth, height = converted.PixelHeight;
+                if (width <= 0 || height <= 0 || (long)width * height > 16000000L)
+                {
+                    return source;
+                }
+
+                var stride = width * 4;
+                var pixels = new byte[stride * height];
+                converted.CopyPixels(pixels, stride, 0);
+
+                int minX = width, minY = height, maxX = -1, maxY = -1;
+                for (var y = 0; y < height; y++)
+                {
+                    var row = y * stride;
+                    for (var x = 0; x < width; x++)
+                    {
+                        if (pixels[row + x * 4 + 3] > 8)
+                        {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+
+                if (maxX < minX || maxY < minY ||
+                    (minX == 0 && minY == 0 && maxX == width - 1 && maxY == height - 1))
+                {
+                    return source;
+                }
+
+                var cropped = new System.Windows.Media.Imaging.CroppedBitmap(
+                    converted, new Int32Rect(minX, minY, maxX - minX + 1, maxY - minY + 1));
+                if (cropped.CanFreeze)
+                {
+                    cropped.Freeze();
+                }
+
+                return cropped;
+            }
+            catch
+            {
+                return source;
             }
         }
 

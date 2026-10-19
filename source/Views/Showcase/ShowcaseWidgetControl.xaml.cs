@@ -36,13 +36,25 @@ namespace PlayniteAchievements.Views.Showcase
         // statically merged DesignTokens defaults shadow them for DynamicResource lookups inside
         // this tree, so they are mirrored locally the way GameSummariesGridControl does.
         private static readonly string[] MirroredAppearanceResourceKeys =
-        {
-            "PlayAch.Brush.CompletedGlowBloom",
-            "PlayAch.Effect.CompletedGlowEdge",
-            // The Game Mosaic's completion frame band and its platinum badge.
-            "PlayAch.Brush.CompletedGame",
-            "TrophyPlatinum"
-        };
+            new[]
+            {
+                "PlayAch.Brush.CompletedGlowBloom",
+                "PlayAch.Effect.CompletedGlowEdge",
+                // The Game Mosaic's completion frame band.
+                "PlayAch.Brush.CompletedGame",
+                "PlayAch.Brush.Rarity.UltraRare",
+                "PlayAch.Brush.Rarity.Rare",
+                "PlayAch.Brush.Rarity.Uncommon",
+                "PlayAch.Brush.Rarity.Common",
+                "PlayAch.Brush.Trophy.Platinum",
+                "PlayAch.Brush.Trophy.Gold",
+                "PlayAch.Brush.Trophy.Silver",
+                "PlayAch.Brush.Trophy.Bronze"
+            }
+            // Every rarity / completed / trophy icon, so custom icon overrides reach the showcase.
+            .Concat(PlayniteAchievements.Models.Achievements.RarityAppearanceHelper.CustomIconResourceKeys)
+            .Distinct()
+            .ToArray();
 
         // The glow-gating settings the game summaries grid exposes as ancestor DPs; the mosaic
         // tile template gates its completion glow layers on these the same way the grid's cover

@@ -12,6 +12,7 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Modern
         public AchievementStatsControl()
         {
             InitializeComponent();
+            PlayniteAchievements.Models.Achievements.RarityAppearanceHelper.KeepCustomIconResourcesMirrored(this);
         }
     }
 }

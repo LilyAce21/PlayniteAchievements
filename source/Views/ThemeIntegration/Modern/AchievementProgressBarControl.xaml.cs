@@ -20,6 +20,7 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Modern
         public AchievementProgressBarControl()
         {
             InitializeComponent();
+            PlayniteAchievements.Models.Achievements.RarityAppearanceHelper.KeepCustomIconResourcesMirrored(this);
         }
 
         /// <summary>

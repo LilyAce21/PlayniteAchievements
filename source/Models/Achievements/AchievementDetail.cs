@@ -59,6 +59,13 @@ namespace PlayniteAchievements.Models.Achievements
         public bool IsCapstone { get; set; }
 
         /// <summary>
+        /// Runtime-only: true for capstones the plugin generated (auto / PSN). Used for display
+        /// only (the capstone Platinum icon option); it never changes the rarity tier.
+        /// </summary>
+        [IgnoreDataMember]
+        public bool IsAutoCapstone { get; set; }
+
+        /// <summary>
         /// Runtime-only user filter flag. Filtered achievements are hidden from
         /// achievement views and removed from counts.
         /// </summary>
