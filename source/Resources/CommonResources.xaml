@@ -413,6 +413,18 @@
         </StackPanel>
     </DataTemplate>
 
+    <!-- Paste button face for file pick slots: the IcoFont clipboard glyph alone, sized to sit
+         beside the slot's Browse button. Content stays the localized word so the button still
+         has a name; the template draws only the glyph and the tooltip carries the word. -->
+    <DataTemplate x:Key="PlayAch.ButtonContent.Paste">
+        <controls:GlyphIcon Glyph="&#xEDE5;"
+                            Size="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="{DynamicResource PlayAch.FontFamily.Icon}"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+    </DataTemplate>
+
     <!-- Small round "i" for explaining a surface, sized to sit beside a caption without pulling
          weight away from it. One definition so the score surfaces that carry it (the Scores widget
          and the start page score card) stay identical. -->

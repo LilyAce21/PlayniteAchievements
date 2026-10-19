@@ -182,6 +182,9 @@
     <Compile Include="..\..\source\Services\Images\Webm\WebmVideoDecoder.cs" Link="Source\Services\Images\Webm\WebmVideoDecoder.cs" />
     <Compile Include="..\..\source\Services\Images\Webm\WebmFrameDecoder.cs" Link="Source\Services\Images\Webm\WebmFrameDecoder.cs" />
     <Compile Include="..\..\source\Services\Images\Webm\WebmStill.cs" Link="Source\Services\Images\Webm\WebmStill.cs" />
+    <Compile Include="..\..\source\Views\Helpers\ImageDropHelper.cs" Link="Source\Views\Helpers\ImageDropHelper.cs" />
+    <Compile Include="..\..\source\Views\Helpers\ClipboardImageFile.cs" Link="Source\Views\Helpers\ClipboardImageFile.cs" />
+    <Compile Include="..\..\source\Views\Helpers\FilePickTarget.cs" Link="Source\Views\Helpers\FilePickTarget.cs" />
     <Compile Include="..\..\source\Services\Capture\MediaFoundationRuntime.cs" Link="Source\Services\Capture\MediaFoundationRuntime.cs" />
     <Compile Include="..\..\source\Services\Images\MemoryImageService.cs" Link="Source\Services\Images\MemoryImageService.cs" />
     <Compile Include="..\..\source\Services\Images\ImagePixelSize.cs" Link="Source\Services\Images\ImagePixelSize.cs" />

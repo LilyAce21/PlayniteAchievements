@@ -632,13 +632,15 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
                                         <!-- Wide box so arbitrary aspect ratios (Steam banner art,
                                              portrait covers, square icons) stay recognizable. It is
                                              the slot's input: drop an image on it, or click it and
-                                             paste a file or URL. -->
-                                        <Border Grid.Column="0"
+                                             paste (or use Paste) a file, URL or image. -->
+                                        <Border x:Name="CategoryArtSlot"
+                                                Grid.Column="0"
                                                 Width="88"
                                                 Height="50"
                                                 Background="Transparent"
@@ -683,6 +685,13 @@
                                                 ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                                 Style="{StaticResource InlineBrowseButtonStyle}"
                                                 Click="BrowseCategoryImageButton_Click" />
+
+                                        <Button Grid.Column="2"
+                                                Content="{DynamicResource LOCPlayAch_Button_Paste}"
+                                                ContentTemplate="{DynamicResource PlayAch.ButtonContent.Paste}"
+                                                ToolTip="{DynamicResource LOCPlayAch_Button_Paste}"
+                                                Style="{StaticResource InlineBrowseButtonStyle}"
+                                                helpers:FilePickTarget.PasteTarget="{Binding ElementName=CategoryArtSlot}" />
                                     </Grid>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
