@@ -225,7 +225,8 @@
                                             VerticalAlignment="Center"/>
                                     <Button Grid.Column="2"
                                             Tag="Locked"
-                                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                            Content="..."
+                                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                             Click="FallbackIconBrowse_Click"
                                             Margin="8,0,0,0"
                                             VerticalAlignment="Center"/>
@@ -271,7 +272,8 @@
                                             VerticalAlignment="Center"/>
                                     <Button Grid.Column="2"
                                             Tag="Hidden"
-                                            Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                            Content="..."
+                                            ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                             Click="FallbackIconBrowse_Click"
                                             Margin="8,0,0,0"
                                             VerticalAlignment="Center"/>
