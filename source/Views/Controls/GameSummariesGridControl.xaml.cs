@@ -104,6 +104,7 @@ namespace PlayniteAchievements.Views.Controls
         };
 
         private static readonly string[] MirroredAppearanceResourceKeys =
+        new[]
         {
             "PlayAch.Brush.CompletedGame",
             "PlayAch.Effect.CompletedGlowStart",
