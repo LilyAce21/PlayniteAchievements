@@ -214,6 +214,9 @@ namespace PlayniteAchievements.Models.Settings
             target.RarityIconOverrides = source.RarityIconOverrides?.Clone() ?? RarityIconOverrideSettings.CreateDefault();
             target.CapstonesUsePlatinumRarity = source.CapstonesUsePlatinumRarity;
             target.PlatinumIconScalePercent = source.PlatinumIconScalePercent;
+            target.GoldIconScalePercent = source.GoldIconScalePercent;
+            target.SilverIconScalePercent = source.SilverIconScalePercent;
+            target.BronzeIconScalePercent = source.BronzeIconScalePercent;
             target.ProviderColorOverrides = source.ProviderColorOverrides != null
                 ? new Dictionary<string, string>(
                     source.ProviderColorOverrides,

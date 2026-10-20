@@ -730,20 +730,49 @@ namespace PlayniteAchievements.Models.Achievements
                    string.Equals(propertyName, nameof(PersistedSettings.UseUniformRarityBadges), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.UseTrophiesForRarity), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.RarityIconOverrides), StringComparison.Ordinal) ||
-                   string.Equals(propertyName, nameof(PersistedSettings.PlatinumIconScalePercent), StringComparison.Ordinal);
+                   string.Equals(propertyName, nameof(PersistedSettings.PlatinumIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.GoldIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.SilverIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.BronzeIconScalePercent), StringComparison.Ordinal);
         }
 
         /// <summary>
-        /// Multiplier for the Platinum trophy in small views (1.0 = default size).
+        /// Multiplier for a trophy icon in small views (1.0 = default size), from the per-trophy
+        /// "icon size" settings. Any other key returns 1.0.
         /// </summary>
-        public static double PlatinumIconScale
+        public static double GetIconScale(string iconKey)
         {
-            get
+            var settings = _activeSettings;
+            if (settings == null || string.IsNullOrEmpty(iconKey))
             {
-                var percent = _activeSettings?.PlatinumIconScalePercent ?? 100;
-                return Math.Max(100, Math.Min(200, percent)) / 100.0;
+                return 1.0;
             }
+
+            int percent;
+            switch (iconKey)
+            {
+                case "TrophyPlatinum":
+                case "CapstonePlatinum":
+                    percent = settings.PlatinumIconScalePercent;
+                    break;
+                case "TrophyGold":
+                    percent = settings.GoldIconScalePercent;
+                    break;
+                case "TrophySilver":
+                    percent = settings.SilverIconScalePercent;
+                    break;
+                case "TrophyBronze":
+                    percent = settings.BronzeIconScalePercent;
+                    break;
+                default:
+                    return 1.0;
+            }
+
+            return Math.Max(50, Math.Min(200, percent)) / 100.0;
         }
+
+        /// <summary>Multiplier for the Platinum trophy in small views (1.0 = default size).</summary>
+        public static double PlatinumIconScale => GetIconScale("TrophyPlatinum");
 
         private static void ApplyGeneratedBadgeResources(ResourceDictionary resources, PersistedSettings settings)
         {

@@ -319,12 +319,14 @@ namespace PlayniteAchievements.Views.Controls
 
             var width = 0d;
             var height = _iconSize;
-            // An enlarged Platinum icon grows upward from the shared bottom edge, so reserve the
-            // extra height above and below to keep the other icons vertically centered.
-            var platinumExtra = _layout.Any(b => b.Spec.ImageKey == "TrophyPlatinum")
-                ? _iconSize * (RarityAppearanceHelper.PlatinumIconScale - 1)
-                : 0;
-            height = Math.Max(height, _iconSize + 2 * platinumExtra);
+            // An enlarged trophy grows upward from the shared bottom edge, so reserve the extra
+            // height above and below to keep the other icons vertically centered.
+            var maxScale = _layout
+                .Select(b => RarityAppearanceHelper.GetIconScale(b.Spec.ImageKey))
+                .DefaultIfEmpty(1.0)
+                .Max();
+            var iconExtra = maxScale > 1.0 ? _iconSize * (maxScale - 1) : 0;
+            height = Math.Max(height, _iconSize + 2 * iconExtra);
             foreach (var badge in _layout)
             {
                 width += badge.Width;
@@ -356,16 +358,13 @@ namespace PlayniteAchievements.Views.Controls
                     if (_images.TryGetValue(badge.Spec.ImageKey, out var image) && image != null)
                     {
                         var rect = FitUniform(image, badge.Left + ItemSideMargin, iconTop, _iconSize);
-                        if (badge.Spec.ImageKey == "TrophyPlatinum")
+                        var scale = RarityAppearanceHelper.GetIconScale(badge.Spec.ImageKey);
+                        if (Math.Abs(scale - 1.0) > 0.001)
                         {
-                            var scale = RarityAppearanceHelper.PlatinumIconScale;
-                            if (scale > 1.0)
-                            {
-                                // Grow from the bottom-center so it stays aligned with its neighbors.
-                                var w = rect.Width * scale;
-                                var h = rect.Height * scale;
-                                rect = new Rect(rect.X + (rect.Width - w) / 2, rect.Bottom - h, w, h);
-                            }
+                            // Resize from the bottom-center so it stays aligned with its neighbors.
+                            var w = rect.Width * scale;
+                            var h = rect.Height * scale;
+                            rect = new Rect(rect.X + (rect.Width - w) / 2, rect.Bottom - h, w, h);
                         }
 
                         icons.DrawImage(image, rect);

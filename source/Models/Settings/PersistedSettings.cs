@@ -208,6 +208,9 @@ namespace PlayniteAchievements.Models.Settings
         private RarityIconOverrideSettings _rarityIconOverrides = RarityIconOverrideSettings.CreateDefault();
         private bool _capstonesUsePlatinumRarity = false;
         private int _platinumIconScalePercent = 100;
+        private int _goldIconScalePercent = 100;
+        private int _silverIconScalePercent = 100;
+        private int _bronzeIconScalePercent = 100;
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
@@ -2360,7 +2363,28 @@ namespace PlayniteAchievements.Models.Settings
         public int PlatinumIconScalePercent
         {
             get => _platinumIconScalePercent;
-            set => SetValue(ref _platinumIconScalePercent, Math.Max(100, Math.Min(200, value)));
+            set => SetValue(ref _platinumIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>Gold trophy size in small views, as a percentage of normal (100 = default).</summary>
+        public int GoldIconScalePercent
+        {
+            get => _goldIconScalePercent;
+            set => SetValue(ref _goldIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>Silver trophy size in small views, as a percentage of normal (100 = default).</summary>
+        public int SilverIconScalePercent
+        {
+            get => _silverIconScalePercent;
+            set => SetValue(ref _silverIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>Bronze trophy size in small views, as a percentage of normal (100 = default).</summary>
+        public int BronzeIconScalePercent
+        {
+            get => _bronzeIconScalePercent;
+            set => SetValue(ref _bronzeIconScalePercent, Math.Max(50, Math.Min(200, value)));
         }
 
         /// <summary>
@@ -3585,6 +3609,9 @@ namespace PlayniteAchievements.Models.Settings
                 RarityIconOverrides = this.RarityIconOverrides?.Clone() ?? RarityIconOverrideSettings.CreateDefault(),
                 CapstonesUsePlatinumRarity = this.CapstonesUsePlatinumRarity,
                 PlatinumIconScalePercent = this.PlatinumIconScalePercent,
+                GoldIconScalePercent = this.GoldIconScalePercent,
+                SilverIconScalePercent = this.SilverIconScalePercent,
+                BronzeIconScalePercent = this.BronzeIconScalePercent,
                 ProviderColorOverrides = this.ProviderColorOverrides != null
                     ? new Dictionary<string, string>(
                         this.ProviderColorOverrides,
@@ -3762,6 +3789,9 @@ namespace PlayniteAchievements.Models.Settings
             RarityIconOverrides = RarityIconOverrideSettings.CreateDefault();
             CapstonesUsePlatinumRarity = defaults.CapstonesUsePlatinumRarity;
             PlatinumIconScalePercent = defaults.PlatinumIconScalePercent;
+            GoldIconScalePercent = defaults.GoldIconScalePercent;
+            SilverIconScalePercent = defaults.SilverIconScalePercent;
+            BronzeIconScalePercent = defaults.BronzeIconScalePercent;
             ProviderColorOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ResourceOverrides = CreateDefaultResourceOverrides();
 
