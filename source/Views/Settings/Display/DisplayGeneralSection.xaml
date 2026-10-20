@@ -144,6 +144,21 @@
                                Opacity="0.7"
                                Margin="0,0,0,6"/>
                     <StackPanel x:Name="RarityIconOverridesHost"/>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_PlatinumIconScale}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_PlatinumIconScale_Help}">
+                        <StackPanel Orientation="Horizontal">
+                            <Slider Style="{DynamicResource SettingsSliderStyle}"
+                                    Minimum="100" Maximum="200"
+                                    SmallChange="5" LargeChange="10" TickFrequency="5" IsSnapToTickEnabled="True"
+                                    Value="{Binding Persisted.PlatinumIconScalePercent, Mode=TwoWay}"
+                                    Width="160"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"/>
+                            <TextBox Text="{Binding Persisted.PlatinumIconScalePercent, UpdateSourceTrigger=LostFocus}"
+                                     Width="56"
+                                     TextAlignment="Right"/>
+                        </StackPanel>
+                    </controls:SettingRow>
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_RoundRarityPercentages}"
                                          Hint="{DynamicResource LOCPlayAch_Settings_RoundRarityPercentages_Help}">
                         <CheckBox IsChecked="{Binding Persisted.RoundRarityPercentages}"/>

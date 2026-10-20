@@ -32,6 +32,8 @@
                         <Grid Width="18" Height="18" Margin="{StaticResource PlayAch.Thickness.Right.Compact}" VerticalAlignment="Center">
                             <!-- Badge icons: complex DrawingImages from AchievementResources.xaml -->
                             <Image SnapsToDevicePixels="True"
+                                   RenderTransformOrigin="0.5,1"
+                                   RenderTransform="{Binding ChartPoint.Instance.IconKey, Converter={StaticResource PlatinumIconTransform}}"
                                    RenderOptions.BitmapScalingMode="NearestNeighbor">
                                 <Image.Source>
                                     <MultiBinding Converter="{StaticResource ResourceKeyToImage}">

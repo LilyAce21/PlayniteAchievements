@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -318,6 +319,12 @@ namespace PlayniteAchievements.Views.Controls
 
             var width = 0d;
             var height = _iconSize;
+            // An enlarged Platinum icon grows upward from the shared bottom edge, so reserve the
+            // extra height above and below to keep the other icons vertically centered.
+            var platinumExtra = _layout.Any(b => b.Spec.ImageKey == "TrophyPlatinum")
+                ? _iconSize * (RarityAppearanceHelper.PlatinumIconScale - 1)
+                : 0;
+            height = Math.Max(height, _iconSize + 2 * platinumExtra);
             foreach (var badge in _layout)
             {
                 width += badge.Width;
@@ -348,7 +355,20 @@ namespace PlayniteAchievements.Views.Controls
                 {
                     if (_images.TryGetValue(badge.Spec.ImageKey, out var image) && image != null)
                     {
-                        icons.DrawImage(image, FitUniform(image, badge.Left + ItemSideMargin, iconTop, _iconSize));
+                        var rect = FitUniform(image, badge.Left + ItemSideMargin, iconTop, _iconSize);
+                        if (badge.Spec.ImageKey == "TrophyPlatinum")
+                        {
+                            var scale = RarityAppearanceHelper.PlatinumIconScale;
+                            if (scale > 1.0)
+                            {
+                                // Grow from the bottom-center so it stays aligned with its neighbors.
+                                var w = rect.Width * scale;
+                                var h = rect.Height * scale;
+                                rect = new Rect(rect.X + (rect.Width - w) / 2, rect.Bottom - h, w, h);
+                            }
+                        }
+
+                        icons.DrawImage(image, rect);
                     }
                 }
             }

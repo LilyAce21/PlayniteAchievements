@@ -1056,6 +1056,8 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_UseUniformRarityBadges">Use Uniform Rarity Badges</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_UseTrophiesForRarity">Use Trophies for Rarity</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_RoundRarityPercentages">Round Rarity Percentages</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PlatinumIconScale">Platinum icon size (%)</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_PlatinumIconScale_Help">Enlarges the Platinum trophy in small views: under completion bars, in pie charts and in the showcase. 100 keeps the default size; it grows upward so the bottom stays aligned with the other trophies.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CapstonesUsePlatinumRarity">Auto/PSN capstones always use Platinum rarity</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CapstonesUsePlatinumRarity_Help">Auto and PSN capstones show the Platinum rarity tier regardless of their rarity percentage. Normal achievements still follow rarity percent. Takes effect the next time achievement data reloads.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CustomRarityIcons">Custom rarity and trophy icons</sys:String>

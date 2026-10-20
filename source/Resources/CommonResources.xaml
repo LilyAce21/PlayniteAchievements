@@ -21,6 +21,7 @@
     <converters:EnumToBoolConverter x:Key="EnumToBool"/>
     <converters:IntToVisibilityConverter x:Key="IntToVis"/>
     <converters:ResourceKeyToImageSourceConverter x:Key="ResourceKeyToImage"/>
+    <converters:PlatinumIconTransformConverter x:Key="PlatinumIconTransform"/>
     <converters:ProviderIconConverter x:Key="ProviderIconConverter"/>
     <converters:DefaultGameImageConverter x:Key="DefaultGameImage"/>
     <converters:PercentToRarityGlowConverter x:Key="PercentToRarityGlow"/>

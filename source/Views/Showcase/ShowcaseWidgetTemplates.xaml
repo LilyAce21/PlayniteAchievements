@@ -9,6 +9,7 @@
 
     <converters:BooleanConverter x:Key="BoolToVis" Mode="ToVisibility"/>
     <converters:ResourceKeyToImageSourceConverter x:Key="ShowcaseResourceKeyToImage"/>
+    <converters:PlatinumIconTransformConverter x:Key="ShowcasePlatinumIconTransform"/>
     <converters:RaritySelectionIncludesCompletedConverter x:Key="RaritySelectionIncludesCompleted"/>
     <converters:ProviderIconConverter x:Key="ShowcaseProviderIcon"/>
     <converters:UniformImageInsetConverter x:Key="UniformImageInset"/>
@@ -270,6 +271,8 @@
                                         <Image Source="{Binding IconKey, Converter={StaticResource ShowcaseResourceKeyToImage}}"
                                                Width="16"
                                                Height="16"
+                                               RenderTransformOrigin="0.5,1"
+                                               RenderTransform="{Binding IconKey, Converter={StaticResource ShowcasePlatinumIconTransform}}"
                                                VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding CountText}"
                                                    Foreground="{DynamicResource PlayAch.Brush.Text}"

@@ -729,7 +729,20 @@ namespace PlayniteAchievements.Models.Achievements
             return string.Equals(propertyName, nameof(PersistedSettings.RarityColors), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.UseUniformRarityBadges), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.UseTrophiesForRarity), StringComparison.Ordinal) ||
-                   string.Equals(propertyName, nameof(PersistedSettings.RarityIconOverrides), StringComparison.Ordinal);
+                   string.Equals(propertyName, nameof(PersistedSettings.RarityIconOverrides), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.PlatinumIconScalePercent), StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Multiplier for the Platinum trophy in small views (1.0 = default size).
+        /// </summary>
+        public static double PlatinumIconScale
+        {
+            get
+            {
+                var percent = _activeSettings?.PlatinumIconScalePercent ?? 100;
+                return Math.Max(100, Math.Min(200, percent)) / 100.0;
+            }
         }
 
         private static void ApplyGeneratedBadgeResources(ResourceDictionary resources, PersistedSettings settings)

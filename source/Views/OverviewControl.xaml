@@ -32,6 +32,8 @@
                           SnapsToDevicePixels="True">
                         <!-- Badge icons: complex DrawingImages from AchievementResources.xaml -->
                         <Image Source="{Binding IconKey, Converter={StaticResource ResourceKeyToImage}}"
+                               RenderTransformOrigin="0.5,1"
+                               RenderTransform="{Binding IconKey, Converter={StaticResource PlatinumIconTransform}}"
                                Effect="{StaticResource BadgeShadow}"
                                SnapsToDevicePixels="True"
                                RenderOptions.BitmapScalingMode="NearestNeighbor"/>

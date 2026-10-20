@@ -207,6 +207,7 @@ namespace PlayniteAchievements.Models.Settings
         private RarityColorSettings _rarityColors = RarityColorSettings.CreateDefault();
         private RarityIconOverrideSettings _rarityIconOverrides = RarityIconOverrideSettings.CreateDefault();
         private bool _capstonesUsePlatinumRarity = false;
+        private int _platinumIconScalePercent = 100;
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
@@ -2353,6 +2354,16 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// Size of the Platinum trophy in small views (footer under completion bars, pie charts,
+        /// showcase), as a percentage of the normal icon size. 100 keeps the default size.
+        /// </summary>
+        public int PlatinumIconScalePercent
+        {
+            get => _platinumIconScalePercent;
+            set => SetValue(ref _platinumIconScalePercent, Math.Max(100, Math.Min(200, value)));
+        }
+
+        /// <summary>
         /// User-selected provider colors keyed by provider key. Providers without an entry use
         /// the brand color supplied by their IDataProvider implementation.
         /// </summary>
@@ -3573,6 +3584,7 @@ namespace PlayniteAchievements.Models.Settings
                 RarityColors = this.RarityColors?.Clone() ?? RarityColorSettings.CreateDefault(),
                 RarityIconOverrides = this.RarityIconOverrides?.Clone() ?? RarityIconOverrideSettings.CreateDefault(),
                 CapstonesUsePlatinumRarity = this.CapstonesUsePlatinumRarity,
+                PlatinumIconScalePercent = this.PlatinumIconScalePercent,
                 ProviderColorOverrides = this.ProviderColorOverrides != null
                     ? new Dictionary<string, string>(
                         this.ProviderColorOverrides,
@@ -3749,6 +3761,7 @@ namespace PlayniteAchievements.Models.Settings
             RarityColors = RarityColorSettings.CreateDefault();
             RarityIconOverrides = RarityIconOverrideSettings.CreateDefault();
             CapstonesUsePlatinumRarity = defaults.CapstonesUsePlatinumRarity;
+            PlatinumIconScalePercent = defaults.PlatinumIconScalePercent;
             ProviderColorOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ResourceOverrides = CreateDefaultResourceOverrides();
 
