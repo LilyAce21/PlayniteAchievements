@@ -82,6 +82,22 @@ namespace PlayniteAchievements.Views
             set => SetValue(SelectedProviderNavigationItemProperty, value);
         }
 
+        public ObservableCollection<ProviderNavigationItem> ForkProviderNavigationItems { get; } =
+            new ObservableCollection<ProviderNavigationItem>();
+
+        public static readonly DependencyProperty SelectedForkProviderNavigationItemProperty =
+            DependencyProperty.Register(
+                nameof(SelectedForkProviderNavigationItem),
+                typeof(ProviderNavigationItem),
+                typeof(SettingsControl),
+                new PropertyMetadata(null, OnSelectedProviderNavigationItemChanged));
+
+        public ProviderNavigationItem SelectedForkProviderNavigationItem
+        {
+            get => (ProviderNavigationItem)GetValue(SelectedForkProviderNavigationItemProperty);
+            set => SetValue(SelectedForkProviderNavigationItemProperty, value);
+        }
+
         /// <summary>
         /// Set before opening settings to navigate directly to a provider tab.
         /// Cleared after use.
@@ -110,6 +126,8 @@ namespace PlayniteAchievements.Views
             // Playnite does not reliably set DataContext for settings views.
             // Bind directly to the settings model so XAML uses {Binding SomeSetting}.
             DataContext = _settingsViewModel.Settings;
+            ForkGeneralSettingsContent.Content = new ForkGeneralSettingsSection(
+                _settingsViewModel.Settings, _plugin);
             if (FriendsSettingsContent != null)
             {
                 FriendsSettingsContent.Content = new FriendsSettingsTab(
@@ -267,6 +285,7 @@ namespace PlayniteAchievements.Views
             }
 
             ProviderNavigationItems.Clear();
+            ForkProviderNavigationItems.Clear();
 
             foreach (var providerKey in _providerRegistry.GetSettingsViewProviderKeys())
             {
@@ -301,10 +320,20 @@ namespace PlayniteAchievements.Views
                 }
                 else
                 {
-                    settingsViewFactory = () => _providerRegistry.CreateSettingsView(providerKey);
+                    settingsViewFactory = () =>
+                    {
+                        var view = _providerRegistry.CreateSettingsView(providerKey);
+                        if (view is Providers.Steam.SteamSettingsView steamView)
+                        {
+                            steamView.ShowSecondarySettings(false);
+                        }
+                        return view;
+                    };
                 }
 
-                ProviderNavigationItems.Add(new ProviderNavigationItem(
+                var navigationItems = string.Equals(providerKey, "Local", StringComparison.OrdinalIgnoreCase)
+                    ? ForkProviderNavigationItems : ProviderNavigationItems;
+                navigationItems.Add(new ProviderNavigationItem(
                     providerKey,
                     displayName,
                     GetProviderSettingsGroupName(providerKey),
@@ -314,6 +343,22 @@ namespace PlayniteAchievements.Views
                     settingsViewFactory,
                     redirectProviderKey,
                     subtitle));
+
+                if (string.Equals(providerKey, "Steam", StringComparison.OrdinalIgnoreCase))
+                {
+                    ForkProviderNavigationItems.Add(new ProviderNavigationItem(
+                        providerKey, displayName, GetProviderSettingsGroupName(providerKey),
+                        iconKey, colorHex, settings,
+                        () =>
+                        {
+                            var view = _providerRegistry.CreateSettingsView(providerKey);
+                            if (view is Providers.Steam.SteamSettingsView steamView)
+                            {
+                                steamView.ShowSecondarySettings(true);
+                            }
+                            return view;
+                        }));
+                }
             }
 
             if (selectDefault && SelectedProviderNavigationItem == null && ProviderNavigationItems.Count > 0)
@@ -322,6 +367,10 @@ namespace PlayniteAchievements.Views
             }
 
             _providerNavigationBuilt = true;
+            if (selectDefault && SelectedForkProviderNavigationItem == null && ForkProviderNavigationItems.Count > 0)
+            {
+                SelectedForkProviderNavigationItem = ForkProviderNavigationItems[0];
+            }
             _logger?.Info($"Built {ProviderNavigationItems.Count} platform navigation items");
         }
 
@@ -367,7 +416,8 @@ namespace PlayniteAchievements.Views
             }
 
             if (token.IsCancellationRequested ||
-                !ReferenceEquals(SelectedProviderNavigationItem, item))
+                (!ReferenceEquals(SelectedProviderNavigationItem, item) &&
+                 !ReferenceEquals(SelectedForkProviderNavigationItem, item)))
             {
                 return;
             }
@@ -432,25 +482,31 @@ namespace PlayniteAchievements.Views
             PendingNavigationProviderKey = null;
 
             // Find and select the provider navigation item matching the target key
-            var targetItem = ProviderNavigationItems?.FirstOrDefault(x =>
+            var targetItem = ProviderNavigationItems.Concat(ForkProviderNavigationItems).FirstOrDefault(x =>
                 string.Equals(x.ProviderKey, targetKey, StringComparison.OrdinalIgnoreCase));
 
             if (targetItem != null)
             {
                 // Ensure Providers tab is visible
-                if (ProvidersTab != null)
+                if (ForkProviderNavigationItems.Contains(targetItem))
+                {
+                    SettingsTabControl.SelectedItem = SantodanForkTab;
+                    ForkSettingsTabControl.SelectedItem = ForkPlatformsTab;
+                    SelectedForkProviderNavigationItem = targetItem;
+                }
+                else if (ProvidersTab != null)
                 {
                     SettingsTabControl.SelectedItem = ProvidersTab;
+                    SelectedProviderNavigationItem = targetItem;
                 }
 
-                SelectedProviderNavigationItem = targetItem;
                 _logger?.Info($"Navigated to pending provider: {targetKey}");
             }
         }
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!(sender is TabControl)) return;
+            if (!(sender is TabControl) || !ReferenceEquals(e.OriginalSource, sender)) return;
 
             // Inspect the newly selected TabItem by name (uses x:Name from XAML)
             if (e.AddedItems == null || e.AddedItems.Count == 0) return;
@@ -458,7 +514,16 @@ namespace PlayniteAchievements.Views
 
             var name = selected.Name ?? string.Empty;
 
-            if (string.Equals(name, "ProvidersTab", StringComparison.OrdinalIgnoreCase))
+            if (ReferenceEquals(selected, SantodanForkTab))
+            {
+                if (ReferenceEquals(ForkSettingsTabControl?.SelectedItem, ForkThemeMigrationTab))
+                {
+                    EnsureLegacyNotificationSettingsContent();
+                    _legacyNotificationSettingsControl?.RefreshThemeMigrationContent();
+                }
+            }
+            else if (string.Equals(name, "ProvidersTab", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(name, "ForkPlatformsTab", StringComparison.OrdinalIgnoreCase))
             {
                 BuildProviderNavigationItems(selectDefault: string.IsNullOrWhiteSpace(PendingNavigationProviderKey));
                 NavigateToPendingProvider();
@@ -511,6 +576,18 @@ namespace PlayniteAchievements.Views
             TabItem tab;
             switch (tabKey)
             {
+                case "Santodan-Fork":
+                case "ForkGeneral":
+                case "ForkPlatforms":
+                case "AchievementNotifications":
+                case "ForkThemeMigration":
+                    SettingsTabControl.SelectedItem = SantodanForkTab;
+                    ForkSettingsTabControl.SelectedItem = tabKey == "ForkPlatforms"
+                        ? ForkPlatformsTab
+                        : tabKey == "AchievementNotifications"
+                        ? AchievementNotificationsTab
+                        : tabKey == "ForkThemeMigration" ? ForkThemeMigrationTab : ForkGeneralTab;
+                    return;
                 case "Display":
                     tab = DisplayTab;
                     break;
@@ -573,7 +650,7 @@ namespace PlayniteAchievements.Views
             if (string.IsNullOrEmpty(e?.PropertyName) ||
                 e.PropertyName == nameof(PersistedSettings.ProviderColorOverrides))
             {
-                foreach (var item in ProviderNavigationItems)
+                foreach (var item in ProviderNavigationItems.Concat(ForkProviderNavigationItems))
                 {
                     item.RefreshProviderAppearance();
                 }

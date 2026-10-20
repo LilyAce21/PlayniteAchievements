@@ -2,6 +2,16 @@
 
 ## v4.1.1 integration - 2026-10-20
 
+The first settings tab is Santodan-Fork, containing General, Platforms,
+Achievement Notification, and Theme Migration. General hosts cached-unlock
+protection and the log tools; upstream General/Maintenance retains its upstream
+content. Fork Platforms hosts Local and Steam's Secondary settings, while the
+original Steam settings remain under the main Platforms tab. Local's General,
+Import, and SuccessStory tabs use settings, download, and trophy icons; Secondary
+uses an accounts icon. Steam import is a full-width section below Active account
+with the same heading style. Release rebuilds and layout checks passed; live
+verification of the final import layout remains pending.
+
 The migration pages under Display and Themes use the upstream v4.1.1 layout,
 retaining the two-way Revert selection fix. Fork migration controls remain in the
 separate Theme Migration tab on the main settings page. The Release rebuild passed;

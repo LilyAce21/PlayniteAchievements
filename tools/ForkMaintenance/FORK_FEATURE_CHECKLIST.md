@@ -60,6 +60,9 @@ at the repository root for remaining missing features and live-verification task
 
 ## Maintenance logs
 
+- Santodan-Fork is the first settings tab, with General, Platforms, Achievement
+  Notification, and Theme Migration inside it. Its General page hosts cached-unlock
+  protection and log tools; upstream General/Maintenance retains upstream content.
 - General > Maintenance ends with Open logs, Copy Logs, and Delete Logs.
 - Each action lets the user select playnite.log, extensions.log, and/or
   playniteachievements.log. Copy then asks for a destination folder and confirms
@@ -370,6 +373,14 @@ Primary fork areas:
 
 ## Steam and imports
 
+- Santodan-Fork > Platforms contains Local and Steam Secondary; the main Platforms
+  tab retains the original Steam settings. Local navigation links open the fork page.
+- Local General, Import, and SuccessStory headers have settings, download, and trophy
+  icons. Steam Secondary has an accounts icon and shares the Steam settings edit
+  session with the original page.
+- Steam Secondary presents import as a full-width section below Active account,
+  using the same heading style. Verify account editing, imports, and Save/Cancel
+  after switching between the original and fork platform pages.
 - Steam browser authentication and Web API-key accounts both work.
 - With a non-English achievement language selected, refreshing a Steam game
   obtains localized hidden-achievement titles and descriptions from Steam's

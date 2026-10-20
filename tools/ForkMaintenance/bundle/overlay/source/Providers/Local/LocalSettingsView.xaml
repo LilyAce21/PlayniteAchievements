@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:PlayniteAchievements.Providers.Local"
+             xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
              xmlns:settings="clr-namespace:PlayniteAchievements.Providers.Settings"
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="700">
 
@@ -16,7 +17,13 @@
     </UserControl.Resources>
 
     <TabControl SelectedIndex="0">
-        <TabItem Header="General">
+        <TabItem AutomationProperties.Name="General">
+            <TabItem.Header>
+                <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                    <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEF3A;"/>
+                    <TextBlock Text="General" VerticalAlignment="Center"/>
+                </StackPanel>
+            </TabItem.Header>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20">
 
@@ -465,7 +472,13 @@
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
-        <TabItem Header="Import">
+        <TabItem AutomationProperties.Name="Import">
+            <TabItem.Header>
+                <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                    <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEF08;"/>
+                    <TextBlock Text="Import" VerticalAlignment="Center"/>
+                </StackPanel>
+            </TabItem.Header>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20">
                     <Border Style="{StaticResource SectionBorderStyle}" Margin="0,0,0,16" IsEnabled="{Binding Settings.IsEnabled}">
@@ -542,7 +555,13 @@
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
-        <TabItem Header="SuccessStory">
+        <TabItem AutomationProperties.Name="SuccessStory">
+            <TabItem.Header>
+                <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                    <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEDD7;"/>
+                    <TextBlock Text="SuccessStory" VerticalAlignment="Center"/>
+                </StackPanel>
+            </TabItem.Header>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="20">
             <Border Style="{StaticResource SectionBorderStyle}" Margin="0,0,0,16" IsEnabled="{Binding Settings.IsEnabled}">

@@ -3659,24 +3659,30 @@ index d013cc4fe0b54e7b9948942e538d8ac86e8e848c..96aba96482c2fc9f451a6d3508d53376
 -
  }
 diff --git a/source/Providers/Steam/SteamSettingsView.xaml b/source/Providers/Steam/SteamSettingsView.xaml
-index 0fe1fd8eaf7377c087e03d0444e4fbfea903616a..b3b630deba7fea6902c3a636a99ac62558855efd 100644
+index 0fe1fd8eaf7377c087e03d0444e4fbfea903616a..250dcbf6f5e8c6ebe5d43b4ecf1e9caec12c4ae1 100644
 --- a/source/Providers/Steam/SteamSettingsView.xaml
 +++ b/source/Providers/Steam/SteamSettingsView.xaml
 @@ -18,6 +18,8 @@
          </ResourceDictionary>
      </UserControl.Resources>
  
-+    <TabControl>
-+        <TabItem Header="Original">
++    <TabControl x:Name="SteamSettingsTabs">
++        <TabItem x:Name="OriginalSettingsTab" Header="Original">
      <ScrollViewer VerticalScrollBarVisibility="Auto"
                    HorizontalScrollBarVisibility="Disabled">
          <StackPanel Margin="20">
-@@ -129,5 +131,202 @@
+@@ -129,5 +131,200 @@
  
          </StackPanel>
      </ScrollViewer>
 +        </TabItem>
-+        <TabItem Header="Secondary">
++        <TabItem x:Name="SecondarySettingsTab" AutomationProperties.Name="Secondary">
++            <TabItem.Header>
++                <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
++                    <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xED0D;"/>
++                    <TextBlock Text="Secondary" VerticalAlignment="Center"/>
++                </StackPanel>
++            </TabItem.Header>
 +            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 +                <StackPanel Margin="20">
 +                    <StackPanel.Style>
@@ -3778,20 +3784,12 @@ index 0fe1fd8eaf7377c087e03d0444e4fbfea903616a..b3b630deba7fea6902c3a636a99ac625
 +                                        HorizontalAlignment="Left"/>
 +                                </StackPanel>
 +<!-- Steam Import Section -->
-+                    <Grid Margin="0,14,0,0">
-+                        <Grid.ColumnDefinitions>
-+                            <ColumnDefinition Width="180"/>
-+                            <ColumnDefinition Width="*"/>
-+                        </Grid.ColumnDefinitions>
++                    <StackPanel Margin="0,20,0,0">
++                        <TextBlock Text="{DynamicResource LOCPlayAch_Settings_Steam_ImportOwnedGames}"
++                                   Style="{StaticResource SectionHeaderStyle}"/>
 +
-+                        <TextBlock Grid.Column="0"
-+                                   Text="{DynamicResource LOCPlayAch_Settings_Steam_ImportOwnedGames}"
-+                                   Foreground="{DynamicResource TextBrush}"
-+                                   VerticalAlignment="Top"
-+                                   Margin="0,8,0,0"/>
-+
-+                        <Border Grid.Column="1"
-+                                Background="{DynamicResource PanelBackgroundBrush}"
++                        <Border Background="{DynamicResource PanelBackgroundBrush}"
++                                Margin="0,8,0,0"
 +                                CornerRadius="8"
 +                                Padding="16"
 +                                BorderThickness="1"
@@ -3865,7 +3863,7 @@ index 0fe1fd8eaf7377c087e03d0444e4fbfea903616a..b3b630deba7fea6902c3a636a99ac625
 +                                        HorizontalAlignment="Left"/>
 +                            </StackPanel>
 +                        </Border>
-+                    </Grid>
++                    </StackPanel>
 +
 +
 +                </StackPanel>
@@ -3875,7 +3873,7 @@ index 0fe1fd8eaf7377c087e03d0444e4fbfea903616a..b3b630deba7fea6902c3a636a99ac625
  </settings:ProviderSettingsViewBase>
  
 diff --git a/source/Providers/Steam/SteamSettingsView.xaml.cs b/source/Providers/Steam/SteamSettingsView.xaml.cs
-index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..5b3cbdb9821560d90b958409394e76dae4c5e23a 100644
+index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..3453420ce0ca34fecee1de1e800bd612bf1e872e 100644
 --- a/source/Providers/Steam/SteamSettingsView.xaml.cs
 +++ b/source/Providers/Steam/SteamSettingsView.xaml.cs
 @@ -1,4 +1,14 @@
@@ -3893,7 +3891,7 @@ index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..5b3cbdb9821560d90b958409394e76da
  using System.Threading;
  using System.Threading.Tasks;
  using System.Windows;
-@@ -19,6 +29,12 @@ public partial class SteamSettingsView : ProviderSettingsViewBase, IAuthRefresha
+@@ -19,6 +29,19 @@ public partial class SteamSettingsView : ProviderSettingsViewBase, IAuthRefresha
  
          private readonly SteamSessionManager _sessionManager;
          private SteamSettings _steamSettings;
@@ -3903,10 +3901,17 @@ index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..5b3cbdb9821560d90b958409394e76da
 +        private bool _loadingSteamAccountState;
 +        public ObservableCollection<ImportedGameMetadataSourceOption> AvailableMetadataSources { get; } = new ObservableCollection<ImportedGameMetadataSourceOption>();
 +        public ObservableCollection<SteamAccountSettings> SteamAccounts { get; } = new ObservableCollection<SteamAccountSettings>();
++
++        internal void ShowSecondarySettings(bool secondary)
++        {
++            OriginalSettingsTab.Visibility = secondary ? Visibility.Collapsed : Visibility.Visible;
++            SecondarySettingsTab.Visibility = secondary ? Visibility.Visible : Visibility.Collapsed;
++            SteamSettingsTabs.SelectedItem = secondary ? SecondarySettingsTab : OriginalSettingsTab;
++        }
  
          #region DependencyProperties
  
-@@ -75,13 +91,29 @@ public string WebAuthStatus
+@@ -75,13 +98,29 @@ public string WebAuthStatus
              set => SetValue(WebAuthStatusProperty, value);
          }
  
@@ -3937,7 +3942,7 @@ index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..5b3cbdb9821560d90b958409394e76da
              InitializeComponent();
              AuthLabel.Text = string.Format(
                  ResourceProvider.GetString("LOCPlayAch_Settings_ProviderAuth"),
-@@ -92,6 +124,10 @@ public override void Initialize(IProviderSettings settings)
+@@ -92,6 +131,10 @@ public override void Initialize(IProviderSettings settings)
          {
              _steamSettings = settings as SteamSettings;
              base.Initialize(settings);
@@ -3948,7 +3953,7 @@ index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..5b3cbdb9821560d90b958409394e76da
              SetAuthStatusVisualState(pending: true, success: false);
              WebAuthenticated = false;
              FullyConfigured = false;
-@@ -104,7 +140,10 @@ public async Task RefreshAuthStatusAsync()
+@@ -104,7 +147,10 @@ public async Task RefreshAuthStatusAsync()
              {
                  SetAuthStatusChecking();
                  WebAuthStatus = ResourceProvider.GetString("LOCPlayAch_Auth_Checking");
@@ -3960,7 +3965,7 @@ index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..5b3cbdb9821560d90b958409394e76da
                  UpdateAuthStatusFromResult(result);
              }
              catch (Exception ex)
-@@ -121,7 +160,17 @@ private void UpdateAuthStatusFromResult(AuthProbeResult result)
+@@ -121,7 +167,17 @@ private void UpdateAuthStatusFromResult(AuthProbeResult result)
                  ? result.UserId.Trim()
                  : null;
  
@@ -3978,7 +3983,7 @@ index dd1554c0ad1372807decc4da2876eb3edd5f4cdf..5b3cbdb9821560d90b958409394e76da
                  !string.IsNullOrWhiteSpace(probedSteamUserId) &&
                  !string.Equals(_steamSettings.SteamUserId, probedSteamUserId, StringComparison.Ordinal))
              {
-@@ -207,6 +256,615 @@ private async void Logout_Click(object sender, RoutedEventArgs e)
+@@ -207,6 +263,615 @@ private async void Logout_Click(object sender, RoutedEventArgs e)
              }
          }
  
@@ -20570,224 +20575,75 @@ index f380a0c8f2e4d0168462c3a8ab921737dafb2d7b..69cc88bd85b350373041d291c4cf5513
          }
  
          private static string L(string key)
-diff --git a/source/Views/Settings/General/MaintenanceSettingsSection.xaml b/source/Views/Settings/General/MaintenanceSettingsSection.xaml
-index 01837f9047e72fe02eb93dbc6dd790123cf8531a..a158214cab7ab81214afa4cf62a7448faeed3f29 100644
---- a/source/Views/Settings/General/MaintenanceSettingsSection.xaml
-+++ b/source/Views/Settings/General/MaintenanceSettingsSection.xaml
-@@ -40,6 +40,11 @@
-                                         MinWidth="130"/>
-                             </controls:SettingRow>
- 
-+                            <controls:SettingRow Label="Preserve cached unlocks on refresh"
-+                                                 Hint="When enabled, refreshes keep previously unlocked achievements even if the provider reports them locked. Disable to accept the selected account's current unlock states, including zero unlocks. Failed or empty responses remain protected.">
-+                                <CheckBox IsChecked="{Binding Persisted.PreserveCachedUnlocksOnRefresh, Mode=TwoWay}" />
-+                            </controls:SettingRow>
-+
-                             <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ClearUnownedFriendData_Description}"
-                                                  Margin="0">
-                                 <Button Content="{DynamicResource LOCClearLabel}"
-@@ -151,6 +156,19 @@
-                             </controls:SettingRow>
-                         </StackPanel>
-                     </Border>
-+                    <Border Style="{StaticResource SettingGroupCardStyle}">
-+                        <StackPanel>
-+                            <TextBlock Text="Logs" Style="{StaticResource SubSectionHeaderStyle}"/>
-+                            <WrapPanel Margin="0,8,0,0">
-+                                <Button Content="Open logs" Click="OpenLogs_Click" MinWidth="130" Margin="0,0,8,8"
-+                                        Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
-+                                <Button Content="Copy Logs" Click="CopyLogs_Click" MinWidth="130" Margin="0,0,8,8"
-+                                        Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
-+                                <Button Content="Delete Logs" Click="DeleteLogs_Click" MinWidth="130" Margin="0,0,0,8"
-+                                        Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
-+                            </WrapPanel>
-+                        </StackPanel>
-+                    </Border>
-                 </StackPanel>
-             </Border>
- 
-diff --git a/source/Views/Settings/General/MaintenanceSettingsSection.xaml.cs b/source/Views/Settings/General/MaintenanceSettingsSection.xaml.cs
-index 5c5a5b6752466b5d8b6b60736cdb5f57989391d3..975ffad00313b28f551a5cfcfd5bd01014b0fe65 100644
---- a/source/Views/Settings/General/MaintenanceSettingsSection.xaml.cs
-+++ b/source/Views/Settings/General/MaintenanceSettingsSection.xaml.cs
-@@ -727,6 +727,140 @@ private void ExportDatabase_Click(object sender, RoutedEventArgs e)
-             }
-         }
- 
-+        private List<string> GetLogPaths()
-+        {
-+            var root = _plugin.PlayniteApi.Paths.ApplicationPath;
-+            return new List<string>
-+            {
-+                Path.Combine(root, "playnite.log"),
-+                Path.Combine(root, "extensions.log"),
-+                Path.Combine(_plugin.GetPluginUserDataPath(), "playniteachievements.log")
-+            };
-+        }
-+
-+        private List<string> SelectLogs(string title)
-+        {
-+            var window = _plugin.PlayniteApi.Dialogs.CreateWindow(new WindowCreationOptions
-+            {
-+                ShowMinimizeButton = false,
-+                ShowMaximizeButton = false
-+            });
-+            window.Title = title;
-+            window.Owner = Window.GetWindow(this);
-+            window.SizeToContent = SizeToContent.WidthAndHeight;
-+            window.ResizeMode = ResizeMode.NoResize;
-+            window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-+            var panel = new StackPanel { Margin = new Thickness(20), MinWidth = 320 };
-+            var description = new TextBlock
-+            {
-+                Text = title == "Delete Logs"
-+                    ? "Select logs to delete. Active logs may be recreated by Playnite."
-+                    : title == "Copy Logs" ? "Select logs to copy." : "Select logs to open.",
-+                TextWrapping = TextWrapping.Wrap,
-+                MaxWidth = 400,
-+                Margin = new Thickness(0, 0, 0, 12)
-+            };
-+            description.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
-+            panel.Children.Add(description);
-+            var choices = new List<CheckBox>();
-+            foreach (var path in GetLogPaths())
-+            {
-+                var choice = new CheckBox
-+                {
-+                    Content = Path.GetFileName(path), Tag = path,
-+                    ToolTip = path, Margin = new Thickness(0, 0, 0, 8)
-+                };
-+                choices.Add(choice);
-+                panel.Children.Add(choice);
-+            }
-+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-+            var accept = new Button { Content = title, IsDefault = true, IsEnabled = false, MinWidth = 100, Margin = new Thickness(0, 8, 8, 0) };
-+            var cancel = new Button { Content = L("LOCPlayAch_Button_Cancel"), IsCancel = true, MinWidth = 100, Margin = new Thickness(0, 8, 0, 0) };
-+            foreach (var choice in choices)
-+            {
-+                RoutedEventHandler update = (s, args) => accept.IsEnabled = choices.Exists(c => c.IsChecked == true);
-+                choice.Checked += update;
-+                choice.Unchecked += update;
-+            }
-+            accept.Click += (s, args) => window.DialogResult = true;
-+            cancel.Click += (s, args) => window.DialogResult = false;
-+            buttons.Children.Add(accept);
-+            buttons.Children.Add(cancel);
-+            panel.Children.Add(buttons);
-+            window.Content = panel;
-+            if (window.ShowDialog() != true) return null;
-+            return choices.FindAll(c => c.IsChecked == true).ConvertAll(c => (string)c.Tag);
-+        }
-+
-+        private void OpenLogs_Click(object sender, RoutedEventArgs e)
-+        {
-+            var paths = SelectLogs("Open logs");
-+            if (paths == null) return;
-+            RunLogAction(paths, "Open logs", path => Process.Start(new ProcessStartInfo
-+            {
-+                FileName = path, UseShellExecute = true, Verb = "open"
-+            }), showSuccess: false);
-+        }
-+
-+        private void CopyLogs_Click(object sender, RoutedEventArgs e)
-+        {
-+            var paths = SelectLogs("Copy Logs");
-+            if (paths == null) return;
-+            var folder = _plugin.PlayniteApi.Dialogs.SelectFolder();
-+            if (string.IsNullOrWhiteSpace(folder)) return;
-+            RunLogAction(paths, "Copy Logs", path =>
-+            {
-+                var destination = Path.Combine(folder, Path.GetFileName(path));
-+                if (string.Equals(Path.GetFullPath(path), Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
-+                    throw new IOException("The destination is the original log file. Select another folder.");
-+                if (File.Exists(destination) && _plugin.PlayniteApi.Dialogs.ShowMessage(
-+                    "Replace the existing file?\n" + destination, "Copy Logs",
-+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-+                    throw new OperationCanceledException("Existing file was kept.");
-+                // Allow copying logs while their writers are active.
-+                using (var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-+                using (var output = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None))
-+                    input.CopyTo(output);
-+            });
-+        }
-+
-+        private void DeleteLogs_Click(object sender, RoutedEventArgs e)
-+        {
-+            var paths = SelectLogs("Delete Logs");
-+            if (paths == null) return;
-+            if (_plugin.PlayniteApi.Dialogs.ShowMessage("Delete these log files?\n" +
-+                string.Join("\n", paths.ConvertAll(Path.GetFileName)), "Delete Logs",
-+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-+            RunLogAction(paths, "Delete Logs", File.Delete);
-+        }
-+
-+        private void RunLogAction(List<string> paths, string title, Action<string> action, bool showSuccess = true)
-+        {
-+            var results = new List<string>();
-+            var failed = false;
-+            foreach (var path in paths)
-+            {
-+                try
-+                {
-+                    if (!File.Exists(path)) throw new FileNotFoundException("Log file was not found.", path);
-+                    action(path);
-+                    if (showSuccess) results.Add(Path.GetFileName(path) + ": Completed.");
-+                }
-+                catch (OperationCanceledException ex)
-+                {
-+                    results.Add(Path.GetFileName(path) + ": " + ex.Message);
-+                }
-+                catch (Exception ex)
-+                {
-+                    failed = true;
-+                    results.Add(Path.GetFileName(path) + ": " + ex.Message);
-+                }
-+            }
-+            if (!showSuccess && !failed) return;
-+            _plugin.PlayniteApi.Dialogs.ShowMessage(string.Join("\n", results), title,
-+                MessageBoxButton.OK, failed ? MessageBoxImage.Warning : MessageBoxImage.Information);
-+        }
-+
-         private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
-         {
-             try
 diff --git a/source/Views/SettingsControl.xaml b/source/Views/SettingsControl.xaml
-index faecf5fa804a3aafec164f7f03d853cde223fe70..20c5da3e06b308d11ef76946186f9344c669fee6 100644
+index faecf5fa804a3aafec164f7f03d853cde223fe70..f9dcd188c07745d2bf6c31c143b61b3fbf73e541 100644
 --- a/source/Views/SettingsControl.xaml
 +++ b/source/Views/SettingsControl.xaml
-@@ -67,6 +67,30 @@
-                 <ContentControl x:Name="FriendsSettingsContent"/>
-             </TabItem>
+@@ -29,6 +29,62 @@
  
-+            <!-- Fork notification editor retained alongside the v3 settings pages. -->
-+            <TabItem x:Name="AchievementNotificationsTab" AutomationProperties.Name="Achievement Notifications">
+     <Grid Margin="24,20,24,24">
+         <TabControl x:Name="SettingsTabControl" SelectionChanged="TabControl_SelectionChanged" BorderThickness="0">
++            <TabItem x:Name="SantodanForkTab" AutomationProperties.Name="Santodan-Fork">
 +                <TabItem.Header>
 +                    <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
-+                        <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xECA7;"/>
-+                        <TextBlock Text="Achievement Notifications" VerticalAlignment="Center"/>
++                        <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEF3A;"/>
++                        <TextBlock Text="Santodan-Fork" VerticalAlignment="Center"/>
 +                    </StackPanel>
 +                </TabItem.Header>
-+                <ContentControl x:Name="AchievementNotificationsContent"/>
++                <TabControl x:Name="ForkSettingsTabControl" SelectionChanged="TabControl_SelectionChanged" BorderThickness="0">
++                    <TabItem x:Name="ForkGeneralTab" AutomationProperties.Name="{DynamicResource LOCGeneralLabel}">
++                        <TabItem.Header>
++                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
++                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEF3A;"/>
++                                <TextBlock Text="{DynamicResource LOCGeneralLabel}" VerticalAlignment="Center"/>
++                            </StackPanel>
++                        </TabItem.Header>
++                        <ContentControl x:Name="ForkGeneralSettingsContent"/>
++                    </TabItem>
++                    <TabItem x:Name="ForkPlatformsTab" AutomationProperties.Name="{DynamicResource LOCPlatformsTitle}">
++                        <TabItem.Header>
++                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
++                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEA30;"/>
++                                <TextBlock Text="{DynamicResource LOCPlatformsTitle}" VerticalAlignment="Center"/>
++                            </StackPanel>
++                        </TabItem.Header>
++                        <nav:SettingsMasterDetailControl
++                            ItemsSource="{Binding ForkProviderNavigationItems, ElementName=SettingsControlRoot}"
++                            SelectedItem="{Binding SelectedForkProviderNavigationItem, ElementName=SettingsControlRoot, Mode=TwoWay}"
++                            ShowSearch="True"
++                            EnableGrouping="True"/>
++                    </TabItem>
++                    <!-- Fork notification editor retained alongside the v3 settings pages. -->
++                    <TabItem x:Name="AchievementNotificationsTab" AutomationProperties.Name="Achievement Notification">
++                        <TabItem.Header>
++                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
++                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xECA7;"/>
++                                <TextBlock Text="Achievement Notification" VerticalAlignment="Center"/>
++                            </StackPanel>
++                        </TabItem.Header>
++                        <ContentControl x:Name="AchievementNotificationsContent"/>
++                    </TabItem>
++
++                    <!-- Fork migration workflow retained as a separate page alongside v3 migration. -->
++                    <TabItem x:Name="ForkThemeMigrationTab"
++                             AutomationProperties.Name="{DynamicResource LOCPlayAch_ThemeMigration_Title}">
++                        <TabItem.Header>
++                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
++                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEFD2;"/>
++                                <TextBlock Text="{DynamicResource LOCPlayAch_ThemeMigration_Title}"
++                                           VerticalAlignment="Center"/>
++                            </StackPanel>
++                        </TabItem.Header>
++                        <ContentControl x:Name="ForkThemeMigrationContent"/>
++                    </TabItem>
++                </TabControl>
 +            </TabItem>
 +
-+            <!-- Fork migration workflow retained as a separate page alongside v3 migration. -->
-+            <TabItem x:Name="ForkThemeMigrationTab"
-+                     AutomationProperties.Name="{DynamicResource LOCPlayAch_ThemeMigration_Title}">
-+                <TabItem.Header>
-+                    <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
-+                        <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEFD2;"/>
-+                        <TextBlock Text="{DynamicResource LOCPlayAch_ThemeMigration_Title}"
-+                                   VerticalAlignment="Center"/>
-+                    </StackPanel>
-+                </TabItem.Header>
-+                <ContentControl x:Name="ForkThemeMigrationContent"/>
-+            </TabItem>
-+
-             <!-- ================== TAB: DISPLAY ================== -->
-             <TabItem x:Name="DisplayTab" AutomationProperties.Name="{DynamicResource LOCPlayAch_Settings_TabDisplay}">
+             <!-- ================== TAB: GENERAL SETTINGS ================== -->
+             <TabItem x:Name="GeneralTab" AutomationProperties.Name="{DynamicResource LOCGeneralLabel}">
                  <TabItem.Header>
 diff --git a/source/Views/SettingsControl.xaml.cs b/source/Views/SettingsControl.xaml.cs
-index 76589be2182172f07ff8ddafc8e14217ab303c7a..a272c5802539994361266b3a980285ce1962c952 100644
+index 76589be2182172f07ff8ddafc8e14217ab303c7a..e6cf3448c65a399ed4f6b77942fb71a665a6f0de 100644
 --- a/source/Views/SettingsControl.xaml.cs
 +++ b/source/Views/SettingsControl.xaml.cs
 @@ -51,6 +51,7 @@ public partial class SettingsControl : UserControl, IDisposable
@@ -20798,7 +20654,39 @@ index 76589be2182172f07ff8ddafc8e14217ab303c7a..a272c5802539994361266b3a980285ce
          private bool _providerNavigationBuilt;
          private readonly HashSet<string> _autoAuthCheckedProviders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
          private CancellationTokenSource _autoAuthDebounceCts;
-@@ -179,6 +180,12 @@ public SettingsControl(
+@@ -81,6 +82,22 @@ public ProviderNavigationItem SelectedProviderNavigationItem
+             set => SetValue(SelectedProviderNavigationItemProperty, value);
+         }
+ 
++        public ObservableCollection<ProviderNavigationItem> ForkProviderNavigationItems { get; } =
++            new ObservableCollection<ProviderNavigationItem>();
++
++        public static readonly DependencyProperty SelectedForkProviderNavigationItemProperty =
++            DependencyProperty.Register(
++                nameof(SelectedForkProviderNavigationItem),
++                typeof(ProviderNavigationItem),
++                typeof(SettingsControl),
++                new PropertyMetadata(null, OnSelectedProviderNavigationItemChanged));
++
++        public ProviderNavigationItem SelectedForkProviderNavigationItem
++        {
++            get => (ProviderNavigationItem)GetValue(SelectedForkProviderNavigationItemProperty);
++            set => SetValue(SelectedForkProviderNavigationItemProperty, value);
++        }
++
+         /// <summary>
+         /// Set before opening settings to navigate directly to a provider tab.
+         /// Cleared after use.
+@@ -109,6 +126,8 @@ public SettingsControl(
+             // Playnite does not reliably set DataContext for settings views.
+             // Bind directly to the settings model so XAML uses {Binding SomeSetting}.
+             DataContext = _settingsViewModel.Settings;
++            ForkGeneralSettingsContent.Content = new ForkGeneralSettingsSection(
++                _settingsViewModel.Settings, _plugin);
+             if (FriendsSettingsContent != null)
+             {
+                 FriendsSettingsContent.Content = new FriendsSettingsTab(
+@@ -179,6 +198,12 @@ public SettingsControl(
  
              _settingsViewModel.Settings.PropertyChanged += Settings_PropertyChanged;
              AttachPersistedSettings(_settingsViewModel.Settings.Persisted);
@@ -20811,7 +20699,133 @@ index 76589be2182172f07ff8ddafc8e14217ab303c7a..a272c5802539994361266b3a980285ce
  
              // Debug logging to verify DataContext and Settings values
              _logger?.Info($"SettingsControl created. DataContext type: {DataContext?.GetType().Name}");
-@@ -456,6 +463,46 @@ private void TabControl_SelectionChanged(object sender, SelectionChangedEventArg
+@@ -260,6 +285,7 @@ private void BuildProviderNavigationItems(bool selectDefault = true)
+             }
+ 
+             ProviderNavigationItems.Clear();
++            ForkProviderNavigationItems.Clear();
+ 
+             foreach (var providerKey in _providerRegistry.GetSettingsViewProviderKeys())
+             {
+@@ -294,10 +320,20 @@ private void BuildProviderNavigationItems(bool selectDefault = true)
+                 }
+                 else
+                 {
+-                    settingsViewFactory = () => _providerRegistry.CreateSettingsView(providerKey);
++                    settingsViewFactory = () =>
++                    {
++                        var view = _providerRegistry.CreateSettingsView(providerKey);
++                        if (view is Providers.Steam.SteamSettingsView steamView)
++                        {
++                            steamView.ShowSecondarySettings(false);
++                        }
++                        return view;
++                    };
+                 }
+ 
+-                ProviderNavigationItems.Add(new ProviderNavigationItem(
++                var navigationItems = string.Equals(providerKey, "Local", StringComparison.OrdinalIgnoreCase)
++                    ? ForkProviderNavigationItems : ProviderNavigationItems;
++                navigationItems.Add(new ProviderNavigationItem(
+                     providerKey,
+                     displayName,
+                     GetProviderSettingsGroupName(providerKey),
+@@ -307,6 +343,22 @@ private void BuildProviderNavigationItems(bool selectDefault = true)
+                     settingsViewFactory,
+                     redirectProviderKey,
+                     subtitle));
++
++                if (string.Equals(providerKey, "Steam", StringComparison.OrdinalIgnoreCase))
++                {
++                    ForkProviderNavigationItems.Add(new ProviderNavigationItem(
++                        providerKey, displayName, GetProviderSettingsGroupName(providerKey),
++                        iconKey, colorHex, settings,
++                        () =>
++                        {
++                            var view = _providerRegistry.CreateSettingsView(providerKey);
++                            if (view is Providers.Steam.SteamSettingsView steamView)
++                            {
++                                steamView.ShowSecondarySettings(true);
++                            }
++                            return view;
++                        }));
++                }
+             }
+ 
+             if (selectDefault && SelectedProviderNavigationItem == null && ProviderNavigationItems.Count > 0)
+@@ -315,6 +367,10 @@ private void BuildProviderNavigationItems(bool selectDefault = true)
+             }
+ 
+             _providerNavigationBuilt = true;
++            if (selectDefault && SelectedForkProviderNavigationItem == null && ForkProviderNavigationItems.Count > 0)
++            {
++                SelectedForkProviderNavigationItem = ForkProviderNavigationItems[0];
++            }
+             _logger?.Info($"Built {ProviderNavigationItems.Count} platform navigation items");
+         }
+ 
+@@ -360,7 +416,8 @@ private async Task RunAutoAuthCheckAsync(ProviderNavigationItem item, Cancellati
+             }
+ 
+             if (token.IsCancellationRequested ||
+-                !ReferenceEquals(SelectedProviderNavigationItem, item))
++                (!ReferenceEquals(SelectedProviderNavigationItem, item) &&
++                 !ReferenceEquals(SelectedForkProviderNavigationItem, item)))
+             {
+                 return;
+             }
+@@ -425,25 +482,31 @@ private void NavigateToPendingProvider()
+             PendingNavigationProviderKey = null;
+ 
+             // Find and select the provider navigation item matching the target key
+-            var targetItem = ProviderNavigationItems?.FirstOrDefault(x =>
++            var targetItem = ProviderNavigationItems.Concat(ForkProviderNavigationItems).FirstOrDefault(x =>
+                 string.Equals(x.ProviderKey, targetKey, StringComparison.OrdinalIgnoreCase));
+ 
+             if (targetItem != null)
+             {
+                 // Ensure Providers tab is visible
+-                if (ProvidersTab != null)
++                if (ForkProviderNavigationItems.Contains(targetItem))
++                {
++                    SettingsTabControl.SelectedItem = SantodanForkTab;
++                    ForkSettingsTabControl.SelectedItem = ForkPlatformsTab;
++                    SelectedForkProviderNavigationItem = targetItem;
++                }
++                else if (ProvidersTab != null)
+                 {
+                     SettingsTabControl.SelectedItem = ProvidersTab;
++                    SelectedProviderNavigationItem = targetItem;
+                 }
+ 
+-                SelectedProviderNavigationItem = targetItem;
+                 _logger?.Info($"Navigated to pending provider: {targetKey}");
+             }
+         }
+ 
+         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+         {
+-            if (!(sender is TabControl)) return;
++            if (!(sender is TabControl) || !ReferenceEquals(e.OriginalSource, sender)) return;
+ 
+             // Inspect the newly selected TabItem by name (uses x:Name from XAML)
+             if (e.AddedItems == null || e.AddedItems.Count == 0) return;
+@@ -451,11 +514,60 @@ private void TabControl_SelectionChanged(object sender, SelectionChangedEventArg
+ 
+             var name = selected.Name ?? string.Empty;
+ 
+-            if (string.Equals(name, "ProvidersTab", StringComparison.OrdinalIgnoreCase))
++            if (ReferenceEquals(selected, SantodanForkTab))
++            {
++                if (ReferenceEquals(ForkSettingsTabControl?.SelectedItem, ForkThemeMigrationTab))
++                {
++                    EnsureLegacyNotificationSettingsContent();
++                    _legacyNotificationSettingsControl?.RefreshThemeMigrationContent();
++                }
++            }
++            else if (string.Equals(name, "ProvidersTab", StringComparison.OrdinalIgnoreCase) ||
++                     string.Equals(name, "ForkPlatformsTab", StringComparison.OrdinalIgnoreCase))
+             {
                  BuildProviderNavigationItems(selectDefault: string.IsNullOrWhiteSpace(PendingNavigationProviderKey));
                  NavigateToPendingProvider();
              }
@@ -20858,7 +20872,26 @@ index 76589be2182172f07ff8ddafc8e14217ab303c7a..a272c5802539994361266b3a980285ce
          }
  
          // Quick navigation callback used by the General tab's quick-link buttons
-@@ -499,11 +546,6 @@ private void JumpToTab(string tabKey)
+@@ -464,6 +576,18 @@ private void JumpToTab(string tabKey)
+             TabItem tab;
+             switch (tabKey)
+             {
++                case "Santodan-Fork":
++                case "ForkGeneral":
++                case "ForkPlatforms":
++                case "AchievementNotifications":
++                case "ForkThemeMigration":
++                    SettingsTabControl.SelectedItem = SantodanForkTab;
++                    ForkSettingsTabControl.SelectedItem = tabKey == "ForkPlatforms"
++                        ? ForkPlatformsTab
++                        : tabKey == "AchievementNotifications"
++                        ? AchievementNotificationsTab
++                        : tabKey == "ForkThemeMigration" ? ForkThemeMigrationTab : ForkGeneralTab;
++                    return;
+                 case "Display":
+                     tab = DisplayTab;
+                     break;
+@@ -499,11 +623,6 @@ private void JumpToTab(string tabKey)
                  BuildProviderNavigationItems();
              }
  
@@ -20870,7 +20903,7 @@ index 76589be2182172f07ff8ddafc8e14217ab303c7a..a272c5802539994361266b3a980285ce
              tab.BringIntoView();
          }
  
-@@ -523,6 +565,7 @@ public void Dispose()
+@@ -523,6 +642,7 @@ public void Dispose()
              _generalSettingsTab?.Dispose();
              _notificationsSettingsTab?.Dispose();
              _workshopSettingsTab?.Dispose();
@@ -20878,6 +20911,15 @@ index 76589be2182172f07ff8ddafc8e14217ab303c7a..a272c5802539994361266b3a980285ce
          }
  
          private void Persisted_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+@@ -530,7 +650,7 @@ private void Persisted_PropertyChanged(object sender, System.ComponentModel.Prop
+             if (string.IsNullOrEmpty(e?.PropertyName) ||
+                 e.PropertyName == nameof(PersistedSettings.ProviderColorOverrides))
+             {
+-                foreach (var item in ProviderNavigationItems)
++                foreach (var item in ProviderNavigationItems.Concat(ForkProviderNavigationItems))
+                 {
+                     item.RefreshProviderAppearance();
+                 }
 diff --git a/source/Views/ThemeIntegration/Base/CompactAchievementControlBase.cs b/source/Views/ThemeIntegration/Base/CompactAchievementControlBase.cs
 index 34626f1f0162522398910680d52400b2b10a0f0c..e4c848448b99d814971bece2eccdbead5e702bcd 100644
 --- a/source/Views/ThemeIntegration/Base/CompactAchievementControlBase.cs

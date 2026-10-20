@@ -36,6 +36,13 @@ namespace PlayniteAchievements.Providers.Steam
         public ObservableCollection<ImportedGameMetadataSourceOption> AvailableMetadataSources { get; } = new ObservableCollection<ImportedGameMetadataSourceOption>();
         public ObservableCollection<SteamAccountSettings> SteamAccounts { get; } = new ObservableCollection<SteamAccountSettings>();
 
+        internal void ShowSecondarySettings(bool secondary)
+        {
+            OriginalSettingsTab.Visibility = secondary ? Visibility.Collapsed : Visibility.Visible;
+            SecondarySettingsTab.Visibility = secondary ? Visibility.Visible : Visibility.Collapsed;
+            SteamSettingsTabs.SelectedItem = secondary ? SecondarySettingsTab : OriginalSettingsTab;
+        }
+
         #region DependencyProperties
 
         public static readonly DependencyProperty AuthBusyProperty =

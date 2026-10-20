@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-20T11:39:49.0781113Z",
+    "generatedUtc":  "2026-10-20T11:58:08.8667823Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "312B857EE6D0774EA2D1DBA97E2EB39F7C49D082124C664C8EDE2CDEB334D233"
+                  "sha256":  "45F40EC33DE2B74DEBF5CFBF61F9E2E071366A25105E761CDD2C1A98FB9FEC19"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -146,7 +146,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml",
-                             "sha256":  "652A5F910D61CCF039735B8BAB58AC1135CD96818FB84A25210119A379B824C8"
+                             "sha256":  "FEC0885A810109D6C6266C41B83D40C9D2EEFFA168F2462AE2D736252628E9F1"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml.cs",
@@ -367,6 +367,14 @@
                          {
                              "path":  "source/Views/ManualAchievementSortDialog.xaml.cs",
                              "sha256":  "B984FF0DDE83794901F7994862AF7D5AFC009FE4BD9F43C64D0D5DBE688A6E10"
+                         },
+                         {
+                             "path":  "source/Views/Settings/General/ForkGeneralSettingsSection.xaml",
+                             "sha256":  "461E8AE9EC3E7866B327CBC6D22D26D704879F5AC7D1EA3894AE2FB15975BBC5"
+                         },
+                         {
+                             "path":  "source/Views/Settings/General/ForkGeneralSettingsSection.xaml.cs",
+                             "sha256":  "755BB07FA63CEC8E7FDA7EF8CA7BC5052DB1D69FDF6AB7BBF75C8CF03DD87E1A"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Models/LocalNotificationTypographySettingsTests.cs",
