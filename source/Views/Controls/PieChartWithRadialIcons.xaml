@@ -95,6 +95,8 @@
                             <!-- Badge icons -->
                             <Image Effect="{StaticResource BadgeShadow}"
                                    SnapsToDevicePixels="True"
+                                   RenderTransformOrigin="0.5,1"
+                                   RenderTransform="{Binding IconKey, Converter={StaticResource PlatinumIconTransform}}"
                                    RenderOptions.BitmapScalingMode="NearestNeighbor">
                                 <Image.Source>
                                     <MultiBinding Converter="{StaticResource ResourceKeyToImage}">
