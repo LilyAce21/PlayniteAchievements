@@ -37,6 +37,9 @@
                 </MultiTrigger.Conditions>
                 <Setter Property="Source" Value="{DynamicResource CapstonePlatinum}"/>
                 <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Trophy_Platinum}"/>
+                <!-- "Platinum icon size" setting: grows upward from the bottom edge. -->
+                <Setter Property="RenderTransformOrigin" Value="0.5,1"/>
+                <Setter Property="RenderTransform" Value="{Binding Converter={StaticResource PlatinumIconTransform}, ConverterParameter=CapstonePlatinum}"/>
             </MultiTrigger>
         </Style.Triggers>
     </Style>

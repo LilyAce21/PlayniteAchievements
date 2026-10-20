@@ -15,7 +15,8 @@ namespace PlayniteAchievements.Views.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            var key = value as string;
+            // Style triggers bind to the item itself (not a key), so fall back to the parameter.
+            var key = (value as string) ?? (parameter as string);
             if (string.Equals(key, "TrophyPlatinum", StringComparison.Ordinal) ||
                 string.Equals(key, "CapstonePlatinum", StringComparison.Ordinal))
             {
