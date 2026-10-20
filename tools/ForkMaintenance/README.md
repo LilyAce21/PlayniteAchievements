@@ -1,5 +1,27 @@
 # Fork maintenance bundle
 
+## v4.1.1 integration - 2026-10-20
+
+The bundle also preserves the Overview tab label fix using upstream's existing
+`LOCPlayAch_Achievements` resource ("Achievements"). No fork localization key
+is added; the obsolete `LOCPlayAch_RecentAchievements` reference is removed.
+The refreshed bundle passed a dry run against clean upstream v4.1.1.
+
+The bundle now targets upstream v4.1.1
+(`002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2`). The in-place update
+retains that commit as the pending merge parent; no commit or push was made.
+Steam scanning combines upstream cached-category preservation with the fork's
+per-game credentials. Notifications retain upstream progress coalescing and
+exception handling alongside custom capture content and selective overlay tracks.
+The badge test follows upstream's default/custom color sequence, and the Workshop
+package field fixture includes the fork's RetroAchievements subset selection.
+
+The required Release rebuild produced version 4.1.1.1 successfully. The refreshed
+bundle passed validation in a clean v4.1.1 checkout, including the three-way patch,
+155 overlays, localization recipes, component hashes, and protected-file checks.
+The full regression suite passed: 5,027 tests passed, eight skipped, none failed.
+Live Playnite verification remains pending.
+
 ## Bundle refresh — 2026-10-20
 
 This refresh also preserves the Solaris resource-key collision fix and its

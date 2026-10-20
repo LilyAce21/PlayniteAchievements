@@ -20,7 +20,7 @@ using Playnite.SDK.Models;
 
 namespace PlayniteAchievements.Providers.Steam
 {
-    internal sealed class SteamDataProvider : DataProviderBase<SteamSettings>, IDataProvider, IProfileLinkProvider, IAchievementPageLinkProvider, IProviderOverride, IRefreshAuthContextReceiver, IInGameProgressSource, IOfflineRefreshFallbackProvider, IDisposable
+    internal sealed class SteamDataProvider : DataProviderBase<SteamSettings>, IDataProvider, IProfileLinkProvider, IAchievementPageLinkProvider, IProviderOverride, IRefreshAuthContextReceiver, IInGameProgressSource, IOfflineRefreshFallbackProvider, IDefinitionCachePreferenceProvider, IDisposable
     {
         /// <summary>
         /// Resolved once at game start so the fast prong never repeats path discovery. Steam's remote
@@ -279,15 +279,29 @@ namespace PlayniteAchievements.Providers.Steam
                    id > 0;
         }
 
-        public async Task<RebuildPayload> RefreshAsync(
+        public Task<RebuildPayload> RefreshAsync(
             IReadOnlyList<Game> gamesToRefresh,
             Action<Game> onGameStarting,
             Func<Game, GameAchievementData, Task> onGameCompleted,
             CancellationToken cancel)
         {
+            return RefreshAsync(gamesToRefresh, onGameStarting, onGameCompleted, false, cancel);
+        }
+
+        // Cached definitions skip SteamHunters: its categories are stored with the game and do not
+        // change between the in-game monitor's frequent refreshes.
+        public async Task<RebuildPayload> RefreshAsync(
+            IReadOnlyList<Game> gamesToRefresh,
+            Action<Game> onGameStarting,
+            Func<Game, GameAchievementData, Task> onGameCompleted,
+            bool preferCachedDefinitions,
+            CancellationToken cancel)
+        {
             using (_sessionManager.BeginOffscreenViewLease())
             {
-                return await _scanner.RefreshAsync(gamesToRefresh, onGameStarting, onGameCompleted, cancel).ConfigureAwait(false);
+                return await _scanner
+                    .RefreshAsync(gamesToRefresh, onGameStarting, onGameCompleted, cancel, preferCachedDefinitions)
+                    .ConfigureAwait(false);
             }
         }
 

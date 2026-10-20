@@ -66,7 +66,8 @@ namespace PlayniteAchievements.Services.Tests
             Assert.AreEqual(4, count);
             Assert.AreEqual("/v1/likes", path);
             Assert.AreEqual("colors/neon", sent.Value<string>("itemId"));
-            Assert.AreEqual(new string('a', 64), sent.Value<string>("voterHash"), "the hash is sent lowercase");
+            Assert.AreEqual(new string('a', 64), sent.Value<string>("voterKey"), "the key is sent lowercase");
+            Assert.IsNull(sent["voterHash"], "the public hash proves nothing, so it is not sent");
             Assert.IsTrue(sent.Value<bool>("liked"));
         }
 

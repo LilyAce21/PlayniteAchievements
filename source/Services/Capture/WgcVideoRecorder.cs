@@ -588,11 +588,25 @@ namespace PlayniteAchievements.Services.Capture
             finally
             {
                 _running = false;
-                pacer.Dispose();
+                // This thread has no outer handler, so a throw in teardown would end the process.
+                // Each step is guarded on its own so one failure does not skip the rest.
+                TryTearDown(pacer.Dispose, "frame pacer");
                 // A writer prepared for a segment that will never open still owns a file.
-                DiscardPrepared(TakePreparedSegment(waitForCompletion: true));
-                FinalizeSegment();
-                TearDownCapture();
+                TryTearDown(() => DiscardPrepared(TakePreparedSegment(waitForCompletion: true)), "prepared segment");
+                TryTearDown(FinalizeSegment, "segment finalize");
+                TryTearDown(TearDownCapture, "capture teardown");
+            }
+        }
+
+        private void TryTearDown(Action step, string what)
+        {
+            try
+            {
+                step();
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, $"[Recording] WGC-MF pump {what} failed.");
             }
         }
 

@@ -1695,14 +1695,17 @@ namespace PlayniteAchievements.Services.Achievements
                     continue;
                 }
 
-                if (!pair.Value.Points.HasValue && string.IsNullOrWhiteSpace(pair.Value.TrophyType))
+                if (!pair.Value.Points.HasValue &&
+                    string.IsNullOrWhiteSpace(pair.Value.TrophyType) &&
+                    !pair.Value.ClearTrophyType)
                 {
                     continue;
                 }
 
                 var entry = ResolveMirrorEntry(entries, apiName);
                 entry.Points = pair.Value.Points;
-                entry.TrophyType = NormalizeText(pair.Value.TrophyType);
+                entry.TrophyType = NormalizeText(pair.Value.TrophyType) ??
+                    (pair.Value.ClearTrophyType ? AchievementOverrideMirrorEntry.ClearedTrophyType : null);
             }
 
             return entries.Values.Where(entry => !entry.IsEmpty).ToList();

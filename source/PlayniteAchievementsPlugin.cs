@@ -597,13 +597,15 @@ namespace PlayniteAchievements
         /// <summary>
         /// A goal is something still to be earned, so unlocking it retires the goal. Skips the
         /// synthetic notifications (previews, test fires, the game-complete banner) and friend
-        /// unlocks, none of which represent the user earning that achievement.
+        /// unlocks, none of which represent the user earning that achievement. Progress updates
+        /// are skipped too: the achievement is still locked.
         /// </summary>
         private static void ClearGoalForUnlock(AchievementUnlockedEventArgs args)
         {
             if (args.IsPreview ||
                 args.IsTestFire ||
                 args.IsFriendUnlock ||
+                args.IsProgressUpdate ||
                 args.IsGameCompleted ||
                 args.PlayniteGameId == Guid.Empty ||
                 string.IsNullOrWhiteSpace(args.ApiName))

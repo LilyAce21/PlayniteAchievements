@@ -1,8 +1,8 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-20T07:57:52.5867634Z",
-    "baselineRef":  "bd9a01d8a87c82ae90c5278ac82f324f227dafff",
-    "baselineCommit":  "bd9a01d8a87c82ae90c5278ac82f324f227dafff",
+    "generatedUtc":  "2026-10-20T08:38:54.4343415Z",
+    "baselineRef":  "v4.1.1",
+    "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
                            "AddonDBManifest.yaml",
                            "README.md",
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "7DD4A3498C00C148F6C6A047589C8460FD04251564008FA16098F8A9134D5D79"
+                  "sha256":  "1AEBC3178A658CECA2C4F4A0F73665BC50702F3FB9A97BECC3525D2E5233A2BC"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",

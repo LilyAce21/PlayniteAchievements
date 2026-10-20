@@ -79,7 +79,8 @@
                                      Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
 
                             <Button Grid.Column="1"
-                                Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                Content="..."
+                                ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                     Click="ManualLegacyBrowse_Click"
                                     Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Compact}"/>
                         </Grid>

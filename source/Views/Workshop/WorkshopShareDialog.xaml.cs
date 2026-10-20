@@ -3,6 +3,7 @@ using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Workshop;
 using PlayniteAchievements.Services.Workshop.Preview;
 using PlayniteAchievements.Views.Dialogs;
+using PlayniteAchievements.Views.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -167,6 +168,9 @@ namespace PlayniteAchievements.Views.Workshop
 
         /// <summary>The file filter of the cover image picker.</summary>
         private const string CoverImageFilter = "Images (*.png;*.jpg;*.jpeg;*.gif;*.webp)|*.png;*.jpg;*.jpeg;*.gif;*.webp";
+
+        /// <summary>The extensions <see cref="CoverImageFilter"/> offers, for pasted covers.</summary>
+        private static readonly string[] CoverImageExtensions = { ".png", ".jpg", ".jpeg", ".gif", ".webp" };
 
         /// <summary>The largest cover image the Workshop accepts.</summary>
         private const long MaxCoverBytes = 5L * 1024 * 1024;
@@ -427,18 +431,34 @@ namespace PlayniteAchievements.Views.Workshop
                 Multiselect = false
             };
 
-            if (dialog.ShowDialog() != DialogResult.OK)
+            if (dialog.ShowDialog() == DialogResult.OK)
             {
-                return;
+                SetCover(dialog.FileName);
             }
+        }
 
-            if (new FileInfo(dialog.FileName).Length > MaxCoverBytes)
+        /// <summary>
+        /// Pastes a cover: a copied image file, or copied image data saved as a PNG. Anything the
+        /// cover picker would not offer is ignored.
+        /// </summary>
+        private void PasteCover_Click(object sender, RoutedEventArgs e)
+        {
+            if (FilePickTarget.TryPasteLocalImageFile(out var path) &&
+                CoverImageExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+            {
+                SetCover(path);
+            }
+        }
+
+        private void SetCover(string path)
+        {
+            if (new FileInfo(path).Length > MaxCoverBytes)
             {
                 StatusText.Text = ResourceProvider.GetString("LOCPlayAch_Workshop_Share_CoverTooLarge");
                 return;
             }
 
-            CoverBox.Text = dialog.FileName;
+            CoverBox.Text = path;
             if (!_busy && string.Equals(StatusText.Text, ResourceProvider.GetString("LOCPlayAch_Workshop_Share_CoverTooLarge"), StringComparison.Ordinal))
             {
                 StatusText.Text = string.Empty;
@@ -737,12 +757,7 @@ namespace PlayniteAchievements.Views.Workshop
                 Name = name,
                 Author = author,
                 Description = description,
-                Tags = TagsBox.Text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(tag => tag.Trim().ToLowerInvariant())
-                    .Where(tag => tag.Length > 0)
-                    .Distinct()
-                    .Take(10)
-                    .ToList(),
+                Tags = WorkshopTags.Parse(TagsBox.Text).Take(10).ToList(),
                 Readme = readme,
                 ExistingId = existingId
             };

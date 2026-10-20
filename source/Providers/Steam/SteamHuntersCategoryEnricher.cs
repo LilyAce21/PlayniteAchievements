@@ -61,7 +61,11 @@ namespace PlayniteAchievements.Providers.Steam
         /// Achievements whose category another source already assigned and that grouping must
         /// leave alone. Obtainability still applies to them.
         /// </param>
-        public async Task EnrichAsync(
+        /// <returns>
+        /// True when SteamHunters groups were applied; false when none were available (a failed
+        /// fetch, an unreadable body or the session backoff), leaving the achievements untouched.
+        /// </returns>
+        public async Task<bool> EnrichAsync(
             int appId,
             string gameName,
             IList<AchievementDetail> achievements,
@@ -71,7 +75,7 @@ namespace PlayniteAchievements.Providers.Steam
         {
             if (appId <= 0 || achievements == null || achievements.Count == 0)
             {
-                return;
+                return false;
             }
 
             SteamHuntersAchievementGroupsResponse response;
@@ -86,12 +90,12 @@ namespace PlayniteAchievements.Providers.Steam
             catch (Exception ex)
             {
                 _logger?.Warn(ex, $"[SteamHunters] Failed to enrich categories for appId={appId}.");
-                return;
+                return false;
             }
 
             if (response == null)
             {
-                return;
+                return false;
             }
 
             ApplyGroups(achievements, response.Groups, response.GroupBy, gameName, preserveApiNames);
@@ -110,6 +114,8 @@ namespace PlayniteAchievements.Providers.Steam
                         cancel)
                     .ConfigureAwait(false);
             }
+
+            return true;
         }
 
         // Plans one default art file per category: (normalized category label -> Steam appId).

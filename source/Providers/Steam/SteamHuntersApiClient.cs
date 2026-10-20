@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using Playnite.SDK;
+using PlayniteAchievements.Common;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -12,15 +13,31 @@ namespace PlayniteAchievements.Providers.Steam
     {
         private const string BaseUrl = "https://steamhunters.com/api";
 
+        // Characters of an unusable body kept in the log.
+        private const int BodySnippetLength = 120;
+
+        // Unspaced bulk refreshes sent about two requests a second and Cloudflare answered Error
+        // 1015 (rate limited) after 150-180 of them (2026-10-18), a block that outlasts the retry
+        // backoff. Requests are spaced by a short gap and unusable responses retried with backoff.
+        private const int RequestGapMs = 250;
+        private static readonly RateLimiter SharedRateLimiter = new RateLimiter(1000, 3);
+
         private readonly Func<string, CancellationToken, Task<string>> _fetchPageText;
         private readonly ILogger _logger;
+        private readonly RateLimiter _rateLimiter;
+        private readonly int _requestGapMs;
+        private int _madeRequest;
 
         public SteamHuntersApiClient(
             Func<string, CancellationToken, Task<string>> fetchPageText,
-            ILogger logger)
+            ILogger logger,
+            RateLimiter rateLimiter = null,
+            int requestGapMs = RequestGapMs)
         {
             _fetchPageText = fetchPageText ?? throw new ArgumentNullException(nameof(fetchPageText));
             _logger = logger;
+            _rateLimiter = rateLimiter ?? SharedRateLimiter;
+            _requestGapMs = Math.Max(0, requestGapMs);
         }
 
         /// <summary>
@@ -45,20 +62,13 @@ namespace PlayniteAchievements.Providers.Steam
                 appId.ToString(CultureInfo.InvariantCulture) +
                 "&includeMultiplayerGroup=true";
 
-            var body = await _fetchPageText(url, cancel).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(body))
-            {
-                _logger?.Warn($"[SteamHunters] Group request returned no content for appId={appId}.");
-                return null;
-            }
-
             try
             {
-                return JsonConvert.DeserializeObject<SteamHuntersAchievementGroupsResponse>(body);
+                return await FetchJsonAsync<SteamHuntersAchievementGroupsResponse>(url, cancel).ConfigureAwait(false);
             }
-            catch (JsonException ex)
+            catch (SteamHuntersUnusableResponseException ex)
             {
-                _logger?.Warn(ex, $"[SteamHunters] Failed to parse achievement groups for appId={appId} (length={body.Length}).");
+                _logger?.Warn($"[SteamHunters] Group request failed for appId={appId} after retries: {ex.Message}");
                 return null;
             }
         }
@@ -80,22 +90,66 @@ namespace PlayniteAchievements.Providers.Steam
 
             var url = BaseUrl + "/apps/" + appId.ToString(CultureInfo.InvariantCulture) + "/achievements";
 
-            var body = await _fetchPageText(url, cancel).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(body))
-            {
-                _logger?.Debug($"[SteamHunters] Achievement request returned no content for appId={appId}.");
-                return null;
-            }
-
             try
             {
-                return JsonConvert.DeserializeObject<List<SteamHuntersAchievement>>(body);
+                return await FetchJsonAsync<List<SteamHuntersAchievement>>(url, cancel).ConfigureAwait(false);
             }
-            catch (JsonException ex)
+            catch (SteamHuntersUnusableResponseException ex)
             {
-                _logger?.Debug(ex, $"[SteamHunters] Failed to parse achievements for appId={appId} (length={body.Length}).");
+                _logger?.Debug($"[SteamHunters] Achievement request failed for appId={appId} after retries: {ex.Message}");
                 return null;
             }
+        }
+
+        // Spaces requests by the request gap and retries an empty or non-JSON body (a navigation
+        // timeout or an error page) with the rate limiter's backoff.
+        private async Task<T> FetchJsonAsync<T>(string url, CancellationToken cancel)
+            where T : class
+        {
+            if (_requestGapMs > 0 && Interlocked.Exchange(ref _madeRequest, 1) == 1)
+            {
+                await Task.Delay(_requestGapMs, cancel).ConfigureAwait(false);
+            }
+
+            return await _rateLimiter.ExecuteWithRetryAsync(
+                async () =>
+                {
+                    var body = await _fetchPageText(url, cancel).ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(body))
+                    {
+                        throw new SteamHuntersUnusableResponseException("no content");
+                    }
+
+                    try
+                    {
+                        return JsonConvert.DeserializeObject<T>(body)
+                            ?? throw new SteamHuntersUnusableResponseException($"empty JSON (length={body.Length})");
+                    }
+                    catch (JsonException ex)
+                    {
+                        throw new SteamHuntersUnusableResponseException(
+                            $"not JSON (length={body.Length}): {Snippet(body)}",
+                            ex);
+                    }
+                },
+                ex => ex is SteamHuntersUnusableResponseException,
+                cancel).ConfigureAwait(false);
+        }
+
+        private static string Snippet(string body)
+        {
+            var flattened = string.Join(" ", body.Split(new[] { ' ', '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries));
+            return flattened.Length <= BodySnippetLength
+                ? flattened
+                : flattened.Substring(0, BodySnippetLength) + "...";
+        }
+    }
+
+    internal sealed class SteamHuntersUnusableResponseException : Exception
+    {
+        public SteamHuntersUnusableResponseException(string message, Exception inner = null)
+            : base(message, inner)
+        {
         }
     }
 

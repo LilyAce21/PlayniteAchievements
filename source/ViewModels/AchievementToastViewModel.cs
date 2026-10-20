@@ -227,6 +227,7 @@ namespace PlayniteAchievements.ViewModels
                 : args?.DisplayName;
         }
         internal Guid PlayniteGameId => _args.PlayniteGameId;
+        internal string ApiName => _args.ApiName;
 
         // Raw progress and scoring data for template composition (e.g. a "27/40" progress line
         // or a points tag). Points are provider-specific and null when the provider has none.

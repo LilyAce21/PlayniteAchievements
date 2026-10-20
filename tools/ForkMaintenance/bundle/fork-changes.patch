@@ -1024,7 +1024,7 @@ index 1f9cddd7060d1664c1694d9a03184635e52c3d2c..6dcfaa2280881fcb3952313fd43ca0aa
          {
              _resourceService.EnsureAchievementResourcesLoaded(_settingsViewModel.Settings);
 diff --git a/source/PlayniteAchievementsPlugin.cs b/source/PlayniteAchievementsPlugin.cs
-index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648a1b678ee 100644
+index c4bf80fc573e19cfab6ad045004094a7a44c1530..d66f1e3b684c35f89c8e88c14a74c61aaf886d54 100644
 --- a/source/PlayniteAchievementsPlugin.cs
 +++ b/source/PlayniteAchievementsPlugin.cs
 @@ -1,4 +1,4 @@
@@ -1089,7 +1089,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
          /// <summary>
          /// Raises the SettingsSaved event to notify listeners that settings have changed. Every
          /// subscriber is a UI control, so when this is invoked from a background thread (e.g. a friend
-@@ -632,6 +658,73 @@ private IReadOnlyList<PortableGameKey> ResolvePortableGameKeys(Guid gameId)
+@@ -634,6 +660,73 @@ private IReadOnlyList<PortableGameKey> ResolvePortableGameKeys(Guid gameId)
              return keys;
          }
  
@@ -1163,7 +1163,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
          private void TryWarmCustomDataCache()
          {
              if (_gameCustomDataStore == null)
-@@ -727,6 +820,18 @@ private void MigrateShowcaseImages()
+@@ -729,6 +822,18 @@ private void MigrateShowcaseImages()
          }
  
          public void PersistSettingsForUi()
@@ -1182,7 +1182,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
          {
              try
              {
-@@ -737,8 +842,6 @@ public void PersistSettingsForUi()
+@@ -739,8 +844,6 @@ public void PersistSettingsForUi()
              {
                  _logger?.Warn(ex, "Failed to persist plugin settings.");
              }
@@ -1191,7 +1191,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
          }
  
          // Public bridge method for external helpers/themes that used to target SuccessStory via reflection.
-@@ -863,6 +966,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
+@@ -865,6 +968,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
              // Before the first scope below, so a traced session covers startup too.
              PerfScope.ConfigureTracing(pluginUserDataPath);
              _logger = PluginLogger.GetLogger(nameof(PlayniteAchievementsPlugin));
@@ -1199,7 +1199,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
              _themeControlRegistry = new ThemeControlRegistry();
              _resourceService = new AchievementResourceService(_logger);
  
-@@ -906,6 +1010,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
+@@ -908,6 +1012,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
                      _settingsViewModel?.Settings?.Persisted?.RoundRarityPercentages ?? false;
  
                  FormattingCulture.Initialize(() => _settingsViewModel?.Settings?.Persisted?.GlobalLanguage);
@@ -1207,7 +1207,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
  
                  // NECESSARY TO MAKE SURE CHARTS WORK
                  var Circle = LiveCharts.Wpf.DefaultGeometries.Circle;
-@@ -928,8 +1033,22 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
+@@ -930,8 +1035,22 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
                  Views.Converters.ProviderIconConverter.CustomGeometryVersionResolver = id => _customProviderStore?.GetVersion(id) ?? 0;
  
                  // Create provider registry
@@ -1231,7 +1231,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
                  settings.Persisted?.MigrateLegacyProviderFriends();
                  _gameCustomDataStore = _settingsViewModel.GameCustomDataStore;
                  _gameCustomDataStore.AttachRuntimeSettings(settings);
-@@ -945,6 +1064,13 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
+@@ -947,6 +1066,13 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
                      providers = _providerRegistry.CreateProviders(settings, PlayniteApi, pluginUserDataPath);
                  }
  
@@ -1245,7 +1245,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
                  // Phase 3: Wire core services, refresh pipeline, and tagging.
                  using (PerfScope.StartStartup(_logger, "PluginCtor.RefreshServiceCreation", thresholdMs: 50))
                  {
-@@ -1158,6 +1284,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
+@@ -1160,6 +1286,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
                          // the field is assigned.
                          e => _unlockRecordings?.WouldRequestClip(e) ?? false,
                          (e, capHeight) => _unlockRecordings?.TryCaptureAnchorFrame(e, capHeight),
@@ -1253,7 +1253,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
                          _unlockSounds);
                      _unlockRecordings = new Services.Recording.UnlockRecordingService(
                          PlayniteApi,
-@@ -1192,7 +1319,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
+@@ -1194,7 +1321,7 @@ public PlayniteAchievementsPlugin(IPlayniteAPI api) : base(api)
                          _cacheManager,
                          _refreshService,
                          (request, policy) => _refreshCoordinator.ExecuteAsync(request, policy),
@@ -1262,7 +1262,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
  
                      // A running game's unlocks are announced by the monitor once its write or
                      // refresh returns, so a capstone that write finished is held for the monitor
-@@ -1661,6 +1788,8 @@ public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
+@@ -1663,6 +1790,8 @@ public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
              using (PerfScope.StartStartup(_logger, "OnApplicationStarted", thresholdMs: 50))
              {
                  _applicationStarted = true;
@@ -1271,7 +1271,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
  
                  // Measures the symptom rather than a suspected cause: every other timing here is
                  // a scope around code someone already suspected, and a reported freeze was
-@@ -2259,9 +2388,42 @@ private void ReconfigureInGameMonitor()
+@@ -2261,9 +2390,42 @@ private void ReconfigureInGameMonitor()
              }
          }
  
@@ -1314,7 +1314,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
              _applicationStarted = false;
              // A control bar edit in the last second before exit is still waiting on its save.
              Services.Showcase.ShowcaseControlBarStateStore.Instance.Flush();
-@@ -2303,6 +2465,7 @@ public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
+@@ -2305,6 +2467,7 @@ public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
              DisposeStartPageViews();
  
              // Shutdown logging system
@@ -1322,7 +1322,7 @@ index 0fb32f86b7d8cf21cdf2bd255b11757a8f618e94..6e81411ef039e784c47ea5b34bc93648
              try { PluginLogger.Shutdown(); } catch (Exception ex) { System.Diagnostics.Trace.TraceError($"Failed to shutdown logger: {ex}"); }
          }
  
-@@ -2954,6 +3117,11 @@ private void Games_ItemCollectionChanged(object sender, ItemCollectionChangedEve
+@@ -2956,6 +3119,11 @@ private void Games_ItemCollectionChanged(object sender, ItemCollectionChangedEve
                          continue;
                      }
  
@@ -2018,7 +2018,7 @@ index d031fd75ebd821a7e9c4547ffea8f6fdceb28ca7..a8eed35f378eef305113e2e4f05b86e5
          {
              if (appId <= 0)
 diff --git a/source/Providers/Steam/SteamDataProvider.cs b/source/Providers/Steam/SteamDataProvider.cs
-index 4fad80df53bffe83c880c624ebad9616b6db6886..d3b38e86933235c2e8f11637a700effe58324f76 100644
+index ea4c9295256f5af565e9f00d0d5d80e38a764faf..3318fc7f2938c7cfd7d49010c3649f42a76ff0dd 100644
 --- a/source/Providers/Steam/SteamDataProvider.cs
 +++ b/source/Providers/Steam/SteamDataProvider.cs
 @@ -58,6 +58,7 @@ private sealed class SteamInGameState
@@ -2112,7 +2112,7 @@ index 4fad80df53bffe83c880c624ebad9616b6db6886..d3b38e86933235c2e8f11637a700effe
          private static bool TryGetPositiveId(string value, out int id)
          {
              return int.TryParse(
-@@ -236,6 +291,26 @@ public async Task<RebuildPayload> RefreshAsync(
+@@ -250,6 +305,26 @@ public async Task<RebuildPayload> RefreshAsync(
              }
          }
  
@@ -2139,7 +2139,7 @@ index 4fad80df53bffe83c880c624ebad9616b6db6886..d3b38e86933235c2e8f11637a700effe
          InGameProgressRegistration IInGameProgressSource.TryRegister(
              Game game,
              GameAchievementData cachedSchema)
-@@ -407,7 +482,7 @@ private void LogProgressChange(
+@@ -421,7 +496,7 @@ private void LogProgressChange(
          }
  
          /// <inheritdoc />
@@ -3085,10 +3085,10 @@ index f10cbdcdee8a09894def6a14d625fe2455909cd2..fe1d847c62b0d1a8513a661dc0fce6a8
          {
              if (string.IsNullOrWhiteSpace(html)) return false;
 diff --git a/source/Providers/Steam/SteamScanner.cs b/source/Providers/Steam/SteamScanner.cs
-index 323b532370ff940c888cd1b8088f653f7ccc63a5..f8e29a93f10b8d99ea926cbbffd31feb28804da0 100644
+index 822902b0676535dd7d688d091380f26c5144237e..96ba3295642456f5aaea5618fa420f03ce62191a 100644
 --- a/source/Providers/Steam/SteamScanner.cs
 +++ b/source/Providers/Steam/SteamScanner.cs
-@@ -149,15 +149,30 @@ public async Task<RebuildPayload> RefreshAsync(
+@@ -150,15 +150,30 @@ public async Task<RebuildPayload> RefreshAsync(
                      onGameStarting,
                      async (game, token) =>
                      {
@@ -3121,16 +3121,16 @@ index 323b532370ff940c888cd1b8088f653f7ccc63a5..f8e29a93f10b8d99ea926cbbffd31feb
                              if (localData == null)
                              {
                                  Interlocked.Increment(ref localFailures);
-@@ -177,7 +192,7 @@ public async Task<RebuildPayload> RefreshAsync(
+@@ -178,7 +193,7 @@ public async Task<RebuildPayload> RefreshAsync(
                          try
                          {
                              data = await rateLimiter.ExecuteWithRetryAsync(
--                                () => FetchGameDataAsync(game, steamUserId, accessToken, authSignals, pageFirst, token),
-+                                () => FetchGameDataAsync(game, gameUserId, gameToken, authSignals, pageFirst, token),
+-                                () => FetchGameDataAsync(game, steamUserId, accessToken, authSignals, pageFirst, preferCachedDefinitions, token),
++                                () => FetchGameDataAsync(game, gameUserId, gameToken, authSignals, pageFirst, preferCachedDefinitions, token),
                                  IsTransientError,
                                  token).ConfigureAwait(false);
                          }
-@@ -189,7 +204,7 @@ public async Task<RebuildPayload> RefreshAsync(
+@@ -190,7 +205,7 @@ public async Task<RebuildPayload> RefreshAsync(
                          {
                              // Last-chance local recovery after web retries. A failed local read
                              // returns null, preserving the existing cache via the normal skip path.
@@ -3139,7 +3139,7 @@ index 323b532370ff940c888cd1b8088f653f7ccc63a5..f8e29a93f10b8d99ea926cbbffd31feb
                              if (data == null)
                              {
                                  throw;
-@@ -200,7 +215,7 @@ public async Task<RebuildPayload> RefreshAsync(
+@@ -201,7 +216,7 @@ public async Task<RebuildPayload> RefreshAsync(
  
                          if (data == null)
                          {
@@ -3148,7 +3148,7 @@ index 323b532370ff940c888cd1b8088f653f7ccc63a5..f8e29a93f10b8d99ea926cbbffd31feb
                          }
  
                          return new ProviderRefreshExecutor.ProviderGameResult
-@@ -902,6 +917,11 @@ private async Task<UserUnlockedAchievements> FetchUnlockedFromStatsPageAsync(
+@@ -929,6 +944,11 @@ private async Task<UserUnlockedAchievements> FetchUnlockedFromStatsPageAsync(
                  };
              }
  
@@ -3160,7 +3160,7 @@ index 323b532370ff940c888cd1b8088f653f7ccc63a5..f8e29a93f10b8d99ea926cbbffd31feb
              AchievementsScrapeResponse scraped = null;
              try
              {
-@@ -1342,7 +1362,7 @@ private static bool LooksLoggedOutHeuristic(string html, string finalUrl)
+@@ -1369,7 +1389,7 @@ private static bool LooksLoggedOutHeuristic(string html, string finalUrl)
  
              if (SteamHttpClient.LooksUnauthenticatedStatsPayload(html, finalUrl)) return true;
  
@@ -4653,7 +4653,7 @@ index cd3effde0f98c0eb3bc1765fbdd5dd6a8b824622..23268e3ab73c78295f5fb693515d9890
              if (scoped != null)
              {
 diff --git a/source/Services/Achievements/AchievementDataService.cs b/source/Services/Achievements/AchievementDataService.cs
-index 2b628450a9ee76beaf612af6252667f8902fcf53..1382834874248cc9294d38e3ee7c1b1158f76ebe 100644
+index e5bd649a6f76adc7e05ff7663abe41dffbc8848f..3162c2001358070352bdc4805d1bf0f4267f22c0 100644
 --- a/source/Services/Achievements/AchievementDataService.cs
 +++ b/source/Services/Achievements/AchievementDataService.cs
 @@ -287,6 +287,21 @@ public List<GameAchievementData> GetAllCachedGameDataForLookup()
@@ -4679,7 +4679,7 @@ index 2b628450a9ee76beaf612af6252667f8902fcf53..1382834874248cc9294d38e3ee7c1b11
          {
              try
 diff --git a/source/Services/Achievements/AchievementOverridesService.cs b/source/Services/Achievements/AchievementOverridesService.cs
-index 22021f78210e49e83cb310ed491983d4679c30c1..0dcd6ba55f3a6a06c54b8f8fbf15ecb031e04fa5 100644
+index 486d57011595249b0cce7d5375ce302c1a51bfc6..8733b72d8703101042b34af0cc6e09baed772eef 100644
 --- a/source/Services/Achievements/AchievementOverridesService.cs
 +++ b/source/Services/Achievements/AchievementOverridesService.cs
 @@ -1,4 +1,4 @@
@@ -4738,7 +4738,7 @@ index 22021f78210e49e83cb310ed491983d4679c30c1..0dcd6ba55f3a6a06c54b8f8fbf15ecb0
          public void SetAchievementOrderOverride(Guid gameId, IReadOnlyList<string> orderedApiNames)
          {
              if (gameId == Guid.Empty)
-@@ -1381,7 +1424,10 @@ public void SetSeparateLockedIconOverride(Guid gameId, bool enabled)
+@@ -1386,7 +1429,10 @@ public void SetSeparateLockedIconOverride(Guid gameId, bool enabled)
              });
          }
  
@@ -4750,7 +4750,7 @@ index 22021f78210e49e83cb310ed491983d4679c30c1..0dcd6ba55f3a6a06c54b8f8fbf15ecb0
          {
              if (gameId == Guid.Empty)
              {
-@@ -1391,6 +1437,15 @@ public void SetProviderOverride(Guid gameId, ProviderOverrideData providerOverri
+@@ -1396,6 +1442,15 @@ public void SetProviderOverride(Guid gameId, ProviderOverrideData providerOverri
              _gameCustomDataStore.Update(gameId, customData =>
              {
                  customData.ProviderOverride = providerOverride?.Clone();
@@ -4946,7 +4946,7 @@ index b7c5024a015a9e6e760e566830f5c7060ac3cae5..ed76ac4e4c2527620db213f1d4f73e6d
          public bool AlignBottom { get; set; }
  
 diff --git a/source/Services/Captures/CaptureLibraryService.cs b/source/Services/Captures/CaptureLibraryService.cs
-index 4cbe82adafa24552db1c42cb9f89663ff8fe2467..1096542bf00da523e7ffc9803d22fa054de6e76a 100644
+index 3ef75868e741c3cae3c980c09e054775c21d30e2..e7885dfaad6680b8a3ba1ac540c968ccef0fe2ad 100644
 --- a/source/Services/Captures/CaptureLibraryService.cs
 +++ b/source/Services/Captures/CaptureLibraryService.cs
 @@ -154,9 +154,18 @@ private static bool SameDirectories(
@@ -5010,7 +5010,7 @@ index 4cbe82adafa24552db1c42cb9f89663ff8fe2467..1096542bf00da523e7ffc9803d22fa05
          private void EnsureWatchers()
          {
              if (!_watchForChanges)
-@@ -829,6 +852,10 @@ private GameCaptureSet ScanGameFolder(string sanitizedFolder)
+@@ -837,6 +860,10 @@ private GameCaptureSet ScanGameFolder(string sanitizedFolder)
              {
                  try
                  {
@@ -5021,7 +5021,7 @@ index 4cbe82adafa24552db1c42cb9f89663ff8fe2467..1096542bf00da523e7ffc9803d22fa05
                      if (!Directory.Exists(gameFolder))
                      {
                          continue;
-@@ -844,7 +871,7 @@ private GameCaptureSet ScanGameFolder(string sanitizedFolder)
+@@ -852,7 +879,7 @@ private GameCaptureSet ScanGameFolder(string sanitizedFolder)
                  }
                  catch (Exception ex)
                  {
@@ -5323,7 +5323,7 @@ index ab3445efbd84591ea28f63e321596869d56988a0..b31890d95e179f197a7fdf96469301d3
              Guid gameId,
              ExophaseSettings fallbackSettings = null,
 diff --git a/source/Services/GameCustomData/GameCustomDataNormalizer.cs b/source/Services/GameCustomData/GameCustomDataNormalizer.cs
-index 0f39aefb690b8038f373ea789ceee9140a542481..528a2a73933ae92aec5bc96d2aec1474a57ae7d2 100644
+index a064f3834f77b17190849c2d640c6d164cd70a5a..2b7117933210ceb50f440e6f1bdc08bd2f7be7aa 100644
 --- a/source/Services/GameCustomData/GameCustomDataNormalizer.cs
 +++ b/source/Services/GameCustomData/GameCustomDataNormalizer.cs
 @@ -1,4 +1,4 @@
@@ -15154,10 +15154,10 @@ index 3c984192684a36d21de17607719b9c0bed17b1e8..2efc30353bfd17cfac08db44b076f5b5
                  reason = $"payload reports no unlocks (cached unlocked={previousUnlocked})";
                  return true;
 diff --git a/source/Services/Refresh/RefreshRequestPlanner.cs b/source/Services/Refresh/RefreshRequestPlanner.cs
-index 06469822affefd8b6d4d82b7d9ffca9c585a3a35..c2f425e25b307da880812a845689d79260922108 100644
+index 2c0eb8053698378482662710050c9d403e21692a..b26ee1a3a8cfba40b17a74354089ac3c1d617b08 100644
 --- a/source/Services/Refresh/RefreshRequestPlanner.cs
 +++ b/source/Services/Refresh/RefreshRequestPlanner.cs
-@@ -429,7 +429,11 @@ private CurrentOptionResult ResolveCurrentOptions(
+@@ -432,7 +432,11 @@ private CurrentOptionResult ResolveCurrentOptions(
                      continue;
                  }
  
@@ -15171,7 +15171,7 @@ index 06469822affefd8b6d4d82b7d9ffca9c585a3a35..c2f425e25b307da880812a845689d792
                      targetGameIds.Add(game.Id);
                  }
 diff --git a/source/Services/Refresh/RefreshRuntime.cs b/source/Services/Refresh/RefreshRuntime.cs
-index b4fc1a567dc0e2b45903a41db5dacd025c09de5e..41931762d393fe240f3e97e1e683071833a0a66e 100644
+index 1923c97d09e09a54648ac5c5427b88534e4ea31a..a45fc98a8086839f5310ca3849b2be939d0d847f 100644
 --- a/source/Services/Refresh/RefreshRuntime.cs
 +++ b/source/Services/Refresh/RefreshRuntime.cs
 @@ -17,6 +17,7 @@
@@ -15266,7 +15266,7 @@ index b4fc1a567dc0e2b45903a41db5dacd025c09de5e..41931762d393fe240f3e97e1e6830718
  
              return result;
          }
-@@ -1041,8 +1060,11 @@ private async Task<RebuildPayload> ExecuteCurrentProviderPlansAsync(
+@@ -1044,8 +1063,11 @@ private async Task<RebuildPayload> ExecuteCurrentProviderPlansAsync(
  
              var runProvidersInParallel = runProvidersInParallelOverride ?? (_settings?.Persisted?.EnableParallelProviderRefresh ?? true);
              var timer = Stopwatch.StartNew();
@@ -15280,7 +15280,7 @@ index b4fc1a567dc0e2b45903a41db5dacd025c09de5e..41931762d393fe240f3e97e1e6830718
              var providerResults = await ProviderRefreshExecutor.ExecuteProvidersAsync(
                  plans,
                  runProvidersInParallel,
-@@ -1051,8 +1073,11 @@ private async Task<RebuildPayload> ExecuteCurrentProviderPlansAsync(
+@@ -1054,8 +1076,11 @@ private async Task<RebuildPayload> ExecuteCurrentProviderPlansAsync(
  
              var payload = CreateCurrentRefreshPayload(providerResults);
              timer.Stop();
@@ -15294,7 +15294,7 @@ index b4fc1a567dc0e2b45903a41db5dacd025c09de5e..41931762d393fe240f3e97e1e6830718
              return payload;
          }
  
-@@ -1601,7 +1626,13 @@ private async Task OnGameRefreshed(
+@@ -1609,7 +1634,13 @@ private async Task OnGameRefreshed(
              // achievement overwrites an unlocked one. A payload that is empty or reports no unlocks
              // for a game that already has some would erase them, so keep the cached data and let a
              // later refresh supply a complete result.
@@ -15309,7 +15309,7 @@ index b4fc1a567dc0e2b45903a41db5dacd025c09de5e..41931762d393fe240f3e97e1e6830718
              {
                  var incomingTotal = data.Achievements?.Count ?? 0;
                  var incomingUnlockedCount = data.Achievements?.Count(a => a != null && a.Unlocked) ?? 0;
-@@ -1622,7 +1653,11 @@ private async Task OnGameRefreshed(
+@@ -1630,7 +1661,11 @@ private async Task OnGameRefreshed(
              // Restore unlocks the payload reports as locked before anything downstream reads it: the
              // payload is what lands in the memory cache and what the unlocked aggregate is counted
              // from, so correcting it here keeps the memory cache, the rows, and the count in step.
@@ -15322,7 +15322,7 @@ index b4fc1a567dc0e2b45903a41db5dacd025c09de5e..41931762d393fe240f3e97e1e6830718
              if (preservedUnlocks > 0)
              {
                  _logger?.Debug(
-@@ -1665,7 +1700,7 @@ await _achievementIconService.PopulateAchievementIconCacheAsync(
+@@ -1673,7 +1708,7 @@ await _achievementIconService.PopulateAchievementIconCacheAsync(
                  // refresh pipeline (or a provider) is retaining per-game payloads.
                  Common.LeakWatch.Track("ProviderPayload", data);
  
@@ -16881,7 +16881,7 @@ index 4050c849314c69af400170f1d8a24c730e36154e..c47197c7f31d375f245727257dde0ffd
          {
              try
 diff --git a/source/Services/UI/ToastNotificationService.cs b/source/Services/UI/ToastNotificationService.cs
-index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c4498eb835c0 100644
+index e0023dce516f72ada2290045446d82035f9b4625..b558ec08caa3a27adc070f40bfcc656a11086e8e 100644
 --- a/source/Services/UI/ToastNotificationService.cs
 +++ b/source/Services/UI/ToastNotificationService.cs
 @@ -41,6 +41,7 @@ internal sealed class ToastNotificationService : IDisposable
@@ -16916,7 +16916,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              _unlockSounds = unlockSounds;
              _screenshotService = new UnlockScreenshotService(logger);
              _frameCompositor = new ScreenshotFrameCompositor(logger);
-@@ -389,7 +393,7 @@ private bool ShouldProcess(AchievementUnlockedEventArgs args)
+@@ -403,7 +407,7 @@ private bool ShouldProcess(AchievementUnlockedEventArgs args)
                  return false;
              }
  
@@ -16925,7 +16925,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              {
                  return true;
              }
-@@ -411,7 +415,7 @@ private bool ShouldProcess(AchievementUnlockedEventArgs args)
+@@ -425,7 +429,7 @@ private bool ShouldProcess(AchievementUnlockedEventArgs args)
              // The variant policy ANDs the screenshots master switch (the game's own when it has
              // capture settings) into every variant.
              // A screenshot needs a folder: the global one, or the game's own.
@@ -16934,7 +16934,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              var gameData = LoadGameData(args.PlayniteGameId);
              if (string.IsNullOrWhiteSpace(persisted?.UnlockScreenshotDirectory) &&
                  string.IsNullOrWhiteSpace(gameData?.CaptureOverride?.CaptureDirectory))
-@@ -439,18 +443,86 @@ private static RarityTier ResolveRarity(AchievementUnlockedEventArgs args) =>
+@@ -453,18 +457,86 @@ private static RarityTier ResolveRarity(AchievementUnlockedEventArgs args) =>
          private static bool IsCompletionUnlock(AchievementUnlockedEventArgs args) =>
              args.IsGameCompleted || args.IsCompletionAchievement || args.IsCapstone;
  
@@ -17022,31 +17022,19 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              var effective = ResolveEffective(providerKey, gameId);
              if (isProgressUpdate)
              {
-@@ -508,7 +580,7 @@ private void EnqueueOnUi(AchievementUnlockedEventArgs args, bool needsOverlayTra
- 
-             // PreviewStyleOverride is set only by settings fire-tests, so the fired notification
-             // renders the exact style the editor mockup shows; real unlocks resolve normally.
--            _queue.Enqueue(new AchievementToastViewModel(
-+            var viewModel = new AchievementToastViewModel(
-                 args,
-                 _settings?.Persisted,
-                 styleOverride: args.PreviewStyleOverride,
-@@ -518,7 +590,13 @@ private void EnqueueOnUi(AchievementUnlockedEventArgs args, bool needsOverlayTra
-                 NeedsFramedClip = needsOverlayTrack &&
+@@ -543,6 +615,11 @@ private void EnqueueOnUi(AchievementUnlockedEventArgs args, bool needsOverlayTra
                      (UnlockClipVariantPolicy.Resolve(args, _settings?.Persisted, gameData) & ScreenshotVariants.Framed) != 0,
                  NotifyReadyAtUtc = notifyReadyAtUtc,
--            });
-+            };
+             };
 +            if (args.SuppressStandardToast)
 +            {
-+                viewModel.CustomCaptureContent = _createCustomCaptureContent?.Invoke(args);
++                vm.CustomCaptureContent = _createCustomCaptureContent?.Invoke(args);
 +            }
 +
-+            _queue.Enqueue(viewModel);
-             if (!_processing)
+             if (merged != null)
              {
-                 _processing = true;
-@@ -810,6 +888,25 @@ private bool TryResolveWaveGame(out IntPtr waveHwnd, out int? processId)
+                 var items = _queue.ToList();
+@@ -868,6 +945,25 @@ private bool TryResolveWaveGame(out IntPtr waveHwnd, out int? processId)
                      if (container != null)
                      {
                          overlay = TryRenderToastItemOverlay(window, container, vm, out var physSize);
@@ -17072,7 +17060,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
                          if (overlay != null)
                          {
                              ToastWindowPlacer.ComputeCorner(
-@@ -2185,8 +2282,8 @@ private List<AchievementToastViewModel> DequeueNextReadyWave()
+@@ -2243,8 +2339,8 @@ private List<AchievementToastViewModel> DequeueNextReadyWave()
                     items[end].IsGameCompleted == anchor.IsGameCompleted &&
                     items[end].IsCapstone == anchor.IsCapstone &&
                     items[end].IsProgressUpdate == anchor.IsProgressUpdate &&
@@ -17083,7 +17071,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              {
                  result.Add(items[end]);
                  end++;
-@@ -2290,7 +2387,7 @@ private WavePlan ResolveWavePlan(IReadOnlyList<AchievementToastViewModel> wave)
+@@ -2348,7 +2444,7 @@ private WavePlan ResolveWavePlan(IReadOnlyList<AchievementToastViewModel> wave)
              // toast, items that only produce capture output, or a mix (waves batch by friend/own
              // only).
              var toastItems = wave
@@ -17092,7 +17080,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
                  .ToList();
              if (toastItems.Count > 0)
              {
-@@ -2329,6 +2426,7 @@ private async Task ShowWaveAsync(IReadOnlyList<AchievementToastViewModel> wave)
+@@ -2387,6 +2483,7 @@ private async Task ShowWaveAsync(IReadOnlyList<AchievementToastViewModel> wave)
              _ensureResourcesLoaded?.Invoke();
  
              var waveIsTestFire = wave[0].IsTestFire;
@@ -17100,7 +17088,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              _activeToastThemeStylingEnabled = wave[0].ToastUseThemeStyling;
              // A wave never mixes games, so its first item's game owns the wave's capture settings.
              _activeWaveCaptures = LoadGameData(wave[0].PlayniteGameId)?.CaptureOverride;
-@@ -2344,6 +2442,7 @@ private async Task ShowWaveAsync(IReadOnlyList<AchievementToastViewModel> wave)
+@@ -2402,6 +2499,7 @@ private async Task ShowWaveAsync(IReadOnlyList<AchievementToastViewModel> wave)
              // wave's slide host at the slide itself, since the window does not exist yet.
              _activeMotionPlan = ToastMotionStoryboardFactory.Resolve(wave[0].MotionSurface);
              ResolveWaveSlideTiming();
@@ -17108,7 +17096,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              // Zero until the cards are laid out and measured; the pre-show placement pass has no
              // card to measure either, so the two agree.
              _activeCardInset = default(Thickness);
-@@ -2468,8 +2567,10 @@ await Task.WhenAny(
+@@ -2526,8 +2624,10 @@ await Task.WhenAny(
                  return;
              }
  
@@ -17121,16 +17109,20 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              var items = ToastSurfaceFactory.BuildToastSurface(cardItems, template);
  
              LogWaveDiagnostics(cardItems, template, wavePlan.Mode);
-@@ -2786,7 +2887,7 @@ await Task.WhenAny(baseCaptureTask, Task.Delay(BaseCaptureGraceMs))
+@@ -2852,10 +2952,9 @@ await Task.WhenAny(baseCaptureTask, Task.Delay(BaseCaptureGraceMs))
+                 // presented before the next begins and the slide starts against a drained
+                 // composition queue, at the price of two composed frames of extra latency. Game
                  // anchor only — a test fire out of game has no video — and only with recordings
-                 // enabled, since nothing else consumes a track.
-                 if (_activeIsGame && _activeReferenceHwnd != IntPtr.Zero &&
+-                // enabled, since nothing else consumes a track. Progress waves never own a clip,
+-                // so they skip the track entirely.
++                // enabled, since nothing else consumes a track. Progress waves never own a clip.
+                 if (_activeIsGame && _activeReferenceHwnd != IntPtr.Zero && !wave[0].IsProgressUpdate &&
 -                    (_activeWaveCaptures?.EnableUnlockRecordings ?? _settings?.Persisted?.EnableUnlockRecordings ?? false))
 +                    cardItems.Any(vm => vm.NeedsOverlayTrack))
                  {
                      trackRecorder = new ToastOverlayTrackRecorder(
                          _logger, TrackSampleIntervalMs(),
-@@ -3285,7 +3386,7 @@ private WaveScreenshotPlan BuildScreenshotPlan(IReadOnlyList<AchievementToastVie
+@@ -3354,7 +3453,7 @@ private WaveScreenshotPlan BuildScreenshotPlan(IReadOnlyList<AchievementToastVie
              // The screenshots master switch is ANDed into each variant by the policy below (the
              // game's own when it has capture settings).
              // A game with its own capture folder saves straight into it and needs no global folder.
@@ -17139,7 +17131,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              var gameData = LoadGameData(first.PlayniteGameId);
              var gameDir = gameData?.CaptureOverride?.CaptureDirectory;
              var baseDir = persisted?.UnlockScreenshotDirectory;
-@@ -3838,6 +3939,12 @@ private ToastHorizontalAlignment Horizontal()
+@@ -3907,6 +4006,12 @@ private ToastHorizontalAlignment Horizontal()
              return _activePosition.Horizontal();
          }
  
@@ -17152,7 +17144,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
          private bool AlignBottom()
          {
              return _activePosition.IsBottom();
-@@ -5547,17 +5654,7 @@ private void ReserveSlideTravel(Window window, ItemsControl surface)
+@@ -5643,17 +5748,7 @@ private void ReserveSlideTravel(Window window, ItemsControl surface)
              }
          }
  
@@ -17171,7 +17163,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
  
          /// <summary>
          /// The corner the toast uses: the scope style's position when set, then a theme override
-@@ -5566,6 +5663,21 @@ private bool SlideFromBottom()
+@@ -5662,6 +5757,21 @@ private bool SlideFromBottom()
          /// </summary>
          private ToastScreenCorner EffectivePosition(NotificationSurfaceStyle scopeToast)
          {
@@ -17193,7 +17185,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
              var styled = scopeToast?.Position;
              if (styled.HasValue && Enum.IsDefined(typeof(ToastScreenCorner), styled.Value))
              {
-@@ -5594,6 +5706,57 @@ private ToastScreenCorner EffectivePosition(NotificationSurfaceStyle scopeToast)
+@@ -5690,6 +5800,57 @@ private ToastScreenCorner EffectivePosition(NotificationSurfaceStyle scopeToast)
              return setting;
          }
  
@@ -17251,7 +17243,7 @@ index 643f87e2fccf64c088415b3d57cd73e453e88622..1895fab3ee808e20c5440337fae6c449
          /// <summary>
          /// The toast display time in seconds: a theme override (numeric or string resource
          /// <see cref="AchievementToastTemplateResolver.DurationSecondsResourceKey"/>) when present and
-@@ -5602,6 +5765,16 @@ private ToastScreenCorner EffectivePosition(NotificationSurfaceStyle scopeToast)
+@@ -5698,6 +5859,16 @@ private ToastScreenCorner EffectivePosition(NotificationSurfaceStyle scopeToast)
          /// </summary>
          private int EffectiveDurationSeconds()
          {
@@ -17501,7 +17493,7 @@ index 99569f263e87d3f0374d0d364319427c8873cf38..d9c1f931e5a2ad2cd804a3a3c213e80f
          public Rectangle? TryGetGameMonitorBounds(int? startedProcessId)
          {
 diff --git a/source/ViewModels/AchievementToastViewModel.cs b/source/ViewModels/AchievementToastViewModel.cs
-index 54bd9deec6f757d5ee0ef0895dccbd4e8bc7f22d..ab7f5cc72a969d7860d59120c04346869afc44ad 100644
+index 95c6951684a494b83768f63da3266b67d970e4f9..10f6da3abcbc74023274f35209067a0b9fa18f33 100644
 --- a/source/ViewModels/AchievementToastViewModel.cs
 +++ b/source/ViewModels/AchievementToastViewModel.cs
 @@ -139,6 +139,8 @@ public AchievementToastViewModel(
@@ -17877,7 +17869,7 @@ index fbe3429dbe9affb9b0ea90e8bb0024690e279a9c..df0bfaf3d220f57558bf30bfb55ff06e
          {
              var preferredName = SanitizePortableFileNamePart(
 diff --git a/source/ViewModels/ManageAchievements/ManageOverviewSummaryBuilder.cs b/source/ViewModels/ManageAchievements/ManageOverviewSummaryBuilder.cs
-index 32dadc89fc5d5b790ee2945d8b4a04626a2af0f1..1ec74c688dee220ad063933205d01eadde55c99c 100644
+index 0d1504711cfa75523b975dfcb3b973bcfc7bc121..68a8b3bcb7e9ba2ae59417ab7a817d918542b304 100644
 --- a/source/ViewModels/ManageAchievements/ManageOverviewSummaryBuilder.cs
 +++ b/source/ViewModels/ManageAchievements/ManageOverviewSummaryBuilder.cs
 @@ -270,6 +270,8 @@ int Count(Func<AchievementOverride, bool> inOverride, Func<CustomAchievementDefi
@@ -19749,7 +19741,7 @@ index 0d80b885bcdbb07f140bc84ee2f4309eaa5721ba..db7b6b08a3ec2218f51dbb30a6fc8b81
                                 Text="{DynamicResource LOCPlayAch_Tagging_NotCustomized}"
                                 Margin="0,8,0,0"
 diff --git a/source/Views/OverviewControl.xaml b/source/Views/OverviewControl.xaml
-index 11e7b740f435c07e44b2c3ecdca9f8a53b53964f..9ae5acdc99132c2ee9aedbc59c15662fac0ee07a 100644
+index 11e7b740f435c07e44b2c3ecdca9f8a53b53964f..91864f400eb8a0dba4c02620de0dc42730cca487 100644
 --- a/source/Views/OverviewControl.xaml
 +++ b/source/Views/OverviewControl.xaml
 @@ -8,6 +8,7 @@
@@ -19790,7 +19782,7 @@ index 11e7b740f435c07e44b2c3ecdca9f8a53b53964f..9ae5acdc99132c2ee9aedbc59c15662f
 +                                            VerticalAlignment="Stretch"
 +                                            BorderThickness="0"
 +                                            Background="Transparent">
-+                                    <TabItem Header="{DynamicResource LOCPlayAch_RecentAchievements}"/>
++                                    <TabItem Header="{DynamicResource LOCPlayAch_Achievements}"/>
 +                                    <TabItem Header="All Achievements"/>
 +                                </TabControl>
 +
@@ -21716,7 +21708,7 @@ index 932799ca426a9c25133b406836158fa697bf61b2..e3607fe74fb57525e3886affd077f26b
          public void Position_MapsToItsAlignment(
              ToastScreenCorner position, ToastHorizontalAlignment horizontal, bool bottom)
 diff --git a/tests/PlayniteAchievements.Tests/PlayniteAchievements.Tests.csproj b/tests/PlayniteAchievements.Tests/PlayniteAchievements.Tests.csproj
-index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9da7ce099e 100644
+index a048dbf8521fa15bebe5a412aee83a156fab23bf..bcee233d45e9a3d350c48d1e76e3234d8721c559 100644
 --- a/tests/PlayniteAchievements.Tests/PlayniteAchievements.Tests.csproj
 +++ b/tests/PlayniteAchievements.Tests/PlayniteAchievements.Tests.csproj
 @@ -91,6 +91,7 @@
@@ -21735,7 +21727,7 @@ index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9d
      <Compile Include="..\..\source\Services\LegacyManualLinkImporter.cs" Link="Source\Services\LegacyManualLinkImporter.cs" />
      <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataStore.cs" Link="Source\Services\GameCustomData\GameCustomDataStore.cs" />
      <Compile Include="..\..\source\Services\GameCustomData\GameCustomDataStore.CustomAchievementsPackage.cs" Link="Source\Services\GameCustomData\GameCustomDataStore.CustomAchievementsPackage.cs" />
-@@ -228,6 +230,7 @@
+@@ -231,6 +233,7 @@
      <Compile Include="..\..\source\Services\GameSummariesSortHelper.cs" Link="Source\Services\GameSummariesSortHelper.cs" />
      <Compile Include="..\..\source\Services\FriendSummarySortHelper.cs" Link="Source\Services\FriendSummarySortHelper.cs" />
      <Compile Include="..\..\source\Services\DisplayGridRowLimitHelper.cs" Link="Source\Services\DisplayGridRowLimitHelper.cs" />
@@ -21743,7 +21735,7 @@ index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9d
      <Compile Include="..\..\source\Services\Search\SearchQuery.cs" Link="Source\Services\Search\SearchQuery.cs" />
      <Compile Include="..\..\source\Services\Search\SearchTextBuilder.cs" Link="Source\Services\Search\SearchTextBuilder.cs" />
      <Compile Include="..\..\source\Services\Search\SearchTextIndex.cs" Link="Source\Services\Search\SearchTextIndex.cs" />
-@@ -493,6 +496,7 @@
+@@ -496,6 +499,7 @@
      <Compile Include="..\..\source\Models\Settings\LibraryLink.cs" Link="Source\Models\Settings\LibraryLink.cs" />
      <Compile Include="..\..\source\Models\Settings\PersistedSettings.GridCompatibility.cs" Link="Source\Models\Settings\PersistedSettings.GridCompatibility.cs" />
      <Compile Include="..\..\source\Models\Settings\PersistedSettings.GridCompatibility.Notifications.cs" Link="Source\Models\Settings\PersistedSettings.GridCompatibility.Notifications.cs" />
@@ -21751,7 +21743,7 @@ index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9d
      <Compile Include="..\..\source\Models\Settings\ProgressBadgeSource.cs" Link="Source\Models\Settings\ProgressBadgeSource.cs" />
      <Compile Include="..\..\source\Models\Settings\ProviderNotificationOverride.cs" Link="Source\Models\Settings\ProviderNotificationOverride.cs" />
      <Compile Include="..\..\source\Models\Settings\GameNotificationOverrides.cs" Link="Source\Models\Settings\GameNotificationOverrides.cs" />
-@@ -503,6 +507,7 @@
+@@ -506,6 +510,7 @@
      <Compile Include="..\..\source\Models\Settings\NotificationStyleSettingsMigration.cs" Link="Source\Models\Settings\NotificationStyleSettingsMigration.cs" />
      <Compile Include="..\..\source\Models\Settings\RecordingEnums.cs" Link="Source\Models\Settings\RecordingEnums.cs" />
      <Compile Include="..\..\source\Models\Settings\ScreenshotResolution.cs" Link="Source\Models\Settings\ScreenshotResolution.cs" />
@@ -21759,7 +21751,7 @@ index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9d
      <Compile Include="..\..\source\Models\Settings\RarityColorSettings.cs" Link="Source\Models\Settings\RarityColorSettings.cs" />
      <Compile Include="..\..\source\Models\Settings\UnlockSoundSettings.cs" Link="Source\Models\Settings\UnlockSoundSettings.cs" />
      <Compile Include="..\..\source\Models\Settings\ResourceOverrideDescriptor.cs" Link="Source\Models\Settings\ResourceOverrideDescriptor.cs" />
-@@ -524,6 +529,7 @@
+@@ -527,6 +532,7 @@
      <Compile Include="..\..\source\Models\Settings\GridVerticalAlignment.cs" Link="Source\Models\Settings\GridVerticalAlignment.cs" />
      <Compile Include="..\..\source\Models\Settings\CompactListSortMode.cs" Link="Source\Models\Settings\CompactListSortMode.cs" />
      <Compile Include="..\..\source\Models\Settings\GameSummariesSortMode.cs" Link="Source\Models\Settings\GameSummariesSortMode.cs" />
@@ -21767,7 +21759,7 @@ index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9d
      <Compile Include="..\..\source\Models\Settings\FriendSummariesSortMode.cs" Link="Source\Models\Settings\FriendSummariesSortMode.cs" />
      <Compile Include="..\..\source\Models\Settings\GridOptions.cs" Link="Source\Models\Settings\GridOptions.cs" />
      <Compile Include="..\..\source\Views\Settings\Controls\GridDisplaySurfaces.cs" Link="Source\Views\Settings\Controls\GridDisplaySurfaces.cs" />
-@@ -666,6 +672,7 @@
+@@ -669,6 +675,7 @@
      <Compile Include="..\..\source\Services\Refresh\FriendRefreshWorkPolicy.cs" Link="Source\Services\Refresh\FriendRefreshWorkPolicy.cs" />
      <Compile Include="..\..\source\Services\Refresh\RefreshStateManager.cs" Link="Source\Services\Refresh\RefreshStateManager.cs" />
      <Compile Include="..\..\source\Services\Refresh\TargetSelectionResolver.cs" Link="Source\Services\Refresh\TargetSelectionResolver.cs" />
@@ -21775,7 +21767,7 @@ index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9d
      <Compile Include="..\..\source\Services\ProgressReporting\ProgressReportingService.cs" Link="Source\Services\ProgressReporting\ProgressReportingService.cs" />
      <Compile Include="..\..\source\Services\ProgressReporting\RefreshProgressReporter.cs" Link="Source\Services\ProgressReporting\RefreshProgressReporter.cs" />
      <Compile Include="..\..\source\Services\Friends\FriendCacheModels.cs" Link="Source\Services\Friends\FriendCacheModels.cs" />
-@@ -773,6 +780,9 @@
+@@ -777,6 +784,9 @@
      <Compile Include="..\..\source\Services\UI\ToastWindowPlacer.cs" Link="Source\Services\UI\ToastWindowPlacer.cs" />
      <Compile Include="..\..\source\Services\UI\ToastMotionStoryboardFactory.cs" Link="Source\Services\UI\ToastMotionStoryboardFactory.cs" />
      <Compile Include="..\..\source\Services\UI\UnlockScreenshotService.cs" Link="Source\Services\UI\UnlockScreenshotService.cs" />
@@ -21786,7 +21778,7 @@ index 582cf59d49ae1c14f69acd118c0a8f4cc21d6391..9d2259cdcb33b1cec4e0a5f434801a9d
      <Reference Include="Playnite.SDK">
        <HintPath>..\..\source\packages\PlayniteSDK.6.14.0\lib\net462\Playnite.SDK.dll</HintPath>
 diff --git a/tests/PlayniteAchievements.Tests/Services/AchievementOverrideMigrationTests.cs b/tests/PlayniteAchievements.Tests/Services/AchievementOverrideMigrationTests.cs
-index d1e8d4511676b6f3f86811f07cf23a5f5a921c21..91a1b336694fb3292db848a40af05cbe96fca3fd 100644
+index dd4641c616969902c7a7b47c471967fdd097323f..6881d735a3923cfef3a669e7a848aa7ae00cb876 100644
 --- a/tests/PlayniteAchievements.Tests/Services/AchievementOverrideMigrationTests.cs
 +++ b/tests/PlayniteAchievements.Tests/Services/AchievementOverrideMigrationTests.cs
 @@ -34,7 +34,7 @@ public void Normalize_StampsCurrentSchemaVersion()
@@ -22454,6 +22446,20 @@ index 6d4695ba4e4ec7df1f79cfa27c7639cba5a30d6b..75833efeeca183a8361395fc889872bd
          private static string CreateThemesRoot()
          {
              var root = Path.Combine(
+diff --git a/tests/PlayniteAchievements.Tests/Services/WorkshopPackageFields.json b/tests/PlayniteAchievements.Tests/Services/WorkshopPackageFields.json
+index b3a1019a9f28ed12b1ba7ab679eb4c39bdd51261..ca45270ddc7f7f08c2b1064e7404382c483db6af 100644
+--- a/tests/PlayniteAchievements.Tests/Services/WorkshopPackageFields.json
++++ b/tests/PlayniteAchievements.Tests/Services/WorkshopPackageFields.json
+@@ -152,6 +152,9 @@
+       "PlayniteGameId": "value",
+       "ProviderOverride": "ProviderOverrideData",
+       "RetroAchievementsGameIdOverride": "value",
++      "RetroAchievementsSelectedSubsetGameIds": {
++        "list": "value"
++      },
+       "SchemaVersion": "value",
+       "ShadPS4MatchIdOverride": "value",
+       "SummaryFilteredAchievementApiNames": {
 diff --git a/tests/PlayniteAchievements.Tests/SqlNado/SqlNadoCacheBehaviorTests.cs b/tests/PlayniteAchievements.Tests/SqlNado/SqlNadoCacheBehaviorTests.cs
 index d84213eeff22df7f00feb5931d8011afd4e57c05..3bdf78634e6bfc8b476ab2542faf477a129bffed 100644
 --- a/tests/PlayniteAchievements.Tests/SqlNado/SqlNadoCacheBehaviorTests.cs
@@ -22757,7 +22763,7 @@ index e4949ba0b22771c664e90f11ff9635405f110132..76700ef20b6a0306a66c45337dbfa2c8
              StringAssert.Contains(
                  applySnapshotTail,
 diff --git a/tests/PlayniteAchievements.Tests/ViewModels/ScoreCardViewModelTests.cs b/tests/PlayniteAchievements.Tests/ViewModels/ScoreCardViewModelTests.cs
-index 0433ae6d2495c189bef5ea2d3de7e75934938e26..b808276c9f5f086ea1ac36f6f3b718d22b6d9bb5 100644
+index fe21b351a3d59a674557fd65b40d223cc230be76..5e3397844664bf8e4accb2decc7ee58aaaeccf6b 100644
 --- a/tests/PlayniteAchievements.Tests/ViewModels/ScoreCardViewModelTests.cs
 +++ b/tests/PlayniteAchievements.Tests/ViewModels/ScoreCardViewModelTests.cs
 @@ -3,6 +3,7 @@
@@ -22780,15 +22786,7 @@ index 0433ae6d2495c189bef5ea2d3de7e75934938e26..b808276c9f5f086ea1ac36f6f3b718d2
              Assert.AreEqual("Lv 42", card.LevelText);
              Assert.AreEqual("Gold III", card.TierText);
              Assert.AreEqual(67, card.LevelProgress);
-@@ -131,6 +133,7 @@ public void Apply_FormatsPointsTierAndLevel()
-         public void BadgeIconKey_TracksUniformRarityBadgeSetting()
-         {
-             var card = new ScoreCardViewModel(ScoreCardType.Prestige);
-+            card.SetUseCustomColors(true);
- 
-             card.Apply(12345, 42, 67, "Gold5", useUniformRarityBadges: false);
-             Assert.AreEqual("ScoreBadgeGoldPentagon", card.BadgeIconKey);
-@@ -152,7 +155,7 @@ public void CaptionText_PairsTheLevelWithWhatTheBarIsFilling()
+@@ -156,7 +158,7 @@ public void CaptionText_PairsTheLevelWithWhatTheBarIsFilling()
              StringAssert.Contains(card.CaptionText, card.PointsUntilNextLevelText);
              StringAssert.Contains(
                  card.PointsUntilNextLevelText,
@@ -22797,7 +22795,7 @@ index 0433ae6d2495c189bef5ea2d3de7e75934938e26..b808276c9f5f086ea1ac36f6f3b718d2
              StringAssert.Contains(
                  card.PointsUntilNextLevelText,
                  $"Lv {snapshot.DisplayLevel + 1}");
-@@ -177,7 +180,7 @@ public void TooltipText_StatesTheLadderRatherThanRepeatingTheCard()
+@@ -181,7 +183,7 @@ public void TooltipText_StatesTheLadderRatherThanRepeatingTheCard()
                  card.TooltipNextRankLabel);
              StringAssert.Contains(
                  card.TooltipNextRankValueText,
@@ -22806,7 +22804,7 @@ index 0433ae6d2495c189bef5ea2d3de7e75934938e26..b808276c9f5f086ea1ac36f6f3b718d2
          }
  
          [TestMethod]
-@@ -204,7 +207,7 @@ public void TooltipNextLevel_StatesTheLevelTheBarIsFillingToward()
+@@ -208,7 +210,7 @@ public void TooltipNextLevel_StatesTheLevelTheBarIsFillingToward()
              Assert.IsTrue(card.HasNextLevel);
              Assert.AreEqual($"Lv {snapshot.DisplayLevel + 1}", card.TooltipNextLevelLabel);
              Assert.AreEqual(
@@ -22815,7 +22813,7 @@ index 0433ae6d2495c189bef5ea2d3de7e75934938e26..b808276c9f5f086ea1ac36f6f3b718d2
                  card.TooltipNextLevelValueText);
          }
  
-@@ -238,7 +241,7 @@ public void Mastery_RestartsTheTierAndKeepsTheLevelAndScore()
+@@ -242,7 +244,7 @@ public void Mastery_RestartsTheTierAndKeepsTheLevelAndScore()
              Assert.AreEqual("Bronze IV", card.TierText);
              Assert.AreEqual(760, card.Level);
              Assert.AreEqual("Lv 760", card.LevelText);
@@ -22824,22 +22822,6 @@ index 0433ae6d2495c189bef5ea2d3de7e75934938e26..b808276c9f5f086ea1ac36f6f3b718d2
              Assert.AreEqual("10/250", card.TooltipLevelValueText);
              StringAssert.Contains(card.TooltipTitleText, "Mastery 3");
              StringAssert.Contains(card.PointsUntilNextLevelText, "Lv 761");
-@@ -316,6 +319,7 @@ public void Accents_FollowTheRarityColorSettings()
-             try
-             {
-                 var card = new ScoreCardViewModel(ScoreCardType.Collection);
-+            card.SetUseCustomColors(true);
- 
-                 card.Apply(12345, 42, 67, "Gold3", useUniformRarityBadges: false);
- 
-@@ -336,6 +340,7 @@ public void Accents_OfAMasterRankSweepTheCompletedColors()
-             try
-             {
-                 var card = new ScoreCardViewModel(ScoreCardType.Collection);
-+            card.SetUseCustomColors(true);
- 
-                 card.ApplyFromScore(PassLength, useUniformRarityBadges: false);
- 
 diff --git a/tests/PlayniteAchievements.Tests/Views/CategoryOrderFallbackDefinitionTests.cs b/tests/PlayniteAchievements.Tests/Views/CategoryOrderFallbackDefinitionTests.cs
 index 3c251596f9fd69f3e8240be0760997ff401598fa..a6f6f52e75f5fbd103e605f0002292286a4f485c 100644
 --- a/tests/PlayniteAchievements.Tests/Views/CategoryOrderFallbackDefinitionTests.cs

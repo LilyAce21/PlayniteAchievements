@@ -102,7 +102,8 @@ namespace PlayniteAchievements.Services.Tests
 
             Assert.AreEqual(12, receipt.IssueNumber);
             Assert.AreEqual("Per-game custom data", sent.Value<string>("kind"));
-            Assert.AreEqual(new string('a', 64), sent.Value<string>("submitterHash"));
+            Assert.AreEqual(new string('a', 64), sent.Value<string>("submitterKey"));
+            Assert.IsNull(sent["submitterHash"], "the public hash proves nothing, so it is not sent");
             Assert.AreEqual("4.1.0", sent.Value<string>("pluginVersion"));
 
             var failing = new WorkshopSubmissionClient(() => "https://service.invalid",

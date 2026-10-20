@@ -113,6 +113,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 ## Next release - TBD
 
+- v4.1.1 merge
 - Fixed the missing key for the `Cancel` button for the `Logs` buttons
 - Fixed the theme migration for `Solaris` theme
 - Fixed the missing label for the `Revert` button under the `Theme Migration` tab

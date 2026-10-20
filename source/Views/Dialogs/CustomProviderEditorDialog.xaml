@@ -111,7 +111,8 @@
                                  Text="{Binding IconSource, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                  KeyDown="IconSourceTextBox_KeyDown" />
                         <Button Grid.Column="1"
-                                Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                Content="..."
+                                ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                 Command="{Binding BrowseCommand}"
                                 Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"
                                 Margin="8,0,0,0" />
