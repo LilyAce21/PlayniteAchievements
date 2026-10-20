@@ -1056,8 +1056,8 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_UseUniformRarityBadges">Use Uniform Rarity Badges</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_UseTrophiesForRarity">Use Trophies for Rarity</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_RoundRarityPercentages">Round Rarity Percentages</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_CapstonesUsePlatinumRarity">Auto/PSN capstones always use Platinum rarity</sys:String>
-    <sys:String x:Key="LOCPlayAch_Settings_CapstonesUsePlatinumRarity_Help">Auto and PSN capstones show the Platinum rarity tier regardless of their rarity percentage. Normal achievements still follow rarity percent. Takes effect the next time achievement data reloads.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_CapstonesUsePlatinumRarity">Capstones always show the Platinum trophy</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_CapstonesUsePlatinumRarity_Help">Capstone achievements show the Platinum trophy icon in the rarity column regardless of their rarity percentage. The percent text and glow still follow the real rarity tier, and normal achievements are unchanged.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CustomRarityIcons">Custom rarity and trophy icons</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CustomRarityIcons_Help">Replace any rarity or trophy icon with your own image (PNG recommended). Unset slots keep the built-in icon everywhere it appears.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_RoundRarityPercentages_Help">Values under 1% display as &lt;1%.</sys:String>
