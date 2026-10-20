@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using Playnite.SDK;
 using Playnite.SDK.Models;
 using System;
@@ -202,7 +203,7 @@ namespace PlayniteAchievements.Providers.Local
                 }
             }
 
-            _logger?.Info($"[Local] {msg}");
+            ForkLog.Wrap(_logger)?.Info($"[Local] {msg}");
         }
 
         internal IDisposable BeginRealtimeLogThrottle()
@@ -1170,7 +1171,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.CustomSchemaEnabledOverrides[gameId] = isEnabled;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local custom schema enabled override for '{gameName}' to '{isEnabled}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local custom schema enabled override for '{gameName}' to '{isEnabled}'");
             return true;
         }
 
@@ -1189,7 +1190,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local custom schema enabled override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local custom schema enabled override for '{gameName}'");
             return true;
         }
 
@@ -1335,7 +1336,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared all Local overrides for '{gameName}'.");
+            ForkLog.Wrap(logger)?.Info($"Cleared all Local overrides for '{gameName}'.");
             return true;
         }
 
@@ -1368,7 +1369,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.SteamAppIdOverrides[gameId] = appId;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local Steam App ID override for '{gameName}' to {appId}");
+            ForkLog.Wrap(logger)?.Info($"Set Local Steam App ID override for '{gameName}' to {appId}");
             return true;
         }
 
@@ -1387,7 +1388,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local Steam App ID override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local Steam App ID override for '{gameName}'");
             return true;
         }
 
@@ -1403,7 +1404,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.LocalFolderOverrides[gameId] = normalizedPath;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local folder override for '{gameName}' to '{normalizedPath}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local folder override for '{gameName}' to '{normalizedPath}'");
             return true;
         }
 
@@ -1422,7 +1423,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.CustomSchemaEnabledOverrides[gameId] = true;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local custom schema override for '{gameName}' to '{normalizedPath}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local custom schema override for '{gameName}' to '{normalizedPath}'");
             return true;
         }
 
@@ -1451,7 +1452,7 @@ namespace PlayniteAchievements.Providers.Local
             selector(settings)[gameId] = path.Trim();
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local {label} override for '{gameName}' to '{path.Trim()}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local {label} override for '{gameName}' to '{path.Trim()}'");
             return true;
         }
 
@@ -1463,7 +1464,7 @@ namespace PlayniteAchievements.Providers.Local
             if (values == null || !values.Remove(gameId)) return false;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local {label} override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local {label} override for '{gameName}'");
             return true;
         }
 
@@ -1478,7 +1479,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.LumaPlayAppIdOverrides[gameId] = appId;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local LumaPlay Uplay App ID override for '{gameName}' to {appId}");
+            ForkLog.Wrap(logger)?.Info($"Set Local LumaPlay Uplay App ID override for '{gameName}' to {appId}");
             return true;
         }
 
@@ -1497,7 +1498,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local LumaPlay Uplay App ID override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local LumaPlay Uplay App ID override for '{gameName}'");
             return true;
         }
 
@@ -1513,7 +1514,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.LumaPlayIniPathOverrides[gameId] = normalizedPath;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local LumaPlay.ini override for '{gameName}' to '{normalizedPath}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local LumaPlay.ini override for '{gameName}' to '{normalizedPath}'");
             return true;
         }
 
@@ -1532,7 +1533,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local LumaPlay.ini override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local LumaPlay.ini override for '{gameName}'");
             return true;
         }
 
@@ -1551,7 +1552,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local folder override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local folder override for '{gameName}'");
             return true;
         }
 
@@ -1572,7 +1573,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local custom schema override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local custom schema override for '{gameName}'");
             return true;
         }
 
@@ -1589,7 +1590,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.SteamAppCacheUserOverrides[gameId] = normalizedUserId;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local Steam appcache user override for '{gameName}' to '{normalizedUserId}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local Steam appcache user override for '{gameName}' to '{normalizedUserId}'");
             return true;
         }
 
@@ -1605,7 +1606,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.RefreshOnGameCloseOverrides[gameId] = shouldRefresh;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local refresh-on-game-close override for '{gameName}' to '{shouldRefresh}'.");
+            ForkLog.Wrap(logger)?.Info($"Set Local refresh-on-game-close override for '{gameName}' to '{shouldRefresh}'.");
             return true;
         }
 
@@ -1624,7 +1625,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local Steam appcache user override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local Steam appcache user override for '{gameName}'");
             return true;
         }
 
@@ -1643,7 +1644,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local refresh-on-game-close override for '{gameName}'.");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local refresh-on-game-close override for '{gameName}'.");
             return true;
         }
 
@@ -2295,7 +2296,7 @@ namespace PlayniteAchievements.Providers.Local
                         }
                         catch (Exception ex)
                         {
-                            _logger?.Debug(ex, $"[Local] Steam store search request failed for query '{query}'.");
+                            ForkLog.Wrap(_logger)?.Debug(ex, $"[Local] Steam store search request failed for query '{query}'.");
                             continue;
                         }
 
@@ -2373,7 +2374,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[Local] Steam store search failed for game '{gameName}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[Local] Steam store search failed for game '{gameName}'.");
                 _lumaPlaySteamAppIdCache[gameName] = 0;
                 return 0;
             }
@@ -4591,13 +4592,13 @@ namespace PlayniteAchievements.Providers.Local
                     }
                 }
 
-                _logger?.Debug(
+                ForkLog.Wrap(_logger)?.Debug(
                     $"[Local] Background Steam menu-user discovery completed: " +
                     $"users={users?.Count ?? 0}, ms={(DateTime.UtcNow - startedUtc).TotalMilliseconds:0}.");
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[Local] Background Steam menu-user discovery failed.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[Local] Background Steam menu-user discovery failed.");
             }
             finally
             {
@@ -8407,7 +8408,7 @@ namespace PlayniteAchievements.Providers.Local
                     return true;
                 }
 
-                _logger?.Warn($"Local save folder or file override for '{game.Name}' no longer exists: {overriddenFolderPath}");
+                ForkLog.Wrap(_logger)?.Warn($"Local save folder or file override for '{game.Name}' no longer exists: {overriddenFolderPath}");
             }
 
             candidateFolders = candidates;
@@ -8703,7 +8704,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed to show Local folder ambiguity notification for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to show Local folder ambiguity notification for '{game.Name}'.");
             }
         }
 
@@ -9340,7 +9341,7 @@ namespace PlayniteAchievements.Providers.Local
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, $"[Local] Steam Web API schema fetch failed for appId={appId}; falling back to anonymous sources.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, $"[Local] Steam Web API schema fetch failed for appId={appId}; falling back to anonymous sources.");
                     }
                 }
 

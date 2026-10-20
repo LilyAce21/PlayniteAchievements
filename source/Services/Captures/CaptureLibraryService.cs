@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -163,7 +164,7 @@ namespace PlayniteAchievements.Services.Captures
                 }
                 catch (ArgumentException ex)
                 {
-                    _logger?.Debug(ex, "Ignoring an invalid capture directory.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, "Ignoring an invalid capture directory.");
                 }
             }
             if (ResolveGameDirectories().TryGetValue(sanitizedFolder, out var own))
@@ -879,7 +880,7 @@ namespace PlayniteAchievements.Services.Captures
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, $"Capture scan failed for folder '{gameFolder}' and game '{sanitizedFolder}'.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, $"Capture scan failed for folder '{gameFolder}' and game '{sanitizedFolder}'.");
                 }
             }
 

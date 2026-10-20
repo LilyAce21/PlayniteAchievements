@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections;
 using System.Linq;
@@ -43,7 +44,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             var notify = type.GetMethod("OnPropertyChanged", BindingFlags.Public | flags, null, new[] { typeof(string) }, null);
             notify?.Invoke(viewModel, new object[] { "CanSelectUnlocked" });
             notify?.Invoke(viewModel, new object[] { "CanSelectLocked" });
-            logger?.Info($"[PS5Progress] Synchronized achievement states from fork cache: matched={states.Count}, changed={changed}.");
+            ForkLog.Wrap(logger)?.Info($"[PS5Progress] Synchronized achievement states from fork cache: matched={states.Count}, changed={changed}.");
             return true;
         }
     }

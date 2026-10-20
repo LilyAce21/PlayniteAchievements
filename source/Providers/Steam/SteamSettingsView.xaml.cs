@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -471,7 +472,7 @@ private static void OnDefaultSteamAccountIdChanged(DependencyObject d, Dependenc
             }
             catch (Exception)
             {
-                Logger.Debug("Failed resolving Steam ID from vanity URL during API-key account lookup.");
+                ForkLog.Wrap(Logger).Debug("Failed resolving Steam ID from vanity URL during API-key account lookup.");
                 return string.Empty;
             }
         }
@@ -701,7 +702,7 @@ private static void OnDefaultSteamAccountIdChanged(DependencyObject d, Dependenc
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "Steam owned-games import failed");
+                ForkLog.Wrap(Logger).Error(ex, "Steam owned-games import failed");
                 if (showDialog)
                 {
                     _api.Dialogs.ShowMessage(
@@ -805,7 +806,7 @@ private static void OnDefaultSteamAccountIdChanged(DependencyObject d, Dependenc
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, "Steam owned-games import failed");
+                    ForkLog.Wrap(Logger).Error(ex, "Steam owned-games import failed");
                     Dispatcher.Invoke(() =>
                     {
                         progressControl.MarkFailed(

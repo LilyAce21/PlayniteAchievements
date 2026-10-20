@@ -60,6 +60,10 @@ at the repository root for remaining missing features and live-verification task
 
 ## Maintenance logs
 
+- Fork-specific messages use logger names ending in -Santodan, including
+  [PlayniteAchievementsPlugin-Santodan] for fork calls sharing the plugin logger.
+  Upstream messages retain their original names. All severity levels and exception
+  overloads preserve their destination; repeated wrapping adds the suffix only once.
 - Santodan-Fork is the first settings tab, with General, Platforms, Achievement
   Notification, and Theme Migration inside it. Its General page hosts cached-unlock
   protection and log tools; upstream General/Maintenance retains upstream content.

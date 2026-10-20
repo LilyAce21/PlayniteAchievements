@@ -8,13 +8,25 @@ namespace PlayniteAchievements.Services.Logging
     /// </summary>
     public class NamedLoggerWrapper : ILogger
     {
-        private readonly FileLogger _innerLogger;
+        private readonly ILogger _innerLogger;
         private readonly string _loggerName;
+        private NamedLoggerWrapper _forkLogger;
 
-        public NamedLoggerWrapper(FileLogger innerLogger, string loggerName)
+        public NamedLoggerWrapper(ILogger innerLogger, string loggerName)
         {
             _innerLogger = innerLogger ?? throw new ArgumentNullException(nameof(innerLogger));
             _loggerName = loggerName ?? throw new ArgumentNullException(nameof(loggerName));
+        }
+
+        internal ILogger ForFork()
+        {
+            if (_loggerName.EndsWith("-Santodan", StringComparison.OrdinalIgnoreCase)) return this;
+            if (_forkLogger == null)
+            {
+                System.Threading.Interlocked.CompareExchange(ref _forkLogger,
+                    new NamedLoggerWrapper(_innerLogger, _loggerName + "-Santodan"), null);
+            }
+            return _forkLogger;
         }
 
         public void Debug(string message)

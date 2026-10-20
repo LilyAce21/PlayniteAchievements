@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
@@ -261,7 +262,7 @@ namespace PlayniteAchievements.Providers.RetroAchievements
 
                     if (!IsStillSelectedProvider(game))
                     {
-                        _logger?.Info($"[RA] Skipping '{game.Name}' because its provider changed before scanning started.");
+                        ForkLog.Wrap(_logger)?.Info($"[RA] Skipping '{game.Name}' because its provider changed before scanning started.");
                         return ProviderRefreshExecutor.ProviderGameResult.Skipped();
                     }
 
@@ -705,7 +706,7 @@ namespace PlayniteAchievements.Providers.RetroAchievements
 
                 if (!IsStillSelectedProvider(game))
                 {
-                    _logger?.Info($"[RA] Stopping platformless name fallback for '{game?.Name}' because its provider changed.");
+                    ForkLog.Wrap(_logger)?.Info($"[RA] Stopping platformless name fallback for '{game?.Name}' because its provider changed.");
                     return null;
                 }
 

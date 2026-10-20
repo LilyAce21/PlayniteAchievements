@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.IO;
 using System.Linq;
@@ -78,7 +79,7 @@ namespace PlayniteAchievements.Services.ReleaseMonitoring
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed checking for Santodan fork releases.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed checking for Santodan fork releases.");
             }
         }
 

@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -154,7 +155,7 @@ namespace PlayniteAchievements.Providers.Steam
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Localized Steam schema request failed for appId={appId}, language={language}");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Localized Steam schema request failed for appId={appId}, language={language}");
                 return null;
             }
         }

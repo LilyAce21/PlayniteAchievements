@@ -1,4 +1,5 @@
-﻿// LegacyNotificationSettingsControl.xaml.cs
+// LegacyNotificationSettingsControl.xaml.cs
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -821,21 +822,21 @@ namespace PlayniteAchievements.Views
             UpdateHotkeyButtonTexts();
 
             // Debug logging to verify DataContext and Settings values
-            _logger?.Info($"LegacyNotificationSettingsControl created. DataContext type: {DataContext?.GetType().Name}");
-            _logger?.Info($"Settings.EnablePeriodicUpdates: {_settingsViewModel.Settings.Persisted.EnablePeriodicUpdates}");
+            ForkLog.Wrap(_logger)?.Info($"LegacyNotificationSettingsControl created. DataContext type: {DataContext?.GetType().Name}");
+            ForkLog.Wrap(_logger)?.Info($"Settings.EnablePeriodicUpdates: {_settingsViewModel.Settings.Persisted.EnablePeriodicUpdates}");
 
             Loaded += (s, e) =>
             {
                 // Ensure DataContext is still correct after Playnite initialization
                 if (DataContext is not PlayniteAchievementsSettings)
                 {
-                    _logger?.Info($"DataContext was wrong type in Loaded event: {DataContext?.GetType().Name}, fixing...");
+                    ForkLog.Wrap(_logger)?.Info($"DataContext was wrong type in Loaded event: {DataContext?.GetType().Name}, fixing...");
                     DataContext = _settingsViewModel.Settings;
-                    _logger?.Info($"DataContext fixed to: {DataContext?.GetType().Name}");
+                    ForkLog.Wrap(_logger)?.Info($"DataContext fixed to: {DataContext?.GetType().Name}");
                 }
                 else
                 {
-                    _logger?.Info($"DataContext verified correct in Loaded event: {DataContext?.GetType().Name}");
+                    ForkLog.Wrap(_logger)?.Info($"DataContext verified correct in Loaded event: {DataContext?.GetType().Name}");
                 }
 
                 // Load themes on initial load
@@ -1182,7 +1183,7 @@ namespace PlayniteAchievements.Views
                 var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
                 if (localSettings == null)
                 {
-                    _logger?.Warn("Could not get Local provider settings for Achievement Notifications tab.");
+                    ForkLog.Wrap(_logger)?.Warn("Could not get Local provider settings for Achievement Notifications tab.");
                     return;
                 }
 
@@ -1215,7 +1216,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to initialize Achievement Notifications tab.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to initialize Achievement Notifications tab.");
             }
         }
 
@@ -3245,7 +3246,7 @@ namespace PlayniteAchievements.Views
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "Failed to initialize Flaticon WebView.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "Failed to initialize Flaticon WebView.");
                         NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open Flaticon WebView.";
                     }
                 };
@@ -3263,7 +3264,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to open Flaticon WebView.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to open Flaticon WebView.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open Flaticon WebView.";
             }
         }
@@ -3298,7 +3299,7 @@ namespace PlayniteAchievements.Views
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "Failed to initialize SVG Repo WebView.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "Failed to initialize SVG Repo WebView.");
                         NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open SVG Repo WebView.";
                     }
                 };
@@ -3316,7 +3317,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to open SVG Repo WebView.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to open SVG Repo WebView.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open SVG Repo WebView.";
             }
         }
@@ -3398,7 +3399,7 @@ namespace PlayniteAchievements.Views
                     }
                     else
                     {
-                        _logger?.Warn(ex, "Failed to search SVG Repo.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "Failed to search SVG Repo.");
                         NotificationsUnlockSoundStatusTextBlock.Text = "Failed to search SVG Repo.";
                     }
                 }
@@ -3570,7 +3571,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to import SVG Repo icon.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to import SVG Repo icon.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to import SVG Repo icon.";
             }
         }
@@ -3714,7 +3715,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to save notification custom icon source paths.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to save notification custom icon source paths.");
             }
         }
 
@@ -3862,7 +3863,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to copy custom notification icon.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to copy custom notification icon.");
                 return string.Empty;
             }
         }
@@ -4717,7 +4718,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to export notification custom style template.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to export notification custom style template.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to export custom template.";
             }
         }
@@ -4820,7 +4821,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to import notification custom style template.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to import notification custom style template.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to import custom template.";
             }
         }
@@ -5078,7 +5079,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to parse SAN preset template.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to parse SAN preset template.");
                 return null;
             }
         }
@@ -5197,7 +5198,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to parse SAN export template.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to parse SAN export template.");
                 return null;
             }
         }
@@ -5795,7 +5796,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to open notification template builder.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to open notification template builder.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open notification template builder.";
                 _plugin?.PlayniteApi?.Dialogs?.ShowMessage(
                     $"Failed to open notification template builder: {ex.Message}",
@@ -6128,7 +6129,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to save embedded custom icon from notification template.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to save embedded custom icon from notification template.");
                 return string.Empty;
             }
         }
@@ -6480,7 +6481,7 @@ namespace PlayniteAchievements.Views
                     .ToList();
                 if (themes.Count == 0)
                 {
-                    _logger.Info("No themes path found for theme migration.");
+                    ForkLog.Wrap(_logger).Info("No themes path found for theme migration.");
                     UpdateThemeMigrationState();
                     return;
                 }
@@ -6521,11 +6522,11 @@ namespace PlayniteAchievements.Views
 
                 UpdateThemeMigrationState();
 
-                _logger.Info($"Loaded {AvailableThemes.Count} themes to migrate, {RevertableThemes.Count} themes to revert.");
+                ForkLog.Wrap(_logger).Info($"Loaded {AvailableThemes.Count} themes to migrate, {RevertableThemes.Count} themes to revert.");
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to load themes for migration.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to load themes for migration.");
             }
         }
 
@@ -6552,7 +6553,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to detect StartPage installation state.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to detect StartPage installation state.");
                 HasStartPageInstalled = false;
                 ShowStartPageNotInstalledMessage = true;
                 HasStartPageBackup = false;
@@ -6646,7 +6647,7 @@ namespace PlayniteAchievements.Views
             {
                 Services.Logging.AchievementNotificationDebugLog.SetEnabled(false);
                 localSettings.EnableOverlayDebugLogging = false;
-                _logger?.Error(ex, "Failed to enable the Achievement Notification debug log.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to enable the Achievement Notification debug log.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     $"AchNotifDebug.log could not be created.\n\n{ex.Message}",
                     "Achievement Notification Debug Log",
@@ -6691,13 +6692,13 @@ namespace PlayniteAchievements.Views
             var selectedThemePath = SelectedThemePath;
             if (string.IsNullOrWhiteSpace(selectedThemePath))
             {
-                _logger.Warn("Migrate clicked but no theme selected.");
+                ForkLog.Wrap(_logger).Warn("Migrate clicked but no theme selected.");
                 return;
             }
 
             var highlightLatest = customSelection?.HighlightLatestUnlockedAchievement;
             var useScrollable = customSelection?.ModernizeCompactAchievementLists;
-            _logger.Info(
+            ForkLog.Wrap(_logger).Info(
                 $"User requested {mode} theme migration for: {selectedThemePath}; " +
                 $"useScrollableAchievements={useScrollable?.ToString() ?? "not-applicable"}; " +
                 $"highlightLatestUnlockedAchievement={highlightLatest?.ToString() ?? "not-applicable"}");
@@ -6707,12 +6708,12 @@ namespace PlayniteAchievements.Views
                 var selectedThemeHasBackup = _themeMigration.HasBackup(selectedThemePath);
                 if (selectedThemeHasBackup)
                 {
-                    _logger.Info($"Selected theme already has backup. Reverting before migration: {selectedThemePath}");
+                    ForkLog.Wrap(_logger).Info($"Selected theme already has backup. Reverting before migration: {selectedThemePath}");
 
                     var revertResult = await _themeMigration.RevertThemeAsync(selectedThemePath);
                     if (!revertResult.Success)
                     {
-                        _logger.Warn($"Pre-migration revert failed: {revertResult.Message}");
+                        ForkLog.Wrap(_logger).Warn($"Pre-migration revert failed: {revertResult.Message}");
                         _plugin.PlayniteApi.Dialogs.ShowMessage(
                             revertResult.Message,
                             L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
@@ -6729,7 +6730,7 @@ namespace PlayniteAchievements.Views
 
                 if (result.Success)
                 {
-                    _logger.Info($"Theme migration ({mode}) successful: {selectedThemePath}");
+                    ForkLog.Wrap(_logger).Info($"Theme migration ({mode}) successful: {selectedThemePath}");
 
                     // Show restart notice whenever files were modified.
                     if (result.FilesProcessed > 0)
@@ -6755,7 +6756,7 @@ namespace PlayniteAchievements.Views
                 }
                 else
                 {
-                    _logger.Warn($"Theme migration failed: {result.Message}");
+                    ForkLog.Wrap(_logger).Warn($"Theme migration failed: {result.Message}");
                     _plugin.PlayniteApi.Dialogs.ShowMessage(
                         result.Message,
                         L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
@@ -6765,7 +6766,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to execute theme migration.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to execute theme migration.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
@@ -6778,7 +6779,7 @@ namespace PlayniteAchievements.Views
         {
             if (string.IsNullOrWhiteSpace(SelectedRevertThemePath))
             {
-                _logger.Warn("Revert clicked but no theme selected.");
+                ForkLog.Wrap(_logger).Warn("Revert clicked but no theme selected.");
                 return;
             }
 
@@ -6792,7 +6793,7 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
-            _logger.Info($"User requested theme revert for: {SelectedRevertThemePath}");
+            ForkLog.Wrap(_logger).Info($"User requested theme revert for: {SelectedRevertThemePath}");
 
             try
             {
@@ -6800,7 +6801,7 @@ namespace PlayniteAchievements.Views
 
                 if (result.Success)
                 {
-                    _logger.Info($"Theme revert successful: {SelectedRevertThemePath}");
+                    ForkLog.Wrap(_logger).Info($"Theme revert successful: {SelectedRevertThemePath}");
                     _plugin.PlayniteApi.Dialogs.ShowMessage(
                         result.Message,
                         L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
@@ -6812,7 +6813,7 @@ namespace PlayniteAchievements.Views
                 }
                 else
                 {
-                    _logger.Warn($"Theme revert failed: {result.Message}");
+                    ForkLog.Wrap(_logger).Warn($"Theme revert failed: {result.Message}");
                     _plugin.PlayniteApi.Dialogs.ShowMessage(
                         result.Message,
                         L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
@@ -6822,7 +6823,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to execute theme revert.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to execute theme revert.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
@@ -6878,7 +6879,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to apply StartPage compatibility migration from settings.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to apply StartPage compatibility migration from settings.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
@@ -6914,7 +6915,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to revert StartPage compatibility migration from settings.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to revert StartPage compatibility migration from settings.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
@@ -6961,7 +6962,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to restart Playnite.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to restart Playnite.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
@@ -7452,11 +7453,11 @@ namespace PlayniteAchievements.Views
         {
             try
             {
-                _logger.Info($"Resetting FirstTimeSetupCompleted. Current value before: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
+                ForkLog.Wrap(_logger).Info($"Resetting FirstTimeSetupCompleted. Current value before: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
 
                 _settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted = false;
 
-                _logger.Info($"Value after setting to false: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
+                ForkLog.Wrap(_logger).Info($"Value after setting to false: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
 
                 _plugin.SavePluginSettings(_settingsViewModel.Settings);
                 NotificationPublisher.ClosePersistentSettingsPreview();
@@ -7469,7 +7470,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to reset first-time setup.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to reset first-time setup.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7482,7 +7483,7 @@ namespace PlayniteAchievements.Views
         {
             try
             {
-                _logger.Info("Resetting Display tab settings to defaults.");
+                ForkLog.Wrap(_logger).Info("Resetting Display tab settings to defaults.");
 
                 _settingsViewModel.Settings.Persisted.ResetDisplaySettingsToDefaults();
                 PercentRarityHelper.ApplyBadgeApplicationResources(
@@ -7498,7 +7499,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to reset Display tab settings.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to reset Display tab settings.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7514,7 +7515,7 @@ namespace PlayniteAchievements.Views
                 var exportBaseDir = _plugin.GetPluginUserDataPath();
                 var exportDir = _plugin.RefreshRuntime.Cache.ExportDatabaseToCsv(exportBaseDir);
 
-                _logger.Info($"Database exported to: {exportDir}");
+                ForkLog.Wrap(_logger).Info($"Database exported to: {exportDir}");
 
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     L("LOCPlayAch_Status_Succeeded", "Success!") + "\n" + exportDir,
@@ -7524,7 +7525,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to export database.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to export database.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7553,7 +7554,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to open extension data folder.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to open extension data folder.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7589,11 +7590,11 @@ namespace PlayniteAchievements.Views
                     {
                         System.IO.File.Delete(file);
                         deletedCount++;
-                        _logger.Info($"Deleted hash index cache: {file}");
+                        ForkLog.Wrap(_logger).Info($"Deleted hash index cache: {file}");
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warn(ex, $"Failed to delete hash index cache: {file}");
+                        ForkLog.Wrap(_logger).Warn(ex, $"Failed to delete hash index cache: {file}");
                     }
                 }
 
@@ -7605,7 +7606,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to force hash index rebuild.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to force hash index rebuild.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
@@ -8006,7 +8007,7 @@ namespace PlayniteAchievements.Views
                 var tagSyncService = _plugin.TagSyncService;
                 if (tagSyncService == null)
                 {
-                    _logger?.Warn("TagSyncService not available");
+                    ForkLog.Wrap(_logger)?.Warn("TagSyncService not available");
                     return;
                 }
 
@@ -8015,7 +8016,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to apply and sync tags.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to apply and sync tags.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
@@ -8042,7 +8043,7 @@ namespace PlayniteAchievements.Views
                 var tagSyncService = _plugin.TagSyncService;
                 if (tagSyncService == null)
                 {
-                    _logger?.Warn("TagSyncService not available");
+                    ForkLog.Wrap(_logger)?.Warn("TagSyncService not available");
                     return;
                 }
 
@@ -8050,7 +8051,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to remove tags.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to remove tags.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
@@ -8137,7 +8138,7 @@ namespace PlayniteAchievements.Views
             }
 
             _providerNavigationBuilt = true;
-            _logger?.Info($"Built {LegacyProviderNavigationItems.Count} platform navigation items");
+            ForkLog.Wrap(_logger)?.Info($"Built {LegacyProviderNavigationItems.Count} platform navigation items");
         }
 
         private static string GetProviderSettingsGroupName(string providerKey)
@@ -8231,11 +8232,11 @@ namespace PlayniteAchievements.Views
                 {
                     ProviderSearchText = string.Empty;
                     SelectedLegacyProviderNavigationItem = redirectItem;
-                    _logger?.Info($"Redirected {item.ProviderKey} settings navigation to {redirectItem.ProviderKey}");
+                    ForkLog.Wrap(_logger)?.Info($"Redirected {item.ProviderKey} settings navigation to {redirectItem.ProviderKey}");
                 }
                 else
                 {
-                    _logger?.Warn($"Provider settings redirect target not found for {item.ProviderKey}: {item.RedirectProviderKey}");
+                    ForkLog.Wrap(_logger)?.Warn($"Provider settings redirect target not found for {item.ProviderKey}: {item.RedirectProviderKey}");
                 }
 
                 return;
@@ -8249,11 +8250,11 @@ namespace PlayniteAchievements.Views
                 try
                 {
                     await authRefreshable.RefreshAuthStatusAsync();
-                    _logger?.Info($"Refreshed auth status for {item.ProviderKey}");
+                    ForkLog.Wrap(_logger)?.Info($"Refreshed auth status for {item.ProviderKey}");
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Error(ex, $"Failed to refresh auth status for {item.ProviderKey}");
+                    ForkLog.Wrap(_logger)?.Error(ex, $"Failed to refresh auth status for {item.ProviderKey}");
                 }
             }
         }
@@ -8272,7 +8273,7 @@ namespace PlayniteAchievements.Views
                 {
                     SettingsTabControl.SelectedItem = ProvidersTab;
                     SelectedLegacyProviderNavigationItem = targetItem;
-                    _logger?.Info($"Navigated to pending provider: {targetKey}");
+                    ForkLog.Wrap(_logger)?.Info($"Navigated to pending provider: {targetKey}");
                     return;
                 }
 
@@ -8319,7 +8320,7 @@ namespace PlayniteAchievements.Views
             if (string.Equals(name, "ThemeMigrationTab", StringComparison.OrdinalIgnoreCase))
             {
                 LoadThemes();
-                _logger?.Info("Loaded themes for Theme Migration tab.");
+                ForkLog.Wrap(_logger)?.Info("Loaded themes for Theme Migration tab.");
             }
         }
 

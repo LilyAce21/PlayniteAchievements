@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Providers;
 using Playnite.SDK;
@@ -462,7 +463,7 @@ namespace PlayniteAchievements.Services.Refresh
 
             if (!RealtimePollingLogScope.IsActive)
             {
-                _logger.Info("Starting new refresh.");
+                ForkLog.Wrap(_logger).Info("Starting new refresh.");
             }
             return true;
         }
@@ -471,7 +472,7 @@ namespace PlayniteAchievements.Services.Refresh
         {
             if (!RealtimePollingLogScope.IsActive)
             {
-                _logger.Info("Refresh ended.");
+                ForkLog.Wrap(_logger).Info("Refresh ended.");
             }
             _refreshStateManager.EndRun();
         }
@@ -814,7 +815,7 @@ namespace PlayniteAchievements.Services.Refresh
                 filterTimer.Stop();
                 if (!RealtimePollingLogScope.IsActive)
                 {
-                    _logger?.Debug(
+                    ForkLog.Wrap(_logger)?.Debug(
                         $"[RefreshPerf] phase=auth.preflight.filter enabled={enabledProviders.Count} candidates={probeCandidates.Count} ms={filterTimer.ElapsedMilliseconds}");
                 }
             }
@@ -835,7 +836,7 @@ namespace PlayniteAchievements.Services.Refresh
                     .ToList();
                 if (!RealtimePollingLogScope.IsActive)
                 {
-                    _logger?.Debug(
+                    ForkLog.Wrap(_logger)?.Debug(
                         $"[RefreshPerf] phase=auth.preflight.secondchance remaining={remaining.Count}");
                 }
                 await ProbeProvidersForAuthContextAsync(remaining, context, ct).ConfigureAwait(false);
@@ -922,7 +923,7 @@ namespace PlayniteAchievements.Services.Refresh
                 context.SetProbeResult(provider?.ProviderKey, result, timer.ElapsedMilliseconds, artifact);
                 if (!RealtimePollingLogScope.IsActive)
                 {
-                    _logger?.Debug(
+                    ForkLog.Wrap(_logger)?.Debug(
                         $"[RefreshPerf] phase=auth.preflight provider={provider?.ProviderKey ?? "unknown"} ms={timer.ElapsedMilliseconds} outcome={result?.Outcome.ToString() ?? "null"} success={result?.IsSuccess == true}");
                 }
                 gate.Release();
@@ -975,7 +976,7 @@ namespace PlayniteAchievements.Services.Refresh
 
             if (!RealtimePollingLogScope.IsActive)
             {
-                _logger.Debug(string.Format(
+                ForkLog.Wrap(_logger).Debug(string.Format(
                     "Games to refresh: {0}, Platforms: {1}, Grouped platforms: {2}",
                     refreshTargets.Count,
                     _providers.Count,
@@ -1065,7 +1066,7 @@ namespace PlayniteAchievements.Services.Refresh
             var timer = Stopwatch.StartNew();
             if (!RealtimePollingLogScope.IsActive)
             {
-                _logger?.Debug(
+                ForkLog.Wrap(_logger)?.Debug(
                     $"[RefreshPerf] phase=current.start mode={mode} providers={plans.Count} games={totalGames} parallel={runProvidersInParallel}");
             }
             var providerResults = await ProviderRefreshExecutor.ExecuteProvidersAsync(
@@ -1078,7 +1079,7 @@ namespace PlayniteAchievements.Services.Refresh
             timer.Stop();
             if (!RealtimePollingLogScope.IsActive)
             {
-                _logger?.Debug(
+                ForkLog.Wrap(_logger)?.Debug(
                     $"[RefreshPerf] phase=current.total mode={mode} ms={timer.ElapsedMilliseconds} providers={plans.Count} games={totalGames} refreshed={payload.Summary.GamesRefreshed} withAchievements={payload.Summary.GamesWithAchievements} withoutAchievements={payload.Summary.GamesWithoutAchievements}");
             }
             return payload;
@@ -1664,7 +1665,7 @@ namespace PlayniteAchievements.Services.Refresh
             var preservedUnlocks = preserveCachedUnlocks ? AchievementWriteGuard.PreserveCachedUnlocks(previous, data) : 0;
             if (!preserveCachedUnlocks)
             {
-                _logger?.Info($"Refresh for '{game?.Name}' accepts provider unlock states; cached-unlock protection is disabled.");
+                ForkLog.Wrap(_logger)?.Info($"Refresh for '{game?.Name}' accepts provider unlock states; cached-unlock protection is disabled.");
             }
             if (preservedUnlocks > 0)
             {

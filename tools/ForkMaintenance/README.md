@@ -2,6 +2,15 @@
 
 ## v4.1.1 integration - 2026-10-20
 
+Fork-specific log calls append -Santodan to the logger name, for example
+[PlayniteAchievementsPlugin-Santodan]. Upstream log calls retain their existing
+names. The wrapper preserves severity, exceptions, and destination, reuses named
+fork loggers, and avoids duplicate suffixes. The Release rebuild and seven logging
+tests passed. This bundle refresh captures only the logging change over HEAD;
+the separate ongoing custom-schema changes are excluded.
+The isolated logging-only Release rebuild and bundle dry run passed against
+upstream v4.1.1, including 162 overlays, localization recipes, and component hashes.
+
 Custom folders and Local save-folder/file overrides support {InstallDir},
 {GameDirName}, {PlayniteDir}, {EmulatorDir}, {SteamAppId}, {GameName},
 {ExecutableDir}, {RomDir}, and {GameId}, alongside environment variables.

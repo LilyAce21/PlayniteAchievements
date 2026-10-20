@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Friends;
@@ -245,7 +246,7 @@ namespace PlayniteAchievements.Providers.Steam
 
             store.Update(gameId, data => data.SteamAccountIdOverride = steamAccountId.Trim());
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Steam account override for '{gameName}'.");
+            ForkLog.Wrap(logger)?.Info($"Set Steam account override for '{gameName}'.");
             return true;
         }
 
@@ -265,7 +266,7 @@ namespace PlayniteAchievements.Providers.Steam
 
             store.Update(gameId, data => data.SteamAccountIdOverride = null);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Steam account override for '{gameName}'.");
+            ForkLog.Wrap(logger)?.Info($"Cleared Steam account override for '{gameName}'.");
             return true;
         }
 

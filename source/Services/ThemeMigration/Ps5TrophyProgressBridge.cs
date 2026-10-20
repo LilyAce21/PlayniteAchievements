@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Globalization;
 using System.Collections.Specialized;
@@ -41,13 +42,13 @@ namespace PlayniteAchievements.Services.ThemeMigration
                     .Select(root => System.IO.Path.Combine(root, "Themes", "Fullscreen", theme, "Views", "Main.xaml"))
                     .Any(path => File.Exists(path) && File.ReadAllText(path).Contains(Marker));
                 if (!_enableNamedList) return;
-                _logger?.Info("[PS5Progress] Migrated theme detected; watching live trophy windows.");
+                ForkLog.Wrap(_logger)?.Info("[PS5Progress] Migrated theme detected; watching live trophy windows.");
                 _discoveryTimer = new DispatcherTimer(DispatcherPriority.Background, Application.Current.Dispatcher) { Interval = TimeSpan.FromSeconds(1) };
                 _discoveryTimer.Tick += DiscoverWindows;
                 _discoveryTimer.Start();
                 DiscoverWindows(null, EventArgs.Empty);
             }
-            catch (Exception ex) { _logger?.Error(ex, "[PS5Progress] Failed to start trophy compatibility adapter."); }
+            catch (Exception ex) { ForkLog.Wrap(_logger)?.Error(ex, "[PS5Progress] Failed to start trophy compatibility adapter."); }
         }
 
         internal static void Stop()
@@ -139,7 +140,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 binding.Bindings.Add(new Binding(prefix + "." + field) { Mode = BindingMode.OneWay });
             binding.Bindings.Add(new Binding(path) { Mode = BindingMode.OneWay });
             BindingOperations.SetBinding(control, property, binding);
-            _logger?.Debug($"[PS5Progress] Connected game-detail header binding: {path}.");
+            ForkLog.Wrap(_logger)?.Debug($"[PS5Progress] Connected game-detail header binding: {path}.");
         }
 
         private static void SynchronizeDetailStates(object context)
@@ -155,7 +156,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 if (Guid.TryParse(idValue?.ToString(), out var gameId))
                     Ps5AchievementStateSynchronizer.Synchronize(vm, _achievementDataResolver(gameId), _logger);
             }
-            catch (Exception ex) { _logger?.Error(ex, "[PS5Progress] Failed to synchronize selected-game achievement states."); }
+            catch (Exception ex) { ForkLog.Wrap(_logger)?.Error(ex, "[PS5Progress] Failed to synchronize selected-game achievement states."); }
         }
 
         private static void RefreshVisuals(DependencyObject node)
@@ -188,7 +189,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             var connection = new RowConnection(list);
             list.SetValue(ConnectionProperty, connection);
             connection.Connect();
-            _logger?.Info($"[PS5Progress] Connected trophy list: name='{list.Name}', uid='{list.Uid}', rows={list.Items.Count}.");
+            ForkLog.Wrap(_logger)?.Info($"[PS5Progress] Connected trophy list: name='{list.Name}', uid='{list.Uid}', rows={list.Items.Count}.");
         }
 
         private static bool IsMigrated(ListBox list) => Equals(list.Tag, Marker) || list.Uid == Marker ||
@@ -235,7 +236,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                         observable.PropertyChanged += OnRowChanged;
                     }
                 }
-                _logger?.Debug($"[PS5Progress] Trophy rows refreshed: rows={_list.Items.Count}; " +
+                ForkLog.Wrap(_logger)?.Debug($"[PS5Progress] Trophy rows refreshed: rows={_list.Items.Count}; " +
                     string.Join("; ", _list.Items.Cast<object>().Take(3).Select(row =>
                         row.GetType().FullName + " provider=" + row.GetType().GetProperty("Provider")?.GetValue(row))));
             }
@@ -261,7 +262,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 try
                 {
                     unlockedProperty.SetValue(row, unlocked);
-                    _logger?.Info($"[PS5Progress] Corrected trophy progress: game='{type.GetProperty("GameName")?.GetValue(row)}', provider='{provider ?? "<missing>"}', unlocked={unlocked}, total={total}.");
+                    ForkLog.Wrap(_logger)?.Info($"[PS5Progress] Corrected trophy progress: game='{type.GetProperty("GameName")?.GetValue(row)}', provider='{provider ?? "<missing>"}', unlocked={unlocked}, total={total}.");
                 }
                 finally { _updating = false; }
             }

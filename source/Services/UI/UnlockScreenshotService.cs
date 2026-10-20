@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -159,7 +160,7 @@ namespace PlayniteAchievements.Services.UI
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Custom unlock screenshot capture failed.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Custom unlock screenshot capture failed.");
                 return null;
             }
         }
@@ -186,11 +187,11 @@ namespace PlayniteAchievements.Services.UI
                     settings, game, providerKey, achievementName, number, total,
                     variantSuffix, isTestFire);
                 bitmap.Save(path, ImageFormat.Png);
-                _logger?.Info($"[Screenshot] Saved custom unlock screenshot: {path}");
+                ForkLog.Wrap(_logger)?.Info($"[Screenshot] Saved custom unlock screenshot: {path}");
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Custom unlock screenshot save failed.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Custom unlock screenshot save failed.");
             }
         }
 
@@ -221,11 +222,11 @@ namespace PlayniteAchievements.Services.UI
                 {
                     encoder.Save(stream);
                 }
-                _logger?.Info($"[Screenshot] Saved custom unlock screenshot: {path}");
+                ForkLog.Wrap(_logger)?.Info($"[Screenshot] Saved custom unlock screenshot: {path}");
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Custom unlock screenshot save failed.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Custom unlock screenshot save failed.");
             }
         }
 
@@ -475,7 +476,7 @@ namespace PlayniteAchievements.Services.UI
                 Directory.CreateDirectory(folder);
                 var path = EnsureUniquePath(Path.Combine(folder, relative.FileName));
                 writeToPath(path);
-                _logger?.Info($"[Screenshot] Saved unlock screenshot: {path}");
+                ForkLog.Wrap(_logger)?.Info($"[Screenshot] Saved unlock screenshot: {path}");
             }
             catch (Exception ex)
             {

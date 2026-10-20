@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -236,7 +237,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to get default themes paths.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to get default themes paths.");
             }
 
             return roots

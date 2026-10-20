@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -708,7 +709,7 @@ namespace PlayniteAchievements
                         notificationProviderKey: args.ProviderKey,
                         game: game);
                     args.SuppressStandardToast = true;
-                    _logger?.Info(
+                    ForkLog.Wrap(_logger)?.Info(
                         $"[AchievementNotification] Upstream poll detection routed to custom notification: game={args.GameName}, provider={args.ProviderKey}, achievement={args.DisplayName ?? args.ApiName}.");
                     AchievementNotificationDebugLog.Info(
                         $"Detection routed to custom notification: game='{args.GameName}', gameId='{args.PlayniteGameId}', " +
@@ -716,7 +717,7 @@ namespace PlayniteAchievements
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Error(ex, "[AchievementNotification] Failed to render upstream poll detection with the custom notification.");
+                    ForkLog.Wrap(_logger)?.Error(ex, "[AchievementNotification] Failed to render upstream poll detection with the custom notification.");
                     AchievementNotificationDebugLog.Error(ex, "Failed to route a detected unlock to the custom notification renderer.");
                 }
             }
@@ -2418,7 +2419,7 @@ namespace PlayniteAchievements
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to reconfigure unlock recording.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to reconfigure unlock recording.");
             }
         }
 

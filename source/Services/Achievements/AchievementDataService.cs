@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using Playnite.SDK;
 using PlayniteAchievements.Services.Database.Rows;
 using PlayniteAchievements.Models;
@@ -297,7 +298,7 @@ namespace PlayniteAchievements.Services.Achievements
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to get all visible overview achievement data");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to get all visible overview achievement data");
                 return new List<GameAchievementData>();
             }
         }

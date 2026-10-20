@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -173,7 +174,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to restart Playnite after automatic theme migration.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to restart Playnite after automatic theme migration.");
                 _api.Dialogs.ShowErrorMessage("Playnite could not restart automatically. Please restart Playnite to apply the migrated theme.");
             }
         }
@@ -209,7 +210,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to show upstream release notification.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to show upstream release notification.");
             }
         }
 
@@ -235,7 +236,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to show fork release notification.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to show fork release notification.");
             }
         }
 
@@ -361,7 +362,7 @@ namespace PlayniteAchievements.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, "Failed to show Local unlock notification.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, "Failed to show Local unlock notification.");
                 }
             }
 
@@ -405,7 +406,7 @@ namespace PlayniteAchievements.Services
                         }
                         catch (Exception ex)
                         {
-                            _logger?.Debug(ex, "Failed to send delayed Local unlock popup.");
+                            ForkLog.Wrap(_logger)?.Debug(ex, "Failed to send delayed Local unlock popup.");
                         }
                     });
                 }
@@ -421,7 +422,7 @@ namespace PlayniteAchievements.Services
                         }
                         catch (Exception ex)
                         {
-                            _logger?.Debug(ex, "Failed to play delayed Local unlock sound.");
+                            ForkLog.Wrap(_logger)?.Debug(ex, "Failed to play delayed Local unlock sound.");
                         }
                     });
                 }
@@ -459,7 +460,7 @@ namespace PlayniteAchievements.Services
                 ? NotificationStyleCustom
                 : ResolveUnlockNotificationStyle(providerKey, forcedStyle);
 
-            _logger?.Info(
+            ForkLog.Wrap(_logger)?.Info(
                 $"[LocalOverlay] Dispatching unlock popup provider='{providerKey}', mode='{mode}', style='{style}', " +
                 $"transition='{localSettings?.UnlockOverlayTransitionStyle}', sanElement='{localSettings?.OverlayCustomSanElementPresetId ?? string.Empty}'.");
             if (localSettings?.EnableOverlayDebugLogging == true)
@@ -839,7 +840,7 @@ namespace PlayniteAchievements.Services
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger?.Debug(ex, "[LocalOverlay] SAN capture mirror frame failed.");
+                                    ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] SAN capture mirror frame failed.");
                                 }
                                 finally
                                 {
@@ -856,7 +857,7 @@ namespace PlayniteAchievements.Services
                 {
                     if (generation == loadGeneration && host.IsLoaded)
                     {
-                        _logger?.Warn(ex, "[LocalOverlay] Failed to initialize the inline SAN WebView2 preview; falling back to WPF.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to initialize the inline SAN WebView2 preview; falling back to WPF.");
                         AchievementNotificationDebugLog.Error(ex, "The inline SAN WebView2 preview failed to initialize; falling back to WPF.");
                         DisposeActivePreview();
                         host.Children.Add(BuildOverlayContent(
@@ -1053,7 +1054,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed to open URL: {url}");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to open URL: {url}");
             }
         }
 
@@ -1069,7 +1070,7 @@ namespace PlayniteAchievements.Services
                 soundPath = ResolveSoundPath(soundPath);
                 if (!File.Exists(soundPath))
                 {
-                    _logger?.Warn($"Configured Local unlock sound file was not found: {soundPath}");
+                    ForkLog.Wrap(_logger)?.Warn($"Configured Local unlock sound file was not found: {soundPath}");
                     AchievementNotificationDebugLog.Warn($"Configured unlock sound was not found: '{soundPath}'.");
                     return;
                 }
@@ -1088,14 +1089,14 @@ namespace PlayniteAchievements.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
+                        ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
                         AchievementNotificationDebugLog.Error(ex, $"Unlock sound playback failed for '{soundPath}'.");
                     }
                 });
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
                 AchievementNotificationDebugLog.Error(ex, $"Failed to resolve or start the unlock sound '{soundPath}'.");
             }
         }
@@ -1113,7 +1114,7 @@ namespace PlayniteAchievements.Services
                 var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
                 if (localSettings?.EnableWindowsToastNotifications != true)
                 {
-                    _logger?.Info("[LocalToast] Skipping Windows toast because EnableWindowsToastNotifications is disabled.");
+                    ForkLog.Wrap(_logger)?.Info("[LocalToast] Skipping Windows toast because EnableWindowsToastNotifications is disabled.");
                     AchievementNotificationDebugLog.Info("Windows toast skipped because EnableWindowsToastNotifications is disabled.");
                     return;
                 }
@@ -1174,13 +1175,13 @@ try {{
                     RedirectStandardError = true
                 };
 
-                _logger?.Info($"[LocalToast] Sending Windows toast for game='{safeGameName}', achievement='{safeAchievementName}', provider='{providerKey}', style='{style}'.");
+                ForkLog.Wrap(_logger)?.Info($"[LocalToast] Sending Windows toast for game='{safeGameName}', achievement='{safeAchievementName}', provider='{providerKey}', style='{style}'.");
                 AchievementNotificationDebugLog.Info(
                     $"Starting Windows toast provider='{providerKey}', style='{style}', imageResolved='{!string.IsNullOrWhiteSpace(toastIconSource)}'.");
                 var process = Process.Start(processStartInfo);
                 if (process == null)
                 {
-                    _logger?.Warn("[LocalToast] PowerShell process did not start (Process.Start returned null).");
+                    ForkLog.Wrap(_logger)?.Warn("[LocalToast] PowerShell process did not start (Process.Start returned null).");
                     AchievementNotificationDebugLog.Warn("Windows toast PowerShell process did not start (Process.Start returned null).");
                     return;
                 }
@@ -1191,7 +1192,7 @@ try {{
                     {
                         if (!process.WaitForExit(5000))
                         {
-                            _logger?.Warn($"[LocalToast] PowerShell toast process timed out. Pid={process.Id}");
+                            ForkLog.Wrap(_logger)?.Warn($"[LocalToast] PowerShell toast process timed out. Pid={process.Id}");
                             AchievementNotificationDebugLog.Warn($"Windows toast PowerShell process timed out; pid='{process.Id}'.");
                             try
                             {
@@ -1211,20 +1212,20 @@ try {{
 
                         if (process.ExitCode == 0)
                         {
-                            _logger?.Info($"[LocalToast] PowerShell toast command succeeded. ExitCode=0, StdOut={logStdout}, StdErr={logStderr}");
+                            ForkLog.Wrap(_logger)?.Info($"[LocalToast] PowerShell toast command succeeded. ExitCode=0, StdOut={logStdout}, StdErr={logStderr}");
                             AchievementNotificationDebugLog.Info(
                                 $"Windows toast command completed exitCode='0', stdout='{logStdout}', stderr='{logStderr}'.");
                         }
                         else
                         {
-                            _logger?.Warn($"[LocalToast] PowerShell toast command failed. ExitCode={process.ExitCode}, StdOut={logStdout}, StdErr={logStderr}");
+                            ForkLog.Wrap(_logger)?.Warn($"[LocalToast] PowerShell toast command failed. ExitCode={process.ExitCode}, StdOut={logStdout}, StdErr={logStderr}");
                             AchievementNotificationDebugLog.Warn(
                                 $"Windows toast command failed exitCode='{process.ExitCode}', stdout='{logStdout}', stderr='{logStderr}'.");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "[LocalToast] Failed while waiting for PowerShell toast command result.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalToast] Failed while waiting for PowerShell toast command result.");
                         AchievementNotificationDebugLog.Error(ex, "Failed while waiting for the Windows toast command result.");
                     }
                     finally
@@ -1238,7 +1239,7 @@ try {{
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalToast] Failed to send Windows toast notification.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalToast] Failed to send Windows toast notification.");
                 AchievementNotificationDebugLog.Error(ex, "Failed to construct or send the Windows toast notification.");
             }
         }
@@ -1271,15 +1272,15 @@ try {{
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, "[LocalToast] Tray balloon fallback failed.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, "[LocalToast] Tray balloon fallback failed.");
                     }
                 });
 
-                _logger?.Info("[LocalToast] Tray balloon fallback notification requested.");
+                ForkLog.Wrap(_logger)?.Info("[LocalToast] Tray balloon fallback notification requested.");
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalToast] Failed to initialize tray balloon fallback.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalToast] Failed to initialize tray balloon fallback.");
             }
         }
 
@@ -1608,7 +1609,7 @@ steamImage +
                             }
                             catch (Exception animEx)
                             {
-                                _logger?.Warn(animEx, "[LocalOverlay] Failed in loaded animation pipeline.");
+                                ForkLog.Wrap(_logger)?.Warn(animEx, "[LocalOverlay] Failed in loaded animation pipeline.");
                                 AchievementNotificationDebugLog.Error(animEx, "The WPF overlay loaded-animation pipeline failed.");
                                 try
                                 {
@@ -1644,14 +1645,14 @@ steamImage +
                     }
                     catch (Exception uiEx)
                     {
-                        _logger?.Warn(uiEx, "[LocalOverlay] Failed to render overlay on UI thread.");
+                        ForkLog.Wrap(_logger)?.Warn(uiEx, "[LocalOverlay] Failed to render overlay on UI thread.");
                         AchievementNotificationDebugLog.Error(uiEx, "The WPF overlay failed while rendering on the UI thread.");
                     }
                 });
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalOverlay] Failed to show overlay notification.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] Failed to show overlay notification.");
                 AchievementNotificationDebugLog.Error(ex, "The overlay notification failed before or during UI dispatch.");
             }
         }
@@ -1908,7 +1909,7 @@ steamImage +
                 var fadeInMs = settings.UnlockOverlayFadeInMilliseconds;
                 var fadeOutMs = settings.UnlockOverlayFadeOutMilliseconds;
                 var slideDistance = settings.UnlockOverlaySlideDistance;
-                _logger?.Info($"[LocalOverlay] Rendering SAN WebView overlay preset='{settings.OverlayCustomSanPresetId}', themeDir='{settings.OverlayCustomSanThemeDirectory}'.");
+                ForkLog.Wrap(_logger)?.Info($"[LocalOverlay] Rendering SAN WebView overlay preset='{settings.OverlayCustomSanPresetId}', themeDir='{settings.OverlayCustomSanThemeDirectory}'.");
                 var html = BuildSanWebViewDocument(
                     gameName,
                     achievementName,
@@ -2005,7 +2006,7 @@ steamImage +
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger?.Debug(ex, "Could not select the requested SAN settings preview view.");
+                                    ForkLog.Wrap(_logger)?.Debug(ex, "Could not select the requested SAN settings preview view.");
                                 }
                             }
                         };
@@ -2056,7 +2057,7 @@ steamImage +
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "[LocalOverlay] Failed to initialize SAN WebView2 overlay.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to initialize SAN WebView2 overlay.");
                         AchievementNotificationDebugLog.Error(ex, "SAN WebView2 initialization failed.");
                         try
                         {
@@ -2120,7 +2121,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalOverlay] Failed to render SAN WebView2 overlay; falling back to WPF renderer.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to render SAN WebView2 overlay; falling back to WPF renderer.");
                 AchievementNotificationDebugLog.Error(ex, "SAN WebView2 rendering failed; falling back to the WPF renderer.");
                 return false;
             }
@@ -2143,7 +2144,7 @@ steamImage +
                     var loaderPath = Path.Combine(loaderDirectory, "WebView2Loader.dll");
                     if (!File.Exists(loaderPath))
                     {
-                        _logger?.Warn($"[LocalOverlay] WebView2 loader was not found at '{loaderPath}'.");
+                        ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] WebView2 loader was not found at '{loaderPath}'.");
                         return;
                     }
 
@@ -2152,12 +2153,12 @@ steamImage +
                     var module = LoadLibrary(loaderPath);
                     if (module == IntPtr.Zero)
                     {
-                        _logger?.Warn($"[LocalOverlay] Failed to preload WebView2 loader from '{loaderPath}'.");
+                        ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] Failed to preload WebView2 loader from '{loaderPath}'.");
                     }
 
                     if (!SetDllDirectory(loaderDirectory))
                     {
-                        _logger?.Warn($"[LocalOverlay] Failed to set WebView2 loader directory to '{loaderDirectory}'.");
+                        ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] Failed to set WebView2 loader directory to '{loaderDirectory}'.");
                     }
 
                     _webView2LoaderConfigured = true;
@@ -2165,7 +2166,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalOverlay] Failed to configure WebView2 loader directory.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to configure WebView2 loader directory.");
             }
         }
 
@@ -2240,7 +2241,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalOverlay] Failed to collect window diagnostics for renderer='{renderer}', phase='{phase}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalOverlay] Failed to collect window diagnostics for renderer='{renderer}', phase='{phase}'.");
             }
         }
 
@@ -2404,7 +2405,7 @@ steamImage +
                         else if (!succeeded && !loggedFailure)
                         {
                             loggedFailure = true;
-                            _logger?.Warn(
+                            ForkLog.Wrap(_logger)?.Warn(
                                 $"[LocalOverlay] Topmost guard failed renderer='{ResolveOverlayRendererName(window)}', " +
                                 $"hwnd='{FormatHandle(handle)}', win32Error='{Marshal.GetLastWin32Error()}'.");
                         }
@@ -2415,7 +2416,7 @@ steamImage +
                     if (!loggedFailure)
                     {
                         loggedFailure = true;
-                        _logger?.Warn(ex, "[LocalOverlay] Topmost guard threw an exception.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Topmost guard threw an exception.");
                     }
                 }
             };
@@ -2559,11 +2560,11 @@ steamImage +
                         // Application.Current.Windows. Fullscreen themes can treat any visible secondary
                         // window as an active overlay and stop updating their focus/navigation state.
                         window.Hide();
-                        _logger?.Debug("[LocalOverlay] SAN WebView2 controller warm-up completed.");
+                        ForkLog.Wrap(_logger)?.Debug("[LocalOverlay] SAN WebView2 controller warm-up completed.");
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, "[LocalOverlay] SAN WebView2 controller warm-up failed.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] SAN WebView2 controller warm-up failed.");
                         try
                         {
                             _sanWebViewWarmupWindow?.Close();
@@ -2580,7 +2581,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalOverlay] Failed to schedule SAN WebView2 warm-up.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] Failed to schedule SAN WebView2 warm-up.");
             }
         }
 
@@ -2614,7 +2615,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalOverlay] Failed to stage WebView2 loader in the plugin root.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to stage WebView2 loader in the plugin root.");
             }
         }
 
@@ -2718,7 +2719,7 @@ steamImage +
             }
             else if (isSanTransition && !AreSanElementAndTransitionCompatible(animationPreset, configuredElementPreset))
             {
-                _logger?.Warn($"[LocalOverlay] SAN element preset '{configuredElementPreset}' is not compatible with transition preset '{animationPreset}'. Using the transition element instead.");
+                ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] SAN element preset '{configuredElementPreset}' is not compatible with transition preset '{animationPreset}'. Using the transition element instead.");
                 followsTransitionElement = true;
                 elementPreset = animationPreset;
             }
@@ -8855,7 +8856,7 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalToast] Failed to cache remote icon: {url}");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalToast] Failed to cache remote icon: {url}");
                 return string.Empty;
             }
         }

@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Providers;
 using PlayniteAchievements.Services.Achievements;
@@ -435,7 +436,7 @@ namespace PlayniteAchievements.Services.Refresh
             timer.Stop();
             if (!RealtimePollingLogScope.IsActive)
             {
-                _logger?.Debug(
+                ForkLog.Wrap(_logger)?.Debug(
                     $"[RefreshPerf] phase=target.selection ms={timer.ElapsedMilliseconds} candidates={candidatesSeen} selected={targets.Count} providers={providers?.Count ?? 0} capabilityChecks={targetSelectionCache?.CapabilityCheckCount ?? 0} skippedNoProvider={skippedNoProvider} skippedNoAchievements={skippedNoAchievements} skippedHidden={skippedHiddenGames}");
             }
 

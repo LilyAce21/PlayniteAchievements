@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -112,7 +113,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 var hasExistingBackup = Directory.Exists(backupPath);
                 if (hasExistingBackup)
                 {
-                    _logger.Info($"Backup already exists at: {backupPath}. Reusing existing backup for re-migration.");
+                    ForkLog.Wrap(_logger).Info($"Backup already exists at: {backupPath}. Reusing existing backup for re-migration.");
                 }
 
                 var result = await Task.Run(() =>
@@ -127,7 +128,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
 
                 if (result.FilesProcessed == 0)
                 {
-                    _logger.Info($"No files needed migration changes for: {themePath}");
+                    ForkLog.Wrap(_logger).Info($"No files needed migration changes for: {themePath}");
 
                     // Even if no changes were required, cache the theme version so we can detect upgrades later.
                     TryUpdateThemeMigrationVersionCache(themePath);
@@ -296,7 +297,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 if (!hasExistingBackup)
                 {
                     BackupFile(file, themePath, backupPath, backedUpFiles);
-                    _logger.Info($"Backing up file with {replacementCount} references: {GetRelativePath(file.FullName, themePath)}");
+                    ForkLog.Wrap(_logger).Info($"Backing up file with {replacementCount} references: {GetRelativePath(file.FullName, themePath)}");
                 }
 
                 // Apply replacements
@@ -319,11 +320,11 @@ namespace PlayniteAchievements.Services.ThemeMigration
             }
             else if (!hasExistingBackup)
             {
-                _logger.Info("No files contained references requiring migration - no backup created");
+                ForkLog.Wrap(_logger).Info("No files contained references requiring migration - no backup created");
             }
             else
             {
-                _logger.Info("Re-migration used existing backup folder; no new backup snapshot was created.");
+                ForkLog.Wrap(_logger).Info("Re-migration used existing backup folder; no new backup snapshot was created.");
             }
 
             _logger.Info($"Migration complete: {filesProcessed} files modified, {filesSkipped} files skipped, {replacementsMade} text replacements, {controlReplacementsMade} control replacements, {bindingReplacementsMade} binding replacements");
@@ -364,7 +365,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 if (!File.Exists(newPath))
                 {
                     File.Copy(file.FullName, newPath);
-                    _logger.Info($"Created renamed copy for migrated reference: {newName} (from {file.Name})");
+                    ForkLog.Wrap(_logger).Info($"Created renamed copy for migrated reference: {newName} (from {file.Name})");
                 }
             }
         }

@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using HtmlAgilityPack;
 using Playnite.SDK;
 using Playnite.SDK.Data;
@@ -180,7 +181,7 @@ namespace PlayniteAchievements.Providers.Local
             var fastMetadataLibraryPlugin = ImportedGameMetadataSourceCatalog.IsFastMethodSource(metadataSourceId)
                 ? ResolveSteamLibraryPlugin()
                 : null;
-            _logger?.Info($"[LocalImport] Selected metadata provider id='{metadataSourceId}', resolved='{selectedMetadataPlugin?.Name ?? (usesBuiltInMetadata ? metadataSourceId : "<none>")}'.");
+            ForkLog.Wrap(_logger)?.Info($"[LocalImport] Selected metadata provider id='{metadataSourceId}', resolved='{selectedMetadataPlugin?.Name ?? (usesBuiltInMetadata ? metadataSourceId : "<none>")}'.");
             var orderedCandidates = candidates.OrderBy(pair => pair.Key).ToList();
             var totalCandidates = orderedCandidates.Count;
             var processedCandidates = 0;
@@ -223,7 +224,7 @@ namespace PlayniteAchievements.Providers.Local
 
                             if (candidate.Value.Count > 1)
                             {
-                                _logger?.Info($"[LocalImport] appId={appId} has {candidate.Value.Count} candidate folders/files. Using {DescribeCandidate(chosenCandidate)}. All candidates: {string.Join(" | ", candidate.Value.Select(DescribeCandidate))}");
+                                ForkLog.Wrap(_logger)?.Info($"[LocalImport] appId={appId} has {candidate.Value.Count} candidate folders/files. Using {DescribeCandidate(chosenCandidate)}. All candidates: {string.Join(" | ", candidate.Value.Select(DescribeCandidate))}");
                             }
 
                             var game = FindExistingGame(appId, importTarget, customSourceName, existingGamesByResolvedAppId);
@@ -234,12 +235,12 @@ namespace PlayniteAchievements.Providers.Local
                                 if (linked)
                                 {
                                     result.LinkedExistingCount++;
-                                    _logger?.Info($"[LocalImport] Linked existing game for appId={appId} without metadata changes because existing-game behavior is set to skip.");
+                                    ForkLog.Wrap(_logger)?.Info($"[LocalImport] Linked existing game for appId={appId} without metadata changes because existing-game behavior is set to skip.");
                                 }
                                 else
                                 {
                                     result.SkippedCount++;
-                                    _logger?.Info($"[LocalImport] Skipping appId={appId} because a matching existing game was found, existing-game behavior is set to skip, and no Local binding changes were required.");
+                                    ForkLog.Wrap(_logger)?.Info($"[LocalImport] Skipping appId={appId} because a matching existing game was found, existing-game behavior is set to skip, and no Local binding changes were required.");
                                 }
 
                                 continue;
@@ -248,7 +249,7 @@ namespace PlayniteAchievements.Providers.Local
                             if (!ShouldImportCandidate(appId, chosenCandidate, out var skipReason))
                             {
                                 result.SkippedCount++;
-                                _logger?.Info($"[LocalImport] Skipping appId={appId}: {skipReason}");
+                                ForkLog.Wrap(_logger)?.Info($"[LocalImport] Skipping appId={appId}: {skipReason}");
                                 continue;
                             }
 
@@ -259,7 +260,7 @@ namespace PlayniteAchievements.Providers.Local
                                 game = FindExistingGameByName(pendingMetadata?.Name, importTarget, customSourceName);
                                 if (game != null)
                                 {
-                                    _logger?.Info($"[LocalImport] Reusing existing game by title match for appId={appId}: {DescribeGame(game)}.");
+                                    ForkLog.Wrap(_logger)?.Info($"[LocalImport] Reusing existing game by title match for appId={appId}: {DescribeGame(game)}.");
                                 }
                             }
 
@@ -278,7 +279,7 @@ namespace PlayniteAchievements.Providers.Local
                                 {
                                     rateLimitedMissingIconAppIds.Add(appId);
                                 }
-                                _logger?.Info($"[LocalImport] Imported new game for appId={appId}: {DescribeGame(game)}.");
+                                ForkLog.Wrap(_logger)?.Info($"[LocalImport] Imported new game for appId={appId}: {DescribeGame(game)}.");
                                 result.ImportedCount++;
                                 CacheExistingGameByResolvedAppId(existingGamesByResolvedAppId, appId, game);
                             }
@@ -290,7 +291,7 @@ namespace PlayniteAchievements.Providers.Local
                                 {
                                     rateLimitedMissingIconAppIds.Add(appId);
                                 }
-                                _logger?.Info($"[LocalImport] Linked existing game for appId={appId}: {DescribeGame(game)}.");
+                                ForkLog.Wrap(_logger)?.Info($"[LocalImport] Linked existing game for appId={appId}: {DescribeGame(game)}.");
                                 result.LinkedExistingCount++;
                             }
 
@@ -311,7 +312,7 @@ namespace PlayniteAchievements.Providers.Local
                         catch (Exception ex)
                         {
                             result.FailedCount++;
-                            _logger?.Warn(ex, $"Failed importing Local folder candidate appId={appId} from '{folderPath}'.");
+                            ForkLog.Wrap(_logger)?.Warn(ex, $"Failed importing Local folder candidate appId={appId} from '{folderPath}'.");
                         }
                     }
                 }
@@ -397,7 +398,7 @@ namespace PlayniteAchievements.Providers.Local
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, $"[LocalImport] Failed retrying missing icon for appId={appId}.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed retrying missing icon for appId={appId}.");
                     }
 
                     var rateLimitedMissAppIds = _metadataApplier.ConsumeRateLimitedIconMissAppIds();
@@ -411,7 +412,7 @@ namespace PlayniteAchievements.Providers.Local
 
                         if (rateLimitedMissAppIds.Contains(appId))
                         {
-                            _logger?.Debug($"[LocalImport] Icon retry still rate-limited for appId={appId}; keeping it in the retry queue.");
+                            ForkLog.Wrap(_logger)?.Debug($"[LocalImport] Icon retry still rate-limited for appId={appId}; keeping it in the retry queue.");
                         }
                     }
 
@@ -614,7 +615,7 @@ namespace PlayniteAchievements.Providers.Local
                 var steamLibraryPlugin = ResolveSteamLibraryPlugin();
                 if (steamLibraryPlugin == null)
                 {
-                    _logger?.Warn($"Local import for appId={appId} requested the Steam library, but the Steam library plugin is unavailable.");
+                    ForkLog.Wrap(_logger)?.Warn($"Local import for appId={appId} requested the Steam library, but the Steam library plugin is unavailable.");
                     return null;
                 }
 
@@ -688,7 +689,7 @@ namespace PlayniteAchievements.Providers.Local
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, $"Failed scanning Local import root '{root}'.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, $"Failed scanning Local import root '{root}'.");
                 }
             }
 
@@ -1098,7 +1099,7 @@ namespace PlayniteAchievements.Providers.Local
             if (!_localSettings.SteamAppIdOverrides.TryGetValue(game.Id, out var existingAppId) || existingAppId != appId)
             {
                 _localSettings.SteamAppIdOverrides[game.Id] = appId;
-                _logger?.Info($"Set Local Steam App ID override for '{game.Name}' to {appId}");
+                ForkLog.Wrap(_logger)?.Info($"Set Local Steam App ID override for '{game.Name}' to {appId}");
                 changed = true;
             }
 
@@ -1109,7 +1110,7 @@ namespace PlayniteAchievements.Providers.Local
                     !string.Equals(existingFolderPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
                 {
                     _localSettings.LocalFolderOverrides[game.Id] = normalizedPath;
-                    _logger?.Info($"Set Local folder override for '{game.Name}' to '{normalizedPath}'");
+                    ForkLog.Wrap(_logger)?.Info($"Set Local folder override for '{game.Name}' to '{normalizedPath}'");
                     changed = true;
                 }
             }
@@ -1652,7 +1653,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalAch] Failed applying downloaded Steam metadata for imported game '{importedGame?.Name}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalAch] Failed applying downloaded Steam metadata for imported game '{importedGame?.Name}'.");
             }
 
             return outcome;
@@ -1780,7 +1781,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalImport] Failed downloading imported metadata page '{url}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed downloading imported metadata page '{url}'.");
                 return null;
             }
         }
@@ -1914,7 +1915,7 @@ namespace PlayniteAchievements.Providers.Local
                     var regions = provider.GetRegions(args)?.ToList();
                     var series = provider.GetSeries(args)?.ToList();
 
-                    _logger?.Info(
+                    ForkLog.Wrap(_logger)?.Info(
                         $"[LocalImport] Metadata plugin '{metadataPlugin.Name}' field counts for appId={appId}: " +
                         $"platforms={platforms?.Count ?? 0}, genres={genres?.Count ?? 0}, developers={developers?.Count ?? 0}, " +
                         $"publishers={publishers?.Count ?? 0}, tags={tags?.Count ?? 0}, features={features?.Count ?? 0}, " +
@@ -1983,7 +1984,7 @@ namespace PlayniteAchievements.Providers.Local
 
                     if (applied)
                     {
-                        _logger?.Info($"[LocalImport] Applied metadata plugin '{metadataPlugin.Name}' for appId={appId}.");
+                        ForkLog.Wrap(_logger)?.Info($"[LocalImport] Applied metadata plugin '{metadataPlugin.Name}' for appId={appId}.");
                     }
 
                     return applied;
@@ -1991,7 +1992,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalImport] Failed applying metadata plugin '{metadataPlugin?.Name}' for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed applying metadata plugin '{metadataPlugin?.Name}' for appId={appId}.");
                 return false;
             }
         }
@@ -2038,7 +2039,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalImport] Failed creating Playnite source '{sourceName}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed creating Playnite source '{sourceName}'.");
                 return null;
             }
         }
@@ -2169,7 +2170,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalImport] Failed applying Steam Store fallback metadata for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed applying Steam Store fallback metadata for appId={appId}.");
             }
         }
 
@@ -2316,7 +2317,7 @@ namespace PlayniteAchievements.Providers.Local
                         }
                         catch (Exception ex)
                         {
-                            _logger?.Debug(ex, $"[LocalImport] Failed checking Steam app type for appId={appId}. Allowing import.");
+                            ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed checking Steam app type for appId={appId}. Allowing import.");
                         }
 
                         _steamAppImportabilityCache[appId] = info;
@@ -2444,7 +2445,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalImport] Failed resolving metadata plugin '{metadataSourceId}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed resolving metadata plugin '{metadataSourceId}'.");
                 return null;
             }
         }
@@ -2699,7 +2700,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalAch] Failed persisting metadata file for gameId={gameId} from '{metadataFile?.Path}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalAch] Failed persisting metadata file for gameId={gameId} from '{metadataFile?.Path}'.");
             }
             finally
             {
@@ -2857,7 +2858,7 @@ namespace PlayniteAchievements.Providers.Local
                     var series = provider.GetSeries(args)?.ToList();
                     var links = provider.GetLinks(args)?.ToList();
 
-                    _logger?.Info(
+                    ForkLog.Wrap(_logger)?.Info(
                         $"[LocalImport] Metadata plugin '{metadataPlugin.Name}' field counts for appId={appId}: " +
                         $"platforms={platforms?.Count ?? 0}, genres={genres?.Count ?? 0}, developers={developers?.Count ?? 0}, " +
                         $"publishers={publishers?.Count ?? 0}, tags={tags?.Count ?? 0}, features={features?.Count ?? 0}, " +
@@ -2928,7 +2929,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalImport] Failed applying metadata plugin '{metadataPlugin?.Name}' to import metadata for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed applying metadata plugin '{metadataPlugin?.Name}' to import metadata for appId={appId}.");
                 return false;
             }
         }
@@ -2943,7 +2944,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalAch] Failed resolving Steam library plugin instance.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalAch] Failed resolving Steam library plugin instance.");
                 return null;
             }
         }
@@ -2958,7 +2959,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalImport] Failed resolving Universal Steam Metadata plugin instance.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalImport] Failed resolving Universal Steam Metadata plugin instance.");
                 return null;
             }
         }
@@ -2986,7 +2987,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalImport] Failed enumerating loaded metadata plugins.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalImport] Failed enumerating loaded metadata plugins.");
                 return Array.Empty<MetadataPluginIdentity>();
             }
         }
@@ -3033,7 +3034,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalImport] Failed reading manifest identity for metadata plugin '{plugin?.Name}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalImport] Failed reading manifest identity for metadata plugin '{plugin?.Name}'.");
             }
 
             return Tuple.Create<string, string, string>(null, null, null);
@@ -3056,7 +3057,7 @@ namespace PlayniteAchievements.Providers.Local
         {
             var summary = string.Join(" | ", (plugins ?? Enumerable.Empty<MetadataPluginIdentity>()).Select(plugin =>
                 $"runtime='{plugin.RuntimeName ?? "<null>"}', manifestName='{plugin.ManifestName ?? "<null>"}', manifestId='{plugin.ManifestId ?? "<null>"}', pluginId='{plugin.Plugin?.Id.ToString() ?? "<null>"}', assembly='{plugin.AssemblyDirectory ?? "<null>"}'"));
-            _logger?.Info($"[LocalImport] Failed to resolve metadata provider '{requestedValue}'. Loaded metadata plugins: {summary}");
+            ForkLog.Wrap(_logger)?.Info($"[LocalImport] Failed to resolve metadata provider '{requestedValue}'. Loaded metadata plugins: {summary}");
         }
 
         private static bool IsUniversalSteamMetadataPlugin(MetadataPluginIdentity plugin)

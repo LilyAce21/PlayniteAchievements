@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -75,7 +76,7 @@ namespace PlayniteAchievements.Services.Local
                 _lastKnownGameName = game.Name;
             }
 
-            _logger?.Info($"Started active Local achievement monitor for '{game.Name}'.");
+            ForkLog.Wrap(_logger)?.Info($"Started active Local achievement monitor for '{game.Name}'.");
         }
 
         public void Stop()
@@ -98,14 +99,14 @@ namespace PlayniteAchievements.Services.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to cancel active Local achievement monitor.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to cancel active Local achievement monitor.");
             }
 
             cts?.Dispose();
 
             if (stoppedGameId.HasValue)
             {
-                _logger?.Info($"Stopped active Local achievement monitor for game id '{stoppedGameId.Value}'.");
+                ForkLog.Wrap(_logger)?.Info($"Stopped active Local achievement monitor for game id '{stoppedGameId.Value}'.");
             }
         }
 
@@ -160,11 +161,11 @@ namespace PlayniteAchievements.Services.Local
                         item.Trophy))
                     .ToList();
 
-                _logger?.Info($"[LocalMonitor] Detected {newlyUnlocked.Count} late Local unlock(s) for '{game.Name}' after game stop.");
+                ForkLog.Wrap(_logger)?.Info($"[LocalMonitor] Detected {newlyUnlocked.Count} late Local unlock(s) for '{game.Name}' after game stop.");
 
                 if (_isRealtimeNotificationDisabled?.Invoke(game.Id) == true)
                 {
-                    _logger?.Info($"[LocalMonitor] Skipped late Local unlock notification for '{game.Name}' because real-time notifications are disabled for this game.");
+                    ForkLog.Wrap(_logger)?.Info($"[LocalMonitor] Skipped late Local unlock notification for '{game.Name}' because real-time notifications are disabled for this game.");
                 }
                 else
                 {
@@ -187,7 +188,7 @@ namespace PlayniteAchievements.Services.Local
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"[LocalMonitor] Final post-stop Local achievement recheck failed for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"[LocalMonitor] Final post-stop Local achievement recheck failed for '{game.Name}'.");
             }
         }
 
@@ -207,7 +208,7 @@ namespace PlayniteAchievements.Services.Local
                         ? baselineFingerprint
                         : null;
                 }
-                _logger?.Info(previousSnapshot != null
+                ForkLog.Wrap(_logger)?.Info(previousSnapshot != null
                     ? $"Initialized active Local achievement monitor baseline for '{game.Name}' with {previousSnapshot.UnlockedCount} unlocked achievements."
                     : $"Initialized active Local achievement monitor baseline for '{game.Name}' without cached Local achievements yet.");
             }
@@ -217,7 +218,7 @@ namespace PlayniteAchievements.Services.Local
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"Failed to initialize active Local achievement monitor baseline for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"Failed to initialize active Local achievement monitor baseline for '{game.Name}'.");
             }
 
             while (!cancellationToken.IsCancellationRequested)
@@ -233,7 +234,7 @@ namespace PlayniteAchievements.Services.Local
 
                 if (!ShouldMonitor(game))
                 {
-                    _logger?.Info($"Stopping active Local achievement monitor for '{game.Name}' because the feature is disabled.");
+                    ForkLog.Wrap(_logger)?.Info($"Stopping active Local achievement monitor for '{game.Name}' because the feature is disabled.");
                     break;
                 }
 
@@ -253,7 +254,7 @@ namespace PlayniteAchievements.Services.Local
 
                     if (previousSnapshot != null && currentSnapshot != null)
                     {
-                        _logger?.Debug($"[LocalMonitor] Snapshot delta for '{game.Name}': previous={previousSnapshot.UnlockedCount}, current={currentSnapshot.UnlockedCount}, previousKeys={previousSnapshot.UnlockedAchievements.Count}, currentKeys={currentSnapshot.UnlockedAchievements.Count}");
+                        ForkLog.Wrap(_logger)?.Debug($"[LocalMonitor] Snapshot delta for '{game.Name}': previous={previousSnapshot.UnlockedCount}, current={currentSnapshot.UnlockedCount}, previousKeys={previousSnapshot.UnlockedAchievements.Count}, currentKeys={currentSnapshot.UnlockedAchievements.Count}");
                     }
 
                     var newlyUnlocked = FindNewlyUnlockedAchievements(previousSnapshot, currentSnapshot);
@@ -274,11 +275,11 @@ namespace PlayniteAchievements.Services.Local
                                 item.Trophy))
                             .ToList();
 
-                        _logger?.Info($"Detected {newlyUnlocked.Count} newly unlocked Local achievement(s) for '{game.Name}'.");
+                        ForkLog.Wrap(_logger)?.Info($"Detected {newlyUnlocked.Count} newly unlocked Local achievement(s) for '{game.Name}'.");
 
                         if (_isRealtimeNotificationDisabled?.Invoke(game.Id) == true)
                         {
-                            _logger?.Info($"Skipped Local unlock notification for '{game.Name}' because real-time notifications are disabled for this game.");
+                            ForkLog.Wrap(_logger)?.Info($"Skipped Local unlock notification for '{game.Name}' because real-time notifications are disabled for this game.");
                         }
                         else
                         {
@@ -294,7 +295,7 @@ namespace PlayniteAchievements.Services.Local
                     }
                     else if (previousSnapshot == null && currentSnapshot != null)
                     {
-                        _logger?.Info($"Active Local achievement monitor established a delayed baseline for '{game.Name}' with {currentSnapshot.UnlockedCount} unlocked achievements.");
+                        ForkLog.Wrap(_logger)?.Info($"Active Local achievement monitor established a delayed baseline for '{game.Name}' with {currentSnapshot.UnlockedCount} unlocked achievements.");
                     }
 
                     previousSnapshot = currentSnapshot ?? previousSnapshot;
@@ -312,7 +313,7 @@ namespace PlayniteAchievements.Services.Local
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Warn(ex, $"Active Local achievement refresh failed for '{game.Name}'.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, $"Active Local achievement refresh failed for '{game.Name}'.");
                     continue;
                 }
             }
@@ -335,13 +336,13 @@ namespace PlayniteAchievements.Services.Local
 
             if (_isExcludedFromRefreshes?.Invoke(game.Id) == true)
             {
-                _logger?.Info($"Skipping active Local achievement monitor for '{game.Name}' because the game is excluded from refreshes.");
+                ForkLog.Wrap(_logger)?.Info($"Skipping active Local achievement monitor for '{game.Name}' because the game is excluded from refreshes.");
                 return false;
             }
 
             if (_isRealtimeNotificationDisabled?.Invoke(game.Id) == true)
             {
-                _logger?.Info($"Skipping active Local achievement monitor for '{game.Name}' because real-time notifications are disabled for this game.");
+                ForkLog.Wrap(_logger)?.Info($"Skipping active Local achievement monitor for '{game.Name}' because real-time notifications are disabled for this game.");
                 return false;
             }
 
@@ -367,7 +368,7 @@ namespace PlayniteAchievements.Services.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed to get active Local monitor source fingerprint for '{game?.Name}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to get active Local monitor source fingerprint for '{game?.Name}'.");
                 fingerprint = null;
                 return false;
             }
@@ -384,7 +385,7 @@ namespace PlayniteAchievements.Services.Local
             var localProvider = _providerRegistry.GetProvider("Local") as LocalSavesProvider;
             if (localProvider == null)
             {
-                _logger?.Warn("Active Local achievement monitor could not resolve the Local provider.");
+                ForkLog.Wrap(_logger)?.Warn("Active Local achievement monitor could not resolve the Local provider.");
                 return cachedBefore;
             }
 
@@ -436,12 +437,12 @@ namespace PlayniteAchievements.Services.Local
             {
                 try
                 {
-                    _logger?.Info($"[LocalMonitor] Refreshing extension data for '{game.Name}' after showing real-time unlock notification.");
+                    ForkLog.Wrap(_logger)?.Info($"[LocalMonitor] Refreshing extension data for '{game.Name}' after showing real-time unlock notification.");
                     await _refreshGameInExtensionAsync(game, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Warn(ex, $"[LocalMonitor] Extension refresh after real-time unlock failed for '{game.Name}'.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, $"[LocalMonitor] Extension refresh after real-time unlock failed for '{game.Name}'.");
                 }
             });
         }

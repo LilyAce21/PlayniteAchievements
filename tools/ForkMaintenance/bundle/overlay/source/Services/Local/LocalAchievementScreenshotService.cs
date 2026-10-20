@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -86,7 +87,7 @@ namespace PlayniteAchievements.Services.Local
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"Failed capturing unlock screenshot for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"Failed capturing unlock screenshot for '{game.Name}'.");
             }
         }
 

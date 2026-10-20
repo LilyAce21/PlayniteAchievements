@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -76,7 +77,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
                 _lastKnownGameId = game.Id;
             }
 
-            _logger?.Info($"[RAMonitor] Started active RetroAchievements monitor for '{game.Name}'.");
+            ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Started active RetroAchievements monitor for '{game.Name}'.");
         }
 
         public void Stop()
@@ -94,13 +95,13 @@ namespace PlayniteAchievements.Services.RetroAchievements
             }
 
             try { cts?.Cancel(); }
-            catch (Exception ex) { _logger?.Debug(ex, "[RAMonitor] Cancel error."); }
+            catch (Exception ex) { ForkLog.Wrap(_logger)?.Debug(ex, "[RAMonitor] Cancel error."); }
 
             cts?.Dispose();
 
             if (stoppedGameId.HasValue)
             {
-                _logger?.Info($"[RAMonitor] Stopped RetroAchievements monitor for game id '{stoppedGameId.Value}'.");
+                ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Stopped RetroAchievements monitor for game id '{stoppedGameId.Value}'.");
             }
         }
 
@@ -119,14 +120,14 @@ namespace PlayniteAchievements.Services.RetroAchievements
                     _lastKnownGameId = game.Id;
                 }
 
-                _logger?.Info(previousSnapshot != null
+                ForkLog.Wrap(_logger)?.Info(previousSnapshot != null
                     ? $"[RAMonitor] Baseline for '{game.Name}': {previousSnapshot.UnlockedCount} unlocked."
                     : $"[RAMonitor] No RetroAchievements data baseline for '{game.Name}'.");
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"[RAMonitor] Failed to establish baseline for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"[RAMonitor] Failed to establish baseline for '{game.Name}'.");
             }
 
             while (!cancellationToken.IsCancellationRequested)
@@ -139,7 +140,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
 
                 if (!ShouldMonitor(game))
                 {
-                    _logger?.Info($"[RAMonitor] Stopping monitor for '{game.Name}' because the feature is disabled.");
+                    ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Stopping monitor for '{game.Name}' because the feature is disabled.");
                     break;
                 }
 
@@ -178,11 +179,11 @@ namespace PlayniteAchievements.Services.RetroAchievements
                                 i.Trophy))
                             .ToList();
 
-                        _logger?.Info($"[RAMonitor] {newlyUnlocked.Count} new RetroAchievements unlock(s) for '{game.Name}'.");
+                        ForkLog.Wrap(_logger)?.Info($"[RAMonitor] {newlyUnlocked.Count} new RetroAchievements unlock(s) for '{game.Name}'.");
 
                         if (_isRealtimeNotificationDisabled?.Invoke(game.Id) == true)
                         {
-                            _logger?.Info($"[RAMonitor] Skipped notification for '{game.Name}' because real-time notifications are disabled for this game.");
+                            ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Skipped notification for '{game.Name}' because real-time notifications are disabled for this game.");
                         }
                         else
                         {
@@ -199,7 +200,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
                     }
                     else if (previousSnapshot == null && currentSnapshot != null)
                     {
-                        _logger?.Info($"[RAMonitor] Late baseline established for '{game.Name}': {currentSnapshot.UnlockedCount} unlocked.");
+                        ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Late baseline established for '{game.Name}': {currentSnapshot.UnlockedCount} unlocked.");
                     }
 
                     previousSnapshot = currentSnapshot ?? previousSnapshot;
@@ -212,7 +213,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
-                    _logger?.Warn(ex, $"[RAMonitor] Refresh failed for '{game.Name}'.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, $"[RAMonitor] Refresh failed for '{game.Name}'.");
                 }
             }
         }
@@ -237,13 +238,13 @@ namespace PlayniteAchievements.Services.RetroAchievements
 
             if (_isExcludedFromRefreshes?.Invoke(game.Id) == true)
             {
-                _logger?.Info($"[RAMonitor] Skipping monitor for '{game.Name}' because the game is excluded from refreshes.");
+                ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Skipping monitor for '{game.Name}' because the game is excluded from refreshes.");
                 return false;
             }
 
             if (_isRealtimeNotificationDisabled?.Invoke(game.Id) == true)
             {
-                _logger?.Info($"[RAMonitor] Skipping monitor for '{game.Name}' because real-time notifications are disabled for this game.");
+                ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Skipping monitor for '{game.Name}' because real-time notifications are disabled for this game.");
                 return false;
             }
 
@@ -269,7 +270,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
             var provider = _providerRegistry.GetProvider("RetroAchievements");
             if (provider == null)
             {
-                _logger?.Warn("[RAMonitor] Could not resolve RetroAchievements provider.");
+                ForkLog.Wrap(_logger)?.Warn("[RAMonitor] Could not resolve RetroAchievements provider.");
                 return CaptureSnapshot(game.Id);
             }
 
@@ -294,7 +295,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
             var writeResult = _cacheManager.SaveGameData(game.Id.ToString(), fetchedData);
             if (writeResult?.Success != true)
             {
-                _logger?.Warn($"[RAMonitor] Cache write failed for '{game.Name}': {writeResult?.ErrorMessage ?? "unknown error"}");
+                ForkLog.Wrap(_logger)?.Warn($"[RAMonitor] Cache write failed for '{game.Name}': {writeResult?.ErrorMessage ?? "unknown error"}");
                 return CaptureSnapshot(game.Id);
             }
 
@@ -314,7 +315,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
 
             try
             {
-                _logger?.Info($"[RAMonitor] Refreshing extension data for '{game.Name}' before showing real-time unlock notification.");
+                ForkLog.Wrap(_logger)?.Info($"[RAMonitor] Refreshing extension data for '{game.Name}' before showing real-time unlock notification.");
                 await _refreshGameInExtensionAsync(game, cancellationToken).ConfigureAwait(false);
                 var refreshedSnapshot = CaptureSnapshot(game.Id);
                 return refreshedSnapshot ?? fallbackSnapshot;
@@ -325,7 +326,7 @@ namespace PlayniteAchievements.Services.RetroAchievements
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"[RAMonitor] Extension refresh after real-time unlock failed for '{game.Name}'. Showing notification with monitor data.");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"[RAMonitor] Extension refresh after real-time unlock failed for '{game.Name}'. Showing notification with monitor data.");
                 return fallbackSnapshot;
             }
         }

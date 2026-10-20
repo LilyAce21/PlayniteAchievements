@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -1872,7 +1873,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, $"Failed to clear game data and overrides for gameId={_gameId}");
+                ForkLog.Wrap(_logger)?.Error(ex, $"Failed to clear game data and overrides for gameId={_gameId}");
                 _playniteApi?.Dialogs?.ShowMessage(
                     string.Format(L("LOCPlayAch_Status_Failed"), ex.Message),
                     L("LOCPlayAch_Title_PluginName"),

@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using PlayniteAchievements.Common;
 using System.Collections.Generic;
@@ -324,7 +325,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed importing custom Local provider icon.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed importing custom Local provider icon.");
                 RefreshLocalProviderIconControls($"Failed to import the selected icon: {ex.Message}");
             }
         }
@@ -587,7 +588,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed deleting managed Local provider icon.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed deleting managed Local provider icon.");
             }
         }
 
@@ -820,7 +821,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed scanning SuccessStory categories.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed scanning SuccessStory categories.");
                 UpdateSuccessStoryScanStatus($"Scan failed: {ex.Message}");
             }
             finally
@@ -957,7 +958,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed loading Playnite source names for Local import settings.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed loading Playnite source names for Local import settings.");
             }
 
             if (_localSettings != null &&
@@ -981,11 +982,11 @@ namespace PlayniteAchievements.Providers.Local
                     AvailableMetadataSources.Add(option);
                 }
 
-                _logger?.Info($"[LocalImport] Available metadata providers for Local import: {string.Join(", ", AvailableMetadataSources.Select(option => option.DisplayName))}");
+                ForkLog.Wrap(_logger)?.Info($"[LocalImport] Available metadata providers for Local import: {string.Join(", ", AvailableMetadataSources.Select(option => option.DisplayName))}");
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed loading Playnite metadata plugins for Local import settings.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed loading Playnite metadata plugins for Local import settings.");
             }
 
             if (_localSettings == null)
@@ -1064,7 +1065,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed loading source targets for SuccessStory import settings.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed loading source targets for SuccessStory import settings.");
             }
 
             if (_localSettings == null)
@@ -1110,7 +1111,7 @@ namespace PlayniteAchievements.Providers.Local
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, $"Failed discovering Steam userdata users from '{userdataRoot}'.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, $"Failed discovering Steam userdata users from '{userdataRoot}'.");
                     }
                 }
 
@@ -1136,7 +1137,7 @@ namespace PlayniteAchievements.Providers.Local
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, $"Failed discovering Steam appcache users from '{statsRoot}'.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, $"Failed discovering Steam appcache users from '{statsRoot}'.");
                     }
                 }
             }
@@ -1436,7 +1437,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed reading Steam login users from '{loginUsersPath}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed reading Steam login users from '{loginUsersPath}'.");
             }
         }
 
@@ -1721,7 +1722,7 @@ namespace PlayniteAchievements.Providers.Local
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Warn(ex, "Failed importing games from Local folders.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, "Failed importing games from Local folders.");
                     Dispatcher.Invoke(() =>
                     {
                         var message = $"Import failed: {ex.Message}";
@@ -1867,7 +1868,7 @@ namespace PlayniteAchievements.Providers.Local
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Warn(ex, "Failed importing unlock states from SuccessStory files.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, "Failed importing unlock states from SuccessStory files.");
                     Dispatcher.Invoke(() =>
                     {
                         var message = $"SuccessStory import failed: {ex.Message}";
@@ -1995,7 +1996,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to restore cached SuccessStory scan snapshot.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to restore cached SuccessStory scan snapshot.");
             }
         }
 

@@ -1,4 +1,5 @@
-﻿using System;
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -81,7 +82,7 @@ namespace PlayniteAchievements.Services.Exophase
                 _lastKnownGameId = game.Id;
             }
 
-            _logger?.Info($"[ExophaseMonitor] Started active Exophase achievement monitor for '{game.Name}'.");
+            ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Started active Exophase achievement monitor for '{game.Name}'.");
         }
 
         public void Stop()
@@ -99,13 +100,13 @@ namespace PlayniteAchievements.Services.Exophase
             }
 
             try { cts?.Cancel(); }
-            catch (Exception ex) { _logger?.Debug(ex, "[ExophaseMonitor] Cancel error."); }
+            catch (Exception ex) { ForkLog.Wrap(_logger)?.Debug(ex, "[ExophaseMonitor] Cancel error."); }
 
             cts?.Dispose();
 
             if (stoppedGameId.HasValue)
             {
-                _logger?.Info($"[ExophaseMonitor] Stopped Exophase monitor for game id '{stoppedGameId.Value}'.");
+                ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Stopped Exophase monitor for game id '{stoppedGameId.Value}'.");
             }
         }
 
@@ -124,14 +125,14 @@ namespace PlayniteAchievements.Services.Exophase
                     _lastKnownGameId = game.Id;
                 }
 
-                _logger?.Info(previousSnapshot != null
+                ForkLog.Wrap(_logger)?.Info(previousSnapshot != null
                     ? $"[ExophaseMonitor] Baseline for '{game.Name}': {previousSnapshot.UnlockedCount} unlocked."
                     : $"[ExophaseMonitor] No cached Exophase data yet for '{game.Name}'.");
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"[ExophaseMonitor] Failed to establish baseline for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"[ExophaseMonitor] Failed to establish baseline for '{game.Name}'.");
             }
 
             while (!cancellationToken.IsCancellationRequested)
@@ -144,7 +145,7 @@ namespace PlayniteAchievements.Services.Exophase
 
                 if (!ShouldMonitor(game))
                 {
-                    _logger?.Info($"[ExophaseMonitor] Stopping monitor for '{game.Name}' (feature disabled).");
+                    ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Stopping monitor for '{game.Name}' (feature disabled).");
                     break;
                 }
 
@@ -165,11 +166,11 @@ namespace PlayniteAchievements.Services.Exophase
                                 i.Trophy))
                             .ToList();
 
-                        _logger?.Info($"[ExophaseMonitor] {newlyUnlocked.Count} new Exophase unlock(s) for '{game.Name}'.");
+                        ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] {newlyUnlocked.Count} new Exophase unlock(s) for '{game.Name}'.");
 
                         if (_isRealtimeNotificationDisabled?.Invoke(game.Id) == true)
                         {
-                            _logger?.Info($"[ExophaseMonitor] Skipped notification for '{game.Name}' (disabled for this game).");
+                            ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Skipped notification for '{game.Name}' (disabled for this game).");
                         }
                         else
                         {
@@ -189,7 +190,7 @@ namespace PlayniteAchievements.Services.Exophase
                     }
                     else if (previousSnapshot == null && currentSnapshot != null)
                     {
-                        _logger?.Info($"[ExophaseMonitor] Late baseline established for '{game.Name}': {currentSnapshot.UnlockedCount} unlocked.");
+                        ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Late baseline established for '{game.Name}': {currentSnapshot.UnlockedCount} unlocked.");
                     }
 
                     previousSnapshot = currentSnapshot ?? previousSnapshot;
@@ -202,7 +203,7 @@ namespace PlayniteAchievements.Services.Exophase
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
-                    _logger?.Warn(ex, $"[ExophaseMonitor] Refresh failed for '{game.Name}'.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, $"[ExophaseMonitor] Refresh failed for '{game.Name}'.");
                 }
             }
         }
@@ -221,13 +222,13 @@ namespace PlayniteAchievements.Services.Exophase
 
             if (_isExcludedFromRefreshes?.Invoke(game.Id) == true)
             {
-                _logger?.Info($"[ExophaseMonitor] Skipping monitor for '{game.Name}' because the game is excluded from refreshes.");
+                ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Skipping monitor for '{game.Name}' because the game is excluded from refreshes.");
                 return false;
             }
 
             if (_isRealtimeNotificationDisabled?.Invoke(game.Id) == true)
             {
-                _logger?.Info($"[ExophaseMonitor] Skipping monitor for '{game.Name}' because real-time notifications are disabled for this game.");
+                ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Skipping monitor for '{game.Name}' because real-time notifications are disabled for this game.");
                 return false;
             }
 
@@ -252,7 +253,7 @@ namespace PlayniteAchievements.Services.Exophase
             var provider = _providerRegistry.GetProvider("Exophase");
             if (provider == null)
             {
-                _logger?.Warn("[ExophaseMonitor] Could not resolve Exophase provider.");
+                ForkLog.Wrap(_logger)?.Warn("[ExophaseMonitor] Could not resolve Exophase provider.");
                 return CaptureSnapshot(game.Id);
             }
 
@@ -273,7 +274,7 @@ namespace PlayniteAchievements.Services.Exophase
             var writeResult = _cacheManager.SaveGameData(game.Id.ToString(), fetchedData);
             if (writeResult?.Success != true)
             {
-                _logger?.Warn($"[ExophaseMonitor] Cache write failed for '{game.Name}': {writeResult?.ErrorMessage ?? "unknown error"}");
+                ForkLog.Wrap(_logger)?.Warn($"[ExophaseMonitor] Cache write failed for '{game.Name}': {writeResult?.ErrorMessage ?? "unknown error"}");
                 return CaptureSnapshot(game.Id);
             }
 
@@ -295,12 +296,12 @@ namespace PlayniteAchievements.Services.Exophase
             {
                 try
                 {
-                    _logger?.Info($"[ExophaseMonitor] Refreshing extension data for '{game.Name}' after showing real-time unlock notification.");
+                    ForkLog.Wrap(_logger)?.Info($"[ExophaseMonitor] Refreshing extension data for '{game.Name}' after showing real-time unlock notification.");
                     await _refreshGameInExtensionAsync(game, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Warn(ex, $"[ExophaseMonitor] Extension refresh after real-time unlock failed for '{game.Name}'.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, $"[ExophaseMonitor] Extension refresh after real-time unlock failed for '{game.Name}'.");
                 }
             });
         }

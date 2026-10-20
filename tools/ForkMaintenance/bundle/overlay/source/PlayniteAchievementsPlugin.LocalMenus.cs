@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -68,7 +69,7 @@ namespace PlayniteAchievements
 
             if (failure != null)
             {
-                _logger?.Error(failure, $"Failed to generate expected achievements.json for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Error(failure, $"Failed to generate expected achievements.json for '{game.Name}'.");
                 PlayniteApi?.Dialogs?.ShowMessage(
                     string.Format(
                         ResourceProvider.GetString("LOCPlayAch_Menu_LocalExpectedJson_Failed"),

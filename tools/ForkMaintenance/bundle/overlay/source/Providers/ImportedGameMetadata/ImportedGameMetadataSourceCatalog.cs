@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using Playnite.SDK;
 using Playnite.SDK.Plugins;
 using System;
@@ -159,7 +160,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, $"[ImportMetadata] Failed resolving metadata provider '{metadataSourceId}'.");
+                ForkLog.Wrap(logger)?.Debug(ex, $"[ImportMetadata] Failed resolving metadata provider '{metadataSourceId}'.");
                 return null;
             }
         }
@@ -172,7 +173,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, "[ImportMetadata] Failed resolving Universal Steam Metadata plugin instance.");
+                ForkLog.Wrap(logger)?.Debug(ex, "[ImportMetadata] Failed resolving Universal Steam Metadata plugin instance.");
                 return null;
             }
         }
@@ -199,7 +200,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, "[ImportMetadata] Failed resolving IGDB metadata plugin instance.");
+                ForkLog.Wrap(logger)?.Debug(ex, "[ImportMetadata] Failed resolving IGDB metadata plugin instance.");
                 return null;
             }
         }
@@ -214,7 +215,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, "[ImportMetadata] Failed resolving Universal Steam Metadata plugin instance.");
+                ForkLog.Wrap(logger)?.Debug(ex, "[ImportMetadata] Failed resolving Universal Steam Metadata plugin instance.");
                 return null;
             }
         }
@@ -268,7 +269,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, "[ImportMetadata] Failed reading installed metadata provider manifests.");
+                ForkLog.Wrap(logger)?.Debug(ex, "[ImportMetadata] Failed reading installed metadata provider manifests.");
             }
 
             return options
@@ -312,7 +313,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                 AddCandidate(Path.Combine(parentDirectory?.Parent?.FullName ?? string.Empty, "Extensions"));
             }
 
-            logger?.Info($"[ImportMetadata] Metadata provider manifest search paths: {string.Join(", ", candidates)}");
+            ForkLog.Wrap(logger)?.Info($"[ImportMetadata] Metadata provider manifest search paths: {string.Join(", ", candidates)}");
             return candidates.ToList();
         }
 
@@ -339,7 +340,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, "[ImportMetadata] Failed enumerating loaded metadata plugins.");
+                ForkLog.Wrap(logger)?.Debug(ex, "[ImportMetadata] Failed enumerating loaded metadata plugins.");
                 return Array.Empty<ImportedMetadataPluginIdentity>();
             }
         }
@@ -386,7 +387,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, $"[ImportMetadata] Failed reading manifest identity for metadata plugin '{plugin?.Name}'.");
+                ForkLog.Wrap(logger)?.Debug(ex, $"[ImportMetadata] Failed reading manifest identity for metadata plugin '{plugin?.Name}'.");
             }
 
             return Tuple.Create<string, string, string>(null, null, null);
@@ -409,7 +410,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
         {
             var summary = string.Join(" | ", (plugins ?? Enumerable.Empty<ImportedMetadataPluginIdentity>()).Select(plugin =>
                 $"runtime='{plugin.RuntimeName ?? "<null>"}', manifestName='{plugin.ManifestName ?? "<null>"}', manifestId='{plugin.ManifestId ?? "<null>"}', pluginId='{plugin.Plugin?.Id.ToString() ?? "<null>"}', assembly='{plugin.AssemblyDirectory ?? "<null>"}'"));
-            logger?.Info($"[ImportMetadata] Failed to resolve metadata provider '{requestedValue}'. Loaded metadata plugins: {summary}");
+            ForkLog.Wrap(logger)?.Info($"[ImportMetadata] Failed to resolve metadata provider '{requestedValue}'. Loaded metadata plugins: {summary}");
         }
 
         private static bool IsUniversalSteamMetadataPlugin(ImportedMetadataPluginIdentity plugin)

@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,7 +36,7 @@ namespace PlayniteAchievements.Providers.Steam
             var manualKey = ProviderRegistry.Settings<SteamSettings>().SteamWebApiKey?.Trim();
             if (!string.IsNullOrWhiteSpace(manualKey))
             {
-                _logger?.Debug("[SteamApiTokenService] Using manually configured Steam Web API key.");
+                ForkLog.Wrap(_logger)?.Debug("[SteamApiTokenService] Using manually configured Steam Web API key.");
                 return manualKey;
             }
 
@@ -48,14 +49,14 @@ namespace PlayniteAchievements.Providers.Steam
                     var sessionToken = await GetSessionTokenAsync(ct).ConfigureAwait(false);
                     if (!string.IsNullOrWhiteSpace(sessionToken))
                     {
-                        _logger?.Debug("[SteamApiTokenService] Using Steam session web API token.");
+                        ForkLog.Wrap(_logger)?.Debug("[SteamApiTokenService] Using Steam session web API token.");
                         return sessionToken;
                     }
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, "[SteamApiTokenService] Failed to resolve session token; falling back to anonymous schema fetch.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, "[SteamApiTokenService] Failed to resolve session token; falling back to anonymous schema fetch.");
                 }
             }
 
