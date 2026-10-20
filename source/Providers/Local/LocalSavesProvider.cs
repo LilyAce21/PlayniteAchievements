@@ -544,8 +544,8 @@ namespace PlayniteAchievements.Providers.Local
                             includeIconMetadata: shouldFetchIconsFromGame);
                     }
 
-                    steamSchema ??= new SchemaAndPercentages();
-                    steamSchema.Achievements = customSchemaAchievements;
+                    steamSchema = (steamSchema ?? new SchemaAndPercentages())
+                        .WithAchievements(customSchemaAchievements);
                     steamSchemaSource = string.IsNullOrWhiteSpace(steamSchemaSource)
                         ? "custom-schema"
                         : $"custom-schema+{steamSchemaSource}";

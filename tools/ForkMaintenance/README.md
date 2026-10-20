@@ -1,5 +1,20 @@
 # Fork maintenance bundle
 
+## Custom schema cache isolation - 2026-10-20
+
+Applying a game's custom schema now replaces achievement rows on a separate
+schema container instead of modifying the shared Steam schema cache. Clearing
+or disabling the override therefore exposes the original Steam rows again,
+including for other games that use the same app ID. Global percentages, groups,
+and schema hash are preserved. Two regression tests cover cache isolation;
+all eleven focused cache/progress tests and the Release rebuild passed.
+Bundle preflight and actual replay against clean upstream v4.1.1 passed with
+165 overlays. All three changed code/test files match after replay; protected
+files, component hashes, and localization validation passed.
+
+The local schema-inspection JSON under build is a diagnostic artifact and is
+excluded from this bundle refresh.
+
 ## Custom notification progress - 2026-10-20
 
 Custom text notifications carry each achievement's current and maximum progress.

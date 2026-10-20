@@ -1,5 +1,14 @@
 # Santodan fork feature checklist
 
+## Custom schema cache isolation - 2026-10-20
+
+- Apply a one-row custom schema, then Clear or disable it and refresh. The original
+  Steam achievement list must return without restarting Playnite.
+- Verify that a second game using the same Steam app ID keeps its original rows.
+- Preserve global percentages, achievement groups, and the schema hash when
+  building the per-game override container. Two regression tests cover this;
+  eleven focused cache/progress tests and the Release rebuild passed.
+
 ## Custom notification progress - 2026-10-20
 
 - Verify a mixed-progress game: `<achievementName>` automatically shows `(X/Y)`

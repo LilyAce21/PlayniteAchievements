@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-20T14:00:26.9026399Z",
+    "generatedUtc":  "2026-10-20T15:01:11.8622899Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "92F254FB61C31550339953C7F0815FF872D481A736558261576F03920C59A0FF"
+                  "sha256":  "7B28DDE1F9C162708531DBCC1081AEEF9928A177AE1513129E969E6E48F5B046"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -138,7 +138,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSavesProvider.cs",
-                             "sha256":  "122BCAC7CDFBD5440DD336D9BB1A992428DAC39118AB7BC3F22CFC7D01BE6EBC"
+                             "sha256":  "B35287D0C44BBD8732D37D9EBE08C80F9C2408720C9C3FB332F3B823ACB6C35F"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettings.cs",
@@ -403,6 +403,10 @@
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Providers/LocalCustomFolderTemplateTests.cs",
                              "sha256":  "C22CB284BAF8AC761D3B135A7B90074334E5540341628101F8D76148D746E999"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Providers/LocalCustomSchemaCacheTests.cs",
+                             "sha256":  "991938FC6F84F2BDBE95618116C8849537228E8F682BB5794F21519787573B17"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressTokensTests.cs",

@@ -1900,7 +1900,7 @@ index 6567391a95911c488fab89e82cd38fef364f8fe8..d72626243fb29d98185efffeacbdef45
          /// Gets or sets the RetroAchievements username.
          /// </summary>
 diff --git a/source/Providers/Steam/Models/SteamApiResponseModels.cs b/source/Providers/Steam/Models/SteamApiResponseModels.cs
-index 2bbb71983f6165604333835359fa340e7cec2e40..faf2654fb26f697105a82005b21eba3817b01fb0 100644
+index 2bbb71983f6165604333835359fa340e7cec2e40..6e657250bb337a4cf60591af13e785854d1f325d 100644
 --- a/source/Providers/Steam/Models/SteamApiResponseModels.cs
 +++ b/source/Providers/Steam/Models/SteamApiResponseModels.cs
 @@ -4,6 +4,58 @@
@@ -2016,7 +2016,27 @@ index 2bbb71983f6165604333835359fa340e7cec2e40..faf2654fb26f697105a82005b21eba38
      [DataContract]
      internal sealed class GetGameAchievementsRoot
      {
-@@ -287,11 +379,7 @@ internal sealed class SteamOwnedGame
+@@ -254,6 +346,19 @@ internal sealed class Achievement
+ 
+     internal class SchemaAndPercentages
+     {
++        // Override rows on a separate container so clearing a game's custom schema
++        // exposes the original cached Steam rows again.
++        public SchemaAndPercentages WithAchievements(List<SchemaAchievement> achievements)
++        {
++            return new SchemaAndPercentages
++            {
++                Achievements = achievements,
++                GlobalPercentages = GlobalPercentages,
++                Groups = Groups,
++                SchemaHash = SchemaHash
++            };
++        }
++
+         public List<SchemaAchievement> Achievements { get; set; }
+         public Dictionary<string, double> GlobalPercentages { get; set; }
+ 
+@@ -287,11 +392,7 @@ internal sealed class SteamOwnedGame
          [DataMember(Name = "rtime_last_played")]
          public long? LastPlayedUnixSeconds { get; set; }
  
