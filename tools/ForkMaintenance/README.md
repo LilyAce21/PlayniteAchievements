@@ -2,6 +2,41 @@
 
 ## v4.1.1 integration - 2026-10-20
 
+Installation discovery also finds nested steam_settings folders, including their
+settings/stats subfolders, and lists each matching location. The nested search
+respects excluded paths and skips directory links. The Automatic folders display
+describes this behavior with a Bin\x64 example. Folder dropdown entries and source
+path displays use the casing stored on disk with uppercase drive letters.
+Discovery checks covered multiple depths/candidates, exclusions, root deduplication,
+and a junction loop; path-casing checks passed. Live Playnite verification is pending.
+
+Local folder discovery uses the same candidate list with and without an override,
+so applying a folder override keeps the game's installation folder in the dropdown.
+The Release rebuild passed; live dropdown verification remains pending.
+
+The localization recipes preserve the missing Clear, Configure, OK, Reset, Save,
+and Search button labels and the Providers header/tooltip. All 22 referenced
+button keys and XAML button content/tooltip localization references resolve in
+the English resources. The Release rebuild passed; live rendering remains pending.
+
+View Achievements labels the upstream action `Edit Achievements` and the local-file
+action `Edit Local Achievements`. The local action remains visible for Local-provider
+games even when file discovery fails, and also appears when a writable local file
+is detected. Opening the local editor resets folder discovery before resolving the
+file; unsupported or missing files produce an editor message. The Release rebuild
+passed; live Playnite verification remains pending.
+
+The Local Automatic folders display also includes each game's Playnite installation
+folder and supported subfolders, Documents OnlineFix, ProgramData Steam, and the
+Steam installation roots already searched by discovery.
+
+The bundle preserves the English `LOCPlayAch_Button_Remove` resource used by
+Local settings, including the custom-folder and excluded-folder Remove buttons.
+The fix passed the Release rebuild with no errors and two existing CS0649 warnings.
+Live button rendering remains pending.
+The refreshed bundle passed a dry run against a clean upstream v4.1.1 checkout,
+including patch preflight, 155 overlays, localization, hashes, and protected files.
+
 The bundle also preserves the Overview tab label fix using upstream's existing
 `LOCPlayAch_Achievements` resource ("Achievements"). No fork localization key
 is added; the obsolete `LOCPlayAch_RecentAchievements` reference is removed.

@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-20T08:38:54.4343415Z",
+    "generatedUtc":  "2026-10-20T09:46:07.7729053Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,13 +11,13 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "1AEBC3178A658CECA2C4F4A0F73665BC50702F3FB9A97BECC3525D2E5233A2BC"
+                  "sha256":  "FB7AE83E677691CD56C8E5A63D1C49F7C724165A7B9EF8642F0E8C3699A67FBE"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
-                                "sha256":  "32E5FBF100A27BC413B0DDFB5C13208E7DA40E4F175A396B3EA58D61187E3F81",
+                                "sha256":  "26F6B8DEADC47823439A1A176D76EA7ACF6E4F60E6EB0C7DF2ADD987AE04C17E",
                                 "fileCount":  1,
-                                "entryCount":  386
+                                "entryCount":  394
                             },
     "overlayFiles":  [
                          {
@@ -138,7 +138,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSavesProvider.cs",
-                             "sha256":  "E5F9BCEA690E3A61975A661386698543CB3C32172AB7B3C9BCE005F217A3D459"
+                             "sha256":  "2B3E0E5D90B4E2DFEAB1EB9C4904ACCD8FD298464EFBDB893E9FFED6D356186E"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettings.cs",
@@ -146,7 +146,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml",
-                             "sha256":  "CBD82F4AC5C02640A9720BA50F42092E7C9DA36AA8687606F288E8CB3516401C"
+                             "sha256":  "652A5F910D61CCF039735B8BAB58AC1135CD96818FB84A25210119A379B824C8"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml.cs",
@@ -306,7 +306,7 @@
                          },
                          {
                              "path":  "source/ViewModels/LocalAchievementEditorViewModel.cs",
-                             "sha256":  "521E63F80C7990B544DB42D74B7D037A7D19B17788F1034328D9B62CF0B8E283"
+                             "sha256":  "56526C03A522467F9F36853505F24274DB8D388B0C6E4C2308379C91D6DED6CD"
                          },
                          {
                              "path":  "source/ViewModels/ManageAchievements/ManageAchievementsViewModel.RetroAchievementsSubsets.cs",

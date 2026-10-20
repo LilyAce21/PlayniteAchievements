@@ -238,21 +238,33 @@
                                Margin="0,0,0,10"
                                TextWrapping="Wrap"/>
 
+                        <TextBlock Text="Each game's installation folder configured in Playnite, including the root and supported subfolders: Stats, steam_settings, steam_settings\settings, steam_settings\stats, and achievement."
+                               Style="{StaticResource MutedTextStyle}"
+                               Margin="0,0,0,4"
+                               TextWrapping="Wrap"/>
+                        <TextBlock Text="Nested steam_settings folders are also detected anywhere beneath the installation folder, including their settings and stats subfolders (for example, Bin\x64\steam_settings\achievements.json). Excluded paths and directory links are skipped during this nested search."
+                               Style="{StaticResource MutedTextStyle}"
+                               Margin="0,0,0,10"
+                               TextWrapping="Wrap"/>
+
                            <TextBlock Text="Steam-related folders below are skipped when Steam appcache user is set to None."
                                Style="{StaticResource MutedTextStyle}"
                                Margin="0,0,0,10"
                                TextWrapping="Wrap"/>
 
+                        <TextBlock Text="%SteamPath%"
+                               Style="{StaticResource MutedTextStyle}"
+                               Margin="0,0,0,4"/>
                         <TextBlock Text="%SteamPath%\userdata"
                                Style="{StaticResource MutedTextStyle}"
                                Margin="0,0,0,4"/>
                         <TextBlock Text="%SteamPath%\appcache\stats"
                                    Style="{StaticResource MutedTextStyle}"
                                    Margin="0,0,0,4"/>
-                        <TextBlock Text="%ProgramFiles(x86)%\Steam\userdata"
+                        <TextBlock Text="%ProgramFiles(x86)%\Steam and its userdata folder"
                                Style="{StaticResource MutedTextStyle}"
                                Margin="0,0,0,4"/>
-                        <TextBlock Text="%ProgramFiles%\Steam\userdata"
+                        <TextBlock Text="%ProgramFiles%\Steam and its userdata folder"
                                Style="{StaticResource MutedTextStyle}"
                                Margin="0,0,0,4"/>
                         <TextBlock Text="&lt;Drive&gt;:\Programs\Steam, &lt;Drive&gt;:\Steam, matching userdata folders, and appcache\stats under common Steam install roots on available drives"
@@ -260,6 +272,12 @@
                                Margin="0,0,0,8"
                                TextWrapping="Wrap"/>
 
+                    <TextBlock Text="%PROGRAMDATA%\Steam"
+                               Style="{StaticResource MutedTextStyle}"
+                               Margin="0,0,0,4"/>
+                    <TextBlock Text="%DOCUMENTS%\OnlineFix"
+                               Style="{StaticResource MutedTextStyle}"
+                               Margin="0,0,0,4"/>
                     <TextBlock Text="%PUBLIC%\Documents\OnlineFix"
                                Style="{StaticResource MutedTextStyle}"
                                Margin="0,0,0,4"/>

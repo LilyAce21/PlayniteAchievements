@@ -19310,7 +19310,7 @@ index ea4a12d7aa91d6040439a7e146cba2e2010fb202..5ec894404f1d8b6d6159956f6e5a2543
          {
              var viewLabel = L("LOCPlayAch_Menu_ViewAchievements");
 diff --git a/source/ViewModels/ViewAchievementsViewModel.cs b/source/ViewModels/ViewAchievementsViewModel.cs
-index b68af5a1f1d093e0aec0ccbd2996aae337910356..162f089b254cc187ce8aadb7ab98d83f68e605fd 100644
+index b68af5a1f1d093e0aec0ccbd2996aae337910356..46cb8a9339f55f70a2e7ac04813ef979fdd60bc0 100644
 --- a/source/ViewModels/ViewAchievementsViewModel.cs
 +++ b/source/ViewModels/ViewAchievementsViewModel.cs
 @@ -10,6 +10,7 @@
@@ -19360,19 +19360,20 @@ index b68af5a1f1d093e0aec0ccbd2996aae337910356..162f089b254cc187ce8aadb7ab98d83f
                      return;
                  }
  
-@@ -678,6 +690,11 @@ private void LoadGameDataCore()
+@@ -678,6 +690,12 @@ private void LoadGameDataCore()
  
                  _allAchievements = displayItems;
                  Services.Captures.CapturePresenceMarker.MarkAchievements(_allAchievements, _captureLibrary);
 +                var localProvider = _refreshService?.Providers?.OfType<LocalSavesProvider>().FirstOrDefault();
 +                CanEditLocalAchievements =
 +                    localProvider != null &&
-+                    string.Equals(gameData.EffectiveProviderKey, "Local", StringComparison.OrdinalIgnoreCase) &&
-+                    localProvider.TryResolveWritableAchievementFilePath(game, out _, out _, out _, out _);
++                    (string.Equals(gameData.ProviderKey, "Local", StringComparison.OrdinalIgnoreCase) ||
++                     string.Equals(gameData.EffectiveProviderKey, "Local", StringComparison.OrdinalIgnoreCase) ||
++                     localProvider.TryResolveWritableAchievementFilePath(game, out _, out _, out _, out _));
                  RefreshOrderedAchievements(skipDefaultSort: false);
  
                  // The control bar's filter option collections are UI-bound.
-@@ -695,6 +712,7 @@ private void LoadGameDataCore()
+@@ -695,6 +713,7 @@ private void LoadGameDataCore()
              {
                  _logger?.Error(ex, $"Failed to load game data for {_gameId}");
                  HasCustomAchievementOrder = false;
@@ -21390,7 +21391,7 @@ index b3e9affa517c40f4cb9f2e6add88ac4866194e72..8a6ecbdd88ea8c8ee46721f0552005a3
          }
      }
 diff --git a/source/Views/ViewAchievementsControl.xaml b/source/Views/ViewAchievementsControl.xaml
-index 8c30d5357b940e538be35b7876838d4b442d3557..3730f5ed825d5003eea96f411a0689a6a0f01ff6 100644
+index 8c30d5357b940e538be35b7876838d4b442d3557..74261a92445a9b31d5ed70e79695861967bf63f3 100644
 --- a/source/Views/ViewAchievementsControl.xaml
 +++ b/source/Views/ViewAchievementsControl.xaml
 @@ -66,6 +66,53 @@
@@ -21454,10 +21455,10 @@ index 8c30d5357b940e538be35b7876838d4b442d3557..3730f5ed825d5003eea96f411a0689a6
 +            <StackPanel Orientation="Horizontal"
 +                        HorizontalAlignment="Right"
 +                        Margin="0,4,0,0">
-+                <Button Content="Edit Local Achievements"
++                <Button Content="Edit Achievements"
 +                        Padding="12,6"
 +                        Click="OpenAchievementsEditor_Click"/>
-+                <Button Content="Edit Local File"
++                <Button Content="Edit Local Achievements"
 +                        Margin="6,0,0,0"
 +                        Padding="12,6"
 +                        Click="OpenLocalEditor_Click"

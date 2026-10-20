@@ -157,6 +157,7 @@ namespace PlayniteAchievements.ViewModels
                 return;
             }
 
+            _localProvider.ResetLocalFolderDiscovery(game);
             if (!_localProvider.TryResolveWritableAchievementFilePath(game, out var writableFilePath, out var fileKind, out _, out _))
             {
                 ErrorMessage = "This game does not use a writable Local achievements.json or achievements.ini file.";

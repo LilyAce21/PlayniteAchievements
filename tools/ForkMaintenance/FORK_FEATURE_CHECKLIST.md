@@ -21,7 +21,7 @@ at the repository root for remaining missing features and live-verification task
 - Custom Schema loads JSON or accepts manual schema editing and correlates with
   the Local achievement file before updating the unified Editor. Legacy manual
   navigation and portable-package entry points still require review.
-- View Achievements retains the upstream editor action and adds Edit Local File
+- View Achievements retains the upstream Edit Achievements action and adds Edit Local Achievements
   plus the title-bar refresh button. The separate file editor accepts 24-hour
   times, writes intentional relocks to disk/cache, and has Open File Location.
   Verify save/restart persistence in Playnite.
@@ -71,6 +71,11 @@ at the repository root for remaining missing features and live-verification task
 - The English resources include `LOCPlayAch_Button_Cancel` = `Cancel`; check
   Open, Copy, and Delete selection dialogs for a translated label rather than
   an unresolved resource-key placeholder (2026-10-20 bundle refresh).
+- English resources also preserve Clear, Configure, OK, Reset, Save, Search,
+  and the Providers header/tooltip. Check the Local Overrides clear buttons,
+  Custom Schema save/clear buttons, import dialog OK, and notification controls
+  for visible labels. All 22 referenced button keys and XAML button content/tooltip
+  localization references passed the resource audit; live rendering remains pending.
 - Verify these dialogs in Playnite, including cancellation, copying active logs,
   and log recreation after deletion. The Release rebuild passed.
 
@@ -156,6 +161,18 @@ Primary fork areas:
 
 - Local appears with its default icon and settings defaults.
 - Local folder discovery, extra/excluded paths, import, and refresh work.
+- Applying a local folder override retains the game's installation folder in the
+  multiple-folder dropdown alongside shared save and Steam cache folders.
+- Nested steam_settings folders beneath the installation directory are detected,
+  including their settings/stats subfolders; multiple matching locations appear in
+  the dropdown. Excluded paths and directory links are skipped by the nested search.
+- Folder dropdown entries and source path displays use on-disk casing and uppercase
+  drive letters, regardless of the casing supplied by Steam or Playnite.
+- The Automatic folders display includes each game's installation root and supported
+  subfolders, Documents OnlineFix, ProgramData Steam, and Steam installation roots.
+  It also explains nested steam_settings discovery with a Bin\x64 example.
+- Custom-folder and excluded-folder Remove buttons display their label using
+  `LOCPlayAch_Button_Remove` and enable when a folder is selected.
 - While a game is running and its Local achievement file has not been found,
   folder discovery bypasses cached misses and rescans all configured roots for
   the supported JSON/INI filenames. The user-configured 1–300 second interval
@@ -200,9 +217,12 @@ Primary fork areas:
   game previously had a forced or preferred provider route; the wizard proceeds
   to editing instead of returning to the Exophase search results.
 - Local right-click commands and Manage Achievements shortcuts are present.
-- View Achievements shows `Edit Local Achievements` only when the game resolves
-  through the Local provider and has a writable `achievements.json` or
-  `achievements.ini`.
+- View Achievements routes `Edit Achievements` to the upstream editor and
+  `Edit Local Achievements` to the local-file editor. The local action appears
+  for Local-provider games or when a writable local file is detected.
+- Opening the local editor refreshes folder discovery before resolving the file;
+  a missing or unsupported file produces an editor message rather than hiding
+  the action for Local-provider games.
 - The Local achievement editor opens with the current v3 achievement cell
   resources and can save unlock state and unlock times back to the Local file.
 - Opening Playnite's manual-game editor does not refresh the temporary

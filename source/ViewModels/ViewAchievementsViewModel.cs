@@ -693,8 +693,9 @@ namespace PlayniteAchievements.ViewModels
                 var localProvider = _refreshService?.Providers?.OfType<LocalSavesProvider>().FirstOrDefault();
                 CanEditLocalAchievements =
                     localProvider != null &&
-                    string.Equals(gameData.EffectiveProviderKey, "Local", StringComparison.OrdinalIgnoreCase) &&
-                    localProvider.TryResolveWritableAchievementFilePath(game, out _, out _, out _, out _);
+                    (string.Equals(gameData.ProviderKey, "Local", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(gameData.EffectiveProviderKey, "Local", StringComparison.OrdinalIgnoreCase) ||
+                     localProvider.TryResolveWritableAchievementFilePath(game, out _, out _, out _, out _));
                 RefreshOrderedAchievements(skipDefaultSort: false);
 
                 // The control bar's filter option collections are UI-bound.

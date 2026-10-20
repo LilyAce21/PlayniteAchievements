@@ -13,9 +13,44 @@
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Cancel\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eCancel\u003c/sys:String\u003e"
                         },
                         {
+                            "key":  "LOCPlayAch_Button_Clear",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Clear\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eClear\u003c/sys:String\u003e"
+                        },
+                        {
+                            "key":  "LOCPlayAch_Button_Configure",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Configure\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eConfigure\u003c/sys:String\u003e"
+                        },
+                        {
+                            "key":  "LOCPlayAch_Button_Ok",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Ok\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eOK\u003c/sys:String\u003e"
+                        },
+                        {
                             "key":  "LOCPlayAch_Button_Reload",
                             "baseXml":  null,
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Reload\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eReload\u003c/sys:String\u003e"
+                        },
+                        {
+                            "key":  "LOCPlayAch_Button_Remove",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Remove\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eRemove\u003c/sys:String\u003e"
+                        },
+                        {
+                            "key":  "LOCPlayAch_Button_Reset",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Reset\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eReset\u003c/sys:String\u003e"
+                        },
+                        {
+                            "key":  "LOCPlayAch_Button_Save",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Save\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eSave\u003c/sys:String\u003e"
+                        },
+                        {
+                            "key":  "LOCPlayAch_Button_Search",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_Button_Search\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eSearch\u003c/sys:String\u003e"
                         },
                         {
                             "key":  "LOCPlayAch_Capstone_Error_InvalidGame",
@@ -91,6 +126,11 @@
                             "key":  "LOCPlayAch_CustomRefresh_Provider_SteamFamilySharing",
                             "baseXml":  null,
                             "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_CustomRefresh_Provider_SteamFamilySharing\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eSteam Family Sharing\u003c/sys:String\u003e"
+                        },
+                        {
+                            "key":  "LOCPlayAch_CustomRefresh_ProvidersHeader",
+                            "baseXml":  null,
+                            "desiredXml":  "\u003csys:String x:Key=\"LOCPlayAch_CustomRefresh_ProvidersHeader\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\" xmlns:sys=\"clr-namespace:System;assembly=mscorlib\"\u003eProviders\u003c/sys:String\u003e"
                         },
                         {
                             "key":  "LOCPlayAch_Error_NotifySubscribers",
