@@ -20346,38 +20346,10 @@ index ef0dd20125c46dd34cc7768519702f8db2ed3591..b0790ebb599e17187c24738684187736
  
          private void ResetRecentAchievementsToDefaultSort()
 diff --git a/source/Views/Settings/Display/ThemeControls/MigrationThemePage.xaml b/source/Views/Settings/Display/ThemeControls/MigrationThemePage.xaml
-index 81a36d6f4b1d2c0305d278544005f236410cf6a5..91b8b00f3acb51d92f397dca18e62095e991ba31 100644
+index 81a36d6f4b1d2c0305d278544005f236410cf6a5..df42318ae6e4a39b6307ae564787f4fb7fafba21 100644
 --- a/source/Views/Settings/Display/ThemeControls/MigrationThemePage.xaml
 +++ b/source/Views/Settings/Display/ThemeControls/MigrationThemePage.xaml
-@@ -3,6 +3,7 @@
-              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-+             xmlns:migration="clr-namespace:PlayniteAchievements.Services.ThemeMigration"
-              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-              mc:Ignorable="d"
-              d:DesignHeight="600"
-@@ -39,6 +40,19 @@
-                                   IsEnabled="{Binding HasThemesToMigrate}"/>
-                     </Grid>
- 
-+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-+                        <TextBlock Text="Automatic migration mode" VerticalAlignment="Center" Margin="0,0,12,0"/>
-+                        <ComboBox SelectedValue="{Binding MigrationSettings.ThemeMigrationMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-+                                  SelectedValuePath="Tag" MinWidth="140">
-+                            <ComboBoxItem Content="Limited" Tag="{x:Static migration:MigrationMode.Limited}"/>
-+                            <ComboBoxItem Content="Full" Tag="{x:Static migration:MigrationMode.Full}"/>
-+                            <ComboBoxItem Content="Custom" Tag="{x:Static migration:MigrationMode.Custom}"/>
-+                        </ComboBox>
-+                    </StackPanel>
-+                    <CheckBox Content="Automatically migrate new themes" IsChecked="{Binding MigrationSettings.EnableAutomaticThemeMigration, Mode=TwoWay}" Margin="0,8,0,0"/>
-+                    <CheckBox Content="Scrollable achievements" IsChecked="{Binding UseScrollableAchievements, Mode=TwoWay}" Margin="0,8,0,0"/>
-+                    <CheckBox Content="{DynamicResource LOCPlayAch_ThemeMigration_HighlightLatestAchievement}" IsChecked="{Binding HighlightLatestUnlockedAchievement, Mode=TwoWay}" IsEnabled="{Binding UseScrollableAchievements}" Margin="0,8,0,0"/>
-+
-                     <!-- Migration Buttons -->
-                     <StackPanel Orientation="Horizontal"
-                                 HorizontalAlignment="Right"
-@@ -201,7 +215,7 @@
+@@ -201,7 +201,7 @@
                                    ItemsSource="{Binding RevertableThemes}"
                                    DisplayMemberPath="BestDisplayName"
                                    SelectedValuePath="Path"

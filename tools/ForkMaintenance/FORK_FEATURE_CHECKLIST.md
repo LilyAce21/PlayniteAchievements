@@ -270,6 +270,9 @@ Primary fork areas:
 
 ## Theme and StartPage migration
 
+- Display and Themes migration pages retain the upstream v4.1.1 layout and the
+  two-way Revert selection fix. Fork-specific migration controls remain available
+  in the separate Theme Migration tab on the main settings page.
 - The fork Theme Migration page remains separate from upstream's migration
   pages.
 - The newest unlocked achievement is highlighted above the compact/scrollable

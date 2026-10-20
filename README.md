@@ -124,6 +124,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Standardized folder and source-path displays to use the casing stored on disk, with uppercase drive letters.
 - Added detection for nested `steam_settings` folders beneath the game’s installation directory, including their `settings` and `stats` subfolders. The search respects excluded paths and skips directory links.
 - Updated the `Automatic folders` list with missing scan locations and an explanation of nested `steam_settings` detection.
+- Restored the upstream themes tabs to the original state
 
 ## 2026-10-18 - v4.1.0.1
 

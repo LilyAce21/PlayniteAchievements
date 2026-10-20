@@ -2,6 +2,11 @@
 
 ## v4.1.1 integration - 2026-10-20
 
+The migration pages under Display and Themes use the upstream v4.1.1 layout,
+retaining the two-way Revert selection fix. Fork migration controls remain in the
+separate Theme Migration tab on the main settings page. The Release rebuild passed;
+live page verification remains pending.
+
 Installation discovery also finds nested steam_settings folders, including their
 settings/stats subfolders, and lists each matching location. The nested search
 respects excluded paths and skips directory links. The Automatic folders display
