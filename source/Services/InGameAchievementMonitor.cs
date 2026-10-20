@@ -2220,7 +2220,9 @@ namespace PlayniteAchievements.Services
                 UnlockedCount = data?.UnlockedCount ?? 0,
                 TotalCount = data?.AchievementCount ?? 0,
                 AchievementNumber = achievementNumber,
-                IsCompletionAchievement = isCompletionAchievement
+                IsCompletionAchievement = isCompletionAchievement,
+                ProgressNum = achievement?.ProgressNum,
+                ProgressDenom = achievement?.ProgressDenom
             };
         }
 

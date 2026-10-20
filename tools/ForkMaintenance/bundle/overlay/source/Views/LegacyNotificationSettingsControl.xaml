@@ -3359,6 +3359,10 @@
                                                              <Button Content="&lt;gameName&gt;" Tag="&lt;gameName&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
                                                              <Button Content="&lt;achievementName&gt;" Tag="&lt;achievementName&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
                                                              <Button Content="&lt;achievementDescription&gt;" Tag="&lt;achievementDescription&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
+                                                             <Button Content="&lt;progress&gt;" Tag="&lt;progress&gt;" Click="NotificationTemplateToken_Click" ToolTip="Achievement progress, for example 16/100" Margin="0,0,6,6"/>
+                                                             <Button Content="&lt;progressCurrent&gt;" Tag="&lt;progressCurrent&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
+                                                             <Button Content="&lt;progressMax&gt;" Tag="&lt;progressMax&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
+                                                             <Button Content="&lt;progressPercent&gt;" Tag="&lt;progressPercent&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
                                                              <Button Content="&lt;points&gt;" Tag="&lt;points&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
                                                              <Button Content="&lt;rarity&gt;" Tag="&lt;rarity&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
                                                              <Button Content="&lt;rarityIcon&gt;" Tag="&lt;rarityIcon&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>

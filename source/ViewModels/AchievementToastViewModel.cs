@@ -236,8 +236,8 @@ namespace PlayniteAchievements.ViewModels
         public int? Points => _args.Points;
         public int? ScaledPoints => _args.ScaledPoints;
 
-        // Per-achievement incremental progress, set only on progress notifications (null and
-        // empty elsewhere). Fractions are clamped to 0..1 for direct use as a bar's ScaleX.
+        // Per-achievement progress, including final counters when supplied on an unlock.
+        // Fractions are clamped to 0..1 for direct use as a bar's ScaleX.
         public int? ProgressNum => _args.ProgressNum;
         public int? ProgressDenom => _args.ProgressDenom;
         public int? PreviousProgressNum => _args.PreviousProgressNum;

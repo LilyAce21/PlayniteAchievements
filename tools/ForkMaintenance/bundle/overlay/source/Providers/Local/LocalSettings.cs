@@ -358,6 +358,10 @@ namespace PlayniteAchievements.Providers.Local
 
     public class LocalSettings : ProviderSettingsBase
     {
+        // Runtime-only copy prepared for one notification, never part of a saved style.
+        [Newtonsoft.Json.JsonIgnore]
+        internal bool AchievementProgressPrepared { get; set; }
+
         public const int MinActiveGameMonitoringIntervalSeconds = 1;
         public const int MaxActiveGameMonitoringIntervalSeconds = 60;
         public const int MinMissingAchievementFilePollingIntervalSeconds = 1;

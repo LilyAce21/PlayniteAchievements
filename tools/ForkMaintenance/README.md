@@ -1,13 +1,31 @@
 # Fork maintenance bundle
 
+## Custom notification progress - 2026-10-20
+
+Custom text notifications carry each achievement's current and maximum progress.
+The visible achievement name automatically includes X/Y when the counter exists,
+even when other lines display progress or percent. Ordinary achievements keep
+their normal text. An explicit X/Y on the name's own line keeps its chosen
+placement. Tokens include `<progress>`, `<progressCurrent>`, `<progressMax>`,
+and `<progressPercent>`; the editor and HTML template builder expose them.
+Per-notification settings copies preserve saved templates and keep progress
+popups silent. Unlock events also carry their final counter when available.
+
+The experimental cat schema, native-unlock aggregation, and schema-only test
+script were removed. The existing Custom Schema editor and native numeric
+`progress`/`max_progress` support remain. Nine focused notification tests pass;
+live display of the final correction remains to be verified in Playnite.
+The Release rebuild and clean v4.1.1 bundle dry run passed, including patch
+preflight, 164 overlays, localization recipes, hashes, and protected-file checks.
+
 ## v4.1.1 integration - 2026-10-20
 
 Fork-specific log calls append -Santodan to the logger name, for example
 [PlayniteAchievementsPlugin-Santodan]. Upstream log calls retain their existing
 names. The wrapper preserves severity, exceptions, and destination, reuses named
 fork loggers, and avoids duplicate suffixes. The Release rebuild and seven logging
-tests passed. This bundle refresh captures only the logging change over HEAD;
-the separate ongoing custom-schema changes are excluded.
+tests passed. That logging-only refresh excluded the then-ongoing custom-schema
+experiment; the notification progress refresh above supersedes that exclusion.
 The isolated logging-only Release rebuild and bundle dry run passed against
 upstream v4.1.1, including 162 overlays, localization recipes, and component hashes.
 

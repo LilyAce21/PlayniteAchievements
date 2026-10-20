@@ -31,6 +31,7 @@ using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.Local;
 using PlayniteAchievements.Services.Logging;
+using PlayniteAchievements.Services.UI;
 
 namespace PlayniteAchievements.Services
 {
@@ -284,7 +285,8 @@ namespace PlayniteAchievements.Services
             LocalUnlockNotificationDeliveryMode? forcedDeliveryMode = null,
             LocalSettings overrideLocalSettings = null,
             string notificationProviderKey = "Local",
-            Game game = null)
+            Game game = null,
+            AchievementUnlockedEventArgs progressContext = null)
         {
             var achievements = unlockedAchievements?
                 .Where(item => !string.IsNullOrWhiteSpace(item?.Name))
@@ -298,7 +300,10 @@ namespace PlayniteAchievements.Services
                 return;
             }
 
-            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
+            var localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(
+                overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>(),
+                progressContext?.ProgressNum, progressContext?.ProgressDenom, progressContext?.IsProgressUpdate == true);
+            if (progressContext?.IsProgressUpdate == true) customSoundPath = null;
             var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
             var enableInAppNotification = localSettings?.EnableInAppUnlockNotifications != false;
             if (localSettings?.EnableOverlayDebugLogging == true)
@@ -510,9 +515,12 @@ namespace PlayniteAchievements.Services
             string achievementDescription = null,
             int? achievementPoints = null,
             string achievementRarity = null,
-            string achievementTrophy = null)
+            string achievementTrophy = null,
+            int? progressCurrent = 16,
+            int? progressMaximum = 100)
         {
-            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
+            var localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(
+                overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>(), progressCurrent, progressMaximum);
             var style = string.IsNullOrWhiteSpace(forcedStyle)
                 ? ResolveUnlockNotificationStyle(providerKey, null)
                 : NormalizeNotificationStyle(forcedStyle);
@@ -582,7 +590,8 @@ namespace PlayniteAchievements.Services
                 return null;
             }
 
-            var settings = ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
+            var settings = CustomNotificationProgressTokens.CreateSettingsCopy(
+                ProviderRegistry.Settings<LocalSettings>(), args.ProgressNum, args.ProgressDenom, args.IsProgressUpdate);
             var game = _api?.Database?.Games?.Get(args.PlayniteGameId);
             var rarity = args.GlobalPercent.HasValue
                 ? AchievementRarityResolver.GetDetailText(

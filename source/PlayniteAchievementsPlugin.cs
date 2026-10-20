@@ -707,7 +707,8 @@ namespace PlayniteAchievements
                         },
                         localSettings?.UnlockSoundPath,
                         notificationProviderKey: args.ProviderKey,
-                        game: game);
+                        game: game,
+                        progressContext: args);
                     args.SuppressStandardToast = true;
                     ForkLog.Wrap(_logger)?.Info(
                         $"[AchievementNotification] Upstream poll detection routed to custom notification: game={args.GameName}, provider={args.ProviderKey}, achievement={args.DisplayName ?? args.ApiName}.");

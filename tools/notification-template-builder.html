@@ -992,6 +992,8 @@
               <div class="field"><label for="sampleAchievementName">Achievement name</label><input id="sampleAchievementName" value="Blood Bound"></div>
               <div class="field"><label for="sampleAchievementDescription">Description</label><input id="sampleAchievementDescription" value="Win your first run without taking damage."></div>
               <div class="field"><label for="samplePoints">Points</label><input id="samplePoints" type="number" value="25"></div>
+              <div class="field"><label for="sampleProgressCurrent">Progress current</label><input id="sampleProgressCurrent" type="number" min="0" value="16"></div>
+              <div class="field"><label for="sampleProgressMax">Progress target</label><input id="sampleProgressMax" type="number" min="1" value="100"></div>
               <div class="field"><label for="sampleRarity">Rarity</label><input id="sampleRarity" value="12.7%"></div>
               <div class="field"><label for="sampleTrophy">Trophy</label><input id="sampleTrophy" value="Gold"></div>
               <div class="field"><label for="sampleSource">Source</label><input id="sampleSource" value="Steam"></div>
@@ -1051,6 +1053,7 @@
     const tokenGroups = [
       { label: 'Achievement', tokens: [
         '<gameName>', '<achievementName>', '<achievementDescription>', '<points>',
+        '<progress>', '<progressCurrent>', '<progressMax>', '<progressPercent>',
         '<rarity>', '<rarityIcon>', '<trophy>', '<trophyIcon>', '<type>', '<category>'
       ]},
       { label: 'Collection score', tokens: [
@@ -1111,6 +1114,7 @@
       'primaryCustomIconUrl', 'secondaryCustomIconUrl',
       'coverUrl', 'bannerUrl', 'sampleGameName', 'sampleAchievementName',
       'sampleAchievementDescription', 'samplePoints', 'sampleRarity',
+      'sampleProgressCurrent', 'sampleProgressMax',
       'sampleTrophy', 'sampleProvider', 'sampleSource', 'sampleGameId'
     ];
 
@@ -2091,7 +2095,13 @@
       const date = new Date();
       const datePart = date.toISOString().slice(0, 10);
       const timePart = date.toTimeString().slice(0, 8);
+      const progressMax = Math.max(0, Number($('sampleProgressMax').value) || 0);
+      const progressCurrent = Math.min(progressMax, Math.max(0, Number($('sampleProgressCurrent').value) || 0));
       const map = {
+        progress: progressMax > 0 ? `${progressCurrent}/${progressMax}` : '',
+        progresscurrent: progressMax > 0 ? String(progressCurrent) : '',
+        progressmax: progressMax > 0 ? String(progressMax) : '',
+        progresspercent: progressMax > 0 ? `${Number((progressCurrent * 100 / progressMax).toFixed(1))}%` : '',
         title: 'Local Achievement Unlocked',
         gamename: $('sampleGameName').value || '',
         achievementname: $('sampleAchievementName').value || '',

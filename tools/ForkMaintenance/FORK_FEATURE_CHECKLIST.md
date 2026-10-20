@@ -1,5 +1,19 @@
 # Santodan fork feature checklist
 
+## Custom notification progress - 2026-10-20
+
+- Verify a mixed-progress game: `<achievementName>` automatically shows `(X/Y)`
+  for achievements with counters, and ordinary names stay unchanged.
+- Verify `<achievementName> - <achievementDescription>` puts `(X/Y)` directly
+  beside the name, even with `<progress>` or `<progressPercent>` on another line.
+- Verify explicit X/Y on the name line is not duplicated, counters do not leak
+  between notifications, and saved templates are unchanged.
+- Verify the progress token buttons, template builder sample counters, silent
+  progress popups, and final unlock counter. Nine focused tests cover formatting
+  and notification-copy behavior; final live Playnite verification is pending.
+- Keep native `progress`/`max_progress` support and the existing Custom Schema
+  editor. Do not reintroduce the removed cat schema or aggregation experiment.
+
 Use this checklist after applying the bundle to a new upstream release. The
 bundle captures the source automatically; this list records the behavior that
 must still be verified in Playnite.
