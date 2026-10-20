@@ -858,7 +858,6 @@ namespace PlayniteAchievements.Services.Overview
                     TrophyType = achievement.TrophyType,
                     Hidden = achievement.Hidden,
                     IsCapstone = achievement.IsCapstone,
-                    IsAutoCapstone = achievement.IsAutoCapstone,
                     AchievementNote = achievement.AchievementNote,
                     ProviderKey = achievement.ProviderKey,
                     GlobalPercentUnlocked = achievement.GlobalPercentUnlocked,
