@@ -1252,12 +1252,12 @@ namespace PlayniteAchievements.ViewModels.Items
         }
 
         /// <summary>
-        /// True when this is a capstone and the "capstones use Platinum" option is on. Swaps only the
-        /// rarity-tier icon for the Platinum trophy; the real rarity tier, percent color, glow and
-        /// counts are untouched (capstones already get the completed color for their title).
+        /// True when this is an auto / PSN capstone and the "capstones use Platinum" option is on.
+        /// Swaps only the rarity-tier icon for the Platinum trophy; the real rarity tier, colors,
+        /// glow and counts are untouched.
         /// </summary>
         public bool UseCapstonePlatinumIcon =>
-            IsCapstone &&
+            _source?.IsAutoCapstone == true &&
             PlayniteAchievementsPlugin.Instance?.Settings?.Persisted?.CapstonesUsePlatinumRarity == true;
 
         public System.Windows.Media.Brush RarityBrush
@@ -1940,7 +1940,6 @@ namespace PlayniteAchievements.ViewModels.Items
             OnPropertyChanged(nameof(ShowUnlockDate));
             OnPropertyChanged(nameof(ShowLockedProgress));
             OnPropertyChanged(nameof(IsCapstone));
-            OnPropertyChanged(nameof(UseCapstonePlatinumIcon));
             OnPropertyChanged(nameof(IsGoal));
             OnPropertyChanged(nameof(GoalOrderIndex));
             OnPropertyChanged(nameof(DefaultOrderIndex));

@@ -17,6 +17,7 @@ namespace PlayniteAchievements.Models.Settings
         private string _trophySilver;
         private string _trophyGold;
         private string _trophyPlatinum;
+        private string _capstonePlatinum;
 
         public string Common { get => _common; set => SetValue(ref _common, Norm(value)); }
         public string Uncommon { get => _uncommon; set => SetValue(ref _uncommon, Norm(value)); }
@@ -27,6 +28,13 @@ namespace PlayniteAchievements.Models.Settings
         public string TrophySilver { get => _trophySilver; set => SetValue(ref _trophySilver, Norm(value)); }
         public string TrophyGold { get => _trophyGold; set => SetValue(ref _trophyGold, Norm(value)); }
         public string TrophyPlatinum { get => _trophyPlatinum; set => SetValue(ref _trophyPlatinum, Norm(value)); }
+
+        /// <summary>
+        /// Image for the Platinum trophy shown on capstones (the rarity column icon when capstones use
+        /// Platinum, and the Trophy column's Platinum). Falls back to <see cref="TrophyPlatinum"/>, then
+        /// the built-in icon, when blank.
+        /// </summary>
+        public string CapstonePlatinum { get => _capstonePlatinum; set => SetValue(ref _capstonePlatinum, Norm(value)); }
 
         public static RarityIconOverrideSettings CreateDefault() => new RarityIconOverrideSettings();
 
@@ -42,7 +50,8 @@ namespace PlayniteAchievements.Models.Settings
                 TrophyBronze = TrophyBronze,
                 TrophySilver = TrophySilver,
                 TrophyGold = TrophyGold,
-                TrophyPlatinum = TrophyPlatinum
+                TrophyPlatinum = TrophyPlatinum,
+                CapstonePlatinum = CapstonePlatinum
             };
         }
 

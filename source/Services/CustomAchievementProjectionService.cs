@@ -187,6 +187,7 @@ namespace PlayniteAchievements.Services
                     Hidden = definition.Hidden,
                     IsCapstone = definition.IsCapstone,
                     Rarity = ParseRarity(definition.Rarity),
+                    IsAutoCapstone = definition.IsAutoCapstone,
                     GlobalPercentUnlocked = NormalizePercent(definition.GlobalPercentUnlocked),
                     ProgressNum = NormalizeProgressNum(definition.ProgressNum, definition.ProgressDenom),
                     ProgressDenom = NormalizeProgressDenom(definition.ProgressNum, definition.ProgressDenom),

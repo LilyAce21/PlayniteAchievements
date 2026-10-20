@@ -35,7 +35,7 @@
                     <Condition Property="helpers:CompletionBadge.ShowsPlatinum" Value="True"/>
                     <Condition Property="helpers:CompletionBadge.PreferTrophyBadges" Value="True"/>
                 </MultiTrigger.Conditions>
-                <Setter Property="Source" Value="{DynamicResource TrophyPlatinum}"/>
+                <Setter Property="Source" Value="{DynamicResource CapstonePlatinum}"/>
                 <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Trophy_Platinum}"/>
             </MultiTrigger>
         </Style.Triggers>
@@ -420,7 +420,7 @@
                                 <Setter Property="Source" Value="{DynamicResource BadgeRarityCommon}"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding UseCapstonePlatinumIcon}" Value="True">
-                                <Setter Property="Source" Value="{DynamicResource TrophyPlatinum}"/>
+                                <Setter Property="Source" Value="{DynamicResource CapstonePlatinum}"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -476,7 +476,7 @@
                             <Setter Property="Source" Value="{DynamicResource BadgeRarityCommon}"/>
                         </DataTrigger>
                         <DataTrigger Binding="{Binding UseCapstonePlatinumIcon}" Value="True">
-                            <Setter Property="Source" Value="{DynamicResource TrophyPlatinum}"/>
+                            <Setter Property="Source" Value="{DynamicResource CapstonePlatinum}"/>
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -515,7 +515,7 @@
                                  masked sentinel, so exactly one of them can match and no trigger
                                  has to outrank another to keep a grade from showing through. -->
                             <DataTrigger Binding="{Binding TrophyTypeResolved}" Value="platinum">
-                                <Setter Property="Source" Value="{DynamicResource TrophyPlatinum}"/>
+                                <Setter Property="Source" Value="{DynamicResource CapstonePlatinum}"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding TrophyTypeResolved}" Value="gold">
                                 <Setter Property="Source" Value="{DynamicResource TrophyGold}"/>

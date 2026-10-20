@@ -116,6 +116,7 @@ namespace PlayniteAchievements.Views.Settings.Display
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Silver"), o => o.TrophySilver, (o, v) => o.TrophySilver = v);
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Gold"), o => o.TrophyGold, (o, v) => o.TrophyGold = v);
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Platinum"), o => o.TrophyPlatinum, (o, v) => o.TrophyPlatinum = v);
+            AddIconRow("Capstone Platinum", o => o.CapstonePlatinum, (o, v) => o.CapstonePlatinum = v);
         }
 
         private void AddIconRow(

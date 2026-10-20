@@ -493,6 +493,22 @@ namespace PlayniteAchievements.Models.Achievements
             ApplyBadgeAlias(resources, RarityTier.Rare, settings?.UseUniformRarityBadges ?? false);
             ApplyBadgeAlias(resources, RarityTier.UltraRare, settings?.UseUniformRarityBadges ?? false);
             ApplyCustomIconOverrides(resources, settings);
+            ApplyCapstonePlatinumResource(resources, settings);
+        }
+
+        /// <summary>
+        /// Always defines "CapstonePlatinum": the user's capstone image if set, otherwise whatever
+        /// "TrophyPlatinum" now resolves to (custom Platinum image or the built-in trophy), so a
+        /// DynamicResource reference never comes up empty.
+        /// </summary>
+        private static void ApplyCapstonePlatinumResource(ResourceDictionary resources, PersistedSettings settings)
+        {
+            var image = LoadCustomIcon(settings?.RarityIconOverrides?.CapstonePlatinum)
+                        ?? resources["TrophyPlatinum"] as ImageSource;
+            if (image != null)
+            {
+                resources["CapstonePlatinum"] = image;
+            }
         }
 
         /// <summary>
@@ -507,7 +523,7 @@ namespace PlayniteAchievements.Models.Achievements
             "BadgeRarityRare", "BadgeGoldPentagon", "BadgeGoldHexagon", "ScoreBadgeGoldPentagon", "ScoreBadgeGoldHexagon",
             "BadgeRarityUltraRare", "BadgePlatinumHexagon", "ScoreBadgePlatinumHexagon",
             "BadgeRarityCompleted", "BadgeCompletedGame", "ScoreBadgeCompletedGame",
-            "TrophyBronze", "TrophySilver", "TrophyGold", "TrophyPlatinum"
+            "TrophyBronze", "TrophySilver", "TrophyGold", "TrophyPlatinum", "CapstonePlatinum"
         };
 
         /// <summary>
