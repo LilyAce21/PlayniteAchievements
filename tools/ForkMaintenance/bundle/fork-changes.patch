@@ -63,6 +63,166 @@ index 8266f714dd88b5c76bc1f463d678fc4e126b5682..8e96c79278d0ccda4381d745e50fe900
 +Test*.json
 +merge-conflict-backup/*
 +.worktrees/
+diff --git a/source/Common/PathExpansion.cs b/source/Common/PathExpansion.cs
+index de320b154be7529178565021f5f84bd3350ffeb9..86cbd38b903d59b30ba8aa46143fec91534e2c97 100644
+--- a/source/Common/PathExpansion.cs
++++ b/source/Common/PathExpansion.cs
+@@ -2,14 +2,155 @@
+ using Playnite.SDK.Models;
+ using System;
+ using System.Text;
++using System.IO;
++using System.Linq;
++using System.Collections.Generic;
++using System.Text.RegularExpressions;
+ 
+ namespace PlayniteAchievements.Common
+ {
++    public sealed class FolderPathVariable
++    {
++        public FolderPathVariable(string token, string description) { Token = token; Description = description; }
++        public string Token { get; }
++        public string Description { get; }
++    }
++
++    public static class FolderPathVariables
++    {
++        public static IReadOnlyList<FolderPathVariable> All { get; } = new[]
++        {
++            new FolderPathVariable("{InstallDir}", "Game installation folder configured in Playnite."),
++            new FolderPathVariable("{GameDirName}", "Name of the game installation folder."),
++            new FolderPathVariable("{PlayniteDir}", "Playnite application folder."),
++            new FolderPathVariable("{EmulatorDir}", "Installation folder of the game's configured emulator."),
++            new FolderPathVariable("{SteamAppId}", "Resolved Steam App ID, including the game's Local override."),
++            new FolderPathVariable("{GameName}", "Playnite game title, with invalid folder characters replaced by underscores."),
++            new FolderPathVariable("{ExecutableDir}", "Folder containing the first configured file-based Play action's executable."),
++            new FolderPathVariable("{RomDir}", "Folder containing the first ROM configured in Playnite."),
++            new FolderPathVariable("{GameId}", "Unique Playnite game ID (GUID).")
++        };
++    }
++
+     /// <summary>
+     /// Utility class for expanding path variables in game paths.
+     /// </summary>
+     internal static class PathExpansion
+     {
++        internal static bool IsCustomFolderTemplate(string path) =>
++            !string.IsNullOrWhiteSpace(path) &&
++            FolderPathVariables.All.Any(variable => path.IndexOf(variable.Token, StringComparison.OrdinalIgnoreCase) >= 0);
++
++        internal static bool UsesGameFolderVariables(string path) =>
++            !string.IsNullOrWhiteSpace(path) &&
++            FolderPathVariables.All.Where(variable => variable.Token != "{PlayniteDir}")
++                .Any(variable => path.IndexOf(variable.Token, StringComparison.OrdinalIgnoreCase) >= 0);
++
++        internal static string ExpandFolderTemplate(string path, string installDir, string playniteDir, string emulatorDir,
++            string steamAppId = null, string gameName = null, string executableDir = null, string romDir = null, string gameId = null)
++        {
++            if (string.IsNullOrWhiteSpace(path)) return null;
++            var missing = false;
++            var expanded = Regex.Replace(path.Trim(), @"\{(InstallDir|GameDirName|PlayniteDir|EmulatorDir|SteamAppId|GameName|ExecutableDir|RomDir|GameId)\}", match =>
++            {
++                string value;
++                switch (match.Groups[1].Value.ToLowerInvariant())
++                {
++                    case "installdir": value = installDir; break;
++                    case "gamedirname":
++                        value = string.IsNullOrWhiteSpace(installDir) ? null :
++                            Path.GetFileName(installDir.TrimEnd('\\', '/'));
++                        break;
++                    case "playnitedir": value = playniteDir; break;
++                    case "steamappid": value = steamAppId; break;
++                    case "gamename":
++                        value = string.IsNullOrWhiteSpace(gameName) ? null : new string(gameName.Select(
++                            ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch).ToArray()).TrimEnd(' ', '.');
++                        break;
++                    case "executabledir": value = executableDir; break;
++                    case "romdir": value = romDir; break;
++                    case "gameid": value = gameId; break;
++                    default: value = emulatorDir; break;
++                }
++                if (string.IsNullOrWhiteSpace(value)) missing = true;
++                return value ?? string.Empty;
++            }, RegexOptions.IgnoreCase);
++            expanded = Environment.ExpandEnvironmentVariables(expanded);
++            if (missing || expanded.Contains("{") || expanded.Contains("}")) return null;
++            try
++            {
++                return Path.IsPathRooted(expanded) ? Path.GetFullPath(expanded) : expanded;
++            }
++            catch
++            {
++                return null;
++            }
++        }
++
++        internal static IEnumerable<string> ExpandCustomFolderPaths(IPlayniteAPI api, Game game, string path,
++            Func<Game, string> resolveSteamAppId = null)
++        {
++            if (!UsesGameFolderVariables(path))
++            {
++                var expanded = ExpandFolderTemplate(path, null, api?.Paths?.ApplicationPath, null);
++                if (!string.IsNullOrWhiteSpace(expanded)) yield return expanded;
++                yield break;
++            }
++
++            var games = game != null ? new List<Game> { game } :
++                api?.Database?.Games?.ToList() ?? new List<Game>();
++            foreach (var context in games)
++            {
++                var installDir = ExpandGamePath(api, context, context.InstallDirectory);
++                var emulatorDir = GetEmulatorInstallDir(api, context);
++                installDir = ExpandFolderTemplate(installDir, null, api?.Paths?.ApplicationPath, null);
++                emulatorDir = ExpandFolderTemplate(emulatorDir, null, api?.Paths?.ApplicationPath, null);
++                string ResolveLaunchPath(string value, string baseDirectory)
++                {
++                    try
++                    {
++                        value = ExpandGamePath(api, context, value);
++                        value = ExpandFolderTemplate(value, installDir, api?.Paths?.ApplicationPath, emulatorDir);
++                        if (string.IsNullOrWhiteSpace(value)) return null;
++                        if (!Path.IsPathRooted(value))
++                        {
++                            if (string.IsNullOrWhiteSpace(baseDirectory)) return null;
++                            value = Path.Combine(baseDirectory, value);
++                        }
++                        return Path.GetFullPath(value);
++                    }
++                    catch { return null; }
++                }
++                string executableDir = null;
++                string romDir = null;
++                if (path.IndexOf("{ExecutableDir}", StringComparison.OrdinalIgnoreCase) >= 0)
++                {
++                    var action = context.GameActions?.FirstOrDefault(item => item != null && item.IsPlayAction && item.Type == GameActionType.File);
++                    if (action != null)
++                    {
++                        var workingDir = ResolveLaunchPath(action.WorkingDir, installDir) ?? installDir;
++                        var executable = ResolveLaunchPath(action.Path, workingDir);
++                        if (executable != null) executableDir = Path.GetDirectoryName(executable);
++                    }
++                }
++                if (path.IndexOf("{RomDir}", StringComparison.OrdinalIgnoreCase) >= 0)
++                {
++                    var rom = ResolveLaunchPath(context.Roms?.FirstOrDefault()?.Path, installDir);
++                    if (rom != null) romDir = Path.GetDirectoryName(rom);
++                }
++                string steamAppId = null;
++                if (path.IndexOf("{SteamAppId}", StringComparison.OrdinalIgnoreCase) >= 0)
++                {
++                    steamAppId = resolveSteamAppId != null ? resolveSteamAppId(context) :
++                        int.TryParse(context.GameId, out var numericId) && numericId > 0 ? context.GameId : null;
++                }
++                var expanded = ExpandFolderTemplate(path, installDir, api?.Paths?.ApplicationPath, emulatorDir,
++                    steamAppId, context.Name, executableDir, romDir,
++                    context.Id == Guid.Empty ? null : context.Id.ToString());
++                if (!string.IsNullOrWhiteSpace(expanded)) yield return expanded;
++            }
++        }
++
+         /// <summary>
+         /// Expands path variables in game paths using Playnite's variable expansion.
+         /// Handles variables like {InstallDir}, {Name}, {EmulatorDir}, etc.
 diff --git a/source/Models/AchievementUnlockedEventArgs.cs b/source/Models/AchievementUnlockedEventArgs.cs
 index 8776195fe88789152964fc6880f2076fa20a98a7..e9ee56d32ceebc5c82a6db232fbaa0cf2b36d6c0 100644
 --- a/source/Models/AchievementUnlockedEventArgs.cs

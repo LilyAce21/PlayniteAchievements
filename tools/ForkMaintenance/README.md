@@ -2,6 +2,17 @@
 
 ## v4.1.1 integration - 2026-10-20
 
+Custom folders and Local save-folder/file overrides support {InstallDir},
+{GameDirName}, {PlayniteDir}, {EmulatorDir}, {SteamAppId}, {GameName},
+{ExecutableDir}, {RomDir}, and {GameId}, alongside environment variables.
+Templates resolve per game; unavailable details skip that path. Override templates
+remain stored as templates and resolve for reads and monitoring. Shared variable
+buttons insert at the cursor or replace selected text in both input fields.
+Automatic folders and variables use matching side-by-side reference tables with
+descriptions, wrapping, and aligned headers. The Release rebuild, 13 targeted tests,
+layout checks, and compiled WPF cursor-insertion checks passed. Live verification
+of the final table layout remains pending.
+
 The first settings tab is Santodan-Fork, containing General, Platforms,
 Achievement Notification, and Theme Migration. General hosts cached-unlock
 protection and the log tools; upstream General/Maintenance retains its upstream

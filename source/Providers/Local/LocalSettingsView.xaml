@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:common="clr-namespace:PlayniteAchievements.Common"
              xmlns:local="clr-namespace:PlayniteAchievements.Providers.Local"
              xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
              xmlns:settings="clr-namespace:PlayniteAchievements.Providers.Settings"
@@ -235,92 +236,62 @@
                                 Margin="0,0,0,12"
                                 TextWrapping="Wrap"/>
 
-                           <TextBlock Text="Automatic folders"
-                               Foreground="{DynamicResource TextBrush}"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,4"/>
-
-                           <TextBlock Text="The following folders are scanned automatically for local achievement and Steam cache files:"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,10"
-                               TextWrapping="Wrap"/>
-
-                        <TextBlock Text="Each game's installation folder configured in Playnite, including the root and supported subfolders: Stats, steam_settings, steam_settings\settings, steam_settings\stats, and achievement."
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"
-                               TextWrapping="Wrap"/>
-                        <TextBlock Text="Nested steam_settings folders are also detected anywhere beneath the installation folder, including their settings and stats subfolders (for example, Bin\x64\steam_settings\achievements.json). Excluded paths and directory links are skipped during this nested search."
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,10"
-                               TextWrapping="Wrap"/>
-
-                           <TextBlock Text="Steam-related folders below are skipped when Steam appcache user is set to None."
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,10"
-                               TextWrapping="Wrap"/>
-
-                        <TextBlock Text="%SteamPath%"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                        <TextBlock Text="%SteamPath%\userdata"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                        <TextBlock Text="%SteamPath%\appcache\stats"
-                                   Style="{StaticResource MutedTextStyle}"
-                                   Margin="0,0,0,4"/>
-                        <TextBlock Text="%ProgramFiles(x86)%\Steam and its userdata folder"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                        <TextBlock Text="%ProgramFiles%\Steam and its userdata folder"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                        <TextBlock Text="&lt;Drive&gt;:\Programs\Steam, &lt;Drive&gt;:\Steam, matching userdata folders, and appcache\stats under common Steam install roots on available drives"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,8"
-                               TextWrapping="Wrap"/>
-
-                    <TextBlock Text="%PROGRAMDATA%\Steam"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%DOCUMENTS%\OnlineFix"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%PUBLIC%\Documents\OnlineFix"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%PUBLIC%\Documents\Steam\RUNE"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%PUBLIC%\Documents\Steam\CODEX"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%APPDATA%\Goldberg SteamEmu Saves"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%APPDATA%\GSE Saves"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%APPDATA%\EMPRESS"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%PUBLIC%\EMPRESS"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%APPDATA%\Steam\CODEX"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%LOCALAPPDATA%\SKIDROW"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%DOCUMENTS%\SkidRow"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%APPDATA%\SmartSteamEmu"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,4"/>
-                    <TextBlock Text="%APPDATA%\CreamAPI"
-                               Style="{StaticResource MutedTextStyle}"
-                               Margin="0,0,0,12"/>
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Column="0" Text="Automatic folders" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
+                        <TextBlock Grid.Column="2" Text="Path variables" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,0,6"/>
+                        <TextBlock Grid.Row="1" Grid.Column="0"
+                                   Text="Folders scanned for local achievements and Steam caches. Steam cache folders are skipped when the Steam appcache user is set to None."
+                                   Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2"
+                                   Text="Use these in Custom folders and Local Overrides. Missing game details cause that path to be skipped. Environment variables such as %APPDATA% also work."
+                                   Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <DataGrid Grid.Row="2" Grid.Column="0" ItemsSource="{x:Static local:LocalSettingsView.AutomaticFolderReferences}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                                  CanUserDeleteRows="False" CanUserReorderColumns="False" HeadersVisibility="Column"
+                                  MinRowHeight="34" MaxHeight="480" VerticalAlignment="Stretch">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Folder" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Token}" TextWrapping="Wrap" Margin="6"/></DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Description" Width="3*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="6"/></DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <DataGrid Grid.Row="2" Grid.Column="2" ItemsSource="{x:Static common:FolderPathVariables.All}"
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                                  CanUserDeleteRows="False" CanUserReorderColumns="False" HeadersVisibility="Column"
+                                  MinRowHeight="34" MaxHeight="480" VerticalAlignment="Stretch">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Wildcard" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Token}" TextWrapping="Wrap" Margin="6"/></DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Description" Width="3*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="6"/></DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
 
                     <Grid Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
@@ -370,6 +341,7 @@
                                 IsEnabled="False"
                                 Click="AddExtraLocalPath_Click" />
                     </Grid>
+                    <controls:FolderVariableButtons TargetTextBox="{Binding ElementName=PendingExtraLocalPathTextBox}" Margin="0,0,0,8"/>
 
                     <Border BorderBrush="{DynamicResource NormalBorderBrush}"
                             BorderThickness="1"
@@ -390,7 +362,7 @@
                             IsEnabled="False"
                             Click="RemoveExtraLocalPath_Click" />
 
-                    <TextBlock Text="Use Browse to select folders, then Apply to add them to the list. Environment variables such as %PUBLIC% or %APPDATA% are still expanded automatically when scanning."
+                    <TextBlock Text="Use Browse or enter a path, then Apply. See the path-variable table above, or press a variable button to insert it at the cursor. Variables are expanded per game; paths requiring unavailable details are skipped. Environment variables such as %PUBLIC% and %APPDATA% are also supported. Example: {InstallDir}\steam_settings."
                                Style="{StaticResource MutedTextStyle}"
                                TextWrapping="Wrap"
                                Margin="0,0,0,10"/>

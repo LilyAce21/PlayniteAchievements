@@ -1,4 +1,5 @@
 using System;
+using PlayniteAchievements.Common;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -28,6 +29,33 @@ namespace PlayniteAchievements.Providers.Local
 {
     public partial class LocalSettingsView : ProviderSettingsViewBase
     {
+        public static IReadOnlyList<FolderPathVariable> AutomaticFolderReferences { get; } = new[]
+        {
+            new FolderPathVariable("{InstallDir}", "Game installation root and supported Stats, steam_settings, steam_settings\\settings, steam_settings\\stats, and achievement subfolders."),
+            new FolderPathVariable(@"{InstallDir}\…\steam_settings", @"Nested settings folders, such as Bin\x64\steam_settings, including settings/stats children. Excluded paths and directory links are skipped."),
+            new FolderPathVariable("%SteamPath%", "Steam installation folder from the SteamPath environment variable."),
+            new FolderPathVariable(@"%SteamPath%\userdata", "Local Steam user data."),
+            new FolderPathVariable(@"%SteamPath%\appcache\stats", "Steam achievement schemas and user statistics."),
+            new FolderPathVariable(@"%ProgramFiles(x86)%\Steam", "Steam installation root, userdata, and appcache statistics."),
+            new FolderPathVariable(@"%ProgramFiles%\Steam", "Steam installation root, userdata, and appcache statistics."),
+            new FolderPathVariable(@"<Drive>:\Programs\Steam", "Common Steam installation root on available drives, including userdata and appcache statistics."),
+            new FolderPathVariable(@"<Drive>:\Steam", "Common Steam installation root on available drives, including userdata and appcache statistics."),
+            new FolderPathVariable(@"%PROGRAMDATA%\Steam", "Shared Steam save folders."),
+            new FolderPathVariable(@"%DOCUMENTS%\OnlineFix", "OnlineFix saves in the user's Documents folder."),
+            new FolderPathVariable(@"%PUBLIC%\Documents\OnlineFix", "Shared OnlineFix saves."),
+            new FolderPathVariable(@"%PUBLIC%\Documents\Steam\RUNE", "Shared RUNE saves."),
+            new FolderPathVariable(@"%PUBLIC%\Documents\Steam\CODEX", "Shared CODEX saves."),
+            new FolderPathVariable(@"%APPDATA%\Goldberg SteamEmu Saves", "Goldberg emulator saves."),
+            new FolderPathVariable(@"%APPDATA%\GSE Saves", "GSE emulator saves."),
+            new FolderPathVariable(@"%APPDATA%\EMPRESS", "User EMPRESS saves."),
+            new FolderPathVariable(@"%PUBLIC%\EMPRESS", "Shared EMPRESS saves."),
+            new FolderPathVariable(@"%APPDATA%\Steam\CODEX", "User CODEX saves."),
+            new FolderPathVariable(@"%LOCALAPPDATA%\SKIDROW", "Local SKIDROW saves."),
+            new FolderPathVariable(@"%DOCUMENTS%\SkidRow", "SKIDROW saves in the user's Documents folder."),
+            new FolderPathVariable(@"%APPDATA%\SmartSteamEmu", "SmartSteamEmu saves."),
+            new FolderPathVariable(@"%APPDATA%\CreamAPI", "CreamAPI saves.")
+        };
+
         public sealed class SuccessStoryCategorySelectionOption : INotifyPropertyChanged
         {
             private bool _isIncluded;
@@ -581,7 +609,8 @@ namespace PlayniteAchievements.Providers.Local
                 return;
             }
 
-            if (!Directory.Exists(path))
+            if (!PathExpansion.IsCustomFolderTemplate(path) &&
+                !Directory.Exists(Environment.ExpandEnvironmentVariables(path)))
             {
                 _playniteApi?.Dialogs?.ShowMessage(
                     "The selected folder does not exist.",

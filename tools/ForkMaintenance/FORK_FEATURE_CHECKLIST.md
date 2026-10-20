@@ -162,6 +162,19 @@ Primary fork areas:
 
 ## Local provider and game overrides
 
+- Custom folders and Local folder/file overrides accept {InstallDir}, {GameDirName},
+  {PlayniteDir}, {EmulatorDir}, {SteamAppId}, {GameName}, {ExecutableDir}, {RomDir},
+  and {GameId}, plus environment variables. Expansion is case-insensitive and per
+  game; unavailable values skip the path. GameName replaces invalid filename characters.
+- Override templates remain editable as templates and resolve for reads and monitoring.
+  SteamAppId uses the Local App ID resolver, including overrides. ExecutableDir uses
+  the first file-based Play action; RomDir uses the first configured ROM.
+- Variable buttons in Custom folders and Local Overrides insert at the cursor or
+  replace selected text, move the caret after the token, and show description tooltips.
+- Automatic folders and variables have matching reference tables with descriptions,
+  equal widths, aligned headers, wrapped cells, and matching height limits.
+- The 13 folder-template tests, Release rebuild, layout checks, and compiled WPF
+  cursor insertion/replacement checks passed; verify the final tables in Playnite.
 - Local appears with its default icon and settings defaults.
 - Local folder discovery, extra/excluded paths, import, and refresh work.
 - Applying a local folder override retains the game's installation folder in the

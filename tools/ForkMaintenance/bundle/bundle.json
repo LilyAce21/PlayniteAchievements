@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-20T11:58:08.8667823Z",
+    "generatedUtc":  "2026-10-20T12:39:39.5707720Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "45F40EC33DE2B74DEBF5CFBF61F9E2E071366A25105E761CDD2C1A98FB9FEC19"
+                  "sha256":  "B8A06367D03B9FC7A39BEE63AA0FA43061E0A34C0D937FA7183D2A083D785457"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -118,7 +118,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalFolderGamesImporter.cs",
-                             "sha256":  "1188122501AACA95807EDB9DD7CAA9C9E2A4D332E223659863D5E850328E9F36"
+                             "sha256":  "5F305DE98EEC6627266F8ED2985DAAB53B8907AA67A665CBED3072B5FCA2A420"
                          },
                          {
                              "path":  "source/Providers/Local/LocalImportProgressControl.xaml",
@@ -138,7 +138,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSavesProvider.cs",
-                             "sha256":  "2B3E0E5D90B4E2DFEAB1EB9C4904ACCD8FD298464EFBDB893E9FFED6D356186E"
+                             "sha256":  "8DF8B2AF622D27AC94B67C4F20B6E6C76A02CB1C45AA6605E975EF2047F80B1A"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettings.cs",
@@ -146,11 +146,11 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml",
-                             "sha256":  "FEC0885A810109D6C6266C41B83D40C9D2EEFFA168F2462AE2D736252628E9F1"
+                             "sha256":  "7FCEB8BEF365743EBEBB388948B88D6BD3B9618E71467051CA2AF102EFA35029"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml.cs",
-                             "sha256":  "A949099929CC6B9B43E0C64080A3F00504D8C219D6C9995AFA9F5FB32DE6C353"
+                             "sha256":  "E650A2EF6168AA94B3FB908BCB545AB9EC5F60904C2958B737C9F902ABA6B3E4"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSuccessStoryImportService.cs",
@@ -318,11 +318,19 @@
                          },
                          {
                              "path":  "source/ViewModels/ManageAchievementsViewModel.ForkOverrides.cs",
-                             "sha256":  "A71F60C692E53D7CFB22B0220D848DADB76231E59710DA857D0F2468EA122148"
+                             "sha256":  "E355097A59297B30F795B3037CCB3958F041CA0C33C5A3E5358C55DDD7B7E44E"
+                         },
+                         {
+                             "path":  "source/Views/Controls/FolderVariableButtons.xaml",
+                             "sha256":  "1B986DD8B2A91E93A1A32E977162C9797D0B21148C8AB72107B120E789880940"
+                         },
+                         {
+                             "path":  "source/Views/Controls/FolderVariableButtons.xaml.cs",
+                             "sha256":  "5F41268BB3996F6D0FC54F2F1FA798B522A70D9170E8010A5D697646FB234430"
                          },
                          {
                              "path":  "source/Views/GameOptionsLocalOverridesSection.xaml",
-                             "sha256":  "270197FD656C5B04DAD43916D05AD840EC4120C4E6D6F181B9AC54CD84050F8E"
+                             "sha256":  "4090DD87BAB8B1E65C5E959607F275D809986FE32D9758709D36E5897D95050C"
                          },
                          {
                              "path":  "source/Views/GameOptionsLocalOverridesSection.xaml.cs",
@@ -383,6 +391,10 @@
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Models/ThemeMigrationSettingsTests.cs",
                              "sha256":  "D43DCF4CA916AC97AE819E1850BDECDE217229F4E22409EF89C2D4723E7F35BE"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Providers/LocalCustomFolderTemplateTests.cs",
+                             "sha256":  "C22CB284BAF8AC761D3B135A7B90074334E5540341628101F8D76148D746E999"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/InGameSessionUnlocksTests.cs",

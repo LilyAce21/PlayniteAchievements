@@ -126,6 +126,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Updated the `Automatic folders` list with missing scan locations and an explanation of nested `steam_settings` detection.
 - Restored the upstream themes tabs to the original state
 - Moved all the settings related to this fork to the `Santodan-Fork` tab so it is more clear to differentiate the upstream from mine
+- Added wildcards to both `Custom Folders` and for `Local Save Folder Override`
 
 ## 2026-10-18 - v4.1.0.1
 

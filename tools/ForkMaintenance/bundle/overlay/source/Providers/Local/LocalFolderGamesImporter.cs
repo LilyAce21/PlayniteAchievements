@@ -7,6 +7,7 @@ using PlayniteAchievements.Models;
 using PlayniteAchievements.Providers.ImportedGameMetadata;
 using PlayniteAchievements.Providers.Steam;
 using System;
+using PlayniteAchievements.Common;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -144,7 +145,7 @@ namespace PlayniteAchievements.Providers.Local
             _steamAppCacheUserIdOverride = steamAppCacheUserIdOverride;
             var normalizedRoots = GetImportRoots(roots)
                 .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Select(path => Environment.ExpandEnvironmentVariables(path.Trim()))
+                .SelectMany(path => LocalSavesProvider.ExpandFolderPaths(_api, null, path))
                 .Where(Directory.Exists)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();

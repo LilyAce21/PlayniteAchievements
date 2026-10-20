@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -492,7 +492,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             else { HasLocalSteamAppCacheUserOverride = false; LocalSteamAppCacheUserOverrideValue = string.Empty; LocalSteamAppCacheUserOverrideInput = string.Empty; }
             if (localProvider != null && game != null && localProvider.TryGetResolvedFolderInfo(game, out var selectedFolder, out var candidates, out var isFolderOverridden, out var isAmbiguousFolder))
             {
-                HasLocalFolderOverride = isFolderOverridden; LocalFolderOverrideValue = isFolderOverridden ? selectedFolder : string.Empty; LocalFolderOverrideInput = isFolderOverridden ? selectedFolder : string.Empty; LocalFolderAutoPath = localProvider.GetLocalAchievementSourceDisplayPath(game, selectedFolder);
+                LocalSavesProvider.TryGetFolderOverride(_gameId, out var configuredFolder); HasLocalFolderOverride = isFolderOverridden; LocalFolderOverrideValue = isFolderOverridden ? configuredFolder : string.Empty; LocalFolderOverrideInput = isFolderOverridden ? configuredFolder : string.Empty; LocalFolderAutoPath = localProvider.GetLocalAchievementSourceDisplayPath(game, selectedFolder);
                 HasAmbiguousLocalFolders = isAmbiguousFolder; LocalFolderCandidates = candidates ?? Array.Empty<string>();
                 SetValue(
                     ref _selectedAmbiguousFolder,
@@ -565,7 +565,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             _persistSettingsForUi?.Invoke();
         }
         private void TriggerRefreshForProvider(string providerKey, bool forceIconRefresh = false) => TriggerRefresh(forceIconRefresh);
-        private void ApplyLocalFolderOverride() { var p = (LocalFolderOverrideInput ?? string.Empty).Trim(); if (string.IsNullOrWhiteSpace(p)) { ShowWarning("LOCPlayAch_GameOptions_LocalFolder_Invalid", "Please enter a valid local save folder or achievement file path."); return; } if (!Directory.Exists(p) && !File.Exists(p)) { ShowWarning("LOCPlayAch_GameOptions_LocalFolder_NotFound", "The selected local save folder or achievement file does not exist."); return; } if (TrySetLocalFolderOverride(p)) Reload(); }
+        private void ApplyLocalFolderOverride() { var p = (LocalFolderOverrideInput ?? string.Empty).Trim(); if (string.IsNullOrWhiteSpace(p)) { ShowWarning("LOCPlayAch_GameOptions_LocalFolder_Invalid", "Please enter a valid local save folder or achievement file path."); return; } var game = _playniteApi?.Database?.Games?.Get(_gameId); var expanded = LocalSavesProvider.ExpandFolderPaths(_playniteApi, game, p).FirstOrDefault(); if (string.IsNullOrWhiteSpace(expanded)) { ShowWarning("LOCPlayAch_GameOptions_LocalFolder_Invalid", "The path contains an unknown variable or requires game details that are not available."); return; } if (!PlayniteAchievements.Common.PathExpansion.IsCustomFolderTemplate(p) && !Directory.Exists(expanded) && !File.Exists(expanded)) { ShowWarning("LOCPlayAch_GameOptions_LocalFolder_NotFound", "The selected local save folder or achievement file does not exist."); return; } if (TrySetLocalFolderOverride(p)) Reload(); }
         private void ClearLocalFolderOverride() { if (TryClearLocalFolderOverride()) Reload(); }
         private void BrowseLocalFolderOverride() { var p = _playniteApi?.Dialogs?.SelectFolder(); if (!string.IsNullOrWhiteSpace(p)) LocalFolderOverrideInput = p; }
         private void BrowseLocalAchievementFileOverride() { var d = new OpenFileDialog { Filter = "Achievement files (achievements.json;achievements.ini;user_stats.ini;tenoke.ini)|achievements.json;achievements.ini;user_stats.ini;tenoke.ini|JSON files (*.json)|*.json|INI files (*.ini)|*.ini|All files (*.*)|*.*", CheckFileExists = true, Multiselect = false }; if (d.ShowDialog() == true) LocalFolderOverrideInput = d.FileName; }
