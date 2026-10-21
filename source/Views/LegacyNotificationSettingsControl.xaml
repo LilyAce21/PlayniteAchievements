@@ -2689,7 +2689,51 @@
                         </ListBox>
                     </Border>
 
-                    <ScrollViewer Grid.Column="1"
+                    <DockPanel Grid.Column="1" LastChildFill="True">
+<Border DockPanel.Dock="Top" Style="{StaticResource SettingGroupCardStyle}" Margin="20,20,20,0" Visibility="{Binding IsSelected, ElementName=AchievementNotificationsStyleNavigationItem, Converter={StaticResource BoolToVis}}" IsEnabled="{Binding EnableActiveGameMonitoring}"><StackPanel>
+                                                         <TextBlock Text="Inline real-time preview"
+                                                                    Style="{StaticResource SectionHeaderStyle}"
+                                                                    Margin="0,0,0,6"/>
+                                                         <ContentControl x:Name="NotificationsCustomInlinePreviewHost"
+                                                                         HorizontalAlignment="Left"/>
+
+
+                                                         <Grid Margin="0,0,0,8">
+                                                     <Grid.ColumnDefinitions>
+                                                         <ColumnDefinition Width="Auto"/>
+                                                         <ColumnDefinition Width="8"/>
+                                                         <ColumnDefinition Width="Auto"/>
+                                                         <ColumnDefinition Width="5"/>
+                                                         <ColumnDefinition Width="Auto"/>
+                                                     </Grid.ColumnDefinitions>
+                                                     <Button Grid.Column="0"
+                                                             Content="Show Notification"
+                                                             Click="NotificationsShowCustomPopupPreview_Click"/>
+                                                     <CheckBox Grid.Column="2"
+                                                               x:Name="NotificationsAutoPopupPreviewCheckBox"
+                                                               Content="Auto-refresh popup while editing"
+                                                               VerticalAlignment="Center"/>
+                                                     <TextBlock Grid.Column="4"
+                                                                Text="Popup preview is silent and uses current Custom settings."
+                                                                VerticalAlignment="Center"
+                                                                Style="{StaticResource MutedTextStyle}"/>
+                                                 </Grid>
+
+                                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                     <Button x:Name="NotificationsShowSanView1Button"
+                                                             Content="Show View1"
+                                                             Tag="1"
+                                                             Margin="0,0,8,0"
+                                                             Click="NotificationsShowSanView_Click"
+                                                             IsEnabled="False"/>
+                                                     <Button x:Name="NotificationsShowSanView2Button"
+                                                             Content="Show View2"
+                                                             Tag="2"
+                                                             Click="NotificationsShowSanView_Click"
+                                                             IsEnabled="False"/>
+                                                 </StackPanel>
+                                                     </StackPanel></Border>
+<ScrollViewer
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <ScrollViewer.Style>
@@ -2818,15 +2862,14 @@
                                 </StackPanel>
 
                                 <!-- Notification Style -->
-                                <Border Visibility="{Binding IsSelected, ElementName=AchievementNotificationsStyleNavigationItem, Converter={StaticResource BoolToVis}}"
-                                    Style="{StaticResource SettingGroupCardStyle}"
+                                <StackPanel Visibility="{Binding IsSelected, ElementName=AchievementNotificationsStyleNavigationItem, Converter={StaticResource BoolToVis}}"
+
                                     IsEnabled="{Binding EnableActiveGameMonitoring}">
-                                    <StackPanel>
-                                    <TextBlock Text="Notification Style"
+<Border Style="{StaticResource SettingGroupCardStyle}"><StackPanel>
+<TextBlock Text="Notification Style"
                                            Style="{StaticResource SubSectionHeaderStyle}"
                                            Margin="0,0,0,8"/>
-
-                                    <DockPanel Margin="0,0,0,6" Visibility="Collapsed">
+<DockPanel Margin="0,0,0,6" Visibility="Collapsed">
                                         <TextBlock Text="Default style:"
                                                VerticalAlignment="Center"
                                                Margin="0,0,8,0"
@@ -2837,8 +2880,7 @@
                                               DisplayMemberPath="DisplayName"
                                               SelectionChanged="NotificationsGlobalStyleComboBox_SelectionChanged"/>
                                     </DockPanel>
-
-                                    <DockPanel Margin="0,0,0,6" LastChildFill="False">
+<DockPanel Margin="0,0,0,6" LastChildFill="False">
                                         <TextBlock Text="Provider override:"
                                                VerticalAlignment="Center"
                                                Margin="0,0,8,0"
@@ -2864,8 +2906,7 @@
                                             Click="NotificationsClearProviderStyleOverride_Click"
                                             Visibility="Collapsed"/>
                                     </DockPanel>
-
-                                    <Grid Margin="0,0,0,6">
+<Grid Margin="0,0,0,6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="8"/>
@@ -2894,8 +2935,7 @@
                                                 Content="Preview All Styles"
                                                 Click="NotificationsPreviewAllStyles_Click"/>
                                     </Grid>
-
-                                    <Grid Margin="0,0,0,6">
+<Grid Margin="0,0,0,6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="8"/>
@@ -2911,8 +2951,7 @@
                                             DisplayMemberPath="DisplayName"
                                             SelectionChanged="NotificationsPreviewAchievementComboBox_SelectionChanged"/>
                                     </Grid>
-
-                                         <DockPanel Margin="0,0,0,6" Visibility="Collapsed">
+<DockPanel Margin="0,0,0,6" Visibility="Collapsed">
                                              <TextBlock Text="Overlay preset style:"
                                                  VerticalAlignment="Center"
                                                  Margin="0,0,8,0"
@@ -2923,8 +2962,7 @@
                                                  DisplayMemberPath="DisplayName"
                                                  SelectionChanged="NotificationsOverlayPresetStyleComboBox_SelectionChanged"/>
                                          </DockPanel>
-
-                                         <DockPanel Margin="0,0,0,4" Visibility="Collapsed">
+<DockPanel Margin="0,0,0,4" Visibility="Collapsed">
                                              <TextBlock Text="Overlay opacity:"
                                                  VerticalAlignment="Center"
                                                  Margin="0,0,8,0"
@@ -2942,8 +2980,7 @@
                                                   VerticalAlignment="Center"
                                                   Style="{StaticResource MutedTextStyle}"/>
                                          </DockPanel>
-
-                                         <DockPanel Margin="0,0,0,6">
+<DockPanel Margin="0,0,0,6">
                                              <TextBlock Text="Overlay size:"
                                                  VerticalAlignment="Center"
                                                  Margin="0,0,8,0"
@@ -2961,18 +2998,7 @@
                                                   VerticalAlignment="Center"
                                                   Style="{StaticResource MutedTextStyle}"/>
                                          </DockPanel>
-
-                                         <Border Style="{StaticResource SectionBorderStyle}" Margin="0,8,0,8">
-                                             <StackPanel>
-                                                 <TextBlock Text="Custom style editor"
-                                                            Style="{StaticResource SectionHeaderStyle}"
-                                                            Margin="0,0,0,6"/>
-                                                 <TextBlock Text="Used when the selected style is Custom. These settings affect the overlay rendering path."
-                                                            Style="{StaticResource MutedTextStyle}"
-                                                            TextWrapping="Wrap"
-                                                            Margin="0,0,0,10"/>
-
-                                                 <Grid Margin="0,0,0,8">
+<Grid Margin="0,0,0,8">
                                                      <Grid.ColumnDefinitions>
                                                          <ColumnDefinition Width="Auto"/>
                                                          <ColumnDefinition Width="140"/>
@@ -3018,8 +3044,7 @@
                                                              ToolTip="Delete all saved notification slots and reset the editor to defaults"
                                                              Click="NotificationsClearAllCustomStyleSlots_Click"/>
                                                  </Grid>
-
-                                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                                          <Button Content="Export Template"
                                                              Margin="0,0,8,0"
                                                              Click="NotificationsExportCustomStyleTemplate_Click"/>
@@ -3029,12 +3054,10 @@
                                                          <Button Content="Open Builder"
                                                              Click="NotificationsOpenTemplateBuilder_Click"/>
                                                      </StackPanel>
-
-                                                 <Border Style="{StaticResource SettingGroupCardStyle}" Margin="0,0,0,8">
-                                                     <StackPanel>
-                                                         <TextBlock Text="Custom transition"
-                                                                    Style="{StaticResource SubSectionHeaderStyle}"
-                                                                    Margin="0,0,0,6"/>
+</StackPanel></Border>
+                                    <Separator Margin="0,16,0,16"/>
+<Border Style="{StaticResource SettingGroupCardStyle}" Margin="0,0,0,8">
+                                                     <Expander Header="Custom transition" IsExpanded="False" HorizontalContentAlignment="Stretch"><StackPanel Margin="0,8,0,0">
                                                          <Grid Margin="0,0,0,8">
                                                              <Grid.ColumnDefinitions>
                                                                  <ColumnDefinition Width="Auto"/>
@@ -3341,12 +3364,13 @@
                                                                         Style="{StaticResource MutedTextStyle}"
                                                                         VerticalAlignment="Center"/>
                                                          </Grid>
-                                                     </StackPanel>
+                                                     </StackPanel></Expander>
                                                  </Border>
-
-
-
-                                                 <Border Style="{StaticResource SettingGroupCardStyle}" Margin="0,0,0,8">
+                                    <Separator Margin="0,16,0,16"/>
+<Border Style="{StaticResource SettingGroupCardStyle}">
+<Expander Header="Text templates and wildcards" IsExpanded="False" HorizontalContentAlignment="Stretch" Margin="0,0,0,10">
+                                                     <StackPanel Margin="0,8,0,0">
+                                                         <Border Style="{StaticResource SettingGroupCardStyle}" Background="Transparent" Padding="0" Margin="0" BorderThickness="0">
                                                      <StackPanel>
                                                          <TextBlock Text="Custom text templates (wildcards)"
                                                                     Style="{StaticResource SubSectionHeaderStyle}"
@@ -3704,8 +3728,14 @@
                                                          </WrapPanel>
                                                      </StackPanel>
                                                  </Border>
-
-                                                 <Grid Margin="0,0,0,8">
+                                                     </StackPanel>
+                                                 </Expander>
+</Border>
+                                    <Separator Margin="0,16,0,16"/>
+<Border Style="{StaticResource SettingGroupCardStyle}">
+<Expander Header="Dimensions and text rendering" IsExpanded="False" HorizontalContentAlignment="Stretch" Margin="0,0,0,10">
+                                                     <StackPanel Margin="0,8,0,0">
+                                                         <Grid Margin="0,0,0,8">
                                                      <Grid.ColumnDefinitions>
                                                          <ColumnDefinition Width="Auto"/>
                                                          <ColumnDefinition Width="110"/>
@@ -3781,8 +3811,14 @@
                                                                 TextWrapping="Wrap"
                                                                 VerticalAlignment="Center"/>
                                                  </Grid>
-
-                                                 <Border Style="{StaticResource SettingGroupCardStyle}" Margin="0,0,0,8">
+                                                     </StackPanel>
+                                                 </Expander>
+</Border>
+                                    <Separator Margin="0,16,0,16"/>
+<Border Style="{StaticResource SettingGroupCardStyle}">
+<Expander Header="Progress bar elements" IsExpanded="False" HorizontalContentAlignment="Stretch" Margin="0,0,0,10">
+                                                     <StackPanel Margin="0,8,0,0">
+                                                         <Border Style="{StaticResource SettingGroupCardStyle}" Background="Transparent" Padding="0" Margin="0" BorderThickness="0">
                                                      <StackPanel>
                                                          <DockPanel><TextBlock Text="Progress bar elements" Style="{StaticResource SubSectionHeaderStyle}"/><Button Content="Add bar" Click="NotificationsAddProgressBar_Click" HorizontalAlignment="Right"/></DockPanel>
                                                          <CheckBox Content="Show Progress Bar" IsChecked="{Binding OverlayCustomPreviewShowProgress}" Margin="0,8,0,6"/>
@@ -3903,21 +3939,14 @@
                                                          </ItemsControl>
                                                      </StackPanel>
                                                  </Border>
-
-                                                 <StackPanel Margin="0,0,0,8">
-                                                     <CheckBox Content="Auto resize window to fit text"
-                                                               IsChecked="{Binding OverlayCustomAutoResizeToContent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                     <CheckBox Content="Wrap all text lines"
-                                                               Margin="0,4,0,0"
-                                                               IsChecked="{Binding OverlayCustomWrapAllText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                 </StackPanel>
-
-                                                 <StackPanel Margin="0,0,0,8">
-                                                     <CheckBox Content="Show border"
-                                                               IsChecked="{Binding OverlayCustomShowBorder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                 </StackPanel>
-
-                                                 <StackPanel Margin="0,0,0,8">
+                                                     </StackPanel>
+                                                 </Expander>
+</Border>
+                                    <Separator Margin="0,16,0,16"/>
+<Border Style="{StaticResource SettingGroupCardStyle}">
+<Expander Header="Cover and background images" IsExpanded="False" HorizontalContentAlignment="Stretch" Margin="0,0,0,10">
+                                                     <StackPanel Margin="0,8,0,0">
+                                                         <StackPanel Margin="0,0,0,8">
                                                      <CheckBox Content="Use the game's banner as background"
                                                                IsChecked="{Binding EnableGameBannerAsBackground, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                      <CheckBox Content="Show the game's cover"
@@ -4079,43 +4108,26 @@
                                                                 VerticalAlignment="Center"
                                                                 Text="Pick a preview game above to verify the Playnite cover and banner images."/>
                                                  </Grid>
+                                                     </StackPanel>
+                                                 </Expander>
+</Border>
+                                    <Separator Margin="0,16,0,16"/>
+<Border Style="{StaticResource SettingGroupCardStyle}"><StackPanel>
 
-                                                 <Grid Margin="0,0,0,8">
-                                                     <Grid.ColumnDefinitions>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="8"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="5"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                     </Grid.ColumnDefinitions>
-                                                     <Button Grid.Column="0"
-                                                             Content="Show Notification"
-                                                             Click="NotificationsShowCustomPopupPreview_Click"/>
-                                                     <CheckBox Grid.Column="2"
-                                                               x:Name="NotificationsAutoPopupPreviewCheckBox"
-                                                               Content="Auto-refresh popup while editing"
-                                                               VerticalAlignment="Center"/>
-                                                     <TextBlock Grid.Column="4"
-                                                                Text="Popup preview is silent and uses current Custom settings."
-                                                                VerticalAlignment="Center"
-                                                                Style="{StaticResource MutedTextStyle}"/>
-                                                 </Grid>
-
-                                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                                     <Button x:Name="NotificationsShowSanView1Button"
-                                                             Content="Show View1"
-                                                             Tag="1"
-                                                             Margin="0,0,8,0"
-                                                             Click="NotificationsShowSanView_Click"
-                                                             IsEnabled="False"/>
-                                                     <Button x:Name="NotificationsShowSanView2Button"
-                                                             Content="Show View2"
-                                                             Tag="2"
-                                                             Click="NotificationsShowSanView_Click"
-                                                             IsEnabled="False"/>
+<StackPanel Margin="0,0,0,8">
+                                                     <CheckBox Content="Auto resize window to fit text"
+                                                               IsChecked="{Binding OverlayCustomAutoResizeToContent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                     <CheckBox Content="Wrap all text lines"
+                                                               Margin="0,4,0,0"
+                                                               IsChecked="{Binding OverlayCustomWrapAllText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                 </StackPanel>
+<StackPanel Margin="0,0,0,8">
+                                                     <CheckBox Content="Show border"
+                                                               IsChecked="{Binding OverlayCustomShowBorder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                  </StackPanel>
 
-                                                 <Grid Margin="0,0,0,8">
+
+<Grid Margin="0,0,0,8">
                                                      <Grid.ColumnDefinitions>
                                                          <ColumnDefinition Width="Auto"/>
                                                          <ColumnDefinition Width="180"/>
@@ -4184,23 +4196,13 @@
                                                                   Margin="8,0,0,0"/>
                                                      </DockPanel>
                                                  </Grid>
-                                                 <Border Style="{StaticResource SectionBorderStyle}" Margin="0,10,0,0">
-                                                     <StackPanel>
-                                                         <TextBlock Text="Inline real-time preview"
-                                                                    Style="{StaticResource SectionHeaderStyle}"
-                                                                    Margin="0,0,0,6"/>
-                                                         <ContentControl x:Name="NotificationsCustomInlinePreviewHost"
-                                                                         HorizontalAlignment="Left"/>
-                                                     </StackPanel>
-                                                 </Border>
-                                             </StackPanel>
-                                         </Border>
+</StackPanel></Border>
+                                    <Separator Margin="0,16,0,16"/>
 
-                                    <TextBlock Text="Styles emulate provider-like unlock toasts. You can set a global default and optional per-provider overrides."
+<TextBlock Text="Styles emulate provider-like unlock toasts. You can set a global default and optional per-provider overrides."
                                            Style="{StaticResource MutedTextStyle}"
                                            TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
+</StackPanel>
 
                                 <StackPanel Visibility="{Binding IsSelected, ElementName=AchievementNotificationsGeneralNavigationItem, Converter={StaticResource BoolToVis}}">
                                 <Separator Margin="0,16,0,16"/>
@@ -4337,6 +4339,7 @@
                         </Border>
                         </StackPanel>
                     </ScrollViewer>
+</DockPanel>
 
                     <ScrollViewer Grid.Column="1"
                                   VerticalScrollBarVisibility="Auto"

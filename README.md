@@ -132,8 +132,9 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Fixed the progress detecting for achievements with progress
 - Added progress related wildcards to the custom notification - `<progress>`, `<progressCurrent>`, `<progressMax>`, and `<progressPercent>`
 - Fixed custom schema overrides contaminating the Steam schema cache
-- Removed the  `Custom Background Image` from the `Achievement Notification` since you can add a `Custom banner image`
+- Removed the `Custom Background Image` from the `Achievement Notification` since you can add a `Custom banner image`
 - Added a progress bar like option to the `Achievement Notification`
+- Redesigned the `Notification Style` tab
 
 ## 2026-10-18 - v4.1.0.1
 
