@@ -208,6 +208,11 @@ Primary fork areas:
 
 ## Local provider and game overrides
 
+- Excluded folders accepts all nine path variables and environment variables, with
+  cursor-insertion buttons matching Custom folders. Discovery and schema scanning
+  expand exclusions for the current game; missing context skips the path. Template
+  exclusions bypass shared discovery caching. Verify excluded descendants remain
+  skipped case-insensitively while similarly named sibling folders remain available.
 - Custom folders and Local folder/file overrides accept {InstallDir}, {GameDirName},
   {PlayniteDir}, {EmulatorDir}, {SteamAppId}, {GameName}, {ExecutableDir}, {RomDir},
   and {GameId}, plus environment variables. Expansion is case-insensitive and per

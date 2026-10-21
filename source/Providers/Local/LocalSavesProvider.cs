@@ -1912,7 +1912,7 @@ namespace PlayniteAchievements.Providers.Local
             }
 
             var installDirectory = PathExpansion.ExpandGamePath(_api, game, game.InstallDirectory)?.Trim();
-            var excludedPaths = GetExcludedLocalPathEntries().ToList();
+            var excludedPaths = GetExcludedLocalPathEntries(game).ToList();
             if (string.IsNullOrWhiteSpace(installDirectory) || !Directory.Exists(installDirectory) ||
                 IsPathExcludedFromLocalScan(installDirectory, excludedPaths))
             {
@@ -8438,7 +8438,9 @@ namespace PlayniteAchievements.Providers.Local
             }
 
             var customPaths = LocalSettings.SplitExtraLocalPaths(_pluginSettings?.Persisted?.ExtraLocalPaths).ToList();
-            var useCache = !customPaths.Any(PathExpansion.IsCustomFolderTemplate);
+            var useCache = !customPaths.Any(PathExpansion.IsCustomFolderTemplate) &&
+                !LocalSettings.SplitExtraLocalPaths(_pluginSettings?.Persisted?.ExcludedLocalPaths)
+                    .Any(PathExpansion.IsCustomFolderTemplate);
             lock (_discoveryCacheLock)
             {
                 if (useCache && _localFolderCandidatesCache.TryGetValue(appId, out var cachedFolders))
@@ -8448,7 +8450,7 @@ namespace PlayniteAchievements.Providers.Local
             }
 
             var folders = new List<string>();
-            var excludedLocalPaths = GetExcludedLocalPathEntries().ToList();
+            var excludedLocalPaths = GetExcludedLocalPathEntries(game).ToList();
 
             var gameCustomRoots = game == null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) :
                 new HashSet<string>(customPaths.Where(PathExpansion.IsCustomFolderTemplate)
@@ -10528,9 +10530,10 @@ namespace PlayniteAchievements.Providers.Local
         private IEnumerable<string> GetInstallSchemaFilePaths(int appId)
         {
             var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var excludedLocalPaths = GetExcludedLocalPathEntries().ToList();
+            var game = TryGetPlayniteGameForAppId(appId);
+            var excludedLocalPaths = GetExcludedLocalPathEntries(game).ToList();
 
-            foreach (var root in GetLocalRootPaths())
+            foreach (var root in GetLocalRootPaths(game))
             {
                 if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                 {
@@ -10549,7 +10552,7 @@ namespace PlayniteAchievements.Providers.Local
                         foreach (var relativePath in InstallSchemaRelativePaths)
                         {
                             var candidate = Path.Combine(directory, relativePath);
-                            if (File.Exists(candidate))
+                            if (File.Exists(candidate) && !IsPathExcludedFromLocalScan(candidate, excludedLocalPaths))
                             {
                                 candidates.Add(candidate);
                             }
@@ -10561,14 +10564,14 @@ namespace PlayniteAchievements.Providers.Local
                 }
             }
 
-            var game = TryGetPlayniteGameForAppId(appId);
             var installDirectory = PathExpansion.ExpandGamePath(_api, game, game?.InstallDirectory);
-            if (!string.IsNullOrWhiteSpace(installDirectory) && Directory.Exists(installDirectory))
+            if (!string.IsNullOrWhiteSpace(installDirectory) && Directory.Exists(installDirectory) &&
+                !IsPathExcludedFromLocalScan(installDirectory, excludedLocalPaths))
             {
                 foreach (var relativePath in InstallSchemaRelativePaths)
                 {
                     var candidate = Path.Combine(installDirectory, relativePath);
-                    if (File.Exists(candidate))
+                    if (File.Exists(candidate) && !IsPathExcludedFromLocalScan(candidate, excludedLocalPaths))
                     {
                         candidates.Add(candidate);
                     }
@@ -10578,7 +10581,8 @@ namespace PlayniteAchievements.Providers.Local
                 {
                     foreach (var nestedPath in Directory.EnumerateFiles(installDirectory, "achievements.json", SearchOption.AllDirectories))
                     {
-                        if (nestedPath.IndexOf("steam_settings", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if (nestedPath.IndexOf("steam_settings", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                            !IsPathExcludedFromLocalScan(nestedPath, excludedLocalPaths))
                         {
                             candidates.Add(nestedPath);
                         }
@@ -10907,15 +10911,17 @@ namespace PlayniteAchievements.Providers.Local
             return roots.Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
-        private IEnumerable<string> GetExcludedLocalPathEntries()
+        private IEnumerable<string> GetExcludedLocalPathEntries(Game game = null)
         {
             foreach (var excludedPath in LocalSettings.SplitExtraLocalPaths(_pluginSettings?.Persisted?.ExcludedLocalPaths))
             {
-                var expanded = Environment.ExpandEnvironmentVariables(excludedPath);
-                var normalized = NormalizeDirectoryPath(expanded);
-                if (!string.IsNullOrWhiteSpace(normalized))
+                foreach (var expanded in ExpandFolderPaths(_api, game, excludedPath))
                 {
-                    yield return normalized;
+                    var normalized = NormalizeDirectoryPath(expanded);
+                    if (!string.IsNullOrWhiteSpace(normalized))
+                    {
+                        yield return normalized;
+                    }
                 }
             }
         }

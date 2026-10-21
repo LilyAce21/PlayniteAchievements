@@ -642,7 +642,8 @@ namespace PlayniteAchievements.Providers.Local
                 return;
             }
 
-            if (!Directory.Exists(path))
+            if (!PathExpansion.IsCustomFolderTemplate(path) &&
+                !Directory.Exists(Environment.ExpandEnvironmentVariables(path)))
             {
                 _playniteApi?.Dialogs?.ShowMessage(
                     "The selected folder does not exist.",

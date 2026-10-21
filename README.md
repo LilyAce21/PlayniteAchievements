@@ -127,6 +127,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Restored the upstream themes tabs to the original state
 - Moved all the settings related to this fork to the `Santodan-Fork` tab so it is more clear to differentiate the upstream from mine
 - Added wildcards to both `Custom Folders` and for `Local Save Folder Override`
+- Added wildcards to the `Excluded Folders`
 - Changed the entries for my fork related log to be called as `[PlayniteAchievementsPlugin-Santodan]`
 - Fixed the progress detecting for achievements with progress
 - Added progress related wildcards to the custom notification - `<progress>`, `<progressCurrent>`, `<progressMax>`, and `<progressPercent>`

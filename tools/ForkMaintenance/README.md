@@ -1,5 +1,15 @@
 ﻿# Fork maintenance bundle
 
+## Excluded-folder variables - 2026-10-21
+
+Excluded folders accepts the same nine path variables and environment variables
+as Custom folders, with shared cursor-insertion buttons and updated help text.
+Exclusions expand per game for folder discovery and schema scanning; unavailable
+details skip the path, and template exclusions bypass the shared discovery cache.
+The Release rebuild, 13 variable tests, and production exclusion checks passed,
+including per-game expansion, missing emulator context, descendant matching,
+case-insensitive comparisons, and sibling preservation.
+
 ## Custom notification progress bar elements - 2026-10-21
 
 The notification editor supports multiple independent graphical bars for

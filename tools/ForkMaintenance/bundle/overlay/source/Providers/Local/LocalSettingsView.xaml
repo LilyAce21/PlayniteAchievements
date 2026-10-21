@@ -255,7 +255,7 @@
                                    Text="Folders scanned for local achievements and Steam caches. Steam cache folders are skipped when the Steam appcache user is set to None."
                                    Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                         <TextBlock Grid.Row="1" Grid.Column="2"
-                                   Text="Use these in Custom folders and Local Overrides. Missing game details cause that path to be skipped. Environment variables such as %APPDATA% also work."
+                                   Text="Use these in Custom folders, Excluded folders, and Local Overrides. Missing game details cause that path to be skipped. Environment variables such as %APPDATA% also work."
                                    Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                         <DataGrid Grid.Row="2" Grid.Column="0" ItemsSource="{x:Static local:LocalSettingsView.AutomaticFolderReferences}"
                                   AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
@@ -411,6 +411,7 @@
                             IsEnabled="False"
                             Click="AddExcludedLocalPath_Click" />
                         </Grid>
+                        <controls:FolderVariableButtons TargetTextBox="{Binding ElementName=PendingExcludedLocalPathTextBox}" Margin="0,0,0,8"/>
 
                         <Border BorderBrush="{DynamicResource NormalBorderBrush}"
                             BorderThickness="1"
@@ -431,7 +432,7 @@
                             IsEnabled="False"
                             Click="RemoveExcludedLocalPath_Click" />
 
-                        <TextBlock Text="Excluded folders are skipped during Local achievement detection scans, including nested paths under those folders."
+                        <TextBlock Text="Excluded folders and their subfolders are skipped during Local achievement detection scans. The same path variables and environment variables as Custom folders are supported. Press a variable button to insert it at the cursor. Paths requiring unavailable game details are skipped."
                                Style="{StaticResource MutedTextStyle}"
                                TextWrapping="Wrap"/>
                         </StackPanel>

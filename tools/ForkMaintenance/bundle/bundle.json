@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-21T06:48:05.8638998Z",
+    "generatedUtc":  "2026-10-21T07:48:26.0344894Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -23,6 +23,10 @@
                          {
                              "path":  "ACHIEVEMENT_NOTIFICATIONS_GUIDE.md",
                              "sha256":  "6A39FD788D91C704E254E2DFB5B2F63A1883F011CEDF7019977C0A90FA012694"
+                         },
+                         {
+                             "path":  "build/progress-bar-preview.png",
+                             "sha256":  "97F49F7140FC9D87CA635F0F8D8DE9F8BD57CED2EF14F3ECD3C14E7C9F75B042"
                          },
                          {
                              "path":  "Images/AchievementNotificationMenu.png",
@@ -138,7 +142,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSavesProvider.cs",
-                             "sha256":  "B35287D0C44BBD8732D37D9EBE08C80F9C2408720C9C3FB332F3B823ACB6C35F"
+                             "sha256":  "E760FA7C1495F7A09C64C05EC49ECCE105CE43BFB94B3160A44DCE30CCA9380F"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettings.cs",
@@ -146,11 +150,11 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml",
-                             "sha256":  "7FCEB8BEF365743EBEBB388948B88D6BD3B9618E71467051CA2AF102EFA35029"
+                             "sha256":  "05D553A9D36163539F42797CBA209E30BF2BA2031A0B646AEC0441FCA8F2161C"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml.cs",
-                             "sha256":  "2F6653E05E59B67DD8F82CA63072B9C57CF330B686BC5DFA07C868A0B3DBAA21"
+                             "sha256":  "1F851BCE5E9D65C747671395D96A68D9B332BDEEB8FE08701C71374A40A0F115"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSuccessStoryImportService.cs",
