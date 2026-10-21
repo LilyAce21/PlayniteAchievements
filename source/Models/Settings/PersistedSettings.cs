@@ -211,6 +211,7 @@ namespace PlayniteAchievements.Models.Settings
         private int _goldIconScalePercent = 100;
         private int _silverIconScalePercent = 100;
         private int _bronzeIconScalePercent = 100;
+        private int _ultraRareIconScalePercent = 100;
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
@@ -2380,6 +2381,13 @@ namespace PlayniteAchievements.Models.Settings
             set => SetValue(ref _silverIconScalePercent, Math.Max(50, Math.Min(200, value)));
         }
 
+        /// <summary>Ultra Rare icon (the blue trophy in trophy mode) size in small views, as a percentage of normal (100 = default).</summary>
+        public int UltraRareIconScalePercent
+        {
+            get => _ultraRareIconScalePercent;
+            set => SetValue(ref _ultraRareIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
         /// <summary>Bronze trophy size in small views, as a percentage of normal (100 = default).</summary>
         public int BronzeIconScalePercent
         {
@@ -3612,6 +3620,7 @@ namespace PlayniteAchievements.Models.Settings
                 GoldIconScalePercent = this.GoldIconScalePercent,
                 SilverIconScalePercent = this.SilverIconScalePercent,
                 BronzeIconScalePercent = this.BronzeIconScalePercent,
+                UltraRareIconScalePercent = this.UltraRareIconScalePercent,
                 ProviderColorOverrides = this.ProviderColorOverrides != null
                     ? new Dictionary<string, string>(
                         this.ProviderColorOverrides,
@@ -3792,6 +3801,7 @@ namespace PlayniteAchievements.Models.Settings
             GoldIconScalePercent = defaults.GoldIconScalePercent;
             SilverIconScalePercent = defaults.SilverIconScalePercent;
             BronzeIconScalePercent = defaults.BronzeIconScalePercent;
+            UltraRareIconScalePercent = defaults.UltraRareIconScalePercent;
             ProviderColorOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ResourceOverrides = CreateDefaultResourceOverrides();
 

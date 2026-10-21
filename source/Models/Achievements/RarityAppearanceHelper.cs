@@ -733,7 +733,8 @@ namespace PlayniteAchievements.Models.Achievements
                    string.Equals(propertyName, nameof(PersistedSettings.PlatinumIconScalePercent), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.GoldIconScalePercent), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.SilverIconScalePercent), StringComparison.Ordinal) ||
-                   string.Equals(propertyName, nameof(PersistedSettings.BronzeIconScalePercent), StringComparison.Ordinal);
+                   string.Equals(propertyName, nameof(PersistedSettings.BronzeIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.UltraRareIconScalePercent), StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -755,13 +756,29 @@ namespace PlayniteAchievements.Models.Achievements
                 case "CapstonePlatinum":
                     percent = settings.PlatinumIconScalePercent;
                     break;
+                // In trophy mode the rarity tiers are drawn as trophies (Ultra Rare = blue, Rare = gold,
+                // Uncommon = silver, Common = bronze), so each tier shares its trophy's size setting.
+                case "BadgeRarityUltraRare":
+                case "BadgePlatinumHexagon":
+                case "ScoreBadgePlatinumHexagon":
+                    percent = settings.UltraRareIconScalePercent;
+                    break;
                 case "TrophyGold":
+                case "BadgeRarityRare":
+                case "BadgeGoldPentagon":
+                case "BadgeGoldHexagon":
                     percent = settings.GoldIconScalePercent;
                     break;
                 case "TrophySilver":
+                case "BadgeRarityUncommon":
+                case "BadgeSilverSquare":
+                case "BadgeSilverHexagon":
                     percent = settings.SilverIconScalePercent;
                     break;
                 case "TrophyBronze":
+                case "BadgeRarityCommon":
+                case "BadgeBronzeTriangle":
+                case "BadgeBronzeHexagon":
                     percent = settings.BronzeIconScalePercent;
                     break;
                 default:

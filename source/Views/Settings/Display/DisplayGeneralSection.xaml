@@ -159,6 +159,21 @@
                                      TextAlignment="Right"/>
                         </StackPanel>
                     </controls:SettingRow>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_UltraRareIconScale}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_UltraRareIconScale_Help}">
+                        <StackPanel Orientation="Horizontal">
+                            <Slider Style="{DynamicResource SettingsSliderStyle}"
+                                    Minimum="50" Maximum="200"
+                                    SmallChange="5" LargeChange="10" TickFrequency="5" IsSnapToTickEnabled="True"
+                                    Value="{Binding Persisted.UltraRareIconScalePercent, Mode=TwoWay}"
+                                    Width="160"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"/>
+                            <TextBox Text="{Binding Persisted.UltraRareIconScalePercent, UpdateSourceTrigger=LostFocus}"
+                                     Width="56"
+                                     TextAlignment="Right"/>
+                        </StackPanel>
+                    </controls:SettingRow>
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_GoldIconScale}"
                                          Hint="{DynamicResource LOCPlayAch_Settings_GoldIconScale_Help}">
                         <StackPanel Orientation="Horizontal">
