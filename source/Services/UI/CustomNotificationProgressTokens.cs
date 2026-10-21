@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -29,6 +29,21 @@ namespace PlayniteAchievements.Services.UI
                     default: return count.ToString(CultureInfo.InvariantCulture) + "/" + maximum.Value.ToString(CultureInfo.InvariantCulture);
                 }
             });
+        }
+
+        internal static LocalSettings CreatePreviewSettingsCopy(LocalSettings settings, int? current=16, int? maximum=100)
+        {
+            settings=settings ?? new LocalSettings();
+            var counters=new System.Collections.Generic.Dictionary<NotificationBarSource,NotificationBarCounter>
+            {
+                [NotificationBarSource.GameAchievements]=new NotificationBarCounter { Current=27,Maximum=100 },
+                [NotificationBarSource.GamePoints]=new NotificationBarCounter { Current=120,Maximum=500 },
+                [NotificationBarSource.GameCollectionScore]=new NotificationBarCounter { Current=180,Maximum=600 },
+                [NotificationBarSource.GamePrestigeScore]=new NotificationBarCounter { Current=240,Maximum=800 },
+                [NotificationBarSource.CollectionLevelExperience]=new NotificationBarCounter { Current=40,Maximum=100 },
+                [NotificationBarSource.PrestigeLevelExperience]=new NotificationBarCounter { Current=65,Maximum=100 }
+            };
+            return CreateSettingsCopy(settings,settings.OverlayCustomPreviewShowProgress?current:null,settings.OverlayCustomPreviewShowProgress?maximum:null,counters:counters);
         }
 
         internal static LocalSettings CreateSettingsCopy(LocalSettings settings, int? current, int? maximum, bool isProgressUpdate = false, System.Collections.Generic.Dictionary<NotificationBarSource, NotificationBarCounter> counters = null)

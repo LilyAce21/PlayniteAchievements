@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-21T07:48:26.0344894Z",
+    "generatedUtc":  "2026-10-21T09:22:42.6286933Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "58BB9F751D3405ED0E8467019F6935541F7D760339BE299A2897B30F75DB917B"
+                  "sha256":  "71217FA028509E53B18DAAA074443C0E2421286BCA26F861AD03FAD54A9B48CF"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -310,7 +310,7 @@
                          },
                          {
                              "path":  "source/Services/UI/CustomNotificationProgressTokens.cs",
-                             "sha256":  "561DE70468F1BE344E1B8CD5103A66C25046BDEC0409CA4E43FE421803FEFB6D"
+                             "sha256":  "A18D7EC23436BF712D3292F042ADC0434AAEBA097F0A084E4B540D164540A256"
                          },
                          {
                              "path":  "source/ViewModels/GameOptionsCustomSchemaTab.cs",
@@ -358,11 +358,11 @@
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml",
-                             "sha256":  "FD7238677E8382696E44B7C770FCD27C59AECB41EBE2A6D46EC673EE0BC0212A"
+                             "sha256":  "F7846DC754ECD6336630171010FA57FF37F227CA796BD6504BA0C50A7A3DA8CD"
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml.cs",
-                             "sha256":  "09C2B2E652C5526F5FF4A58A9152B377A871CFC5F28B7D3624F0103A8D15EEEE"
+                             "sha256":  "F407572AE623C433BF1080ED968C42A9B23FF797171966C4901C1C05DB0CF854"
                          },
                          {
                              "path":  "source/Views/LocalAchievementEditorControl.xaml",
@@ -422,7 +422,7 @@
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressBarTests.cs",
-                             "sha256":  "8AB6F1BC0671D6AB4FED94DA3F02547514A055873A41CCF1922BB630459DE491"
+                             "sha256":  "12C06A4ACFAE75163FC4B1A21F88877E50AB38B26C89FF8FA99B145A6ACB55F2"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressTokensTests.cs",
@@ -454,7 +454,7 @@
                          },
                          {
                              "path":  "tools/NotificationTemplates/PROGRESS_BAR.md",
-                             "sha256":  "CE2DA3005A04D6B62FC54B6805BF87D9FAC2EFFF5FB95757B378D92C40092066"
+                             "sha256":  "C41A19AB73E1644566033AED4412C5DC47C2402B82EA7FEB3D12A500C45E9633"
                          },
                          {
                              "path":  "tools/NotificationTemplates/README.md",

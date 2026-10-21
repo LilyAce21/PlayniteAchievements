@@ -16,7 +16,10 @@
   Check alpha hex values, fill/track gradients, direction, and solid fallbacks.
 - Collapse a bar's editor and confirm its state survives saving a slot and reloading.
 - Preserve all settings through style slots and JSON import/export.
-- Show Notification and automatic preview display sample counters consistently.
+- General Show Notification, selected/all provider-style previews, the style popup,
+  and automatic preview display the same sample counters. With Show Progress Bar
+  disabled, game/account bars still display while the individual bar disappears.
+  Sample counters must never leak into saved settings or live unlock processing.
 - Use the single **Custom banner/background image** picker.
 
 ## Custom schema cache isolation - 2026-10-20

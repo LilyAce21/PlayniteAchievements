@@ -254,7 +254,8 @@ namespace PlayniteAchievements.Services
             string forcedStyle = null,
             LocalUnlockNotificationDeliveryMode? forcedDeliveryMode = null,
             LocalSettings overrideLocalSettings = null,
-            string notificationProviderKey = "Local")
+            string notificationProviderKey = "Local",
+            bool isSettingsPreview = false)
         {
             var achievementItems = unlockedAchievementNames?
                 .Select((name, index) => new AchievementUnlockNotificationItem(
@@ -274,7 +275,8 @@ namespace PlayniteAchievements.Services
                 forcedDeliveryMode,
                 overrideLocalSettings,
                 notificationProviderKey,
-                game);
+                game,
+                isSettingsPreview: isSettingsPreview);
         }
 
         public void ShowLocalAchievementUnlocked(
@@ -286,7 +288,8 @@ namespace PlayniteAchievements.Services
             LocalSettings overrideLocalSettings = null,
             string notificationProviderKey = "Local",
             Game game = null,
-            AchievementUnlockedEventArgs progressContext = null)
+            AchievementUnlockedEventArgs progressContext = null,
+            bool isSettingsPreview = false)
         {
             var achievements = unlockedAchievements?
                 .Where(item => !string.IsNullOrWhiteSpace(item?.Name))
@@ -300,8 +303,11 @@ namespace PlayniteAchievements.Services
                 return;
             }
 
-            var localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(
-                overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>(),
+            var configuredSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
+            var localSettings = isSettingsPreview
+                ? CustomNotificationProgressTokens.CreatePreviewSettingsCopy(configuredSettings)
+                : CustomNotificationProgressTokens.CreateSettingsCopy(
+                configuredSettings,
                 progressContext?.ProgressNum, progressContext?.ProgressDenom, progressContext?.IsProgressUpdate == true,
                 CreateNotificationBarCounters(game, gameName, achievements[0].Name, achievements[0].Rarity, progressContext));
             if (progressContext?.IsProgressUpdate == true) customSoundPath = null;
@@ -460,10 +466,7 @@ namespace PlayniteAchievements.Services
         {
             var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
             if (isSettingsPreview)
-                localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(localSettings,
-                    localSettings.OverlayCustomPreviewShowProgress ? (int?)16 : null,
-                    localSettings.OverlayCustomPreviewShowProgress ? (int?)100 : null,
-                    counters: CreateNotificationBarCounters(game, gameName, achievementName, achievementRarity, preview: true));
+                localSettings = CustomNotificationProgressTokens.CreatePreviewSettingsCopy(localSettings);
             var mode = forcedDeliveryMode ?? localSettings?.UnlockNotificationDeliveryMode ?? LocalUnlockNotificationDeliveryMode.Hybrid;
             // Achievement notifications use the custom renderer by default. The provider key
             // supplies provider-specific icons and wildcard values; it does not select a style.
@@ -512,22 +515,12 @@ namespace PlayniteAchievements.Services
         }
 
         private static Dictionary<NotificationBarSource, NotificationBarCounter> CreateNotificationBarCounters(
-            Game game, string gameName, string achievementName, string rarity, AchievementUnlockedEventArgs args = null, bool preview = false)
+            Game game, string gameName, string achievementName, string rarity, AchievementUnlockedEventArgs args = null)
         {
             var values = new Dictionary<NotificationBarSource, NotificationBarCounter>();
             void Add(NotificationBarSource source, int current, int maximum)
             {
                 if (maximum > 0) values[source] = new NotificationBarCounter { Current = current, Maximum = maximum };
-            }
-            if (preview)
-            {
-                Add(NotificationBarSource.GameAchievements, 27, 100);
-                Add(NotificationBarSource.GamePoints, 120, 500);
-                Add(NotificationBarSource.GameCollectionScore, 180, 600);
-                Add(NotificationBarSource.GamePrestigeScore, 240, 800);
-                Add(NotificationBarSource.CollectionLevelExperience, 40, 100);
-                Add(NotificationBarSource.PrestigeLevelExperience, 65, 100);
-                return values;
             }
             var scores = GetNotificationScoreContext(game, gameName, achievementName, rarity);
             Add(NotificationBarSource.GameAchievements, args?.UnlockedCount ?? scores.GameUnlockedCount, args?.TotalCount ?? scores.GameAchievementCount);
@@ -555,11 +548,7 @@ namespace PlayniteAchievements.Services
             int? progressMaximum = 100)
         {
             var previewSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
-            var localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(
-                previewSettings,
-                previewSettings.OverlayCustomPreviewShowProgress ? progressCurrent : null,
-                previewSettings.OverlayCustomPreviewShowProgress ? progressMaximum : null,
-                counters: CreateNotificationBarCounters(game, gameName, achievementName, achievementRarity, preview: true));
+            var localSettings = CustomNotificationProgressTokens.CreatePreviewSettingsCopy(previewSettings,progressCurrent,progressMaximum);
             var style = string.IsNullOrWhiteSpace(forcedStyle)
                 ? ResolveUnlockNotificationStyle(providerKey, null)
                 : NormalizeNotificationStyle(forcedStyle);

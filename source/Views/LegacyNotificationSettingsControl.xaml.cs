@@ -1950,7 +1950,8 @@ namespace PlayniteAchievements.Views
                 achievementDescription: previewAchievement?.Description ?? "Win your first fight without taking damage.",
                 achievementPoints: previewAchievement?.Points ?? 25,
                 achievementRarity: FormatPreviewAchievementRarity(previewAchievement, "12.7%"),
-                achievementTrophy: previewAchievement?.TrophyType ?? "Gold");
+                achievementTrophy: previewAchievement?.TrophyType ?? "Gold",
+                isSettingsPreview: true);
             NotificationsUnlockSoundStatusTextBlock.Text = $"Previewed {styleOption.DisplayName} style for {providerOption.DisplayName} using {localSettings.UnlockNotificationDeliveryMode}.";
         }
 
@@ -1985,7 +1986,8 @@ namespace PlayniteAchievements.Views
                     achievementDescription: previewAchievement?.Description ?? "Win your first fight without taking damage.",
                     achievementPoints: previewAchievement?.Points ?? 25,
                     achievementRarity: FormatPreviewAchievementRarity(previewAchievement, "12.7%"),
-                    achievementTrophy: previewAchievement?.TrophyType ?? "Gold");
+                    achievementTrophy: previewAchievement?.TrophyType ?? "Gold",
+                    isSettingsPreview: true);
             }
 
             NotificationsUnlockSoundStatusTextBlock.Text = $"Previewed all styles for {providerOption.DisplayName} using {localSettings.UnlockNotificationDeliveryMode}.";
@@ -2113,7 +2115,8 @@ namespace PlayniteAchievements.Views
                     forcedStyle: NotificationPublisher.NotificationStyleCustom,
                     forcedDeliveryMode: forcedDeliveryMode,
                     overrideLocalSettings: localSettings,
-                    notificationProviderKey: previewProviderKey);
+                    notificationProviderKey: previewProviderKey,
+                    isSettingsPreview: true);
 
                 NotificationsUnlockSoundStatusTextBlock.Text = requiresCustomOverlay
                     ? $"Test custom overlay sent using transition '{localSettings.UnlockOverlayTransitionStyle}'."

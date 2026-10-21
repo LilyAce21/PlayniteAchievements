@@ -1,5 +1,18 @@
 ﻿# Fork maintenance bundle
 
+## General notification preview counters - 2026-10-21
+
+General's Show Notification action and the selected/all provider-style previews
+now explicitly request settings-preview counters. They share the same counter
+factory as the style popup and automatic preview: 16/100 for the individual
+achievement, plus game completion, points, collection/prestige scores, and level
+experience samples. Show Progress Bar hides only the individual sample bar.
+Sample values are cloned per preview and never enter saved settings or live
+unlock processing. Existing delivery modes and test sounds are preserved.
+
+The Release rebuild and all 28 focused notification tests passed. New tests
+cover every preview source, the hidden-individual fallback, and sample isolation.
+
 ## Excluded-folder variables - 2026-10-21
 
 Excluded folders accepts the same nine path variables and environment variables

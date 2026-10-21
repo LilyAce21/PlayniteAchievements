@@ -16,6 +16,36 @@ namespace PlayniteAchievements.Tests.Services
     public class CustomNotificationProgressBarTests
     {
         [TestMethod]
+        public void SettingsPreviewSuppliesEveryBarSourceWithoutSavingSampleCounters()
+        {
+            var settings=new LocalSettings { OverlayCustomPreviewShowProgress=true };
+            foreach(NotificationBarSource source in Enum.GetValues(typeof(NotificationBarSource)))settings.OverlayCustomProgressBars.Add(new NotificationProgressBarDefinition { Source=source });
+            var before=JsonConvert.SerializeObject(settings);
+            var copy=CustomNotificationProgressTokens.CreatePreviewSettingsCopy(settings);
+            Assert.AreEqual(16,copy.AchievementProgressCurrent);Assert.AreEqual(100,copy.AchievementProgressMaximum);
+            Assert.AreEqual(7,CustomNotificationProgressBar.Rows(copy,NotificationBarPlacement.AfterContent).Sum(row=>row.Count));
+            var html=CustomNotificationProgressBar.CreateElementsHtml(copy,NotificationBarPlacement.AfterContent);
+            foreach(var label in new[]{"16/100","27/100","120/500","180/600","240/800","40/100","65/100"})StringAssert.Contains(html,label);
+            Assert.AreEqual(before,JsonConvert.SerializeObject(settings));Assert.IsNull(settings.AchievementProgressCurrent);Assert.IsNull(settings.NotificationBarCounters);
+            Assert.IsFalse(JsonConvert.SerializeObject(copy).Contains("NotificationBarCounters"));
+        }
+
+        [TestMethod]
+        public void SettingsPreviewHonorsHiddenIndividualCounterWithoutHidingGameBars()
+        {
+            var settings=new LocalSettings { OverlayCustomPreviewShowProgress=false };
+            var individual=new NotificationProgressBarDefinition { Id="individual" };
+            settings.OverlayCustomProgressBars.Add(individual);
+            settings.OverlayCustomProgressBars.Add(new NotificationProgressBarDefinition { Id="game",RowAnchorId=individual.Id,Source=NotificationBarSource.GameAchievements });
+            var copy=CustomNotificationProgressTokens.CreatePreviewSettingsCopy(settings);
+            Assert.IsNull(copy.AchievementProgressCurrent);Assert.IsNull(copy.AchievementProgressMaximum);
+            Assert.AreEqual("game",CustomNotificationProgressBar.Rows(copy,NotificationBarPlacement.AfterContent).Single().Single().Id);
+            StringAssert.Contains(CustomNotificationProgressBar.CreateElementsHtml(copy,NotificationBarPlacement.AfterContent),"27/100");
+            var live=CustomNotificationProgressTokens.CreateSettingsCopy(settings,null,null);
+            Assert.AreEqual("",CustomNotificationProgressBar.CreateElementsHtml(live,NotificationBarPlacement.AfterContent));
+        }
+
+        [TestMethod]
         public void LinkedRowsFollowEitherBarsPlacementAcrossReorderingAndRemoval()
         {
             var settings=new LocalSettings();
