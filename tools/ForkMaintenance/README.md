@@ -1,4 +1,34 @@
-# Fork maintenance bundle
+﻿# Fork maintenance bundle
+
+## Custom notification progress bar elements - 2026-10-21
+
+The notification editor supports multiple independent graphical bars for
+achievement progress, game achievement counts and points, collection/prestige
+scores, and level experience. Bars share a row through the persistent
+**Same row as** selector. Changing either linked bar's placement moves the row;
+removing its leader preserves the remaining links. Previous-bar flags migrate
+automatically. Unavailable counters hide their bar, automatic-width neighbors
+expand, and empty rows reserve no height.
+
+Caption/counter positions, alignments, fonts, sizes, colors, decorations,
+outline, and shadow are independent. Gradient fill/track colors have Add color,
+Pick, Remove, and alpha-capable hex fields. WPF draws effects behind sharp,
+pixel-aligned foreground text; SAN paints stroke behind fill. Each bar's editor
+can be collapsed, and its expanded state is saved. The preview checkbox
+is labeled **Show Progress Bar**; it controls the individual sample counter,
+while game/account sample bars remain available. Show Notification and automatic
+preview share sample counters. The shared image picker is labeled
+**Custom banner/background image**. Slots, import/export, and the standalone
+HTML builder preserve the complete bar definitions.
+
+The Release rebuild passed with no errors. All 26 focused notification tests
+passed during feature verification. The refreshed v4.1.1 bundle passed both
+three-way preflight and actual replay in an isolated checkout: 169 overlays,
+localization recipes, component hashes, and protected-file checks. All 304 replayed
+code/tool/test files match the working source; two differ only in Git-normalized
+line endings. Interactive testing of the rebuilt package in Playnite remains pending.
+
+The preview PNG under build is a diagnostic artifact, excluded from the bundle.
 
 ## Custom schema cache isolation - 2026-10-20
 

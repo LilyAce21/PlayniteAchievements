@@ -1,4 +1,4 @@
-// LegacyNotificationSettingsControl.xaml.cs
+﻿// LegacyNotificationSettingsControl.xaml.cs
 using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.IO;
@@ -1416,6 +1416,20 @@ namespace PlayniteAchievements.Views
                 case nameof(Providers.Local.LocalSettings.OverlayCustomShowLine4):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomShowLine5):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomShowLine6):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBars):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomShowProgressBar):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarWidth):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarHeight):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarCornerRadius):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarSpacing):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarFillColor):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarTrackColor):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarShowLabel):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarLabelColor):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarLabelFontSize):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarOffsetX):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarOffsetY):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomPreviewShowProgress):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomLine4Color):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomLine5Color):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomLine6Color):
@@ -2831,6 +2845,8 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
+            localSettings.OverlayCustomBackgroundImagePath = string.Empty;
+            localSettings.EnableGameBannerAsBackground = true;
             localSettings.OverlayCustomBannerImagePath = selectedPath;
             NotificationsUnlockSoundStatusTextBlock.Text = "Custom banner image selected.";
         }
@@ -2843,6 +2859,7 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
+            localSettings.OverlayCustomBackgroundImagePath = string.Empty;
             localSettings.OverlayCustomBannerImagePath = string.Empty;
             NotificationsUnlockSoundStatusTextBlock.Text = "Custom banner image cleared.";
         }
@@ -3939,7 +3956,8 @@ namespace PlayniteAchievements.Views
                 achievementPoints: previewAchievement?.Points ?? 25,
                 achievementRarity: FormatPreviewAchievementRarity(previewAchievement, "12.7%"),
                 achievementTrophy: previewAchievement?.TrophyType ?? "Gold",
-                forcedSanPreviewView: forcedSanView);
+                forcedSanPreviewView: forcedSanView,
+                isSettingsPreview: true);
 
             if (forceStatusMessage)
             {
@@ -3955,6 +3973,7 @@ namespace PlayniteAchievements.Views
 
         private void RefreshCustomStyleSlotControls(Providers.Local.LocalSettings localSettings)
         {
+            EnsureProgressBarElements(localSettings);
             if (localSettings == null || NotificationsCustomStyleSlotComboBox == null)
                 return;
 
@@ -4347,6 +4366,19 @@ namespace PlayniteAchievements.Views
                 ShowLine4 = localSettings.OverlayCustomShowLine4,
                 ShowLine5 = localSettings.OverlayCustomShowLine5,
                 ShowLine6 = localSettings.OverlayCustomShowLine6,
+                ProgressBars = Providers.Local.LocalSettings.CloneProgressBars(localSettings.OverlayCustomProgressBars),
+                ShowProgressBar = localSettings.OverlayCustomShowProgressBar,
+                ProgressBarWidth = localSettings.OverlayCustomProgressBarWidth,
+                ProgressBarHeight = localSettings.OverlayCustomProgressBarHeight,
+                ProgressBarCornerRadius = localSettings.OverlayCustomProgressBarCornerRadius,
+                ProgressBarSpacing = localSettings.OverlayCustomProgressBarSpacing,
+                ProgressBarFillColor = localSettings.OverlayCustomProgressBarFillColor,
+                ProgressBarTrackColor = localSettings.OverlayCustomProgressBarTrackColor,
+                ProgressBarShowLabel = localSettings.OverlayCustomProgressBarShowLabel,
+                ProgressBarLabelColor = localSettings.OverlayCustomProgressBarLabelColor,
+                ProgressBarLabelFontSize = localSettings.OverlayCustomProgressBarLabelFontSize,
+                ProgressBarOffsetX = localSettings.OverlayCustomProgressBarOffsetX,
+                ProgressBarOffsetY = localSettings.OverlayCustomProgressBarOffsetY,
                 Line4Color = localSettings.OverlayCustomLine4Color,
                 Line5Color = localSettings.OverlayCustomLine5Color,
                 Line6Color = localSettings.OverlayCustomLine6Color,
@@ -4557,6 +4589,19 @@ namespace PlayniteAchievements.Views
                         ShowLine4 = localSettings.OverlayCustomShowLine4,
                         ShowLine5 = localSettings.OverlayCustomShowLine5,
                         ShowLine6 = localSettings.OverlayCustomShowLine6,
+                ProgressBars = Providers.Local.LocalSettings.CloneProgressBars(localSettings.OverlayCustomProgressBars),
+                ShowProgressBar = localSettings.OverlayCustomShowProgressBar,
+                ProgressBarWidth = localSettings.OverlayCustomProgressBarWidth,
+                ProgressBarHeight = localSettings.OverlayCustomProgressBarHeight,
+                ProgressBarCornerRadius = localSettings.OverlayCustomProgressBarCornerRadius,
+                ProgressBarSpacing = localSettings.OverlayCustomProgressBarSpacing,
+                ProgressBarFillColor = localSettings.OverlayCustomProgressBarFillColor,
+                ProgressBarTrackColor = localSettings.OverlayCustomProgressBarTrackColor,
+                ProgressBarShowLabel = localSettings.OverlayCustomProgressBarShowLabel,
+                ProgressBarLabelColor = localSettings.OverlayCustomProgressBarLabelColor,
+                ProgressBarLabelFontSize = localSettings.OverlayCustomProgressBarLabelFontSize,
+                ProgressBarOffsetX = localSettings.OverlayCustomProgressBarOffsetX,
+                ProgressBarOffsetY = localSettings.OverlayCustomProgressBarOffsetY,
                         Line4Color = localSettings.OverlayCustomLine4Color,
                         Line5Color = localSettings.OverlayCustomLine5Color,
                         Line6Color = localSettings.OverlayCustomLine6Color,
@@ -4951,7 +4996,7 @@ namespace PlayniteAchievements.Views
                 return true;
             }
 
-            return string.IsNullOrWhiteSpace(slot.SanPresetId) &&
+            return (slot.ProgressBars?.Count ?? 0) == 0 && !slot.ShowProgressBar && string.IsNullOrWhiteSpace(slot.SanPresetId) &&
                 string.IsNullOrWhiteSpace(slot.SanPresetHtml) &&
                 string.IsNullOrWhiteSpace(slot.SanThemeJson) &&
                 (string.IsNullOrWhiteSpace(slot.Name) || slot.Name.StartsWith("Slot ", StringComparison.OrdinalIgnoreCase));
@@ -5910,6 +5955,19 @@ namespace PlayniteAchievements.Views
             localSettings.OverlayCustomShowLine4 = slot.ShowLine4;
             localSettings.OverlayCustomShowLine5 = slot.ShowLine5;
             localSettings.OverlayCustomShowLine6 = slot.ShowLine6;
+            localSettings.OverlayCustomProgressBars = Providers.Local.LocalSettings.CloneProgressBars(slot.ProgressBars);
+            localSettings.OverlayCustomShowProgressBar = slot.ShowProgressBar;
+            localSettings.OverlayCustomProgressBarWidth = slot.ProgressBarWidth;
+            localSettings.OverlayCustomProgressBarHeight = slot.ProgressBarHeight;
+            localSettings.OverlayCustomProgressBarCornerRadius = slot.ProgressBarCornerRadius;
+            localSettings.OverlayCustomProgressBarSpacing = slot.ProgressBarSpacing;
+            localSettings.OverlayCustomProgressBarFillColor = slot.ProgressBarFillColor;
+            localSettings.OverlayCustomProgressBarTrackColor = slot.ProgressBarTrackColor;
+            localSettings.OverlayCustomProgressBarShowLabel = slot.ProgressBarShowLabel;
+            localSettings.OverlayCustomProgressBarLabelColor = slot.ProgressBarLabelColor;
+            localSettings.OverlayCustomProgressBarLabelFontSize = slot.ProgressBarLabelFontSize;
+            localSettings.OverlayCustomProgressBarOffsetX = slot.ProgressBarOffsetX;
+            localSettings.OverlayCustomProgressBarOffsetY = slot.ProgressBarOffsetY;
             localSettings.OverlayCustomLine4Color = slot.Line4Color;
             localSettings.OverlayCustomLine5Color = slot.Line5Color;
             localSettings.OverlayCustomLine6Color = slot.Line6Color;
@@ -6211,6 +6269,109 @@ namespace PlayniteAchievements.Views
             }
         }
 
+        private void EnsureProgressBarElements(Providers.Local.LocalSettings settings)
+        {
+            if (settings == null || settings.OverlayCustomProgressBars.Count > 0 || !settings.OverlayCustomShowProgressBar) return;
+            var legacy = PlayniteAchievements.Services.UI.CustomNotificationProgressBar.Definitions(settings).ToList();
+            settings.OverlayCustomShowProgressBar = false;
+            foreach (var bar in legacy) settings.OverlayCustomProgressBars.Add(bar);
+        }
+        private void NotificationsAddProgressBar_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (settings == null) return;
+            EnsureProgressBarElements(settings);
+            settings.OverlayCustomShowProgressBar = false;
+            settings.OverlayCustomProgressBars.Add(new Providers.Local.NotificationProgressBarDefinition());
+        }
+        private void NotificationsRemoveProgressBar_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (settings == null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            settings.OverlayCustomShowProgressBar = false;
+            Providers.Local.NotificationBarLayout.ReparentRemovedBar(settings.OverlayCustomProgressBars,bar);
+            settings.OverlayCustomProgressBars.Remove(bar);
+        }
+        private void MoveProgressBar(object sender, int direction)
+        {
+            var settings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (settings == null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            var index = settings.OverlayCustomProgressBars.IndexOf(bar);
+            var next = index + direction;
+            if (index >= 0 && next >= 0 && next < settings.OverlayCustomProgressBars.Count) settings.OverlayCustomProgressBars.Move(index, next);
+        }
+        private void NotificationsMoveProgressBarUp_Click(object sender, RoutedEventArgs e) => MoveProgressBar(sender, -1);
+        private void NotificationsMoveProgressBarDown_Click(object sender, RoutedEventArgs e) => MoveProgressBar(sender, 1);
+        private void NotificationsProgressBarRowTarget_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if(!(sender is ComboBox combo) || !(combo.DataContext is Providers.Local.NotificationProgressBarDefinition bar) || !(combo.SelectedItem is Providers.Local.NotificationBarRowOption option))return;
+            if((combo.IsDropDownOpen || combo.IsKeyboardFocusWithin) && bar.RowAnchorId!=option.Id)bar.RowAnchorId=option.Id;
+        }
+        private void NotificationsMoveProgressBarLeft_Click(object sender, RoutedEventArgs e)
+        {
+            var settings=_providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if(settings==null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar))return;
+            var bars=settings.OverlayCustomProgressBars;var index=bars.IndexOf(bar);if(index<=0)return;
+            var previous=bars[index-1];
+            if(Providers.Local.NotificationBarLayout.Root(bars,bar)!=Providers.Local.NotificationBarLayout.Root(bars,previous))bar.RowAnchorId=previous.Id;
+            else bars.Move(index,index-1);
+        }
+        private void NotificationsMoveProgressBarRight_Click(object sender, RoutedEventArgs e)
+        {
+            var settings=_providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if(settings==null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar))return;
+            var bars=settings.OverlayCustomProgressBars;var index=bars.IndexOf(bar);
+            if(index>=0 && index+1<bars.Count && Providers.Local.NotificationBarLayout.Root(bars,bar)==Providers.Local.NotificationBarLayout.Root(bars,bars[index+1]))bars.Move(index,index+1);
+            else if(!string.IsNullOrEmpty(bar.RowAnchorId))bar.RowAnchorId="";
+        }
+        private static bool TryPickProgressColor(string current, out string selected)
+        {
+            selected=null;
+            var initial=System.Drawing.Color.White;
+            try
+            {
+                var color=(System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(current);
+                initial=System.Drawing.Color.FromArgb(color.A,color.R,color.G,color.B);
+            }
+            catch { }
+            using(var dialog=new WinForms.ColorDialog { FullOpen=true, Color=initial })
+            {
+                if(dialog.ShowDialog()!=WinForms.DialogResult.OK) return false;
+                selected=$"#{initial.A:X2}{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+                return true;
+            }
+        }
+        private void NotificationsAddGradientColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            var fill=string.Equals(button.Tag as string,"Fill",StringComparison.Ordinal);
+            var colors=bar.GetGradientColors(fill);
+            if(colors.Count>=32 || !TryPickProgressColor(colors.LastOrDefault() ?? (fill?bar.FillColor:bar.TrackColor),out var selected)) return;
+            bar.SetGradientColor(fill,-1,selected);
+            if(fill) bar.FillGradientEnabled=true; else bar.TrackGradientEnabled=true;
+        }
+        private void NotificationsEditGradientColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationGradientColor stop)) return;
+            if(TryPickProgressColor(stop.Color,out var selected)) stop.Bar.SetGradientColor(stop.Fill,stop.Index,selected);
+        }
+        private void NotificationsRemoveGradientColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is Providers.Local.NotificationGradientColor stop) stop.Bar.SetGradientColor(stop.Fill,stop.Index,null);
+        }
+        private void NotificationsPickBarFontColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationBarFont font)) return;
+            var property=typeof(Providers.Local.NotificationBarFont).GetProperty(button.Tag as string ?? "");
+            if(property?.PropertyType==typeof(string) && TryPickProgressColor(property.GetValue(font) as string,out var selected)) property.SetValue(font,selected);
+        }
+        private void NotificationsPickProgressBarColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            var property=typeof(Providers.Local.NotificationProgressBarDefinition).GetProperty(button.Tag as string ?? "");
+            if(property?.PropertyType==typeof(string) && TryPickProgressColor(property.GetValue(bar) as string,out var selected)) property.SetValue(bar,selected);
+        }
+
         private void UpdateCustomStyleInlinePreview(Providers.Local.LocalSettings localSettings)
         {
             if (localSettings == null || NotificationsCustomInlinePreviewHost == null)
@@ -6264,7 +6425,7 @@ namespace PlayniteAchievements.Views
 
         private static Brush ResolveInlinePreviewBackground(Providers.Local.LocalSettings localSettings)
         {
-            var imagePath = localSettings?.OverlayCustomBackgroundImagePath?.Trim();
+            var imagePath = (localSettings?.OverlayCustomBannerImagePath ?? localSettings?.OverlayCustomBackgroundImagePath)?.Trim();
             if (!string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath))
             {
                 try
@@ -6323,6 +6484,12 @@ namespace PlayniteAchievements.Views
                     return localSettings.OverlayCustomBorderColor;
                 case "Accent":
                     return localSettings.OverlayCustomAccentColor;
+                case "ProgressBarFill":
+                    return localSettings.OverlayCustomProgressBarFillColor;
+                case "ProgressBarTrack":
+                    return localSettings.OverlayCustomProgressBarTrackColor;
+                case "ProgressBarLabel":
+                    return localSettings.OverlayCustomProgressBarLabelColor;
                 case "PrimaryIconBackground":
                     return localSettings.OverlayCustomIconBackgroundColor;
                 case "SecondaryIconBackground":
@@ -6382,6 +6549,15 @@ namespace PlayniteAchievements.Views
                     break;
                 case "Accent":
                     localSettings.OverlayCustomAccentColor = colorHex;
+                    break;
+                case "ProgressBarFill":
+                    localSettings.OverlayCustomProgressBarFillColor = colorHex;
+                    break;
+                case "ProgressBarTrack":
+                    localSettings.OverlayCustomProgressBarTrackColor = colorHex;
+                    break;
+                case "ProgressBarLabel":
+                    localSettings.OverlayCustomProgressBarLabelColor = colorHex;
                     break;
                 case "PrimaryIconBackground":
                     localSettings.OverlayCustomIconBackgroundColor = colorHex;

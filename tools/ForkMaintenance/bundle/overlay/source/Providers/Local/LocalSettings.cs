@@ -1,5 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
@@ -235,6 +238,19 @@ namespace PlayniteAchievements.Providers.Local
         public string Line6Template { get; set; } = string.Empty;
         public bool ShowLine4 { get; set; }
         public bool ShowLine5 { get; set; }
+        public ObservableCollection<NotificationProgressBarDefinition> ProgressBars { get; set; } = new ObservableCollection<NotificationProgressBarDefinition>();
+        public bool ShowProgressBar { get; set; } = false;
+        public double ProgressBarWidth { get; set; } = 0;
+        public double ProgressBarHeight { get; set; } = 6;
+        public double ProgressBarCornerRadius { get; set; } = 3;
+        public double ProgressBarSpacing { get; set; } = 6;
+        public string ProgressBarFillColor { get; set; } = "#A7E0FF";
+        public string ProgressBarTrackColor { get; set; } = "#30FFFFFF";
+        public bool ProgressBarShowLabel { get; set; } = false;
+        public string ProgressBarLabelColor { get; set; } = "#FFFFFF";
+        public double ProgressBarLabelFontSize { get; set; } = 11;
+        public double ProgressBarOffsetX { get; set; } = 0;
+        public double ProgressBarOffsetY { get; set; } = 0;
         public bool ShowLine6 { get; set; }
         public string Line4Color { get; set; } = "#BCD0E5";
         public string Line5Color { get; set; } = "#BCD0E5";
@@ -495,6 +511,18 @@ namespace PlayniteAchievements.Providers.Local
         private string _overlayCustomLine6Template = string.Empty;
         private bool _overlayCustomShowLine4;
         private bool _overlayCustomShowLine5;
+        private bool _overlayCustomShowProgressBar = false;
+        private double _overlayCustomProgressBarWidth = 0;
+        private double _overlayCustomProgressBarHeight = 6;
+        private double _overlayCustomProgressBarCornerRadius = 3;
+        private double _overlayCustomProgressBarSpacing = 6;
+        private string _overlayCustomProgressBarFillColor = "#A7E0FF";
+        private string _overlayCustomProgressBarTrackColor = "#30FFFFFF";
+        private bool _overlayCustomProgressBarShowLabel = false;
+        private string _overlayCustomProgressBarLabelColor = "#FFFFFF";
+        private double _overlayCustomProgressBarLabelFontSize = 11;
+        private double _overlayCustomProgressBarOffsetX = 0;
+        private double _overlayCustomProgressBarOffsetY = 0;
         private bool _overlayCustomShowLine6;
         private string _overlayCustomLine4Color = "#BCD0E5";
         private string _overlayCustomLine5Color = "#BCD0E5";
@@ -1245,6 +1273,160 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _overlayCustomShowLine5, value);
         }
 
+        private ObservableCollection<NotificationProgressBarDefinition> _progressBars;
+        private readonly HashSet<NotificationProgressBarDefinition> subscribedProgressBars = new HashSet<NotificationProgressBarDefinition>();
+        public static ObservableCollection<NotificationProgressBarDefinition> CloneProgressBars(IEnumerable<NotificationProgressBarDefinition> bars)
+        {
+            var copy=new ObservableCollection<NotificationProgressBarDefinition>((bars ?? Enumerable.Empty<NotificationProgressBarDefinition>()).Where(bar=>bar!=null).Select(bar=>bar.Clone()));
+            NotificationBarLayout.Migrate(copy);
+            return copy;
+        }
+        public ObservableCollection<NotificationProgressBarDefinition> OverlayCustomProgressBars
+        {
+            get
+            {
+                if (_progressBars == null) { _progressBars = new ObservableCollection<NotificationProgressBarDefinition>(); _progressBars.CollectionChanged += ProgressBarsChanged; }
+                return _progressBars;
+            }
+            set
+            {
+                if (_progressBars != null)
+                {
+                    _progressBars.CollectionChanged -= ProgressBarsChanged;
+                    foreach (var bar in subscribedProgressBars) bar.PropertyChanged -= ProgressBarChanged;
+                    subscribedProgressBars.Clear();
+                }
+                _progressBars = CloneProgressBars(value);
+                _progressBars.CollectionChanged += ProgressBarsChanged;
+                foreach (var bar in _progressBars) { bar.PropertyChanged += ProgressBarChanged; subscribedProgressBars.Add(bar); }
+                RefreshProgressBarLinks();
+                OnPropertyChanged(nameof(OverlayCustomProgressBars));
+            }
+        }
+        private void ProgressBarsChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            foreach (var bar in subscribedProgressBars) bar.PropertyChanged -= ProgressBarChanged;
+            subscribedProgressBars.Clear();
+            foreach (var bar in OverlayCustomProgressBars) { bar.PropertyChanged += ProgressBarChanged; subscribedProgressBars.Add(bar); }
+            RefreshProgressBarLinks();
+            OnPropertyChanged(nameof(OverlayCustomProgressBars));
+        }
+        private bool refreshingProgressBarLinks;
+        private void RefreshProgressBarLinks(NotificationProgressBarDefinition changed=null,string property=null)
+        {
+            if(refreshingProgressBarLinks)return;
+            refreshingProgressBarLinks=true;
+            try
+            {
+                var bars=OverlayCustomProgressBars;
+                NotificationBarLayout.Migrate(bars);
+                if(changed!=null && bars.Contains(changed) && (property==nameof(changed.Placement) || property==nameof(changed.RowAnchorId)))
+                {
+                    var root=NotificationBarLayout.Root(bars,changed);
+                    var placement=property==nameof(changed.Placement)?changed.Placement:root.Placement;
+                    foreach(var bar in bars.Where(bar=>NotificationBarLayout.Root(bars,bar)==root).ToList())bar.Placement=placement;
+                    if(property==nameof(changed.RowAnchorId) && !string.IsNullOrEmpty(changed.RowAnchorId))
+                    {
+                        var last=bars.Where(bar=>bar!=changed && NotificationBarLayout.Root(bars,bar)==root).Select(bar=>bars.IndexOf(bar)).DefaultIfEmpty(-1).Max();
+                        var old=bars.IndexOf(changed);var next=old<last?last:last+1;
+                        if(last>=0 && old!=next)bars.Move(old,next);
+                    }
+                }
+                foreach(var group in bars.GroupBy(bar=>NotificationBarLayout.Root(bars,bar)).ToList())foreach(var bar in group)bar.Placement=group.Key.Placement;
+                foreach(var bar in bars) { bar.RowPeers=bars;bar.RefreshRowEditor(); }
+            }
+            finally { refreshingProgressBarLinks=false; }
+        }
+        private void ProgressBarChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if(refreshingProgressBarLinks)return;
+            if(e.PropertyName==nameof(NotificationProgressBarDefinition.Placement) || e.PropertyName==nameof(NotificationProgressBarDefinition.RowAnchorId) || e.PropertyName==nameof(NotificationProgressBarDefinition.Title) || e.PropertyName==nameof(NotificationProgressBarDefinition.Source) || e.PropertyName==nameof(NotificationProgressBarDefinition.SameRowAsPrevious))RefreshProgressBarLinks(sender as NotificationProgressBarDefinition,e.PropertyName);
+            OnPropertyChanged(nameof(OverlayCustomProgressBars));
+        }
+        [JsonIgnore]
+        internal Dictionary<NotificationBarSource, NotificationBarCounter> NotificationBarCounters { get; set; }
+
+        public bool OverlayCustomShowProgressBar
+        {
+            get => _overlayCustomShowProgressBar;
+            set => SetValue(ref _overlayCustomShowProgressBar, value);
+        }
+
+        public double OverlayCustomProgressBarWidth
+        {
+            get => _overlayCustomProgressBarWidth;
+            set => SetValue(ref _overlayCustomProgressBarWidth, Math.Max(0, Math.Min(1200, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value)));
+        }
+
+        public double OverlayCustomProgressBarHeight
+        {
+            get => _overlayCustomProgressBarHeight;
+            set => SetValue(ref _overlayCustomProgressBarHeight, Math.Max(1, Math.Min(64, double.IsNaN(value) || double.IsInfinity(value) ? 6 : value)));
+        }
+
+        public double OverlayCustomProgressBarCornerRadius
+        {
+            get => _overlayCustomProgressBarCornerRadius;
+            set => SetValue(ref _overlayCustomProgressBarCornerRadius, Math.Max(0, Math.Min(64, double.IsNaN(value) || double.IsInfinity(value) ? 3 : value)));
+        }
+
+        public double OverlayCustomProgressBarSpacing
+        {
+            get => _overlayCustomProgressBarSpacing;
+            set => SetValue(ref _overlayCustomProgressBarSpacing, Math.Max(0, Math.Min(100, double.IsNaN(value) || double.IsInfinity(value) ? 6 : value)));
+        }
+
+        public string OverlayCustomProgressBarFillColor
+        {
+            get => _overlayCustomProgressBarFillColor;
+            set => SetValue(ref _overlayCustomProgressBarFillColor, value ?? string.Empty);
+        }
+
+        public string OverlayCustomProgressBarTrackColor
+        {
+            get => _overlayCustomProgressBarTrackColor;
+            set => SetValue(ref _overlayCustomProgressBarTrackColor, value ?? string.Empty);
+        }
+
+        public bool OverlayCustomProgressBarShowLabel
+        {
+            get => _overlayCustomProgressBarShowLabel;
+            set => SetValue(ref _overlayCustomProgressBarShowLabel, value);
+        }
+
+        public string OverlayCustomProgressBarLabelColor
+        {
+            get => _overlayCustomProgressBarLabelColor;
+            set => SetValue(ref _overlayCustomProgressBarLabelColor, value ?? string.Empty);
+        }
+
+        public double OverlayCustomProgressBarLabelFontSize
+        {
+            get => _overlayCustomProgressBarLabelFontSize;
+            set => SetValue(ref _overlayCustomProgressBarLabelFontSize, Math.Max(6, Math.Min(48, double.IsNaN(value) || double.IsInfinity(value) ? 11 : value)));
+        }
+
+        public double OverlayCustomProgressBarOffsetX
+        {
+            get => _overlayCustomProgressBarOffsetX;
+            set => SetValue(ref _overlayCustomProgressBarOffsetX, Math.Max(-1200, Math.Min(1200, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value)));
+        }
+
+        public double OverlayCustomProgressBarOffsetY
+        {
+            get => _overlayCustomProgressBarOffsetY;
+            set => SetValue(ref _overlayCustomProgressBarOffsetY, Math.Max(-600, Math.Min(600, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value)));
+        }
+
+        [JsonIgnore]
+        public bool OverlayCustomPreviewShowProgress { get => _previewShowProgress; set => SetValue(ref _previewShowProgress, value); }
+        private bool _previewShowProgress = true;
+
+        [JsonIgnore]
+        internal int? AchievementProgressCurrent { get; set; }
+        [JsonIgnore]
+        internal int? AchievementProgressMaximum { get; set; }
+
         public bool OverlayCustomShowLine6
         {
             get => _overlayCustomShowLine6;
@@ -1912,7 +2094,7 @@ namespace PlayniteAchievements.Providers.Local
 
         public string OverlayCustomBannerImagePath
         {
-            get => _overlayCustomBannerImagePath;
+            get => string.IsNullOrWhiteSpace(_overlayCustomBannerImagePath) ? _overlayCustomBackgroundImagePath : _overlayCustomBannerImagePath;
             set => SetValue(ref _overlayCustomBannerImagePath, value ?? string.Empty);
         }
 
@@ -2645,6 +2827,19 @@ namespace PlayniteAchievements.Providers.Local
                     ShowLine4 = slot.ShowLine4,
                     ShowLine5 = slot.ShowLine5,
                     ShowLine6 = slot.ShowLine6,
+                    ProgressBars = CloneProgressBars(slot.ProgressBars),
+                    ShowProgressBar = slot.ShowProgressBar,
+                    ProgressBarWidth = slot.ProgressBarWidth,
+                    ProgressBarHeight = slot.ProgressBarHeight,
+                    ProgressBarCornerRadius = slot.ProgressBarCornerRadius,
+                    ProgressBarSpacing = slot.ProgressBarSpacing,
+                    ProgressBarFillColor = slot.ProgressBarFillColor,
+                    ProgressBarTrackColor = slot.ProgressBarTrackColor,
+                    ProgressBarShowLabel = slot.ProgressBarShowLabel,
+                    ProgressBarLabelColor = slot.ProgressBarLabelColor,
+                    ProgressBarLabelFontSize = slot.ProgressBarLabelFontSize,
+                    ProgressBarOffsetX = slot.ProgressBarOffsetX,
+                    ProgressBarOffsetY = slot.ProgressBarOffsetY,
                     Line4Color = NormalizeColorSetting(slot.Line4Color, "#BCD0E5"),
                     Line5Color = NormalizeColorSetting(slot.Line5Color, "#BCD0E5"),
                     Line6Color = NormalizeColorSetting(slot.Line6Color, "#BCD0E5"),

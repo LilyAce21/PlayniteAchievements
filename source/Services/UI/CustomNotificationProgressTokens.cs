@@ -31,7 +31,7 @@ namespace PlayniteAchievements.Services.UI
             });
         }
 
-        internal static LocalSettings CreateSettingsCopy(LocalSettings settings, int? current, int? maximum, bool isProgressUpdate = false)
+        internal static LocalSettings CreateSettingsCopy(LocalSettings settings, int? current, int? maximum, bool isProgressUpdate = false, System.Collections.Generic.Dictionary<NotificationBarSource, NotificationBarCounter> counters = null)
         {
             // Capture and preview may share the already-prepared live notification settings.
             if (settings?.AchievementProgressPrepared == true) return settings;
@@ -84,6 +84,9 @@ namespace PlayniteAchievements.Services.UI
                 copy.EnableInAppUnlockNotifications = false;
                 copy.UnlockSoundLeadMilliseconds = 0;
             }
+            copy.NotificationBarCounters = counters;
+            copy.AchievementProgressCurrent = current;
+            copy.AchievementProgressMaximum = maximum;
             copy.AchievementProgressPrepared = true;
             return copy;
         }

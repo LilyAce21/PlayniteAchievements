@@ -1,4 +1,4 @@
-using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
+﻿using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -295,14 +295,15 @@ namespace PlayniteAchievements.Services
                 .ToList() ?? new List<AchievementUnlockNotificationItem>();
             var names = achievements.Select(item => item.Name.Trim()).ToList();
             var unlockCount = Math.Max(unlockedAchievements?.Count ?? 0, achievements.Count);
-            if (unlockCount <= 0)
+            if (unlockCount <= 0 || achievements.Count == 0)
             {
                 return;
             }
 
             var localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(
                 overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>(),
-                progressContext?.ProgressNum, progressContext?.ProgressDenom, progressContext?.IsProgressUpdate == true);
+                progressContext?.ProgressNum, progressContext?.ProgressDenom, progressContext?.IsProgressUpdate == true,
+                CreateNotificationBarCounters(game, gameName, achievements[0].Name, achievements[0].Rarity, progressContext));
             if (progressContext?.IsProgressUpdate == true) customSoundPath = null;
             var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
             var enableInAppNotification = localSettings?.EnableInAppUnlockNotifications != false;
@@ -454,9 +455,15 @@ namespace PlayniteAchievements.Services
             int? achievementPoints = null,
             string achievementRarity = null,
             string achievementTrophy = null,
-            int? forcedSanPreviewView = null)
+            int? forcedSanPreviewView = null,
+            bool isSettingsPreview = false)
         {
-            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
+            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
+            if (isSettingsPreview)
+                localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(localSettings,
+                    localSettings.OverlayCustomPreviewShowProgress ? (int?)16 : null,
+                    localSettings.OverlayCustomPreviewShowProgress ? (int?)100 : null,
+                    counters: CreateNotificationBarCounters(game, gameName, achievementName, achievementRarity, preview: true));
             var mode = forcedDeliveryMode ?? localSettings?.UnlockNotificationDeliveryMode ?? LocalUnlockNotificationDeliveryMode.Hybrid;
             // Achievement notifications use the custom renderer by default. The provider key
             // supplies provider-specific icons and wildcard values; it does not select a style.
@@ -504,6 +511,34 @@ namespace PlayniteAchievements.Services
             }
         }
 
+        private static Dictionary<NotificationBarSource, NotificationBarCounter> CreateNotificationBarCounters(
+            Game game, string gameName, string achievementName, string rarity, AchievementUnlockedEventArgs args = null, bool preview = false)
+        {
+            var values = new Dictionary<NotificationBarSource, NotificationBarCounter>();
+            void Add(NotificationBarSource source, int current, int maximum)
+            {
+                if (maximum > 0) values[source] = new NotificationBarCounter { Current = current, Maximum = maximum };
+            }
+            if (preview)
+            {
+                Add(NotificationBarSource.GameAchievements, 27, 100);
+                Add(NotificationBarSource.GamePoints, 120, 500);
+                Add(NotificationBarSource.GameCollectionScore, 180, 600);
+                Add(NotificationBarSource.GamePrestigeScore, 240, 800);
+                Add(NotificationBarSource.CollectionLevelExperience, 40, 100);
+                Add(NotificationBarSource.PrestigeLevelExperience, 65, 100);
+                return values;
+            }
+            var scores = GetNotificationScoreContext(game, gameName, achievementName, rarity);
+            Add(NotificationBarSource.GameAchievements, args?.UnlockedCount ?? scores.GameUnlockedCount, args?.TotalCount ?? scores.GameAchievementCount);
+            Add(NotificationBarSource.GamePoints, scores.GamePoints, scores.GamePointsTotal);
+            Add(NotificationBarSource.GameCollectionScore, scores.GameCollectionScore, scores.GameCollectionScoreTotal);
+            Add(NotificationBarSource.GamePrestigeScore, scores.GamePrestigeScore, scores.GamePrestigeScoreTotal);
+            Add(NotificationBarSource.CollectionLevelExperience, scores.CollectionExp, scores.CollectionExpTotal);
+            Add(NotificationBarSource.PrestigeLevelExperience, scores.PrestigeExp, scores.PrestigeExpTotal);
+            return values;
+        }
+
         public FrameworkElement CreateOverlayPreviewContent(
             string gameName,
             string achievementName,
@@ -519,8 +554,12 @@ namespace PlayniteAchievements.Services
             int? progressCurrent = 16,
             int? progressMaximum = 100)
         {
+            var previewSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
             var localSettings = CustomNotificationProgressTokens.CreateSettingsCopy(
-                overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>(), progressCurrent, progressMaximum);
+                previewSettings,
+                previewSettings.OverlayCustomPreviewShowProgress ? progressCurrent : null,
+                previewSettings.OverlayCustomPreviewShowProgress ? progressMaximum : null,
+                counters: CreateNotificationBarCounters(game, gameName, achievementName, achievementRarity, preview: true));
             var style = string.IsNullOrWhiteSpace(forcedStyle)
                 ? ResolveUnlockNotificationStyle(providerKey, null)
                 : NormalizeNotificationStyle(forcedStyle);
@@ -565,9 +604,9 @@ namespace PlayniteAchievements.Services
                 MinHeight = height + (borderSpace * 2)
             };
 
-            if (localSettings?.OverlayCustomAutoResizeToContent == true)
+            if (localSettings?.OverlayCustomAutoResizeToContent == true || CustomNotificationProgressBar.Definitions(localSettings).Any())
             {
-                frame.MaxHeight = Math.Max(height + (borderSpace * 2), 520 + (borderSpace * 2));
+                frame.MaxHeight = Math.Max(height + (borderSpace * 2), (CustomNotificationProgressBar.Definitions(localSettings).Any() ? 2000 : 520) + (borderSpace * 2));
             }
             else
             {
@@ -591,7 +630,8 @@ namespace PlayniteAchievements.Services
             }
 
             var settings = CustomNotificationProgressTokens.CreateSettingsCopy(
-                ProviderRegistry.Settings<LocalSettings>(), args.ProgressNum, args.ProgressDenom, args.IsProgressUpdate);
+                ProviderRegistry.Settings<LocalSettings>(), args.ProgressNum, args.ProgressDenom, args.IsProgressUpdate,
+                CreateNotificationBarCounters(_api?.Database?.Games?.Get(args.PlayniteGameId), args.GameName, args.DisplayName, args.RarityTier, args));
             var game = _api?.Database?.Games?.Get(args.PlayniteGameId);
             var rarity = args.GlobalPercent.HasValue
                 ? AchievementRarityResolver.GetDetailText(
@@ -660,7 +700,7 @@ namespace PlayniteAchievements.Services
             var outerWidth = width + (borderSpace * 2);
             var outerHeight = height + (borderSpace * 2);
             var durationMs = Math.Max(1200, settings.UnlockOverlayDurationMilliseconds);
-            var autoResizeToContent = settings.OverlayCustomAutoResizeToContent;
+            var autoResizeToContent = settings.OverlayCustomAutoResizeToContent || CustomNotificationProgressBar.Definitions(settings).Any();
             var host = new Grid
             {
                 Width = outerWidth,
@@ -1487,7 +1527,7 @@ steamImage +
                         var safeGameName = string.IsNullOrWhiteSpace(gameName) ? "Current Game" : gameName.Trim();
                         var safeAchievement = string.IsNullOrWhiteSpace(achievementName) ? "Achievement unlocked" : achievementName.Trim();
                         var isCustomStyle = string.Equals(style, NotificationStyleCustom, StringComparison.OrdinalIgnoreCase);
-                        var autoResizeCustom = isCustomStyle && (localSettings?.OverlayCustomAutoResizeToContent == true);
+                        var autoResizeCustom = isCustomStyle && (localSettings?.OverlayCustomAutoResizeToContent == true || CustomNotificationProgressBar.Definitions(localSettings).Any());
                         var transitionStyle = localSettings?.UnlockOverlayTransitionStyle ?? LocalUnlockOverlayTransitionStyle.Fade;
                         var slideDistance = localSettings?.UnlockOverlaySlideDistance ?? 72;
 
@@ -1552,7 +1592,7 @@ steamImage +
                         if (autoResizeCustom)
                         {
                             overlayWindow.MinHeight = windowHeight;
-                            overlayWindow.MaxHeight = Math.Max(windowHeight, 520 + (customBorderSpace * 2));
+                            overlayWindow.MaxHeight = Math.Max(windowHeight, (CustomNotificationProgressBar.Definitions(localSettings).Any() ? 2000 : 520) + (customBorderSpace * 2));
                             overlayWindow.SizeToContent = SizeToContent.Height;
                         }
                         else
@@ -1912,7 +1952,7 @@ steamImage +
                     : 0;
                 var canvasWidth = (int)Math.Ceiling(Math.Max(1, width + (borderSpace * 2)));
                 var canvasHeight = (int)Math.Ceiling(Math.Max(1, height + (borderSpace * 2)));
-                var autoResizeToContent = settings.OverlayCustomAutoResizeToContent;
+                var autoResizeToContent = settings.OverlayCustomAutoResizeToContent || CustomNotificationProgressBar.Definitions(settings).Any();
                 var isSanTransition = IsSanTransitionStyle(settings.UnlockOverlayTransitionStyle);
                 var overlayOpacity = Math.Max(0.35, Math.Min(1.0, settings.OverlayCustomOpacity));
                 var fadeInMs = settings.UnlockOverlayFadeInMilliseconds;
@@ -2831,6 +2871,8 @@ steamImage +
                 : string.Empty;
             var sanElems = ResolveSanTextElements(settings, line1, line2, line3, out var unlockMessage, out var title, out var desc);
             var sanLineDefinitionsJson = BuildSanLineDefinitionsJson(settings, line1, line2, line3, line4, line5, line6);
+            var sanProgressBeforeJson = Newtonsoft.Json.JsonConvert.SerializeObject(CustomNotificationProgressBar.CreateElementsHtml(settings, NotificationBarPlacement.BeforeContent));
+            var sanProgressAfterJson = Newtonsoft.Json.JsonConvert.SerializeObject(CustomNotificationProgressBar.CreateElementsHtml(settings, NotificationBarPlacement.AfterContent));
             var sanElementAnchorsJson = "{}";
             if (!string.IsNullOrWhiteSpace(settings?.OverlayCustomElementAnchorsJson))
             {
@@ -3200,7 +3242,7 @@ const sanApplyElems = () => {{
     while (targets.length < desiredCount) {{
       const span = document.createElement('span');
       span.className = 'san-generated-line';
-      stack.appendChild(span);
+      stack.insertBefore(span, stack.querySelector('.san-achievement-progress'));
       targets.push(span);
     }}
     return targets.slice(0, desiredCount);
@@ -3439,6 +3481,36 @@ document.querySelectorAll('#logo').forEach(el => {{
     el.style.backgroundImage = 'url(' + {JsString(logoUri)} + ')';
   }}
 }});
+const sanProgressBefore = {sanProgressBeforeJson};
+const sanProgressAfter = {sanProgressAfterJson};
+if (sanProgressBefore || sanProgressAfter) {{
+  const outer = document.getElementById('outerwrapper');
+  if (outer) {{
+    const baseHeight = {height};
+    const panels = [sanProgressBefore, sanProgressAfter].map(html => {{
+      const panel = document.createElement('div');
+      panel.className = 'san-progress-elements';
+      panel.style.cssText = 'position:absolute;left:0;width:100%;padding:0 16px 8px;box-sizing:border-box;z-index:10';
+      panel.innerHTML = html;
+      if (!html) panel.style.display = 'none';
+      outer.appendChild(panel);
+      return panel;
+    }});
+    const layoutBars = () => {{
+      const before = panels[0].getBoundingClientRect().height;
+      const after = panels[1].getBoundingClientRect().height;
+      outer.style.height = (baseHeight + before + after) + 'px';
+      outer.querySelectorAll('#achcont').forEach(card => {{ card.style.height = baseHeight + 'px'; card.style.top = before + 'px'; card.style.alignSelf = 'start'; card.style.marginTop = '0px'; }});
+      panels[0].style.top = '0px';
+      panels[1].style.top = (before + baseHeight) + 'px';
+      if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage('san-height:' + Math.ceil(baseHeight + before + after + 8));
+    }};
+    layoutBars();
+    window.addEventListener('resize', layoutBars);
+    window.setTimeout(layoutBars, 100);
+    window.setTimeout(layoutBars, 500);
+  }}
+}}
 window.requestAnimationFrame(sanApplyElementAnchors);
 if (Object.keys(sanElementAnchors || {{}}).length) {{
   const sanAnchorResizeObserver = new ResizeObserver(() => window.requestAnimationFrame(sanApplyElementAnchors));
@@ -3471,7 +3543,7 @@ window.setTimeout(() => {{
   }});
 if (!visibleText) document.body.classList.add('san-webview-force-visible');
 }}, 250);
-if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
+if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgressBefore && !sanProgressAfter) {{
   let lastSanHeight = 0;
   const reportSanContentHeight = () => {{
     let bottom = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
@@ -5609,17 +5681,28 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
             }
             else
             {
-                root.Height = customHeight;
+                root.MinHeight = customHeight;
             }
 
-            var container = new Grid
-            {
-                ClipToBounds = true
-            };
+            var container = new Grid { ClipToBounds = true };
+            var elementLayout = new Grid();
+            elementLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            elementLayout.RowDefinitions.Add(new RowDefinition { Height = settings?.OverlayCustomAutoResizeToContent == true ? new GridLength(1, GridUnitType.Star) : new GridLength(customHeight) });
+            elementLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var beforeBars = CustomNotificationProgressBar.CreateElementsWpf(settings, NotificationBarPlacement.BeforeContent);
+            var afterBars = CustomNotificationProgressBar.CreateElementsWpf(settings, NotificationBarPlacement.AfterContent);
+            beforeBars.Margin = afterBars.Margin = new Thickness(contentPadding.Left, 0, contentPadding.Right, 8);
+            if (beforeBars.Children.Count == 0) beforeBars.Margin = new Thickness(0);
+            if (afterBars.Children.Count == 0) afterBars.Margin = new Thickness(0);
+            beforeBars.Measure(new Size(customWidth, double.PositiveInfinity));
+            afterBars.Measure(new Size(customWidth, double.PositiveInfinity));
+            var barsHeight = beforeBars.DesiredSize.Height + afterBars.DesiredSize.Height;
+            if (settings?.OverlayCustomAutoResizeToContent == true) root.MinHeight += barsHeight;
+
             if (bannerSource != null)
             {
                 AddBannerBackground(
-                    container,
+                    elementLayout,
                     bannerSource,
                     CreateOverlayTintBrush(ParseBrushOrDefault(settings?.OverlayCustomBackgroundColor, Color.FromRgb(30, 36, 48)), 194),
                     settings?.GameBannerOpacity ?? 0.3,
@@ -5694,7 +5777,7 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
                     }
                     else if (settings?.OverlayCustomAutoResizeToContent == true && settings.CenterGameCoverVertically)
                     {
-                        CenterCanvasElementVertically(root, leftCover);
+                        CenterCanvasElementVertically(container, leftCover);
                     }
                 }
             }
@@ -6004,7 +6087,7 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
                     }
                     else if (settings?.OverlayCustomAutoResizeToContent == true && settings.CenterGameCoverVertically)
                     {
-                        CenterCanvasElementVertically(root, rightCover);
+                        CenterCanvasElementVertically(container, rightCover);
                     }
                 }
             }
@@ -6015,7 +6098,13 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
                 container.Children.Add(absoluteLayer);
             }
             ConfigureAbsoluteManualReflow(absoluteLayer, absoluteLines, manualOffsets, icon, secondaryIconElement, settings);
-            root.Child = container;
+            foreach (UIElement background in elementLayout.Children) Grid.SetRowSpan(background, 3);
+            Grid.SetRow(container, 1);
+            elementLayout.Children.Add(container);
+            elementLayout.Children.Add(beforeBars);
+            Grid.SetRow(afterBars, 2);
+            elementLayout.Children.Add(afterBars);
+            root.Child = elementLayout;
             root.Margin = new Thickness(borderWidth);
             var visualRoot = new Grid();
             visualRoot.Children.Add(root);

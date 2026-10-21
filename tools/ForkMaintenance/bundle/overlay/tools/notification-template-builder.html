@@ -836,6 +836,25 @@
           </div>
 
           <div class="group">
+            <h2>Progress bar elements</h2>
+            <button type="button" id="addProgressElement">Add bar</button>
+            <div id="progressElementsEditor"></div>
+            <p>Bars reserve separate space before or after the content. Missing counters hide only their own bar.</p>
+
+            <div class="grid" hidden style="display:none">
+              <div class="field"><label for="ShowProgressBar">Show progress bar</label><input id="ShowProgressBar" type="checkbox"></div>
+              <div class="field"><label for="ProgressBarWidth">Width (0 = auto)</label><input id="ProgressBarWidth" type="number" value="0"></div>
+              <div class="field"><label for="ProgressBarHeight">Thickness</label><input id="ProgressBarHeight" type="number" value="6"></div>
+              <div class="field"><label for="ProgressBarCornerRadius">Corner radius</label><input id="ProgressBarCornerRadius" type="number" value="3"></div>
+              <div class="field"><label for="ProgressBarSpacing">Space above</label><input id="ProgressBarSpacing" type="number" value="6"></div>
+              <div class="field"><label for="ProgressBarFillColor">Fill color</label><input id="ProgressBarFillColor" type="text" value="#A7E0FF"></div>
+              <div class="field"><label for="ProgressBarTrackColor">Track color</label><input id="ProgressBarTrackColor" type="text" value="#30FFFFFF"></div>
+              <div class="field"><label for="ProgressBarShowLabel">Show X/Y label</label><input id="ProgressBarShowLabel" type="checkbox"></div>
+              <div class="field"><label for="ProgressBarLabelColor">Label color</label><input id="ProgressBarLabelColor" type="text" value="#FFFFFF"></div>
+              <div class="field"><label for="ProgressBarLabelFontSize">Label font size</label><input id="ProgressBarLabelFontSize" type="number" value="11"></div>
+              <div class="field"><label for="ProgressBarOffsetX">Horizontal offset</label><input id="ProgressBarOffsetX" type="number" value="0"></div>
+              <div class="field"><label for="ProgressBarOffsetY">Vertical offset</label><input id="ProgressBarOffsetY" type="number" value="0"></div>
+            </div>
             <h2>Manual Element CSS</h2>
             <div class="muted">Applied by the extension WebView after the SAN/base styles. Use this for precise manual positioning overrides.</div>
             <div class="editor-actions" style="padding:8px 0;border:0;background:transparent">
@@ -992,6 +1011,7 @@
               <div class="field"><label for="sampleAchievementName">Achievement name</label><input id="sampleAchievementName" value="Blood Bound"></div>
               <div class="field"><label for="sampleAchievementDescription">Description</label><input id="sampleAchievementDescription" value="Win your first run without taking damage."></div>
               <div class="field"><label for="samplePoints">Points</label><input id="samplePoints" type="number" value="25"></div>
+              <div class="field"><label for="sampleShowProgress">Preview progress available</label><input id="sampleShowProgress" type="checkbox" checked></div>
               <div class="field"><label for="sampleProgressCurrent">Progress current</label><input id="sampleProgressCurrent" type="number" min="0" value="16"></div>
               <div class="field"><label for="sampleProgressMax">Progress target</label><input id="sampleProgressMax" type="number" min="1" value="100"></div>
               <div class="field"><label for="sampleRarity">Rarity</label><input id="sampleRarity" value="12.7%"></div>
@@ -1025,6 +1045,8 @@
         <div class="stage-grid"></div>
         <iframe id="sanPreviewFrame" class="san-preview-frame" title="SAN preview"></iframe>
         <div id="toast" class="toast" data-manual-id="notification">
+          <div id="achievementProgressBeforeHost" style="grid-column:1/-1;grid-row:1"></div>
+          <div id="toastMain" style="display:flex;align-items:center;width:100%;position:relative;flex-shrink:0">
           <div id="coverLeft" class="cover" data-manual-id="coverLeft"></div>
           <div id="iconWrap" class="icon-wrap" data-manual-id="primaryIcon"></div>
           <div class="copy">
@@ -1034,9 +1056,12 @@
             <div id="line4" class="line" data-manual-id="line4"></div>
             <div id="line5" class="line" data-manual-id="line5"></div>
             <div id="line6" class="line" data-manual-id="line6"></div>
+
           </div>
           <div id="secondaryIconWrap" class="icon-wrap secondary-icon" data-manual-id="secondaryIcon"></div>
           <div id="coverRight" class="cover" data-manual-id="coverRight"></div>
+          </div>
+          <div id="achievementProgressBarHost" style="grid-column:1/-1;grid-row:3"></div>
         </div>
       </div>
 
@@ -1114,7 +1139,19 @@
       'primaryCustomIconUrl', 'secondaryCustomIconUrl',
       'coverUrl', 'bannerUrl', 'sampleGameName', 'sampleAchievementName',
       'sampleAchievementDescription', 'samplePoints', 'sampleRarity',
-      'sampleProgressCurrent', 'sampleProgressMax',
+      'sampleProgressCurrent', 'sampleProgressMax', 'sampleShowProgress',
+      'ShowProgressBar',
+      'ProgressBarWidth',
+      'ProgressBarHeight',
+      'ProgressBarCornerRadius',
+      'ProgressBarSpacing',
+      'ProgressBarFillColor',
+      'ProgressBarTrackColor',
+      'ProgressBarShowLabel',
+      'ProgressBarLabelColor',
+      'ProgressBarLabelFontSize',
+      'ProgressBarOffsetX',
+      'ProgressBarOffsetY',
       'sampleTrophy', 'sampleProvider', 'sampleSource', 'sampleGameId'
     ];
 
@@ -2095,7 +2132,7 @@
       const date = new Date();
       const datePart = date.toISOString().slice(0, 10);
       const timePart = date.toTimeString().slice(0, 8);
-      const progressMax = Math.max(0, Number($('sampleProgressMax').value) || 0);
+      const progressMax = $('sampleShowProgress').checked ? Math.max(0, Number($('sampleProgressMax').value) || 0) : 0;
       const progressCurrent = Math.min(progressMax, Math.max(0, Number($('sampleProgressCurrent').value) || 0));
       const map = {
         progress: progressMax > 0 ? `${progressCurrent}/${progressMax}` : '',
@@ -2223,6 +2260,19 @@
           ShowLine4: bool('ShowLine4'),
           ShowLine5: bool('ShowLine5'),
           ShowLine6: bool('ShowLine6'),
+          ProgressBars: progressBarDefinitions,
+          ShowProgressBar: false,
+          ProgressBarWidth: num('ProgressBarWidth'),
+          ProgressBarHeight: num('ProgressBarHeight'),
+          ProgressBarCornerRadius: num('ProgressBarCornerRadius'),
+          ProgressBarSpacing: num('ProgressBarSpacing'),
+          ProgressBarFillColor: $('ProgressBarFillColor').value,
+          ProgressBarTrackColor: $('ProgressBarTrackColor').value,
+          ProgressBarShowLabel: bool('ProgressBarShowLabel'),
+          ProgressBarLabelColor: $('ProgressBarLabelColor').value,
+          ProgressBarLabelFontSize: num('ProgressBarLabelFontSize'),
+          ProgressBarOffsetX: num('ProgressBarOffsetX'),
+          ProgressBarOffsetY: num('ProgressBarOffsetY'),
           IconSize: num('IconSize'),
           SecondaryIconSize: num('SecondaryIconSize'),
           IconCornerRadius: num('IconCornerRadius'),
@@ -2711,6 +2761,186 @@
       ].map(([index, template, size, color, fontFamily, show, bold, italic, underline, strike, outline, outlineColor, outlineSize, shadow, shadowColor, shadowSize, view, order]) => ({
         index, order: Number.isFinite(Number(order)) ? Number(order) : index, view: Number.isFinite(Number(view)) ? Number(view) : 2, spacing: 0, html: show ? tokenReplace(template, true, size) : '', size, color, fontFamily, bold, italic, underline, strike, outline, outlineColor, outlineSize, shadow, shadowColor, shadowSize
       })).filter(line => line.html);
+    }
+
+    let progressBarDefinitions = [];
+    const progressSources = ['Achievement progress','Game achievements','Game achievement points','Game collection score','Game prestige score','Collection level experience','Prestige level experience'];
+    function progressRowRoot(bars,bar) {
+      const path=[];
+      while(!path.includes(bar)){path.push(bar);const parent=bars.find(item=>bar.RowAnchorId&&item.Id===bar.RowAnchorId);if(!parent)return bar;bar=parent;}
+      return path.slice(path.indexOf(bar)).sort((a,b)=>bars.indexOf(a)-bars.indexOf(b))[0];
+    }
+    function migrateProgressRows(bars) {
+      bars.forEach((bar,index)=>{if(bar.SameRowAsPrevious){if(!bar.RowAnchorId)bar.RowAnchorId=bars.slice(0,index).findLast(item=>Number(item.Placement)===Number(bar.Placement))?.Id||bars[index-1]?.Id||'';bar.SameRowAsPrevious=false;}});
+    }
+    function progressDependsOn(bars,bar,target) {
+      const seen=new Set();while(bar&&!seen.has(bar)){if(bar===target)return true;seen.add(bar);bar=bars.find(item=>bar.RowAnchorId&&item.Id===bar.RowAnchorId);}return false;
+    }
+    function setProgressRow(bar,targetId) {
+      bar.RowAnchorId=targetId;
+      const root=progressRowRoot(progressBarDefinitions,bar);
+      progressBarDefinitions.filter(item=>progressRowRoot(progressBarDefinitions,item)===root).forEach(item=>item.Placement=root.Placement);
+      if(targetId){const group=progressBarDefinitions.filter(item=>item!==bar&&progressRowRoot(progressBarDefinitions,item)===root);if(group.length){progressBarDefinitions.splice(progressBarDefinitions.indexOf(bar),1);progressBarDefinitions.splice(progressBarDefinitions.indexOf(group.at(-1))+1,0,bar);}}
+    }
+    function editProgressElements() {
+      const host = $('progressElementsEditor'); host.replaceChildren();migrateProgressRows(progressBarDefinitions);
+      progressBarDefinitions.forEach((bar,index) => {
+        const panel = document.createElement('details');panel.open=bar.IsExpanded!==false;panel.ontoggle=()=>{if(bar.IsExpanded!==panel.open){bar.IsExpanded=panel.open;$('jsonOutput').value=JSON.stringify(buildData(),null,2);}};panel.className='group';
+        const heading=document.createElement('summary');heading.textContent='Bar '+(index+1)+' ? '+(bar.Title||progressSources[Number(bar.Source)||0]);panel.appendChild(heading);
+        const remove=document.createElement('button'); remove.type='button'; remove.textContent='Remove'; remove.onclick=()=>{const root=progressRowRoot(progressBarDefinitions,bar),replacement=root===bar?progressBarDefinitions.find(item=>item!==bar&&progressRowRoot(progressBarDefinitions,item)===root):root;if(replacement){if(replacement.RowAnchorId===bar.Id)replacement.RowAnchorId='';progressBarDefinitions.filter(item=>item!==bar&&item!==replacement&&item.RowAnchorId===bar.Id).forEach(item=>item.RowAnchorId=replacement.Id);}progressBarDefinitions.splice(index,1);editProgressElements();render();}; Object.assign(remove.style,{width:'70px',height:'30px'}); panel.appendChild(remove);
+        for(const delta of [-1,1]) { const button=document.createElement('button');button.type='button';button.textContent=delta<0?'Up':'Down';Object.assign(button.style,{width:'70px',height:'30px'});button.onclick=()=>{const target=index+delta;if(target<0||target>=progressBarDefinitions.length)return;[progressBarDefinitions[index],progressBarDefinitions[target]]=[progressBarDefinitions[target],progressBarDefinitions[index]];editProgressElements();render();};panel.appendChild(button); }
+        for(const direction of ['Left','Right']) {const button=document.createElement('button');button.type='button';button.textContent=direction;Object.assign(button.style,{width:'70px',height:'30px'});button.onclick=()=>{
+          if(direction==='Left'&&index>0){const previous=progressBarDefinitions[index-1];if(progressRowRoot(progressBarDefinitions,previous)!==progressRowRoot(progressBarDefinitions,bar))setProgressRow(bar,previous.Id);else [progressBarDefinitions[index-1],progressBarDefinitions[index]]=[bar,previous];}
+          if(direction==='Right'){const next=progressBarDefinitions[index+1];if(next&&progressRowRoot(progressBarDefinitions,next)===progressRowRoot(progressBarDefinitions,bar))[progressBarDefinitions[index],progressBarDefinitions[index+1]]=[next,bar];else setProgressRow(bar,'');}
+          editProgressElements();render();};panel.appendChild(button);}
+        const grid=document.createElement('div');grid.className='grid';panel.appendChild(grid);
+        const colorHeading=document.createElement('strong');colorHeading.textContent='Colors and gradients';panel.appendChild(colorHeading);
+        const colorGrid=document.createElement('div');colorGrid.className='grid';panel.appendChild(colorGrid);
+        const fields={Enabled:true,Title:'',Source:0,Placement:1,RowAnchorId:'',IsExpanded:true,CaptionPosition:0,CaptionAlignment:bar.TextAlignment??0,TextPosition:4,CounterAlignment:bar.TextAlignment??0,Width:0,Height:6,CornerRadius:3,Spacing:6,LeftInset:0,RightInset:0,ShowLabel:true,FillColor:'#A7E0FF',TrackColor:'#30FFFFFF',FillGradientEnabled:false,FillGradientColors:'#A7E0FF, #6C63FF',TrackGradientEnabled:false,TrackGradientColors:'#303030, #606060',GradientAngle:0};
+        for(const [key,fallback] of Object.entries(fields)) {
+          if(bar[key]===undefined)bar[key]=fallback;
+          if(key.endsWith('GradientColors')||key==='IsExpanded')continue;
+          const label=document.createElement('label');label.className='field';label.appendChild(document.createTextNode(key==='RowAnchorId'?'Same row as':key.replace(/([A-Z])/g,' $1').trim()));
+          const choices=key==='RowAnchorId'?['Separate row',...progressBarDefinitions.filter(item=>item!==bar&&!progressDependsOn(progressBarDefinitions,item,bar)).map(item=>'Bar '+(progressBarDefinitions.indexOf(item)+1)+' ? '+(item.Title||progressSources[item.Source||0]))]:key==='Source'?progressSources:key==='Placement'?['Before content','After content']:['TextPosition','CaptionPosition'].includes(key)?['Above','Inside','Below','Left','Right']:['CounterAlignment','CaptionAlignment'].includes(key)?['Left','Center','Right']:null;
+          const input=document.createElement(choices?'select':'input');
+          if(choices) choices.forEach((name,i)=>{const option=document.createElement('option');option.value=key==='RowAnchorId'?(i===0?'':progressBarDefinitions.filter(item=>item!==bar&&!progressDependsOn(progressBarDefinitions,item,bar))[i-1].Id):i;option.textContent=name;input.appendChild(option);});
+          else input.type=typeof fallback==='boolean'?'checkbox':typeof fallback==='number'?'number':'text';
+          if(input.type==='checkbox')input.checked=bar[key];else input.value=bar[key];
+          input.addEventListener('input',()=>{if(key==='RowAnchorId'){setProgressRow(bar,input.value);editProgressElements();}else{bar[key]=typeof fallback==='boolean'?input.checked:typeof fallback==='number'?Number(input.value):input.value;if(key==='Placement'){const root=progressRowRoot(progressBarDefinitions,bar);progressBarDefinitions.filter(item=>progressRowRoot(progressBarDefinitions,item)===root).forEach(item=>item.Placement=bar.Placement);editProgressElements();}}render();});
+          label.appendChild(input);(/Color|Gradient/.test(key)?colorGrid:grid).appendChild(label);
+        }
+        for(const kind of ['Caption','Counter']) {
+          bar[kind+'Font']=progressFont(bar,kind);
+          const font=bar[kind+'Font'],section=document.createElement('div');section.className='group';
+          const title=document.createElement('strong');title.textContent=kind+' font';section.appendChild(title);
+          const fontGrid=document.createElement('div');fontGrid.className='grid';section.appendChild(fontGrid);
+          const fontColors=document.createElement('div');fontColors.className='grid';section.appendChild(fontColors);
+          for(const [key,value] of Object.entries(font)) {
+            const label=document.createElement('label');label.className='field';label.appendChild(document.createTextNode(key.replace(/([A-Z])/g,' $1').trim()));
+            const input=document.createElement('input');input.type=typeof value==='boolean'?'checkbox':typeof value==='number'?'number':'text';
+            if(input.type==='checkbox')input.checked=value;else input.value=value;
+            input.addEventListener('input',()=>{font[key]=typeof value==='boolean'?input.checked:typeof value==='number'?Number(input.value):input.value;render();});label.appendChild(input);
+            if(key.endsWith('Color')) {const picker=document.createElement('input');picker.type='color';picker.value=pickerHex(value);picker.addEventListener('input',()=>{font[key]=/^#[0-9a-f]{8}$/i.test(font[key])?'#'+font[key].slice(1,3)+picker.value.slice(1):picker.value;input.value=font[key];render();});label.appendChild(picker);}
+            (key.includes('Color')||key.startsWith('Outline')||key.startsWith('Shadow')?fontColors:fontGrid).appendChild(label);
+          }
+          panel.insertBefore(section,colorHeading);
+        }
+        for(const kind of ['Fill','Track']) {
+          const editor=document.createElement('div');editor.className='field';editor.style.gridColumn='1/-1';
+          const title=document.createElement('strong');title.textContent=kind+' gradient colors';editor.appendChild(title);
+          const stops=document.createElement('div');Object.assign(stops.style,{display:'flex',gap:'8px',flexWrap:'wrap'});editor.appendChild(stops);
+          const key=kind+'GradientColors',colors=String(bar[key]||'').split(/[,;\s]+/).filter(Boolean);
+          const toRgb=value=>/^#[0-9a-f]{8}$/i.test(value)?'#'+value.slice(3):/^#[0-9a-f]{6}$/i.test(value)?value:'#ffffff';
+          const save=()=>{bar[key]=colors.join(', ');render();};
+          colors.forEach((value,i)=>{
+            const stop=document.createElement('div');Object.assign(stop.style,{display:'flex',gap:'4px',alignItems:'center'});
+            const picker=document.createElement('input');picker.type='color';picker.value=toRgb(value);picker.title='Pick gradient color';
+            const hexInput=document.createElement('input');hexInput.type='text';hexInput.value=value;hexInput.style.width='110px';hexInput.title='#RRGGBB or #AARRGGBB';
+            picker.addEventListener('input',()=>{colors[i]=/^#[0-9a-f]{8}$/i.test(colors[i])?'#'+colors[i].slice(1,3)+picker.value.slice(1):picker.value;hexInput.value=colors[i];save();});
+            hexInput.addEventListener('change',()=>{colors[i]=hexInput.value;picker.value=toRgb(colors[i]);save();});
+            const remove=document.createElement('button');remove.type='button';remove.textContent='Remove';remove.onclick=()=>{colors.splice(i,1);save();editProgressElements();};
+            stop.append(picker,hexInput,remove);stops.appendChild(stop);
+          });
+          const add=document.createElement('button');add.type='button';add.textContent='Add color';add.disabled=colors.length>=32;
+          const newPicker=document.createElement('input');newPicker.type='color';newPicker.value=toRgb(colors.at(-1)||bar[kind+'Color']);newPicker.style.display='none';
+          newPicker.addEventListener('change',()=>{colors.push(newPicker.value);bar[kind+'GradientEnabled']=true;save();editProgressElements();});
+          add.onclick=()=>{if(newPicker.showPicker)newPicker.showPicker();else newPicker.click();};
+          editor.append(add,newPicker);colorGrid.appendChild(editor);
+        }
+        host.appendChild(panel);
+      });
+    }
+    $('addProgressElement').onclick=()=>{progressBarDefinitions.push({Id:crypto.randomUUID()});editProgressElements();render();};
+    function progressFont(bar,kind) {
+      return {Family:'Default',Size:bar.LabelFontSize??11,Color:bar.LabelColor??'#FFFFFF',Bold:false,Italic:false,Underline:false,Strikethrough:false,OutlineEnabled:false,OutlineColor:'#000000',OutlineSize:.6,ShadowEnabled:false,ShadowColor:'#000000',ShadowSize:2,...bar[kind+'Font']};
+    }
+    function progressBarHtml(slot, placement) {
+      if (!Array.isArray(slot.ProgressBars)) return legacyProgressBarHtml(slot);
+      const bars=JSON.parse(JSON.stringify(slot.ProgressBars));migrateProgressRows(bars);
+      const groups=new Map();bars.forEach(bar=>{const root=progressRowRoot(bars,bar);if(!groups.has(root))groups.set(root,[]);groups.get(root).push(bar);});
+      const rows=[...groups.entries()].filter(([root])=>placement===undefined||Number(root.Placement)===placement).map(([,row])=>row);
+      const color=(value,fallback)=>{const text=String(value||'');if(/^#[0-9a-f]{8}$/i.test(text))return '#'+text.slice(3)+text.slice(1,3);return CSS.supports('color',text)?text:fallback;};
+      const number=(value,fallback,min=0,max=1200)=>Number.isFinite(Number(value))?Math.max(min,Math.min(max,Number(value))):fallback;
+      const background=(bar,fill)=>{
+        const colors=String(bar[fill?'FillGradientColors':'TrackGradientColors']||'').split(/[,;\s]+/).filter(Boolean).map(text=>color(text,'')).filter(Boolean).slice(0,32);
+        if(bar[fill?'FillGradientEnabled':'TrackGradientEnabled']&&colors.length===1)return colors[0];
+        return bar[fill?'FillGradientEnabled':'TrackGradientEnabled']&&colors.length>1?'linear-gradient('+(number(bar.GradientAngle,0,0,360)+90)+'deg,'+colors.join(',')+')':color(bar[fill?'FillColor':'TrackColor'],fill?'#A7E0FF':'#ffffff30');
+      };
+      return rows.map(bars=>{
+        const row=document.createElement('div');row.className='san-progress-row';Object.assign(row.style,{display:'grid',columnGap:'6px',alignItems:'stretch',minWidth:'0'});
+        bars.forEach(bar=>{
+          if(bar.Enabled===false)return;
+          const source=Number(bar.Source)||0;
+          const sample=source===0?[$('sampleProgressCurrent').value,$('sampleProgressMax').value]:[[0,0],[27,100],[120,500],[180,600],[240,800],[40,100],[65,100]][source];
+          if(!sample||(source===0&&!$('sampleShowProgress').checked)||Number(sample[1])<=0)return;
+          const maximum=Number(sample[1]),current=Math.max(0,Math.min(maximum,Number(sample[0])||0));
+          const cell=document.createElement('div');cell.className='san-progress-cell';Object.assign(cell.style,{display:'grid',gridTemplateRows:'subgrid',gridRow:'1/span 3',gridColumn:String(row.children.length+1),minWidth:'0'});
+          const element=document.createElement('div');element.className='san-progress-element';element.dataset.progressId=bar.Id||'';
+          Object.assign(element.style,{display:'grid',gridTemplateColumns:'auto minmax(0,1fr) auto',gridTemplateRows:'subgrid',gridRow:'1/span 3',alignItems:'center',boxSizing:'border-box',maxWidth:'100%',width:number(bar.Width,0)>0?number(bar.Width,0)+'px':'100%',padding:number(bar.Spacing,6,0,100)+'px '+number(bar.RightInset,0,0,600)+'px 0 '+number(bar.LeftInset,0,0,600)+'px'});
+          const counterPosition=bar.TextPosition??4,captionPosition=bar.CaptionPosition??0;
+          const captionFont=progressFont(bar,'Caption'),counterFont=progressFont(bar,'Counter');
+          const sameFont=JSON.stringify(captionFont)===JSON.stringify(counterFont);
+          const captionInside=bar.Title&&Number(captionPosition)===1,counterInside=bar.ShowLabel&&Number(counterPosition)===1;
+          const stacked=captionInside&&counterInside&&Number(bar.CaptionAlignment??bar.TextAlignment??0)===Number(bar.CounterAlignment??bar.TextAlignment??0)&&!sameFont;
+          const height=Math.max(number(bar.Height,6,1,64),stacked?(number(captionFont.Size,11,6,48)+number(counterFont.Size,11,6,48))*1.4+6:Math.max(captionInside?number(captionFont.Size,11,6,48)*1.4+6:0,counterInside?number(counterFont.Size,11,6,48)*1.4+6:0));
+          const track=document.createElement('div');track.setAttribute('role','progressbar');track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuenow',current);track.setAttribute('aria-valuemax',maximum);
+          Object.assign(track.style,{gridArea:'2/2',height:height+'px',borderRadius:Math.min(height/2,number(bar.CornerRadius,3,0,64))+'px',overflow:'hidden',background:background(bar,false)});
+          const fill=document.createElement('div');Object.assign(fill.style,{height:'100%',width:(current*100/maximum)+'%',borderRadius:'inherit',background:background(bar,true)});track.appendChild(fill);element.appendChild(track);
+          for(let position=0;position<5;position++){
+            const parts=[];
+            if(Number(captionPosition)===position&&bar.Title)parts.push({text:bar.Title,align:Number(bar.CaptionAlignment??bar.TextAlignment??0),font:captionFont});
+            if(bar.ShowLabel&&Number(counterPosition)===position){const align=Number(bar.CounterAlignment??bar.TextAlignment??0);if(parts.length&&parts[0].align===align&&sameFont)parts[0].text+=' '+current+'/'+maximum;else parts.push({text:current+'/'+maximum,align,font:counterFont});}
+            if(!parts.length)continue;
+            const area=['1/1/2/4','2/2','3/1/4/4','2/1','2/3'][position];
+            let target=element;
+            if(parts.length>1){target=document.createElement('div');Object.assign(target.style,{display:'grid',gridTemplateColumns:parts[0].align===parts[1].align?'minmax(0,1fr)':'repeat(3,minmax(0,1fr))',minWidth:'0',zIndex:'1',gridArea:area});element.appendChild(target);}
+            parts.forEach(part=>{
+              const label=document.createElement('span');label.textContent=part.text;
+              Object.assign(label.style,{zIndex:'1',minWidth:'0',overflowWrap:'anywhere',textAlign:['left','center','right'][part.align],padding:position===1?'0 6px':position===3?'0 8px 0 0':position===4?'0 0 0 8px':'3px 0',fontSize:number(part.font.Size,11,6,48)+'px',color:color(part.font.Color,'#fff')});
+              if(parts.length>1)label.style.gridColumn=String(parts[0].align===parts[1].align?1:part.align+1);else label.style.gridArea=area;
+              const font=part.font;
+              Object.assign(label.style,{fontFamily:!font.Family||font.Family.toLowerCase()==='default'?'inherit':font.Family,fontWeight:font.Bold?'bold':'normal',fontStyle:font.Italic?'italic':'normal',textDecoration:[font.Underline?'underline':'',font.Strikethrough?'line-through':''].filter(Boolean).join(' ')||'none',paintOrder:'stroke fill',webkitTextStroke:font.OutlineEnabled?(number(font.OutlineSize,.6,0,20)*2)+'px '+color(font.OutlineColor,'#000'):'0',textShadow:font.ShadowEnabled?'0 '+(number(font.ShadowSize,2,0,20)/2)+'px '+number(font.ShadowSize,2,0,20)+'px '+color(font.ShadowColor,'#000'):'none'});
+              if(position===1)Object.assign(label.style,{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'});target.appendChild(label);
+            });
+          }
+          cell.appendChild(element);row.appendChild(cell);
+        });
+        row.style.gridTemplateColumns='repeat('+row.children.length+',minmax(0,1fr))';
+        return row.children.length?row.outerHTML:'';
+      }).join('');
+    }
+    function legacyProgressBarHtml(slot, sample = null) {
+      const maximum = Math.max(0, Number(sample ? sample[1] : $('sampleProgressMax').value) || 0);
+      if (!slot.ShowProgressBar || (!sample && !$('sampleShowProgress').checked) || !maximum) return '';
+      const current = Math.max(0, Math.min(maximum, Number(sample ? sample[0] : $('sampleProgressCurrent').value) || 0));
+      const finite = (value, fallback, min, max) => Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : fallback;
+      const color = (value, fallback) => {
+        const text = String(value || '');
+        // Settings use WPF #AARRGGBB rather than CSS #RRGGBBAA.
+        if (/^#[0-9a-f]{8}$/i.test(text)) return '#' + text.slice(3) + text.slice(1, 3);
+        return CSS.supports('color', text) ? text : fallback;
+      };
+      const row = document.createElement('div');
+      row.className = 'san-achievement-progress';
+      const width = finite(slot.ProgressBarWidth, 0, 0, 1200);
+      Object.assign(row.style, {display:'flex',alignItems:'center',gap:'8px',flexShrink:'0',boxSizing:'border-box',width:width > 0 ? width + 'px' : '100%',maxWidth:'100%',marginTop:finite(slot.ProgressBarSpacing,6,0,100)+'px',transform:'translate('+finite(slot.ProgressBarOffsetX,0,-1200,1200)+'px,'+finite(slot.ProgressBarOffsetY,0,-600,600)+'px)'});
+      const track = document.createElement('div');
+      const height = finite(slot.ProgressBarHeight,6,1,64);
+      Object.assign(track.style, {flex:'1',minWidth:'0',height:height+'px',borderRadius:Math.min(height/2,finite(slot.ProgressBarCornerRadius,3,0,64))+'px',overflow:'hidden',background:color(slot.ProgressBarTrackColor,'#ffffff30')});
+      track.setAttribute('role','progressbar');
+      track.setAttribute('aria-valuenow',String(current));
+      track.setAttribute('aria-valuemax',String(maximum));
+      const fill = document.createElement('div');
+      Object.assign(fill.style, {height:'100%',width:(current*100/maximum)+'%',borderRadius:'inherit',background:color(slot.ProgressBarFillColor,'#A7E0FF')});
+      track.appendChild(fill);
+      row.appendChild(track);
+      if (slot.ProgressBarShowLabel) {
+        const label = document.createElement('span');
+        label.textContent = current + '/' + maximum;
+        Object.assign(label.style, {whiteSpace:'nowrap',fontSize:finite(slot.ProgressBarLabelFontSize,11,6,48)+'px',color:color(slot.ProgressBarLabelColor,'#ffffff')});
+        row.appendChild(label);
+      }
+      return row.outerHTML;
     }
 
     function plainTextFromHtml(html, fallback = '') {
@@ -3330,6 +3560,15 @@
                 stack.appendChild(el);
               });
               stack.style.display=viewLines.length?'flex':'none';
+              const outer=document.getElementById('outerwrapper');
+              if(outer&&!outer.querySelector('.san-progress-elements')) {
+                const baseHeight=Number(${JSON.stringify(slot.Height || 150)});
+                const panels=[${JSON.stringify(progressBarHtml(slot,0))},${JSON.stringify(progressBarHtml(slot,1))}].map(html=>{
+                  const panel=document.createElement('div');panel.className='san-progress-elements';panel.style.cssText='position:absolute;left:0;width:100%;padding:0 16px 8px;box-sizing:border-box;z-index:10';panel.innerHTML=html;if(!html)panel.style.display='none';outer.appendChild(panel);return panel;
+                });
+                const layout=()=>{const before=panels[0].getBoundingClientRect().height,after=panels[1].getBoundingClientRect().height;outer.style.height=(baseHeight+before+after)+'px';outer.querySelectorAll('#achcont').forEach(card=>{card.style.height=baseHeight+'px';card.style.top=before+'px';card.style.alignSelf='start';card.style.marginTop='0px';});panels[0].style.top='0px';panels[1].style.top=(before+baseHeight)+'px';if(before+after>0)parent.postMessage({type:'san-preview-height',height:Math.ceil(baseHeight+before+after+8)},'*');};
+                layout();setTimeout(layout,100);
+              }
               if(!dragEditEnabled&&viewLines.length){
                 const delay=viewIndex===0?Math.max(0,previewTextIntro-(performance.now()-previewStartedAt)):0;
                 stack.dataset.sanTimingHidden='1';
@@ -3465,7 +3704,7 @@
                 element.style.setProperty('z-index','90','important');
               });
             });
-            if(${JSON.stringify(slot.AutoResizeToContent === true)}){
+            if(${JSON.stringify(slot.AutoResizeToContent === true && !(slot.ProgressBars || []).some(bar=>bar.Enabled!==false))}){
               let requiredHeight=previewHeight;
               document.querySelectorAll('#achcont').forEach(root=>{
                 if(getComputedStyle(root).display==='none')return;
@@ -3969,6 +4208,14 @@
       setLine($('line4'), slot.Line4Template, slot.Line4FontSize, slot.Line4Color, slot.Line4FontFamily, slot.ShowLine4, slot.WrapAllText, slot.Line4Bold, slot.Line4Italic, slot.Line4Underline, slot.Line4Strikethrough, slot.Line4OutlineEnabled, slot.Line4OutlineColor, slot.Line4OutlineSize, slot.Line4ShadowEnabled, slot.Line4ShadowColor, slot.Line4ShadowSize);
       setLine($('line5'), slot.Line5Template, slot.Line5FontSize, slot.Line5Color, slot.Line5FontFamily, slot.ShowLine5, slot.WrapAllText, slot.Line5Bold, slot.Line5Italic, slot.Line5Underline, slot.Line5Strikethrough, slot.Line5OutlineEnabled, slot.Line5OutlineColor, slot.Line5OutlineSize, slot.Line5ShadowEnabled, slot.Line5ShadowColor, slot.Line5ShadowSize);
       setLine($('line6'), slot.Line6Template, slot.Line6FontSize, slot.Line6Color, slot.Line6FontFamily, slot.ShowLine6, slot.WrapAllText, slot.Line6Bold, slot.Line6Italic, slot.Line6Underline, slot.Line6Strikethrough, slot.Line6OutlineEnabled, slot.Line6OutlineColor, slot.Line6OutlineSize, slot.Line6ShadowEnabled, slot.Line6ShadowColor, slot.Line6ShadowSize);
+      $('achievementProgressBarHost').innerHTML = progressBarHtml(slot,1);
+      $('achievementProgressBeforeHost').innerHTML = progressBarHtml(slot,0);
+      toast.style.flexDirection='column';
+      $('toastMain').style.minHeight=Math.max(0,previewHeight-compactPaddingY*2)+'px';
+      for(const id of ['achievementProgressBeforeHost','achievementProgressBarHost'])Object.assign($(id).style,{width:'100%',flexShrink:'0'});
+      const barHeight=$('achievementProgressBeforeHost').getBoundingClientRect().height+$('achievementProgressBarHost').getBoundingClientRect().height;
+      toast.style.setProperty('--builder-toast-height',(previewHeight+barHeight)+'px');
+      $('achievementProgressBarHost').style.display = $('achievementProgressBarHost').innerHTML ? '' : 'none';
       renderIcon(slot);
       renderIcon(slot, 'secondaryIconWrap', slot.SecondaryIconSource || 'None', slot.SecondaryIconSize || slot.IconSize);
 
@@ -3996,7 +4243,7 @@
         renderCover(target, normalizeImageInput($('coverUrl').value), transition.GameCoverWidth, coverHeight, Math.max(4, slot.CornerRadius / 2.5), slot.ShowCoverBackground !== false, slot.CoverBackgroundColor);
       }
 
-      positionToast(toast, stage, slot, transition.OverlayPosition);
+      positionToast(toast, stage, {...slot,Height:previewHeight+barHeight}, transition.OverlayPosition);
       applyAnimation(toast, transition, slot);
       applyManualOffsets();
       if (transition.EnableGameCoverInOverlay && slot.AutoResizeToContent && transition.CenterGameCoverVertically) {
@@ -4094,12 +4341,26 @@
       if (!obj) return;
       const slot = obj.CustomStyleSlot || {};
       const transition = obj.Transition || {};
+      progressBarDefinitions = JSON.parse(JSON.stringify(slot.ProgressBars || (slot.ShowProgressBar ? [{Id:crypto.randomUUID(),Enabled:true,Source:0,Placement:1,...Object.fromEntries(Object.entries(slot).filter(([key])=>key.startsWith('ProgressBar')).map(([key,value])=>[key.slice(11),value]))}] : [])));
+      editProgressElements();
       const assign = (id, value) => {
         if (value !== undefined && $(id)) $(id).value = value;
       };
       const check = (id, value) => {
         if (value !== undefined && $(id)) $(id).checked = !!value;
       };
+      check('ShowProgressBar', slot.ShowProgressBar === true);
+      assign('ProgressBarWidth', slot.ProgressBarWidth ?? 0);
+      assign('ProgressBarHeight', slot.ProgressBarHeight ?? 6);
+      assign('ProgressBarCornerRadius', slot.ProgressBarCornerRadius ?? 3);
+      assign('ProgressBarSpacing', slot.ProgressBarSpacing ?? 6);
+      assign('ProgressBarFillColor', slot.ProgressBarFillColor ?? "#A7E0FF");
+      assign('ProgressBarTrackColor', slot.ProgressBarTrackColor ?? "#30FFFFFF");
+      check('ProgressBarShowLabel', slot.ProgressBarShowLabel === true);
+      assign('ProgressBarLabelColor', slot.ProgressBarLabelColor ?? "#FFFFFF");
+      assign('ProgressBarLabelFontSize', slot.ProgressBarLabelFontSize ?? 11);
+      assign('ProgressBarOffsetX', slot.ProgressBarOffsetX ?? 0);
+      assign('ProgressBarOffsetY', slot.ProgressBarOffsetY ?? 0);
       const enumName = (value, names, fallback) => {
         if (typeof value === 'string' && names.includes(value)) return value;
         const numeric = Number(value);

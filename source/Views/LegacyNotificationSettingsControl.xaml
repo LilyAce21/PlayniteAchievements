@@ -3344,6 +3344,8 @@
                                                      </StackPanel>
                                                  </Border>
 
+
+
                                                  <Border Style="{StaticResource SettingGroupCardStyle}" Margin="0,0,0,8">
                                                      <StackPanel>
                                                          <TextBlock Text="Custom text templates (wildcards)"
@@ -3780,28 +3782,127 @@
                                                                 VerticalAlignment="Center"/>
                                                  </Grid>
 
-                                                 <Grid Margin="0,0,0,8">
-                                                     <Grid.ColumnDefinitions>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                         <ColumnDefinition Width="Auto"/>
-                                                     </Grid.ColumnDefinitions>
-                                                     <TextBlock Text="Background image:"
-                                                                VerticalAlignment="Center"
-                                                                Margin="0,0,8,0"
-                                                                FontWeight="SemiBold"/>
-                                                     <DockPanel Grid.Column="1" LastChildFill="True">
-                                                         <Button Content="Browse"
-                                                                 Width="70"
-                                                                 Click="NotificationsCustomBackgroundImageBrowse_Click"/>
-                                                         <Button Content="Clear"
-                                                                 Width="85"
-                                                                 Margin="8,0,0,0"
-                                                                 Click="NotificationsCustomBackgroundImageClear_Click"/>
-                                                         <!--<TextBox Text="{Binding OverlayCustomBackgroundImagePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                                  IsReadOnly="True"
-                                                                  Margin="8,0,0,0"/>-->
-                                                     </DockPanel>
-                                                 </Grid>
+                                                 <Border Style="{StaticResource SettingGroupCardStyle}" Margin="0,0,0,8">
+                                                     <StackPanel>
+                                                         <DockPanel><TextBlock Text="Progress bar elements" Style="{StaticResource SubSectionHeaderStyle}"/><Button Content="Add bar" Click="NotificationsAddProgressBar_Click" HorizontalAlignment="Right"/></DockPanel>
+                                                         <CheckBox Content="Show Progress Bar" IsChecked="{Binding OverlayCustomPreviewShowProgress}" Margin="0,8,0,6"/>
+                                                         <TextBlock Text="Each row reserves its own space above or below the main content. Bars can share a row. Bars without a valid counter are hidden. Game and account bars use sample values in previews." TextWrapping="Wrap" Style="{StaticResource MutedTextStyle}" Margin="0,0,0,8"/>
+                                                         <ItemsControl ItemsSource="{Binding OverlayCustomProgressBars}">
+                                                             <ItemsControl.ItemTemplate><DataTemplate>
+                                                                 <Border BorderThickness="1" BorderBrush="#40808080" Padding="10" Margin="0,0,0,8"><Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"><Expander.Header><TextBlock Text="{Binding EditorTitle}"/></Expander.Header><StackPanel>
+                                                                     <WrapPanel>
+                                                                         <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" VerticalAlignment="Center"/>
+                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Remove" Tag="{Binding}" Click="NotificationsRemoveProgressBar_Click" HorizontalAlignment="Right"/>
+                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Down" Tag="{Binding}" Click="NotificationsMoveProgressBarDown_Click"/>
+                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Up" Tag="{Binding}" Click="NotificationsMoveProgressBarUp_Click"/>
+                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Left" Tag="{Binding}" Click="NotificationsMoveProgressBarLeft_Click" ToolTip="Join the previous bar's row, or move left within the row"/>
+                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Right" Tag="{Binding}" Click="NotificationsMoveProgressBarRight_Click" ToolTip="Move right within the row, or move into a new row"/>
+                                                                     </WrapPanel>
+                                                                     <TextBlock Text="Progress source" Margin="0,8,0,3"/>
+                                                                     <ComboBox ItemsSource="{x:Static local:NotificationBarSources.All}" DisplayMemberPath="Name" SelectedValuePath="Value" SelectedValue="{Binding Source, Mode=TwoWay}"/>
+                                                                     <TextBlock Text="Placement" Margin="0,8,0,3"/>
+                                                                     <ComboBox ItemsSource="{x:Static local:NotificationBarSources.Placements}" SelectedItem="{Binding Placement, Mode=TwoWay}"/>
+                                                                     <StackPanel Margin="0,8,0,6"><TextBlock Text="Same row as" Margin="0,0,0,3"/><ComboBox ItemsSource="{Binding RowTargets}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding RowAnchorId, Mode=OneWay}" SelectionChanged="NotificationsProgressBarRowTarget_SelectionChanged" ToolTip="Linked bars move together when any bar changes placement"/></StackPanel>
+                                                                     <WrapPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Caption position"/><ComboBox Width="150" ItemsSource="{x:Static local:NotificationBarSources.TextPositions}" SelectedItem="{Binding CaptionPosition}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Caption alignment"/><ComboBox Width="150" ItemsSource="{x:Static local:NotificationBarSources.TextAlignments}" SelectedItem="{Binding CaptionAlignment}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Counter position"/><ComboBox Width="150" ItemsSource="{x:Static local:NotificationBarSources.TextPositions}" SelectedItem="{Binding TextPosition}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Counter alignment"/><ComboBox Width="150" ItemsSource="{x:Static local:NotificationBarSources.TextAlignments}" SelectedItem="{Binding CounterAlignment}"/></StackPanel>
+                                                                     </WrapPanel>
+                                                                     <TextBlock Text="Caption (optional)" Margin="0,8,0,3"/>
+                                                                     <TextBox Text="{Binding Title, UpdateSourceTrigger=LostFocus}"/>
+                                                                     <CheckBox Content="Show X/Y label" IsChecked="{Binding ShowLabel}" Margin="0,8,0,6"/>
+                                                                     <StackPanel DataContext="{Binding CaptionFont}" Margin="0,4,0,8">
+                                                                         <TextBlock Text="Caption font" Margin="0,0,0,6"/>
+                                                                         <WrapPanel>
+                                                                             <TextBlock Text="Font:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                                             <ComboBox Width="160" IsEditable="True" IsTextSearchEnabled="True" ItemsSource="{Binding NotificationFontFamilies, RelativeSource={RelativeSource AncestorType=UserControl}}" Text="{Binding Family, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="55" Text="{Binding Size, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Bold" IsChecked="{Binding Bold}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Italic" IsChecked="{Binding Italic}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Underline" IsChecked="{Binding Underline}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Strikethrough" IsChecked="{Binding Strikethrough}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                         </WrapPanel>
+                                                                         <WrapPanel>
+                                                                             <TextBlock Text="Color:" VerticalAlignment="Center" Margin="0,0,6,0"/><Button Content="Pick" Tag="Color" Click="NotificationsPickBarFontColor_Click" Margin="0,0,6,6"/><TextBox Width="95" Text="{Binding Color, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Outline" IsChecked="{Binding OutlineEnabled}" VerticalAlignment="Center" Margin="0,0,6,6"/>
+                                                                             <Button Content="Pick" Tag="OutlineColor" Click="NotificationsPickBarFontColor_Click" Margin="0,0,6,6"/><TextBox Width="95" Text="{Binding OutlineColor, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="45" Text="{Binding OutlineSize, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Shadow" IsChecked="{Binding ShadowEnabled}" VerticalAlignment="Center" Margin="0,0,6,6"/>
+                                                                             <Button Content="Pick" Tag="ShadowColor" Click="NotificationsPickBarFontColor_Click" Margin="0,0,6,6"/><TextBox Width="95" Text="{Binding ShadowColor, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="45" Text="{Binding ShadowSize, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                         </WrapPanel>
+                                                                     </StackPanel>
+                                                                     <StackPanel DataContext="{Binding CounterFont}" Margin="0,4,0,8">
+                                                                         <TextBlock Text="Counter font" Margin="0,0,0,6"/>
+                                                                         <WrapPanel>
+                                                                             <TextBlock Text="Font:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                                             <ComboBox Width="160" IsEditable="True" IsTextSearchEnabled="True" ItemsSource="{Binding NotificationFontFamilies, RelativeSource={RelativeSource AncestorType=UserControl}}" Text="{Binding Family, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="55" Text="{Binding Size, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Bold" IsChecked="{Binding Bold}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Italic" IsChecked="{Binding Italic}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Underline" IsChecked="{Binding Underline}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Strikethrough" IsChecked="{Binding Strikethrough}" VerticalAlignment="Center" Margin="0,0,12,6"/>
+                                                                         </WrapPanel>
+                                                                         <WrapPanel>
+                                                                             <TextBlock Text="Color:" VerticalAlignment="Center" Margin="0,0,6,0"/><Button Content="Pick" Tag="Color" Click="NotificationsPickBarFontColor_Click" Margin="0,0,6,6"/><TextBox Width="95" Text="{Binding Color, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Outline" IsChecked="{Binding OutlineEnabled}" VerticalAlignment="Center" Margin="0,0,6,6"/>
+                                                                             <Button Content="Pick" Tag="OutlineColor" Click="NotificationsPickBarFontColor_Click" Margin="0,0,6,6"/><TextBox Width="95" Text="{Binding OutlineColor, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="45" Text="{Binding OutlineSize, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <CheckBox Content="Shadow" IsChecked="{Binding ShadowEnabled}" VerticalAlignment="Center" Margin="0,0,6,6"/>
+                                                                             <Button Content="Pick" Tag="ShadowColor" Click="NotificationsPickBarFontColor_Click" Margin="0,0,6,6"/><TextBox Width="95" Text="{Binding ShadowColor, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                             <TextBlock Text="Size:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="45" Text="{Binding ShadowSize, UpdateSourceTrigger=LostFocus}" Margin="0,0,12,6"/>
+                                                                         </WrapPanel>
+                                                                     </StackPanel>
+                                                                     <WrapPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Width (0 = auto)"/><TextBox Width="120" Text="{Binding Width, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Thickness"/><TextBox Width="120" Text="{Binding Height, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Corner radius"/><TextBox Width="120" Text="{Binding CornerRadius, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Space above"/><TextBox Width="120" Text="{Binding Spacing, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Left inset"/><TextBox Width="120" Text="{Binding LeftInset, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Right inset"/><TextBox Width="120" Text="{Binding RightInset, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                                                                     </WrapPanel>
+                                                                     <TextBlock Text="Colors and gradients" Margin="0,4,0,6"/>
+                                                                     <WrapPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Fill color"/><StackPanel Orientation="Horizontal"><Button Content="Pick" Tag="FillColor" Click="NotificationsPickProgressBarColor_Click" Margin="0,0,4,0"/><TextBox Width="100" Text="{Binding FillColor, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel></StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Track color"/><StackPanel Orientation="Horizontal"><Button Content="Pick" Tag="TrackColor" Click="NotificationsPickProgressBarColor_Click" Margin="0,0,4,0"/><TextBox Width="100" Text="{Binding TrackColor, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel></StackPanel>
+                                                                     </WrapPanel>
+                                                                     <WrapPanel>
+                                                                         <StackPanel Margin="0,0,12,8" MaxWidth="540">
+                                                                             <StackPanel Orientation="Horizontal"><CheckBox Content="Fill gradient" IsChecked="{Binding FillGradientEnabled}" VerticalAlignment="Center"/><Button Content="Add color" Tag="Fill" Click="NotificationsAddGradientColor_Click" IsEnabled="{Binding CanAddFillGradientColor}" Margin="8,0,0,6"/></StackPanel>
+                                                                             <ItemsControl ItemsSource="{Binding FillGradientStops}">
+                                                                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                                                 <ItemsControl.ItemTemplate><DataTemplate>
+                                                                                     <StackPanel Orientation="Horizontal" Margin="0,0,10,6">
+                                                                                         <Border Width="22" Height="22" Background="{Binding SwatchColor}" BorderBrush="#808080" BorderThickness="1" Margin="0,0,4,0"/>
+                                                                                         <TextBox Width="95" Text="{Binding Color, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Color as #RRGGBB or #AARRGGBB"/>
+                                                                                         <Button Content="Pick" Click="NotificationsEditGradientColor_Click" Margin="4,0"/>
+                                                                                         <Button Content="Remove" Click="NotificationsRemoveGradientColor_Click"/>
+                                                                                     </StackPanel>
+                                                                                 </DataTemplate></ItemsControl.ItemTemplate>
+                                                                             </ItemsControl>
+                                                                         </StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8" MaxWidth="540">
+                                                                             <StackPanel Orientation="Horizontal"><CheckBox Content="Track gradient" IsChecked="{Binding TrackGradientEnabled}" VerticalAlignment="Center"/><Button Content="Add color" Tag="Track" Click="NotificationsAddGradientColor_Click" IsEnabled="{Binding CanAddTrackGradientColor}" Margin="8,0,0,6"/></StackPanel>
+                                                                             <ItemsControl ItemsSource="{Binding TrackGradientStops}">
+                                                                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                                                 <ItemsControl.ItemTemplate><DataTemplate>
+                                                                                     <StackPanel Orientation="Horizontal" Margin="0,0,10,6">
+                                                                                         <Border Width="22" Height="22" Background="{Binding SwatchColor}" BorderBrush="#808080" BorderThickness="1" Margin="0,0,4,0"/>
+                                                                                         <TextBox Width="95" Text="{Binding Color, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Color as #RRGGBB or #AARRGGBB"/>
+                                                                                         <Button Content="Pick" Click="NotificationsEditGradientColor_Click" Margin="4,0"/>
+                                                                                         <Button Content="Remove" Click="NotificationsRemoveGradientColor_Click"/>
+                                                                                     </StackPanel>
+                                                                                 </DataTemplate></ItemsControl.ItemTemplate>
+                                                                             </ItemsControl>
+                                                                         </StackPanel>
+                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Gradient angle (0 = left to right)"/><TextBox Width="150" Text="{Binding GradientAngle, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                                                                     </WrapPanel>
+                                                                 </StackPanel></Expander></Border>
+                                                             </DataTemplate></ItemsControl.ItemTemplate>
+                                                         </ItemsControl>
+                                                     </StackPanel>
+                                                 </Border>
 
                                                  <StackPanel Margin="0,0,0,8">
                                                      <CheckBox Content="Auto resize window to fit text"
@@ -3860,7 +3961,7 @@
                                                          <ColumnDefinition Width="8"/>
                                                          <ColumnDefinition Width="Auto"/>
                                                      </Grid.ColumnDefinitions>
-                                                     <TextBlock Text="Custom banner image:"
+                                                     <TextBlock Text="Custom banner/background image:"
                                                                 VerticalAlignment="Center"
                                                                 Margin="0,0,8,0"
                                                                 FontWeight="SemiBold"

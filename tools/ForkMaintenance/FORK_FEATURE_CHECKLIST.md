@@ -1,4 +1,23 @@
-# Santodan fork feature checklist
+﻿# Santodan fork feature checklist
+
+## Custom notification progress bar elements - 2026-10-21
+
+- Preserve independent bars for achievement progress, game completion, points,
+  collection/prestige scores, and level experience in WPF, SAN, and the builder.
+- **Same row as** explicitly selects a bar. Change either linked bar's placement,
+  reorder bars, and remove the leader: surviving row members remain together.
+- Hide the individual sample counter with **Show Progress Bar**. Its bar disappears,
+  automatic-width neighbors fill the row, and empty rows contribute no height.
+  Ordinary live achievements without numeric counters use the same fallback.
+- Caption position/alignment precedes counter position/alignment. Check each font's
+  family, size, color, bold, italic, underline, strikethrough, outline, and shadow.
+  Small foreground glyphs remain sharp with effects and equivalent RGB/ARGB colors.
+- Add, pick, and remove gradient stops; cancel a picker without changing the list.
+  Check alpha hex values, fill/track gradients, direction, and solid fallbacks.
+- Collapse a bar's editor and confirm its state survives saving a slot and reloading.
+- Preserve all settings through style slots and JSON import/export.
+- Show Notification and automatic preview display sample counters consistently.
+- Use the single **Custom banner/background image** picker.
 
 ## Custom schema cache isolation - 2026-10-20
 
