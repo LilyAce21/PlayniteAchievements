@@ -29,6 +29,9 @@
         <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Completed}"/>
         <Setter Property="Visibility" Value="{Binding ShowCompletionBadge, Converter={StaticResource BoolToVis}}"/>
         <Setter Property="helpers:CompletionBadge.ShowsPlatinum" Value="{Binding ShowPlatinumInCompletionSpot}"/>
+        <!-- The plain completed badge also follows the "Platinum icon size" setting. -->
+        <Setter Property="RenderTransformOrigin" Value="0.5,1"/>
+        <Setter Property="RenderTransform" Value="{Binding Converter={StaticResource PlatinumIconTransform}, ConverterParameter=BadgeRarityCompleted}"/>
         <Style.Triggers>
             <MultiTrigger>
                 <MultiTrigger.Conditions>

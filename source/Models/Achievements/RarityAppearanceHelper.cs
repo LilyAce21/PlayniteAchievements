@@ -754,6 +754,11 @@ namespace PlayniteAchievements.Models.Achievements
             {
                 case "TrophyPlatinum":
                 case "CapstonePlatinum":
+                // The plain "100% completed" badge (no capstone) is the game's platinum stand-in in the
+                // completion bar, pie chart and showcase, so it follows the Platinum icon size too.
+                case "BadgeCompletedGame":
+                case "BadgeRarityCompleted":
+                case "ScoreBadgeCompletedGame":
                     percent = settings.PlatinumIconScalePercent;
                     break;
                 // In trophy mode the rarity tiers are drawn as trophies (Ultra Rare = blue, Rare = gold,
