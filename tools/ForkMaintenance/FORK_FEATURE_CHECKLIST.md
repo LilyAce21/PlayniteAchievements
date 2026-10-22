@@ -1,5 +1,20 @@
 # Santodan fork feature checklist
 
+## PS5 Experience rank badge compatibility - 2026-10-22
+
+- Already migrated PS5 Experience themes must be detected when rank aliases are
+  missing. Apply Limited migration again, then restart; no theme reinstall needed.
+- Verify every Bronze/Silver/Gold/Plat/Master rank (1-5) resolves to exactly one
+  visible badge in each theme section. In particular, level 54 / Silver5 must
+  display a silver badge beside its level number in the trophy page and menu.
+- Preserve existing 1/2/3 triggers and native artwork; 4/5 use tier 3, Master uses
+  Plat (or Plat1 if no Plat artwork exists). Do not alter scores or actual ranks.
+- Repeat migration without duplicate triggers. Restore the original file through
+  backup/revert. Unrelated plugins' rank bindings remain untouched.
+- Validation: Release rebuild and 16 migration tests passed. Installed-theme
+  in-memory check covered 25 ranks in five sections, valid XML, and idempotence.
+  Reporter-side live verification remains pending.
+
 ## Progress row layout and editor defaults - 2026-10-22
 
 - Group three bars in one row and another bar in a second row. Editing the first

@@ -113,6 +113,8 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 ## Next release - TBD
 
+## 2026-10-XX - v4.1.1.1
+
 - v4.1.1 merge
 - Fixed the missing key for the `Cancel` button for the `Logs` buttons
 - Fixed the theme migration for `Solaris` theme
@@ -138,6 +140,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Fixed the `Show Notification` not respecting the `Custom Style`
 - Fixed the `Custom Notification` not taking into consideration the settings in the `Notifications` --> `Platforms`
 - Fix `Custom Notification` bypassing platform filters
+- Fixed the missing ranks from the `Theme Migration` for the `PS5-Experience`
 
 ## 2026-10-18 - v4.1.0.1
 
@@ -151,6 +154,9 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Clicking the `New Theme Migrated` popup will restart playnite automatically
 - Fixed achievement notification replay after cache relocks and update fork bundle
 - Added some log management buttons in the `General`--> `Maintenance` window
+
+## Old Changelogs
+<details>
 
 ## 2026-10-05 - v4.0.1.1
 
@@ -189,9 +195,6 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Added a setting for the extensions to continue to search for the local achievement file when it doesn't exist.
   - It will respect all the default nd custom folders, for all acceptable files
   - The setting for the interval for this check is under `Local` platform in the top of the `Local Achievements Folders and Settings` (default is 5 seconds)
-
-## Old Changelogs
-<details>
 
 ## 2026-09-14 - v3.2.1.1
 

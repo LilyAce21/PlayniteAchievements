@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Playnite.SDK;
 using Playnite.SDK.Models;
 using Playnite.SDK.Plugins;
@@ -13,6 +13,33 @@ namespace PlayniteAchievements.ThemeMigration.Tests
     [TestClass]
     public class ThemeDiscoveryServiceTests
     {
+        [TestMethod]
+        public async Task MigrateThemeAsync_RepairsAlreadyMigratedPs5RanksAndRestoresBackup()
+        {
+            var themesRoot=CreateThemesRoot();
+            try
+            {
+                var themePath=Path.Combine(themesRoot,"Fullscreen","PS5RankTest");
+                Directory.CreateDirectory(themePath);
+                File.WriteAllText(Path.Combine(themePath,"theme.yaml"),"Name: PS5 Rank Test\nVersion: 1.0\n");
+                var path=Path.Combine(themePath,"Main.xaml");
+                var original=PlayniteAchievements.Tests.Services.Ps5RankMigrationTests.Badges();
+                File.WriteAllText(path,original);
+                var discovery=new ThemeDiscoveryService(new FakeLogger(),new FakePlayniteApi());
+                Assert.IsTrue(discovery.DiscoverThemes(themesRoot).Single().NeedsMigration);
+                var service=new ThemeMigrationService(new FakeLogger());
+                var result=await service.MigrateThemeAsync(themePath,MigrationMode.Limited);
+                Assert.IsTrue(result.Success,result.Message);
+                var migrated=File.ReadAllText(path);
+                StringAssert.Contains(migrated,"Value=\"Silver5\"");StringAssert.Contains(migrated,"Value=\"Master1\"");
+                Assert.IsTrue((await service.MigrateThemeAsync(themePath,MigrationMode.Limited)).Success);
+                Assert.AreEqual(migrated,File.ReadAllText(path));
+                Assert.IsTrue((await service.RevertThemeAsync(themePath)).Success);
+                Assert.AreEqual(original,File.ReadAllText(path));
+            }
+            finally { DeleteDirectory(themesRoot); }
+        }
+
         [DataTestMethod]
         [DataRow(MigrationMode.Limited, true, false)]
         [DataRow(MigrationMode.Full, false, false)]

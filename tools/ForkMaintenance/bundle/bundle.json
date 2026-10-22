@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-22T12:44:26.0015499Z",
+    "generatedUtc":  "2026-10-22T13:01:05.5235812Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "118FD8A6126B3E287F7D2EE0170CE7C280E6409D90A8602D9F192778F5266455"
+                  "sha256":  "FEE6B0EE11B02ADBBE389D114F35B45FC229847D8CDA0C7E049A37BF0C437E57"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -439,6 +439,10 @@
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/NewGameAutoRefreshPolicyTests.cs",
                              "sha256":  "478BA33685EC8CD25CFFA1C7551ED02F907331848A3FFF716786A787BB6A2BC9"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Services/Ps5RankMigrationTests.cs",
+                             "sha256":  "7804BEA69578C714B094A37424FAFAA33B9D8BF8955F4C88F91AD239FF07DF9E"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Steam/SteamAsyncConfigTokenHelperTests.cs",

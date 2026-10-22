@@ -413,6 +413,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                     "PlayniteAchievementsSantodanSantodan");
                 int localProviderCompatibilityCount = NeedsLocalProviderCompatibility(content) ? 1 : 0;
                 if (NeedsPs5TrophyProgressMigration(content)) localProviderCompatibilityCount++;
+                if (NeedsPs5RankMigration(content)) localProviderCompatibilityCount++;
 
                 int totalCount = fullscreenHelperCount
                     + pluginIdCount
@@ -554,6 +555,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             {
                 content = ProcessStandardFile(content, originalContent, ref textReplacements);
                 content = MigratePs5TrophyProgress(content, ref textReplacements);
+                content = MigratePs5Ranks(content, ref textReplacements);
             }
 
             // Apply selected modernization replacements if enabled
@@ -801,6 +803,52 @@ namespace PlayniteAchievements.Services.ThemeMigration
 
             result = ApplyLocalProviderCompatibility(result, ref replacements);
 
+            return result;
+        }
+
+        internal static bool NeedsPs5RankMigration(string content)
+        {
+            int replacements = 0;
+            return MigratePs5Ranks(content, ref replacements) != content;
+        }
+
+        internal static string MigratePs5Ranks(string content, ref int replacements)
+        {
+            if (string.IsNullOrEmpty(content) || !content.Contains("Widgets/Trophies/Badges/")) return content;
+            int added = 0;
+            var result = Regex.Replace(content, @"<Image\b[^>]*>[\s\S]*?</Image>", image =>
+            {
+                var text = image.Value;
+                if (!text.Contains("Widgets/Trophies/Badges/")) return text;
+                var triggers = Regex.Matches(text, @"<DataTrigger\b[^>]*>[\s\S]*?</DataTrigger>").Cast<Match>().ToList();
+                var ranks = triggers.Select(trigger => Regex.Match(trigger.Value, @"\bValue\s*=\s*[""'](?<rank>(?:Bronze|Silver|Gold|Plat|Master)\d*?)[""']").Groups["rank"].Value).ToList();
+                var additions = new StringBuilder();
+                foreach (var trigger in triggers)
+                {
+                    if (!Regex.IsMatch(trigger.Value, @"PluginSettings\s+Plugin\s*=\s*PlayniteAchievements\s*,\s*Path\s*=\s*(?:GSRank|Rank)\s*\}")) continue;
+                    var value = Regex.Match(trigger.Value, @"\bValue\s*=\s*[""'](?<rank>(?:Bronze|Silver|Gold|Plat|Master)\d*)[""']");
+                    var rank = value.Groups["rank"].Value;
+                    var aliases = new List<string>();
+                    // Existing 1/2/3 triggers retain their meaning. Extra lower ranks use tier 3.
+                    if (Regex.IsMatch(rank, @"^(Bronze|Silver|Gold|Plat)3$"))
+                    {
+                        aliases.Add(rank.Substring(0, rank.Length - 1) + "4");
+                        aliases.Add(rank.Substring(0, rank.Length - 1) + "5");
+                    }
+                    // Themes without separate Master artwork use their highest platinum badge.
+                    if (rank == "Plat" || (rank == "Plat1" && !content.Contains("/Badges/Plat.png")))
+                        for (int tier = 1; tier <= 5; tier++) aliases.Add("Master" + tier);
+                    foreach (var alias in aliases.Where(alias => !ranks.Contains(alias)))
+                    {
+                        var group = value.Groups["rank"];
+                        additions.Append(trigger.Value.Substring(0, group.Index)).Append(alias).Append(trigger.Value.Substring(group.Index + group.Length));
+                        ranks.Add(alias);
+                        added++;
+                    }
+                }
+                return additions.Length == 0 ? text : text.Replace("</Style.Triggers>", additions + "</Style.Triggers>");
+            });
+            replacements += added;
             return result;
         }
 

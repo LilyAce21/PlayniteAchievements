@@ -16391,7 +16391,7 @@ index c7907bc5645ba8d00ad195bca1cdac14cd243297..53f8d408f3a6b46decbe59f5b938b968
                      }
                      catch (Exception ex)
 diff --git a/source/Services/ThemeMigration/ThemeDiscoveryService.cs b/source/Services/ThemeMigration/ThemeDiscoveryService.cs
-index 3060a8f3b0919e794e8988fdb08c9ff41126556b..cd41dd10c713fac560c1c78f421ccd82d1ed7fd7 100644
+index 3060a8f3b0919e794e8988fdb08c9ff41126556b..7cf353506b2d6fb6811df00923b96dacff12ea6b 100644
 --- a/source/Services/ThemeMigration/ThemeDiscoveryService.cs
 +++ b/source/Services/ThemeMigration/ThemeDiscoveryService.cs
 @@ -1,3 +1,4 @@
@@ -16503,7 +16503,7 @@ index 3060a8f3b0919e794e8988fdb08c9ff41126556b..cd41dd10c713fac560c1c78f421ccd82
                          }
  
                          if (ContainsMigratableReference(content))
-@@ -331,6 +376,36 @@ private static bool ContainsMigratableReference(string content)
+@@ -331,6 +376,37 @@ private static bool ContainsMigratableReference(string content)
                  return false;
              }
  
@@ -16536,11 +16536,12 @@ index 3060a8f3b0919e794e8988fdb08c9ff41126556b..cd41dd10c713fac560c1c78f421ccd82
 +            }
 +
 +            if (ThemeMigrationService.NeedsPs5TrophyProgressMigration(content)) return true;
++            if (ThemeMigrationService.NeedsPs5RankMigration(content)) return true;
 +
              if (content.IndexOf("SuccessStoryFullscreenHelper", StringComparison.OrdinalIgnoreCase) >= 0 ||
                  content.IndexOf("playnite-successstory-plugin", StringComparison.OrdinalIgnoreCase) >= 0 ||
                  content.IndexOf("SSHelper", StringComparison.OrdinalIgnoreCase) >= 0 ||
-@@ -368,7 +443,9 @@ private static bool ContainsNativePlayniteAchievementsSupport(string content)
+@@ -368,7 +444,9 @@ private static bool ContainsNativePlayniteAchievementsSupport(string content)
                  return false;
              }
  
@@ -16552,7 +16553,7 @@ index 3060a8f3b0919e794e8988fdb08c9ff41126556b..cd41dd10c713fac560c1c78f421ccd82
  
          private static string GetStandaloneControlNamePattern(string controlName)
 diff --git a/source/Services/ThemeMigration/ThemeMigrationService.cs b/source/Services/ThemeMigration/ThemeMigrationService.cs
-index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418e7b36111 100644
+index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..271edab40fe0678933a3bda8eb52eeaee2c33b82 100644
 --- a/source/Services/ThemeMigration/ThemeMigrationService.cs
 +++ b/source/Services/ThemeMigration/ThemeMigrationService.cs
 @@ -1,3 +1,4 @@
@@ -16716,7 +16717,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
          /// <summary>
          /// Gets the relative path from themePath to fullPath.
          /// </summary>
-@@ -345,7 +400,30 @@ private string GetRelativePath(string fullPath, string themePath)
+@@ -345,7 +400,31 @@ private string GetRelativePath(string fullPath, string themePath)
                  int successStoryCount = CountOccurrences(content, "SuccessStory");
                  int iconCount = CountOccurrences(content, "\uE820");  // SuccessStory trophy icon (U+E820)
                  int iconEntityCount = CountOccurrences(content, "&#xE820;");
@@ -16734,6 +16735,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
 +                    "PlayniteAchievementsSantodanSantodan");
 +                int localProviderCompatibilityCount = NeedsLocalProviderCompatibility(content) ? 1 : 0;
 +                if (NeedsPs5TrophyProgressMigration(content)) localProviderCompatibilityCount++;
++                if (NeedsPs5RankMigration(content)) localProviderCompatibilityCount++;
 +
 +                int totalCount = fullscreenHelperCount
 +                    + pluginIdCount
@@ -16748,7 +16750,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
  
                  foreach (var mapping in GetSelectedControlMappings(mode, customSelection))
                  {
-@@ -354,6 +432,13 @@ private string GetRelativePath(string fullPath, string themePath)
+@@ -354,6 +433,13 @@ private string GetRelativePath(string fullPath, string themePath)
                      totalCount += CountOccurrences(content, $"PlayniteAchievements_{mapping.Key}");
                  }
  
@@ -16762,15 +16764,16 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
                  if (ShouldModernizeBindings(mode, customSelection))
                  {
                      foreach (var bindingPath in ControlMappings.LegacyToModernBindingPaths.Keys)
-@@ -468,6 +553,7 @@ private List<string> ReadManifest(string backupPath)
+@@ -468,6 +554,8 @@ private List<string> ReadManifest(string backupPath)
              else
              {
                  content = ProcessStandardFile(content, originalContent, ref textReplacements);
 +                content = MigratePs5TrophyProgress(content, ref textReplacements);
++                content = MigratePs5Ranks(content, ref textReplacements);
              }
  
              // Apply selected modernization replacements if enabled
-@@ -552,7 +638,48 @@ private string ProcessYamlFile(string content, string originalContent, ref int r
+@@ -552,7 +640,48 @@ private string ProcessYamlFile(string content, string originalContent, ref int r
          /// </summary>
          private string ProcessStandardFile(string content, string originalContent, ref int replacements)
          {
@@ -16820,7 +16823,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
          }
  
          /// <summary>
-@@ -563,27 +690,75 @@ private string ApplyReplacements(string content, string originalContent, ref int
+@@ -563,27 +692,75 @@ private string ApplyReplacements(string content, string originalContent, ref int
              string result = content;
  
              // Replace SuccessStoryFullscreenHelper first (most specific - fullscreen installation checks)
@@ -16905,7 +16908,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
  
              // Convert DataContext bindings to use PluginSettings with our exposed properties
              // {Binding SelectedGame.DisplayBackgroundImageObject} -> {PluginSettings Plugin=PlayniteAchievements, Path=SelectedGameBackgroundPath}
-@@ -613,9 +788,204 @@ private string ApplyReplacements(string content, string originalContent, ref int
+@@ -613,9 +790,250 @@ private string ApplyReplacements(string content, string originalContent, ref int
              result = result.Replace("&#xE820;", "&#xEDD7;");
              replacements += CountOccurrences(originalContent, "&#xE820;");
  
@@ -16922,6 +16925,52 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
 +
 +            result = ApplyLocalProviderCompatibility(result, ref replacements);
 +
++            return result;
++        }
++
++        internal static bool NeedsPs5RankMigration(string content)
++        {
++            int replacements = 0;
++            return MigratePs5Ranks(content, ref replacements) != content;
++        }
++
++        internal static string MigratePs5Ranks(string content, ref int replacements)
++        {
++            if (string.IsNullOrEmpty(content) || !content.Contains("Widgets/Trophies/Badges/")) return content;
++            int added = 0;
++            var result = Regex.Replace(content, @"<Image\b[^>]*>[\s\S]*?</Image>", image =>
++            {
++                var text = image.Value;
++                if (!text.Contains("Widgets/Trophies/Badges/")) return text;
++                var triggers = Regex.Matches(text, @"<DataTrigger\b[^>]*>[\s\S]*?</DataTrigger>").Cast<Match>().ToList();
++                var ranks = triggers.Select(trigger => Regex.Match(trigger.Value, @"\bValue\s*=\s*[""'](?<rank>(?:Bronze|Silver|Gold|Plat|Master)\d*?)[""']").Groups["rank"].Value).ToList();
++                var additions = new StringBuilder();
++                foreach (var trigger in triggers)
++                {
++                    if (!Regex.IsMatch(trigger.Value, @"PluginSettings\s+Plugin\s*=\s*PlayniteAchievements\s*,\s*Path\s*=\s*(?:GSRank|Rank)\s*\}")) continue;
++                    var value = Regex.Match(trigger.Value, @"\bValue\s*=\s*[""'](?<rank>(?:Bronze|Silver|Gold|Plat|Master)\d*)[""']");
++                    var rank = value.Groups["rank"].Value;
++                    var aliases = new List<string>();
++                    // Existing 1/2/3 triggers retain their meaning. Extra lower ranks use tier 3.
++                    if (Regex.IsMatch(rank, @"^(Bronze|Silver|Gold|Plat)3$"))
++                    {
++                        aliases.Add(rank.Substring(0, rank.Length - 1) + "4");
++                        aliases.Add(rank.Substring(0, rank.Length - 1) + "5");
++                    }
++                    // Themes without separate Master artwork use their highest platinum badge.
++                    if (rank == "Plat" || (rank == "Plat1" && !content.Contains("/Badges/Plat.png")))
++                        for (int tier = 1; tier <= 5; tier++) aliases.Add("Master" + tier);
++                    foreach (var alias in aliases.Where(alias => !ranks.Contains(alias)))
++                    {
++                        var group = value.Groups["rank"];
++                        additions.Append(trigger.Value.Substring(0, group.Index)).Append(alias).Append(trigger.Value.Substring(group.Index + group.Length));
++                        ranks.Add(alias);
++                        added++;
++                    }
++                }
++                return additions.Length == 0 ? text : text.Replace("</Style.Triggers>", additions + "</Style.Triggers>");
++            });
++            replacements += added;
 +            return result;
 +        }
 +
@@ -17110,7 +17159,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
          /// <summary>
          /// Applies modernization replacements: selected control element names and binding paths.
          /// </summary>
-@@ -637,6 +1007,21 @@ private string ApplyModernizationReplacements(
+@@ -637,6 +1055,21 @@ private string ApplyModernizationReplacements(
                  controlReplacements += ReplaceStandaloneControlName(ref result, mapping.Key, mapping.Value);
              }
  
@@ -17132,7 +17181,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
              // Replace LegacyData binding paths with Theme binding paths
              // These appear in XAML as {Binding LegacyData.HasData} etc.
              if (ShouldModernizeBindings(mode, customSelection))
-@@ -675,7 +1060,16 @@ private static IEnumerable<KeyValuePair<string, string>> GetSelectedControlMappi
+@@ -675,7 +1108,16 @@ private static IEnumerable<KeyValuePair<string, string>> GetSelectedControlMappi
          {
              if (mode == MigrationMode.Full)
              {
@@ -17150,7 +17199,7 @@ index e99832f053dc6d8c7c954f48ce6980c4cb61eeee..5fda34bd6e227d598d29b81283f79418
              }
  
              if (mode != MigrationMode.Custom || customSelection == null)
-@@ -684,7 +1078,54 @@ private static IEnumerable<KeyValuePair<string, string>> GetSelectedControlMappi
+@@ -684,7 +1126,54 @@ private static IEnumerable<KeyValuePair<string, string>> GetSelectedControlMappi
              }
  
              return ControlMappings.LegacyToModernControlNames
@@ -22720,13 +22769,46 @@ index 60160aef932e3b17f6cbab12c9f857b7c173c166..40ac2ba9fe34f1457c8854e3f92f71f5
              public void RemoveGameCache(Guid playniteGameId) { }
              public void NotifyCacheInvalidated() { }
 diff --git a/tests/PlayniteAchievements.Tests/Services/ThemeDiscoveryServiceTests.cs b/tests/PlayniteAchievements.Tests/Services/ThemeDiscoveryServiceTests.cs
-index 6d4695ba4e4ec7df1f79cfa27c7639cba5a30d6b..75833efeeca183a8361395fc889872bda993fe00 100644
+index 6d4695ba4e4ec7df1f79cfa27c7639cba5a30d6b..7eeb591ff7572d808175e5114f06252d09e193f5 100644
 --- a/tests/PlayniteAchievements.Tests/Services/ThemeDiscoveryServiceTests.cs
 +++ b/tests/PlayniteAchievements.Tests/Services/ThemeDiscoveryServiceTests.cs
-@@ -13,8 +13,87 @@ namespace PlayniteAchievements.ThemeMigration.Tests
-     [TestClass]
+@@ -1,4 +1,4 @@
+-using Microsoft.VisualStudio.TestTools.UnitTesting;
++﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+ using Playnite.SDK;
+ using Playnite.SDK.Models;
+ using Playnite.SDK.Plugins;
+@@ -14,7 +14,113 @@ namespace PlayniteAchievements.ThemeMigration.Tests
      public class ThemeDiscoveryServiceTests
      {
+         [TestMethod]
+-        public void DiscoverThemes_DoesNotFlagThemeForMigration_WhenThemeFilesContainPlayniteAchievements()
++        public async Task MigrateThemeAsync_RepairsAlreadyMigratedPs5RanksAndRestoresBackup()
++        {
++            var themesRoot=CreateThemesRoot();
++            try
++            {
++                var themePath=Path.Combine(themesRoot,"Fullscreen","PS5RankTest");
++                Directory.CreateDirectory(themePath);
++                File.WriteAllText(Path.Combine(themePath,"theme.yaml"),"Name: PS5 Rank Test\nVersion: 1.0\n");
++                var path=Path.Combine(themePath,"Main.xaml");
++                var original=PlayniteAchievements.Tests.Services.Ps5RankMigrationTests.Badges();
++                File.WriteAllText(path,original);
++                var discovery=new ThemeDiscoveryService(new FakeLogger(),new FakePlayniteApi());
++                Assert.IsTrue(discovery.DiscoverThemes(themesRoot).Single().NeedsMigration);
++                var service=new ThemeMigrationService(new FakeLogger());
++                var result=await service.MigrateThemeAsync(themePath,MigrationMode.Limited);
++                Assert.IsTrue(result.Success,result.Message);
++                var migrated=File.ReadAllText(path);
++                StringAssert.Contains(migrated,"Value=\"Silver5\"");StringAssert.Contains(migrated,"Value=\"Master1\"");
++                Assert.IsTrue((await service.MigrateThemeAsync(themePath,MigrationMode.Limited)).Success);
++                Assert.AreEqual(migrated,File.ReadAllText(path));
++                Assert.IsTrue((await service.RevertThemeAsync(themePath)).Success);
++                Assert.AreEqual(original,File.ReadAllText(path));
++            }
++            finally { DeleteDirectory(themesRoot); }
++        }
++
 +        [DataTestMethod]
 +        [DataRow(MigrationMode.Limited, true, false)]
 +        [DataRow(MigrationMode.Full, false, false)]
@@ -22773,8 +22855,7 @@ index 6d4695ba4e4ec7df1f79cfa27c7639cba5a30d6b..75833efeeca183a8361395fc889872bd
 +            }
 +        }
 +
-         [TestMethod]
--        public void DiscoverThemes_DoesNotFlagThemeForMigration_WhenThemeFilesContainPlayniteAchievements()
++        [TestMethod]
 +        public async Task MigrateThemeAsync_PreservesDistinctSolarisNamesAndReferences()
 +        {
 +            var themesRoot = CreateThemesRoot();
@@ -22812,7 +22893,7 @@ index 6d4695ba4e4ec7df1f79cfa27c7639cba5a30d6b..75833efeeca183a8361395fc889872bd
          {
              var themesRoot = CreateThemesRoot();
  
-@@ -25,7 +104,7 @@ public void DiscoverThemes_DoesNotFlagThemeForMigration_WhenThemeFilesContainPla
+@@ -25,7 +131,7 @@ public void DiscoverThemes_DoesNotFlagThemeForMigration_WhenThemeFilesContainPla
                  File.WriteAllText(Path.Combine(themePath, "theme.yaml"), "Name: Aniki ReMake\nVersion: 2.5.5\n");
                  File.WriteAllText(
                      Path.Combine(themePath, "View.xaml"),
@@ -22821,7 +22902,7 @@ index 6d4695ba4e4ec7df1f79cfa27c7639cba5a30d6b..75833efeeca183a8361395fc889872bd
  
                  var service = new ThemeDiscoveryService(new FakeLogger(), new FakePlayniteApi());
                  var themes = service.DiscoverThemes(themesRoot);
-@@ -121,6 +200,115 @@ public async Task MigrateThemeAsync_AllowsLimitedModeForFullscreenThemes()
+@@ -121,6 +227,115 @@ public async Task MigrateThemeAsync_AllowsLimitedModeForFullscreenThemes()
              }
          }
  

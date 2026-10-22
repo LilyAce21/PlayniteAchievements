@@ -1,5 +1,31 @@
 # Fork maintenance bundle
 
+## PS5 Experience rank badge compatibility - 2026-10-22
+
+The migration now covers all 25 achievement ranks in PS5 Experience's badge
+sections. Existing tier 1/2/3 artwork and triggers retain their meanings; ranks
+4 and 5 use tier 3 artwork, and Master1-5 use the top platinum badge (Plat, or
+Plat1 when the theme has no Plat image). Actual achievement ranks, scores, and
+levels remain unchanged. This repairs issue #80: level 54 produces Silver5,
+which previously matched none of the theme's visibility triggers.
+
+Discovery detects the missing aliases in already migrated themes. Limited
+migration applies the repair, including fullscreen themes, and repeat migration
+adds no duplicate triggers. The existing selective backup/revert flow remains
+available. Install the rebuilt extension, apply migration again, and restart
+Playnite; reinstalling the theme is unnecessary.
+
+The required Release rebuild and 16 focused migration tests passed, including
+all-rank coverage, repeated migration, discovery, and backup restoration.
+An in-memory migration of the installed theme verified exactly one badge for
+each of 25 ranks in all five sections (65 aliases), valid XML, and idempotence.
+The installed theme was not modified during this check. Live verification of
+the reporter's environment remains pending. The refreshed bundle passed three-way
+preflight and actual replay onto clean upstream v4.1.1 with 171 overlays,
+localization, component hashes, and protected-file checks. All four changed
+source/test files match the replay byte for byte. Validation used a temporary
+checkout outside the repository; no additional validation snapshot is included.
+
 ## Progress row layout and editor defaults - 2026-10-22
 
 Progress bar settings are grouped by row. Each row owns its all-around and

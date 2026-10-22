@@ -405,6 +405,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             }
 
             if (ThemeMigrationService.NeedsPs5TrophyProgressMigration(content)) return true;
+            if (ThemeMigrationService.NeedsPs5RankMigration(content)) return true;
 
             if (content.IndexOf("SuccessStoryFullscreenHelper", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 content.IndexOf("playnite-successstory-plugin", StringComparison.OrdinalIgnoreCase) >= 0 ||
