@@ -6286,7 +6286,7 @@ index 7b369bfa892da989d430520fb04a2f9ca1a93ca6..37ce96991a75fb5eca6cc4dbeac4692a
          {
              _innerLogger.Debug($"[{_loggerName}] {message}");
 diff --git a/source/Services/NotificationPublisher.cs b/source/Services/NotificationPublisher.cs
-index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..f144c93fb74a506528608dd73bd26508ea91d599 100644
+index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..90260515ea50227b18c108e03385d9c7b8afc432 100644
 --- a/source/Services/NotificationPublisher.cs
 +++ b/source/Services/NotificationPublisher.cs
 @@ -1,23 +1,84 @@
@@ -6384,7 +6384,7 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..f144c93fb74a506528608dd73bd26508
              }
              catch (Exception ex)
              {
-@@ -85,6 +147,855 @@ public void ShowThemeAutoMigrated(string themeName)
+@@ -85,6 +147,872 @@ public void ShowThemeAutoMigrated(string themeName)
              }
          }
  
@@ -6532,6 +6532,24 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..f144c93fb74a506528608dd73bd26508
 +            AchievementUnlockedEventArgs progressContext = null,
 +            bool isSettingsPreview = false)
 +        {
++            var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
++            if (!isSettingsPreview && progressContext?.IsPreview != true)
++            {
++                var gameId = game?.Id ?? progressContext?.PlayniteGameId ?? Guid.Empty;
++                var store = PlayniteAchievementsPlugin.Instance?.GameCustomDataStore;
++                var gameData = store != null && store.TryLoad(gameId, out var data) ? data : null;
++                var effective = ProviderNotificationPolicy.Resolve(_settings?.Persisted, resolvedProviderKey, gameData);
++                var shouldNotify = progressContext?.IsProgressUpdate == true
++                    ? effective.ProgressToasts
++                    : progressContext?.IsFriendUnlock == true
++                        ? effective.FriendUnlockToasts
++                        : effective.UnlockToasts;
++                if (!shouldNotify)
++                {
++                    return;
++                }
++            }
++
 +            var achievements = unlockedAchievements?
 +                .Where(item => !string.IsNullOrWhiteSpace(item?.Name))
 +                .GroupBy(item => item.Name.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -6552,7 +6570,6 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..f144c93fb74a506528608dd73bd26508
 +                progressContext?.ProgressNum, progressContext?.ProgressDenom, progressContext?.IsProgressUpdate == true,
 +                CreateNotificationBarCounters(game, gameName, achievements[0].Name, achievements[0].Rarity, progressContext));
 +            if (progressContext?.IsProgressUpdate == true) customSoundPath = null;
-+            var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
 +            var enableInAppNotification = localSettings?.EnableInAppUnlockNotifications != false;
 +            if (localSettings?.EnableOverlayDebugLogging == true)
 +            {
@@ -7240,7 +7257,7 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..f144c93fb74a506528608dd73bd26508
          private static string AuthNotificationId(string providerKey) => $"PlayAch-AuthFailed-{providerKey}";
  
          public void ShowProviderAuthFailed(List<string> providerKeys)
-@@ -163,5 +1074,7985 @@ private void OpenPluginSettingsForProvider(string providerKey)
+@@ -163,5 +1091,7985 @@ private void OpenPluginSettingsForProvider(string providerKey)
                  _logger?.Debug(ex, "Failed to open plugin settings from notification click.");
              }
          }

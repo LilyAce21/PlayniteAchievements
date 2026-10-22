@@ -1,5 +1,24 @@
 ﻿# Fork maintenance bundle
 
+## Custom notification provider filters - 2026-10-22
+
+Custom live notifications now resolve the same provider/global notification policy
+and saved per-game behavior overrides as standard notifications before dispatching
+in-app messages, popups, or sound. Unlock, progress, and friend-unlock switches
+are resolved independently; explicit previews bypass the filters. Screenshot and
+recording event processing remains separate.
+
+Platform filters follow the achievement provider. Steam games monitored through
+Local use Local's notification switches, including when Local reads Steam appcache
+stats. The reported Steam-game notification was confirmed in the installed log as
+provider Local; no change to provider selection is needed.
+
+The Release rebuild and 15 existing provider-policy tests passed during fix
+verification. The refreshed bundle passed three-way preflight and actual replay
+onto clean upstream v4.1.1 with 170 overlays, localization, component hashes,
+and protected-file checks. The replayed notification publisher matches the
+working source byte for byte.
+
 ## General notification preview counters - 2026-10-21
 
 General's Show Notification action and the selected/all provider-style previews
@@ -12,6 +31,9 @@ unlock processing. Existing delivery modes and test sounds are preserved.
 
 The Release rebuild and all 28 focused notification tests passed. New tests
 cover every preview source, the hidden-individual fallback, and sample isolation.
+The refreshed bundle passed three-way preflight and actual replay onto clean
+upstream v4.1.1: 170 overlays, localization, hashes, and protected-file checks.
+All five changed code/test/guide files match the working source byte for byte.
 
 ## Excluded-folder variables - 2026-10-21
 

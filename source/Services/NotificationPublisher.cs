@@ -291,6 +291,24 @@ namespace PlayniteAchievements.Services
             AchievementUnlockedEventArgs progressContext = null,
             bool isSettingsPreview = false)
         {
+            var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
+            if (!isSettingsPreview && progressContext?.IsPreview != true)
+            {
+                var gameId = game?.Id ?? progressContext?.PlayniteGameId ?? Guid.Empty;
+                var store = PlayniteAchievementsPlugin.Instance?.GameCustomDataStore;
+                var gameData = store != null && store.TryLoad(gameId, out var data) ? data : null;
+                var effective = ProviderNotificationPolicy.Resolve(_settings?.Persisted, resolvedProviderKey, gameData);
+                var shouldNotify = progressContext?.IsProgressUpdate == true
+                    ? effective.ProgressToasts
+                    : progressContext?.IsFriendUnlock == true
+                        ? effective.FriendUnlockToasts
+                        : effective.UnlockToasts;
+                if (!shouldNotify)
+                {
+                    return;
+                }
+            }
+
             var achievements = unlockedAchievements?
                 .Where(item => !string.IsNullOrWhiteSpace(item?.Name))
                 .GroupBy(item => item.Name.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -311,7 +329,6 @@ namespace PlayniteAchievements.Services
                 progressContext?.ProgressNum, progressContext?.ProgressDenom, progressContext?.IsProgressUpdate == true,
                 CreateNotificationBarCounters(game, gameName, achievements[0].Name, achievements[0].Rarity, progressContext));
             if (progressContext?.IsProgressUpdate == true) customSoundPath = null;
-            var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
             var enableInAppNotification = localSettings?.EnableInAppUnlockNotifications != false;
             if (localSettings?.EnableOverlayDebugLogging == true)
             {

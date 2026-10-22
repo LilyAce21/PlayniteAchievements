@@ -136,6 +136,8 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Added a progress bar like option to the `Achievement Notification`
 - Redesigned the `Notification Style` tab
 - Fixed the `Show Notification` not respecting the `Custom Style`
+- Fixed the `Custom Notification` not taking into consideration the settings in the `Notifications` --> `Platforms`
+- Fix `Custom Notification` bypassing platform filters
 
 ## 2026-10-18 - v4.1.0.1
 
