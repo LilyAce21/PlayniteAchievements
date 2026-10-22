@@ -1,0 +1,35 @@
+# Custom notification progress bar elements
+
+Open the Custom notification editor and find **Progress bar elements** below **Text Formatting**. Select **Add bar**, choose a source, and customize each bar independently. Use **Remove**, **Up**, and **Down** to manage the elements.
+
+Sources:
+
+- Individual achievement: the provider's numeric current/maximum counter.
+- Game achievements completed: unlocked/total achievements.
+- Game achievement points: earned/available points.
+- Game collection score and game prestige score: earned/available scores.
+- Collection level experience and prestige level experience: experience toward the next level.
+
+Bars reserve their own space **Before content** or **After content**. Icons, text, and covers stay in the main content area; notification height grows to accommodate the bars. Within each area, bars follow their list order. Choose another bar under **Same row as** to share its row and available width. Choose **Separate row** to detach it. Links survive reordering; changing any linked bar's placement moves the entire row. Removing a row leader keeps its remaining bars together. Existing previous-bar settings migrate to these links. **Left** joins the preceding bar's row or moves left within the row. **Right** moves right within the row or detaches the bar. **Up** and **Down** change the list order. All action buttons have matching sizes. Click a bar's header arrow to collapse or expand its settings; this state is saved with the style. Missing or zero maximum counters hide only the affected bar and reserve no space.
+
+The position controls are ordered **Caption position ? Caption alignment ? Counter position ? Counter alignment**. Position the caption and X/Y counter independently **Above**, **Inside**, **Below**, **Left**, or **Right** of the track. **Caption alignment** and **Counter alignment** independently offer left, center, and right, including inside the bar. For example, keep the caption on the left and center the counter in the same track. Different alignments use separate text areas to prevent overlap. Inside text increases a thin bar's minimum height so the text fits; long inside captions are truncated with an ellipsis. Each has independent font family, size, color, bold, italic, underline, strikethrough, outline (color and size), and shadow (color and size) controls. Font colors and effects sit below the font/style fields. When caption and counter share a position, alignment, and font styling, they display together; if their font styling differs at the same alignment they stack. Thin tracks grow to fit inside text.
+
+If the provider supplies no valid individual achievement counter, that entire bar disappears automatically. Remaining bars in the same row share the available width, and an empty row contributes no height. Use width **0 (auto)** to expand into the released space; explicitly fixed bar widths remain bounded by their requested width.
+
+Customize the optional caption, width (0 fills available space), thickness, corners, all-around and per-side margins, fill/track/label colors, X/Y label visibility, and label font size. Fixed widths are bounded by the available area. Color controls occupy a separate row beneath the text and dimension fields. Enable **Fill gradient** or **Track gradient**. **Add color** opens a color picker and appends the selected color. Each stop has a swatch, **Pick**, and **Remove**; its hex field also accepts alpha values such as `#8042D6BC`. Canceling the extension picker leaves the list unchanged. Stops are evenly spaced; each gradient supports up to 32 valid colors. **Gradient angle** is shared by fill and track: 0 runs left to right, 90 top to bottom. Invalid stops are ignored, and one stop displays that solid color, while no valid stops fall back to the solid color setting. Colors accept `#RRGGBB` or WPF `#AARRGGBB`, such as translucent white `#30FFFFFF`.
+
+**Show Notification** in General, provider-style preview buttons, the style popup, and automatic preview use the same sample values: individual achievement 16/100, game completion 27/100, points 120/500, collection score 180/600, prestige score 240/800, collection experience 40/100, and prestige experience 65/100. Disable **Show Progress Bar** to check an ordinary achievement; game/account bars still appear. Preview counters are never saved as live progress.
+
+WPF and SAN/WebView notifications, saved style slots, and JSON import/export preserve the element list. The standalone HTML template builder supports the same sources and controls. Existing single-bar settings migrate into an achievement bar when the editor opens.
+
+Use **Custom banner/background image** for the shared image selector. Existing background paths remain readable.
+
+For a live test, launch a game through Playnite, wait for monitoring to establish its baseline, then increase `progress` in the selected local achievement state file while keeping `earned` false. Enable achievement progress notifications. A provider must supply a numeric counter for the individual achievement bar.
+
+Text effects preserve the foreground glyphs. WPF renders outline and shadow copies behind the sharp foreground, and rounds the layout to device pixels. SAN paints the outline behind the text fill. Selecting an equivalent RGB or ARGB color does not change the text's pixels.
+
+Margins apply once to the entire row, including every bar, caption, and counter in it. Expand a row to edit its shared margins; all bars in that row move together. Rows and individual bars have independent collapse controls, saved with the style. Collapsing a settings row does not hide its notification bars. **All sides** sets top, right, bottom, and left to the same value; the field is blank when they differ. Each side can then be adjusted independently. Negative values are supported: for a gap below the main artwork, try **Top margin = -10** or **-20** to pull the bar upward. The main content keeps its configured height; negative margins can move a bar into that area, so check the preview while adjusting. Positive bottom margin adds space below the bar. Empty rows reserve no margins; hiding the first bar keeps the row margins for its visible neighbors. Existing styles use the row leader?s previous top/left/right values and default to bottom margin 0. Detaching a bar copies its row margins; removing the row leader preserves the margins for the remaining bars. Margins persist in saved slots and JSON templates and work in WPF, SAN, and the HTML builder.
+
+With progress rows present, zero top margin attaches the row to the occupied main content instead of the unused portion of its configured height. The main content no longer contributes bottom padding before an after-content row. Positive margins add spacing; negative margins deliberately overlap the neighboring content.
+
+Each row has **Space between bars** for its horizontal gap (default 6 pixels). Set it to 0 to place neighboring bars together. The setting applies between visible bars only and is preserved in saved styles and JSON templates.

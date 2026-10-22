@@ -54,6 +54,11 @@ namespace PlayniteAchievements.Services.UI
                 .Select(row=>row.Where(bar=>bar.Enabled && ForDefinition(settings,bar)!=null).ToList()).Where(row=>row.Count>0);
         }
 
+        private static NotificationBarRowStyle RowStyleFor(LocalSettings settings,List<NotificationProgressBarDefinition> row)
+        {
+            var bars=settings?.OverlayCustomProgressBars?.Count>0?settings.OverlayCustomProgressBars.ToList():row;
+            return NotificationBarLayout.Root(bars,row[0]).RowStyle;
+        }
         private static List<Color> GradientColors(string value) => (value ?? "").Split(new[] { ',', ';', ' ', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(text => { try { return (Color?)ColorConverter.ConvertFromString(text); } catch { return null; } }).Where(color => color.HasValue).Select(color => color.Value).Take(32).ToList();
         private static Brush BarBrush(NotificationProgressBarDefinition bar, bool fill)
@@ -153,14 +158,16 @@ namespace PlayniteAchievements.Services.UI
             var panel = new StackPanel();
             foreach (var definitions in Rows(settings, placement))
             {
-                var row = new Grid { UseLayoutRounding=true,SnapsToDevicePixels=true };
+                var rowStyle=RowStyleFor(settings,definitions);
+                var row = new Grid { UseLayoutRounding=true,SnapsToDevicePixels=true,Margin=new Thickness(rowStyle.Left,rowStyle.Top,rowStyle.Right,rowStyle.Bottom) };
                 Grid.SetIsSharedSizeScope(row, true);
                 foreach (var bar in definitions)
                 {
+                    if(row.Children.Count>0)row.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(rowStyle.Gap) });
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     var snapshot = ForDefinition(settings, bar);
-                    var element = new Grid { Tag = "progressBar-" + bar.Id, Margin = new Thickness(bar.LeftInset + (row.Children.Count > 0 ? 6 : 0),bar.Spacing,bar.RightInset,0), VerticalAlignment = VerticalAlignment.Center };
-                    if (bar.Width > 0) { element.Width = bar.Width; element.HorizontalAlignment = HorizontalAlignment.Left; row.SizeChanged += (_,__) => element.MaxWidth = Math.Max(0, row.ActualWidth / definitions.Count - element.Margin.Left - element.Margin.Right); }
+                    var element = new Grid { Tag = "progressBar-" + bar.Id, Margin = new Thickness(0), VerticalAlignment = VerticalAlignment.Center };
+                    if (bar.Width > 0) { element.Width = bar.Width; element.HorizontalAlignment = HorizontalAlignment.Left; row.SizeChanged += (_,__) => element.MaxWidth = Math.Max(0, (row.ActualWidth - rowStyle.Gap*(definitions.Count-1)) / definitions.Count); }
                     element.RowDefinitions.Add(new RowDefinition { Height=GridLength.Auto, SharedSizeGroup="above" });
                     element.RowDefinitions.Add(new RowDefinition { Height=GridLength.Auto, SharedSizeGroup="track" });
                     element.RowDefinitions.Add(new RowDefinition { Height=GridLength.Auto, SharedSizeGroup="below" });
@@ -195,7 +202,7 @@ namespace PlayniteAchievements.Services.UI
                         else { Grid.SetRow(label,1); Grid.SetColumn(label,position==NotificationBarTextPosition.Left?0:position==NotificationBarTextPosition.Right?2:1); label.Margin=new Thickness(position==NotificationBarTextPosition.Right?8:position==NotificationBarTextPosition.Inside?6:0,0,position==NotificationBarTextPosition.Left?8:position==NotificationBarTextPosition.Inside?6:0,0); }
                         element.Children.Add(label);
                     }
-                    Grid.SetColumn(element,row.Children.Count); row.Children.Add(element);
+                    Grid.SetColumn(element,row.ColumnDefinitions.Count-1); row.Children.Add(element);
                 }
                 panel.Children.Add(row);
             }
@@ -206,14 +213,16 @@ namespace PlayniteAchievements.Services.UI
             var html=new StringBuilder();
             foreach(var row in Rows(settings,placement))
             {
-                html.Append("<div class=\"san-progress-row\" style=\"display:grid;grid-template-columns:repeat(").Append(row.Count).Append(",minmax(0,1fr));column-gap:6px;align-items:stretch;min-width:0\">");
+                var rowStyle=RowStyleFor(settings,row);
+                html.Append("<div class=\"san-progress-row\" style=\"display:grid;grid-template-columns:repeat(").Append(row.Count).Append(",minmax(0,1fr));column-gap:").Append(N(rowStyle.Gap)).Append("px;align-items:stretch;min-width:0;margin:")
+                    .Append(N(rowStyle.Top)).Append("px ").Append(N(rowStyle.Right)).Append("px ").Append(N(rowStyle.Bottom)).Append("px ").Append(N(rowStyle.Left)).Append("px\">");
                 var column = 0;
                 foreach(var bar in row)
                 {
                     column++;
                     var snapshot=ForDefinition(settings,bar);
-                    html.Append("<div class=\"san-progress-cell\" style=\"display:grid;grid-template-rows:subgrid;grid-row:1/span 3;grid-column:").Append(column).Append(";min-width:0\"><div class=\"san-progress-element\" data-progress-id=\"").Append(WebUtility.HtmlEncode(bar.Id)).Append("\" style=\"display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:subgrid;grid-row:1/span 3;align-items:center;box-sizing:border-box;max-width:100%;width:").Append(bar.Width>0?N(bar.Width)+"px":"100%")
-                        .Append(";padding:").Append(N(bar.Spacing)).Append("px ").Append(N(bar.RightInset)).Append("px 0 ").Append(N(bar.LeftInset)).Append("px\">");
+                    html.Append("<div class=\"san-progress-cell\" style=\"display:grid;grid-template-rows:subgrid;grid-row:1/span 3;grid-column:").Append(column).Append(";min-width:0\"><div class=\"san-progress-element\" data-progress-id=\"").Append(WebUtility.HtmlEncode(bar.Id)).Append("\" style=\"display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:subgrid;grid-row:1/span 3;align-items:center;box-sizing:border-box;max-width:100%;width:").Append(bar.Width>0?N(bar.Width)+"px":"auto")
+                        .Append("\">");
                     html.Append("<div role=\"progressbar\" aria-valuemin=\"0\" aria-valuenow=\"").Append(N(Math.Max(0,Math.Min(snapshot.AchievementProgressCurrent.Value,snapshot.AchievementProgressMaximum.Value)))).Append("\" aria-valuemax=\"").Append(snapshot.AchievementProgressMaximum.Value).Append("\" style=\"grid-area:2/2;height:").Append(N(BarHeight(bar))).Append("px;border-radius:").Append(N(Math.Min(bar.CornerRadius,BarHeight(bar)/2))).Append("px;overflow:hidden;background:").Append(BarBackground(bar,false)).Append("\"><div style=\"height:100%;width:").Append(N(Fraction(snapshot)*100)).Append("%;border-radius:inherit;background:").Append(BarBackground(bar,true)).Append("\"></div></div>");
                     foreach(NotificationBarTextPosition position in Enum.GetValues(typeof(NotificationBarTextPosition)))
                     {

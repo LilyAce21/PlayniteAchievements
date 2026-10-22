@@ -1,0 +1,180 @@
+using PlayniteAchievements.Services.Images;
+using PlayniteAchievements.Services.Workshop.Preview;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+
+namespace PlayniteAchievements.Services.Workshop
+{
+    /// <summary>
+    /// Decodes the images a preview model displays and swaps the decoded images into the model,
+    /// ahead of an offscreen render. AsyncImage never starts a load on a tree that is not on
+    /// screen, but applies an ImageSource value at once, so a model whose image properties hold
+    /// decoded images renders complete. Decoding runs off the calling thread; the swap runs on
+    /// the caller's context once every decode has finished.
+    /// </summary>
+    internal sealed class WorkshopPreviewImagePreloader
+    {
+        /// <summary>Decode size of a showcase thumbnail, as the showcase preview requests it.</summary>
+        public const int ThumbnailDecodePixel = 320;
+
+        /// <summary>Decode size of a notification badge or other slot image.</summary>
+        public const int BadgeDecodePixel = 160;
+
+        /// <summary>Decode size of a notification background, as the bundled template requests it.</summary>
+        public const int BackgroundDecodePixel = 768;
+
+        // A style package carries a handful of slot images; this bounds a malformed one.
+        private const int MaxStyleImages = 64;
+
+        private readonly MemoryImageService _imageService;
+
+        /// <param name="imageService">The plugin's image service; null decodes local files directly.</param>
+        public WorkshopPreviewImagePreloader(MemoryImageService imageService)
+        {
+            _imageService = imageService;
+        }
+
+        /// <summary>
+        /// Decodes every image <paramref name="model"/> displays and swaps the images into it.
+        /// Images that fail to decode keep their path. Game data shows the achievement grid,
+        /// whose icons the render decodes itself, so its model is left as it is.
+        /// </summary>
+        public async Task PreloadAsync(WorkshopPreviewModel model, CancellationToken cancel)
+        {
+            switch (model)
+            {
+                case BundlePreviewModel bundle:
+                    foreach (var part in new WorkshopPreviewModel[] { bundle.Toast, bundle.Frame, bundle.Colors, bundle.Sounds })
+                    {
+                        if (part != null)
+                        {
+                            await PreloadAsync(part, cancel);
+                        }
+                    }
+
+                    break;
+                case ShowcasePagePreviewModel showcase:
+                    await PreloadShowcaseAsync(showcase, cancel);
+                    break;
+                case NotificationStylePreviewModel style:
+                    await PreloadStyleAsync(style, cancel);
+                    break;
+            }
+        }
+
+        private async Task PreloadShowcaseAsync(ShowcasePagePreviewModel model, CancellationToken cancel)
+        {
+            var decoded = await DecodeAllAsync(model.ImagePaths, path => ThumbnailDecodePixel, cancel);
+            model.Thumbnails = model.ImagePaths
+                .Select(path => path != null && decoded.TryGetValue(path, out var image) ? image : (object)path)
+                .ToList();
+        }
+
+        // Every slot image of a style package is extracted under the model's scratch directory,
+        // so decoding what is there covers the background, the badges and any per-kind images.
+        private async Task PreloadStyleAsync(NotificationStylePreviewModel model, CancellationToken cancel)
+        {
+            var scratch = model.ScratchDirectory;
+            if (string.IsNullOrWhiteSpace(scratch) || !Directory.Exists(scratch))
+            {
+                return;
+            }
+
+            var files = Directory.EnumerateFiles(scratch, "*", SearchOption.AllDirectories)
+                .Where(ImageFormats.HasSupportedExtension)
+                .Take(MaxStyleImages)
+                .ToList();
+            var background = model.Style?.ToastBackgroundImagePath;
+            var frameBackground = model.Style?.FrameBackgroundImagePath;
+            model.PreloadedImages = await DecodeAllAsync(
+                files,
+                path => string.Equals(path, background, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(path, frameBackground, StringComparison.OrdinalIgnoreCase)
+                    ? BackgroundDecodePixel
+                    : BadgeDecodePixel,
+                cancel);
+        }
+
+        /// <summary>
+        /// Decodes each distinct path or image URI, keyed by it; ones that fail are left out.
+        /// Resumes on the caller's context.
+        /// </summary>
+        internal async Task<Dictionary<string, ImageSource>> DecodeAllAsync(
+            IEnumerable<string> paths,
+            Func<string, int> decodePixel,
+            CancellationToken cancel)
+        {
+            var distinct = (paths ?? Enumerable.Empty<string>())
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var images = await Task.WhenAll(distinct.Select(path => DecodeAsync(path, decodePixel(path), cancel)));
+            cancel.ThrowIfCancellationRequested();
+
+            var result = new Dictionary<string, ImageSource>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < distinct.Count; i++)
+            {
+                if (images[i] != null)
+                {
+                    result[distinct[i]] = images[i];
+                }
+            }
+
+            return result;
+        }
+
+        private async Task<ImageSource> DecodeAsync(string path, int decodePixel, CancellationToken cancel)
+        {
+            try
+            {
+                if (_imageService != null)
+                {
+                    return await _imageService.GetAsync(path, decodePixel, cancel, cacheResult: false).ConfigureAwait(false);
+                }
+
+                return await Task.Run(() => DecodeFile(path, decodePixel), cancel).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        // Without the plugin's image service (tests, tools): a local file only, frozen. A grid
+        // icon's "cachebust|<token>|<path>" source is read as its path.
+        private static BitmapSource DecodeFile(string path, int decodePixel)
+        {
+            const string cacheBustPrefix = "cachebust|";
+            if (path.StartsWith(cacheBustPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var separator = path.IndexOf('|', cacheBustPrefix.Length);
+                path = separator < 0 ? path : path.Substring(separator + 1);
+            }
+
+            if (!Path.IsPathRooted(path) || !File.Exists(path))
+            {
+                return null;
+            }
+
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            image.DecodePixelWidth = decodePixel;
+            image.UriSource = new Uri(path, UriKind.Absolute);
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+    }
+}

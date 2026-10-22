@@ -2777,17 +2777,39 @@
       const seen=new Set();while(bar&&!seen.has(bar)){if(bar===target)return true;seen.add(bar);bar=bars.find(item=>bar.RowAnchorId&&item.Id===bar.RowAnchorId);}return false;
     }
     function setProgressRow(bar,targetId) {
+      const previous=progressRowRoot(progressBarDefinitions,bar);if(!targetId&&previous!==bar)bar.RowStyle=JSON.parse(JSON.stringify(progressRowStyle(previous)));
       bar.RowAnchorId=targetId;
       const root=progressRowRoot(progressBarDefinitions,bar);
       progressBarDefinitions.filter(item=>progressRowRoot(progressBarDefinitions,item)===root).forEach(item=>item.Placement=root.Placement);
       if(targetId){const group=progressBarDefinitions.filter(item=>item!==bar&&progressRowRoot(progressBarDefinitions,item)===root);if(group.length){progressBarDefinitions.splice(progressBarDefinitions.indexOf(bar),1);progressBarDefinitions.splice(progressBarDefinitions.indexOf(group.at(-1))+1,0,bar);}}
     }
+    function progressRowStyle(root) {
+      if(!root.RowStyle)root.RowStyle={Top:root.Spacing??6,Right:root.RightInset??0,Bottom:root.BottomMargin??0,Left:root.LeftInset??0,IsExpanded:true};
+      return root.RowStyle;
+    }
     function editProgressElements() {
       const host = $('progressElementsEditor'); host.replaceChildren();migrateProgressRows(progressBarDefinitions);
+      const rowHosts=new Map();
+      const roots=[...new Set(progressBarDefinitions.map(bar=>progressRowRoot(progressBarDefinitions,bar)))].sort((a,b)=>Number(a.Placement)-Number(b.Placement));
+      roots.forEach((root,index)=>{
+        const style=progressRowStyle(root),section=document.createElement('details');section.className='group progress-row-editor';section.open=style.IsExpanded!==false;
+        section.ontoggle=()=>{if(style.IsExpanded!==section.open){style.IsExpanded=section.open;$('jsonOutput').value=JSON.stringify(buildData(),null,2);}};
+        const heading=document.createElement('summary'),members=progressBarDefinitions.filter(bar=>progressRowRoot(progressBarDefinitions,bar)===root);
+        heading.textContent='Row '+(index+1)+' - '+(Number(root.Placement)===0?'Above content':'Below content')+' ('+members.length+' bars)';section.appendChild(heading);
+        const label=document.createElement('strong');label.textContent='Row margins';section.appendChild(label);
+        const fields=document.createElement('div');fields.className='grid';section.appendChild(fields);
+        const gapLabel=document.createElement('label');gapLabel.className='field';gapLabel.textContent='Space between bars';const gap=document.createElement('input');gap.type='number';gap.min='0';gap.max='600';gap.value=style.Gap??6;gap.addEventListener('input',()=>{style.Gap=Math.max(0,Math.min(600,Number(gap.value)||0));render();});gapLabel.appendChild(gap);fields.appendChild(gapLabel);
+        const uniform=document.createElement('input');uniform.type='number';uniform.min='-600';uniform.max='600';
+        const updateUniform=()=>{const values=['Top','Right','Bottom','Left'].map(key=>Number(style[key]??0));uniform.value=values.every(value=>value===values[0])?values[0]:'';};updateUniform();
+        const allLabel=document.createElement('label');allLabel.className='field';allLabel.textContent='All sides';allLabel.appendChild(uniform);fields.appendChild(allLabel);
+        uniform.addEventListener('change',()=>{if(uniform.value==='')return;for(const key of ['Top','Right','Bottom','Left'])style[key]=Math.max(-600,Math.min(600,Number(uniform.value)||0));editProgressElements();render();});
+        for(const key of ['Top','Right','Bottom','Left']){const label=document.createElement('label');label.className='field';label.textContent=key+' margin';const input=document.createElement('input');input.type='number';input.value=style[key]??0;input.title='Applies to every bar in this row';input.addEventListener('input',()=>{style[key]=Math.max(-600,Math.min(600,Number(input.value)||0));updateUniform();render();});label.appendChild(input);fields.appendChild(label);}
+        const bars=document.createElement('div');bars.className='progress-row-bars';section.appendChild(bars);rowHosts.set(root,bars);host.appendChild(section);
+      });
       progressBarDefinitions.forEach((bar,index) => {
-        const panel = document.createElement('details');panel.open=bar.IsExpanded!==false;panel.ontoggle=()=>{if(bar.IsExpanded!==panel.open){bar.IsExpanded=panel.open;$('jsonOutput').value=JSON.stringify(buildData(),null,2);}};panel.className='group';
-        const heading=document.createElement('summary');heading.textContent='Bar '+(index+1)+' ? '+(bar.Title||progressSources[Number(bar.Source)||0]);panel.appendChild(heading);
-        const remove=document.createElement('button'); remove.type='button'; remove.textContent='Remove'; remove.onclick=()=>{const root=progressRowRoot(progressBarDefinitions,bar),replacement=root===bar?progressBarDefinitions.find(item=>item!==bar&&progressRowRoot(progressBarDefinitions,item)===root):root;if(replacement){if(replacement.RowAnchorId===bar.Id)replacement.RowAnchorId='';progressBarDefinitions.filter(item=>item!==bar&&item!==replacement&&item.RowAnchorId===bar.Id).forEach(item=>item.RowAnchorId=replacement.Id);}progressBarDefinitions.splice(index,1);editProgressElements();render();}; Object.assign(remove.style,{width:'70px',height:'30px'}); panel.appendChild(remove);
+        const panel = document.createElement('details');panel.open=bar.IsExpanded===true;panel.ontoggle=()=>{if(bar.IsExpanded!==panel.open){bar.IsExpanded=panel.open;$('jsonOutput').value=JSON.stringify(buildData(),null,2);}};panel.className='group';
+        const heading=document.createElement('summary');heading.textContent='Bar '+(index+1)+' - '+(bar.Title||progressSources[Number(bar.Source)||0]);panel.appendChild(heading);
+        const remove=document.createElement('button'); remove.type='button'; remove.textContent='Remove'; remove.onclick=()=>{const root=progressRowRoot(progressBarDefinitions,bar),replacement=root===bar?progressBarDefinitions.find(item=>item!==bar&&progressRowRoot(progressBarDefinitions,item)===root):root;if(replacement){if(root===bar)replacement.RowStyle=JSON.parse(JSON.stringify(progressRowStyle(root)));if(replacement.RowAnchorId===bar.Id)replacement.RowAnchorId='';progressBarDefinitions.filter(item=>item!==bar&&item!==replacement&&item.RowAnchorId===bar.Id).forEach(item=>item.RowAnchorId=replacement.Id);}progressBarDefinitions.splice(index,1);editProgressElements();render();}; Object.assign(remove.style,{width:'70px',height:'30px'}); panel.appendChild(remove);
         for(const delta of [-1,1]) { const button=document.createElement('button');button.type='button';button.textContent=delta<0?'Up':'Down';Object.assign(button.style,{width:'70px',height:'30px'});button.onclick=()=>{const target=index+delta;if(target<0||target>=progressBarDefinitions.length)return;[progressBarDefinitions[index],progressBarDefinitions[target]]=[progressBarDefinitions[target],progressBarDefinitions[index]];editProgressElements();render();};panel.appendChild(button); }
         for(const direction of ['Left','Right']) {const button=document.createElement('button');button.type='button';button.textContent=direction;Object.assign(button.style,{width:'70px',height:'30px'});button.onclick=()=>{
           if(direction==='Left'&&index>0){const previous=progressBarDefinitions[index-1];if(progressRowRoot(progressBarDefinitions,previous)!==progressRowRoot(progressBarDefinitions,bar))setProgressRow(bar,previous.Id);else [progressBarDefinitions[index-1],progressBarDefinitions[index]]=[bar,previous];}
@@ -2796,12 +2818,12 @@
         const grid=document.createElement('div');grid.className='grid';panel.appendChild(grid);
         const colorHeading=document.createElement('strong');colorHeading.textContent='Colors and gradients';panel.appendChild(colorHeading);
         const colorGrid=document.createElement('div');colorGrid.className='grid';panel.appendChild(colorGrid);
-        const fields={Enabled:true,Title:'',Source:0,Placement:1,RowAnchorId:'',IsExpanded:true,CaptionPosition:0,CaptionAlignment:bar.TextAlignment??0,TextPosition:4,CounterAlignment:bar.TextAlignment??0,Width:0,Height:6,CornerRadius:3,Spacing:6,LeftInset:0,RightInset:0,ShowLabel:true,FillColor:'#A7E0FF',TrackColor:'#30FFFFFF',FillGradientEnabled:false,FillGradientColors:'#A7E0FF, #6C63FF',TrackGradientEnabled:false,TrackGradientColors:'#303030, #606060',GradientAngle:0};
+        const fields={Enabled:true,Title:'',Source:0,Placement:1,RowAnchorId:'',IsExpanded:false,CaptionPosition:0,CaptionAlignment:bar.TextAlignment??0,TextPosition:4,CounterAlignment:bar.TextAlignment??0,Width:0,Height:6,CornerRadius:3,Spacing:6,LeftInset:0,RightInset:0,BottomMargin:0,ShowLabel:true,FillColor:'#A7E0FF',TrackColor:'#30FFFFFF',FillGradientEnabled:false,FillGradientColors:'#A7E0FF, #6C63FF',TrackGradientEnabled:false,TrackGradientColors:'#303030, #606060',GradientAngle:0};
         for(const [key,fallback] of Object.entries(fields)) {
           if(bar[key]===undefined)bar[key]=fallback;
-          if(key.endsWith('GradientColors')||key==='IsExpanded')continue;
-          const label=document.createElement('label');label.className='field';label.appendChild(document.createTextNode(key==='RowAnchorId'?'Same row as':key.replace(/([A-Z])/g,' $1').trim()));
-          const choices=key==='RowAnchorId'?['Separate row',...progressBarDefinitions.filter(item=>item!==bar&&!progressDependsOn(progressBarDefinitions,item,bar)).map(item=>'Bar '+(progressBarDefinitions.indexOf(item)+1)+' ? '+(item.Title||progressSources[item.Source||0]))]:key==='Source'?progressSources:key==='Placement'?['Before content','After content']:['TextPosition','CaptionPosition'].includes(key)?['Above','Inside','Below','Left','Right']:['CounterAlignment','CaptionAlignment'].includes(key)?['Left','Center','Right']:null;
+          if(key.endsWith('GradientColors')||key==='IsExpanded'||['Spacing','RightInset','BottomMargin','LeftInset'].includes(key))continue;
+          const label=document.createElement('label');label.className='field';label.appendChild(document.createTextNode(key==='RowAnchorId'?'Same row as':key==='Spacing'?'Top margin':key==='LeftInset'?'Left margin':key==='RightInset'?'Right margin':key.replace(/([A-Z])/g,' $1').trim()));
+          const choices=key==='RowAnchorId'?['Separate row',...progressBarDefinitions.filter(item=>item!==bar&&!progressDependsOn(progressBarDefinitions,item,bar)).map(item=>'Bar '+(progressBarDefinitions.indexOf(item)+1)+' - '+(item.Title||progressSources[item.Source||0]))]:key==='Source'?progressSources:key==='Placement'?['Before content','After content']:['TextPosition','CaptionPosition'].includes(key)?['Above','Inside','Below','Left','Right']:['CounterAlignment','CaptionAlignment'].includes(key)?['Left','Center','Right']:null;
           const input=document.createElement(choices?'select':'input');
           if(choices) choices.forEach((name,i)=>{const option=document.createElement('option');option.value=key==='RowAnchorId'?(i===0?'':progressBarDefinitions.filter(item=>item!==bar&&!progressDependsOn(progressBarDefinitions,item,bar))[i-1].Id):i;option.textContent=name;input.appendChild(option);});
           else input.type=typeof fallback==='boolean'?'checkbox':typeof fallback==='number'?'number':'text';
@@ -2847,7 +2869,7 @@
           add.onclick=()=>{if(newPicker.showPicker)newPicker.showPicker();else newPicker.click();};
           editor.append(add,newPicker);colorGrid.appendChild(editor);
         }
-        host.appendChild(panel);
+        rowHosts.get(progressRowRoot(progressBarDefinitions,bar)).appendChild(panel);
       });
     }
     $('addProgressElement').onclick=()=>{progressBarDefinitions.push({Id:crypto.randomUUID()});editProgressElements();render();};
@@ -2867,7 +2889,7 @@
         return bar[fill?'FillGradientEnabled':'TrackGradientEnabled']&&colors.length>1?'linear-gradient('+(number(bar.GradientAngle,0,0,360)+90)+'deg,'+colors.join(',')+')':color(bar[fill?'FillColor':'TrackColor'],fill?'#A7E0FF':'#ffffff30');
       };
       return rows.map(bars=>{
-        const row=document.createElement('div');row.className='san-progress-row';Object.assign(row.style,{display:'grid',columnGap:'6px',alignItems:'stretch',minWidth:'0'});
+        const row=document.createElement('div');row.className='san-progress-row';const style=progressRowStyle(progressRowRoot(bars,bars[0]));Object.assign(row.style,{display:'grid',columnGap:number(style.Gap,6,0,600)+'px',alignItems:'stretch',minWidth:'0',margin:number(style.Top,6,-600,600)+'px '+number(style.Right,0,-600,600)+'px '+number(style.Bottom,0,-600,600)+'px '+number(style.Left,0,-600,600)+'px'});
         bars.forEach(bar=>{
           if(bar.Enabled===false)return;
           const source=Number(bar.Source)||0;
@@ -2876,7 +2898,7 @@
           const maximum=Number(sample[1]),current=Math.max(0,Math.min(maximum,Number(sample[0])||0));
           const cell=document.createElement('div');cell.className='san-progress-cell';Object.assign(cell.style,{display:'grid',gridTemplateRows:'subgrid',gridRow:'1/span 3',gridColumn:String(row.children.length+1),minWidth:'0'});
           const element=document.createElement('div');element.className='san-progress-element';element.dataset.progressId=bar.Id||'';
-          Object.assign(element.style,{display:'grid',gridTemplateColumns:'auto minmax(0,1fr) auto',gridTemplateRows:'subgrid',gridRow:'1/span 3',alignItems:'center',boxSizing:'border-box',maxWidth:'100%',width:number(bar.Width,0)>0?number(bar.Width,0)+'px':'100%',padding:number(bar.Spacing,6,0,100)+'px '+number(bar.RightInset,0,0,600)+'px 0 '+number(bar.LeftInset,0,0,600)+'px'});
+          Object.assign(element.style,{display:'grid',gridTemplateColumns:'auto minmax(0,1fr) auto',gridTemplateRows:'subgrid',gridRow:'1/span 3',alignItems:'center',boxSizing:'border-box',maxWidth:'100%',width:number(bar.Width,0)>0?number(bar.Width,0)+'px':'auto'});
           const counterPosition=bar.TextPosition??4,captionPosition=bar.CaptionPosition??0;
           const captionFont=progressFont(bar,'Caption'),counterFont=progressFont(bar,'Counter');
           const sameFont=JSON.stringify(captionFont)===JSON.stringify(counterFont);
@@ -3566,7 +3588,7 @@
                 const panels=[${JSON.stringify(progressBarHtml(slot,0))},${JSON.stringify(progressBarHtml(slot,1))}].map(html=>{
                   const panel=document.createElement('div');panel.className='san-progress-elements';panel.style.cssText='position:absolute;left:0;width:100%;padding:0 16px 8px;box-sizing:border-box;z-index:10';panel.innerHTML=html;if(!html)panel.style.display='none';outer.appendChild(panel);return panel;
                 });
-                const layout=()=>{const before=panels[0].getBoundingClientRect().height,after=panels[1].getBoundingClientRect().height;outer.style.height=(baseHeight+before+after)+'px';outer.querySelectorAll('#achcont').forEach(card=>{card.style.height=baseHeight+'px';card.style.top=before+'px';card.style.alignSelf='start';card.style.marginTop='0px';});panels[0].style.top='0px';panels[1].style.top=(before+baseHeight)+'px';if(before+after>0)parent.postMessage({type:'san-preview-height',height:Math.ceil(baseHeight+before+after+8)},'*');};
+                const layout=()=>{const before=panels[0].getBoundingClientRect().height,after=panels[1].getBoundingClientRect().height;const outerTop=outer.getBoundingClientRect().top;const occupied=Array.from(outer.querySelectorAll('#achicon, #logo, .san-generated-line, [data-san-manual-id]')).filter(el=>!el.closest('.san-progress-elements')&&getComputedStyle(el).visibility!=='hidden'&&el.getBoundingClientRect().height>0).map(el=>el.getBoundingClientRect().bottom-outerTop-before);const afterTop=panels[1].style.display==='none'?baseHeight:(occupied.length?Math.max(0,...occupied):baseHeight);const totalHeight=Math.max(baseHeight+before,before+afterTop+after);['height','min-height','max-height'].forEach(property=>outer.style.setProperty(property,totalHeight+'px','important'));const bodyStyle=getComputedStyle(document.body);document.body.style.setProperty('height',(totalHeight+(parseFloat(bodyStyle.paddingTop)||0)+(parseFloat(bodyStyle.paddingBottom)||0))+'px','important');outer.querySelectorAll('#achcont').forEach(card=>{card.style.setProperty('height',baseHeight+'px','important');card.style.setProperty('top',before+'px','important');card.style.alignSelf='start';card.style.marginTop='0px';});panels[0].style.top='0px';panels[1].style.top=(before+afterTop)+'px';if(before+after>0)parent.postMessage({type:'san-preview-height',height:Math.ceil(totalHeight+8)},'*');};
                 layout();setTimeout(layout,100);
               }
               if(!dragEditEnabled&&viewLines.length){
@@ -4211,7 +4233,7 @@
       $('achievementProgressBarHost').innerHTML = progressBarHtml(slot,1);
       $('achievementProgressBeforeHost').innerHTML = progressBarHtml(slot,0);
       toast.style.flexDirection='column';
-      $('toastMain').style.minHeight=Math.max(0,previewHeight-compactPaddingY*2)+'px';
+      $('toastMain').style.minHeight=($('achievementProgressBarHost').innerHTML || $('achievementProgressBeforeHost').innerHTML) ? '0px' : Math.max(0,previewHeight-compactPaddingY*2)+'px';
       for(const id of ['achievementProgressBeforeHost','achievementProgressBarHost'])Object.assign($(id).style,{width:'100%',flexShrink:'0'});
       const barHeight=$('achievementProgressBeforeHost').getBoundingClientRect().height+$('achievementProgressBarHost').getBoundingClientRect().height;
       toast.style.setProperty('--builder-toast-height',(previewHeight+barHeight)+'px');

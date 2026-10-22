@@ -1,0 +1,390 @@
+<UserControl x:Class="PlayniteAchievements.Views.Settings.Notifications.NotificationAppearanceSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:notifications="clr-namespace:PlayniteAchievements.Views.Settings.Notifications"
+             xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers"
+             xmlns:settingsControls="clr-namespace:PlayniteAchievements.Views.Settings.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="700"
+             d:DesignWidth="700">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/SettingsScopedControlStyles.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/RarityBadges.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/CommonResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <!-- Two-band layout: the pinned band at the top holds the surface tabs with their toolbar
+         (sample, platform, fire tests), the preview, and the scope column beside it; the presets
+         card and the per-surface editor scroll below. The tabs are a header-only strip: every
+         per-surface element (preview, sample dropdown, fire buttons, theme checkbox, editor)
+         shows/hides by binding to its tab's IsSelected, so switching surface swaps them at once
+         while the scope column stays shared. -->
+    <!-- UseLayoutRounding/SnapsToDevicePixels are repeated here, even though both hosts (the
+         settings root and the Manage Achievements popout) already supply them, so the section stays
+         correct wherever it is hosted next. PlayniteUiProvider.CreateExtensionWindow carries the
+         rationale and the measurements.
+
+         Relevant to this section specifically: the toast mockup is meant to match the live toast,
+         and the live toast window sets the same pair. The description line opts itself back out
+         locally (NotificationResources ToastDescriptionLine) so its two-line clamp keeps matching. -->
+    <Grid Background="{DynamicResource PlayAch.Brush.Panel}"
+          UseLayoutRounding="True"
+          SnapsToDevicePixels="True">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Lives outside both the repeatedly rebuilt mockup and the tab content. It owns the
+                 preview GIF decoder for this editor session; rebuilt toast templates receive its
+                 stable Image.Source, and switching between Toast/Frame does not restart it. -->
+            <Image x:Name="ToastBackgroundAnimationHost"
+                   Grid.Row="0"
+                   Width="0"
+                   Height="0"
+                   Opacity="0"
+                   IsHitTestVisible="False"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   helpers:AsyncImage.DecodePixel="768"/>
+
+            <!-- ======================= PINNED: tabs + toolbar, preview, scope ======================= -->
+            <Border Grid.Row="0"
+                    Style="{StaticResource SectionBorderStyle}"
+                    Margin="0,0,0,10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Tab strip and toolbar share one row; the toolbar wraps under itself
+                         when the window is too narrow for both. -->
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TabControl x:Name="SurfaceTabs"
+                                    Grid.Column="0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="0"
+                                    VerticalAlignment="Top"
+                                    SelectionChanged="SurfaceTabs_SelectionChanged">
+                            <!-- Game mode only: the game's own behavior and capture settings,
+                                 hosted below in place of the preview, presets and editors. -->
+                            <TabItem x:Name="BehaviorTabItem"
+                                     Header="{DynamicResource LOCPlayAch_Settings_ToastBehavior}"
+                                     Visibility="Collapsed"/>
+                            <TabItem x:Name="CapturesTabItem"
+                                     Header="{DynamicResource LOCPlayAch_Column_Captures}"
+                                     Visibility="Collapsed"/>
+                            <TabItem x:Name="ToastTabItem"
+                                     Header="{DynamicResource LOCPlayAch_Settings_Style_ToastTab}"/>
+                            <TabItem x:Name="FrameTabItem"
+                                     Header="{DynamicResource LOCPlayAch_Settings_FrameHeader}"/>
+                            <TabItem x:Name="SoundsTabItem"
+                                     Header="{DynamicResource LOCPlayAch_Workshop_Share_Sounds}"/>
+                        </TabControl>
+
+                        <WrapPanel x:Name="SurfaceToolbar"
+                                   Grid.Column="1"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Margin="16,0,0,0">
+                            <!-- The sample dropdown names the kind being previewed and doubles as
+                                 the kind scope selector for the Unlock type block below. The frame
+                                 list leaves out the kinds a screenshot never carries. -->
+                            <ComboBox x:Name="NotificationSampleSelector"
+                                      SelectedValuePath="Tag"
+                                      SelectionChanged="SampleSelector_SelectionChanged"
+                                      MinWidth="150"
+                                      Margin="0,0,8,8"
+                                      Visibility="{Binding IsSelected, ElementName=ToastTabItem, Converter={StaticResource BoolToVis}}">
+                                <ComboBoxItem Tag="common" Content="{DynamicResource LOCPlayAch_Rarity_Common}"/>
+                                <ComboBoxItem Tag="uncommon" Content="{DynamicResource LOCPlayAch_Rarity_Uncommon}"/>
+                                <ComboBoxItem Tag="rare" Content="{DynamicResource LOCPlayAch_Rarity_Rare}" IsSelected="True"/>
+                                <ComboBoxItem Tag="ultrarare" Content="{DynamicResource LOCPlayAch_Rarity_UltraRare}"/>
+                                <ComboBoxItem Tag="capstone" Content="{DynamicResource LOCPlayAch_Settings_ToastPreviewCapstone}"/>
+                                <ComboBoxItem Tag="complete" Content="{DynamicResource LOCPlayAch_Settings_Style_HeaderCongratulations}"/>
+                                <ComboBoxItem Tag="friend" Content="{DynamicResource LOCPlayAch_Settings_Style_HeaderFriendUnlock}"/>
+                                <ComboBoxItem Tag="progress" Content="{DynamicResource LOCPlayAch_Toast_AchievementProgress}"/>
+                            </ComboBox>
+                            <ComboBox x:Name="FrameSampleSelector"
+                                      SelectedValuePath="Tag"
+                                      SelectionChanged="SampleSelector_SelectionChanged"
+                                      MinWidth="150"
+                                      Margin="0,0,8,8"
+                                      Visibility="{Binding IsSelected, ElementName=FrameTabItem, Converter={StaticResource BoolToVis}}">
+                                <ComboBoxItem Tag="common" Content="{DynamicResource LOCPlayAch_Rarity_Common}"/>
+                                <ComboBoxItem Tag="uncommon" Content="{DynamicResource LOCPlayAch_Rarity_Uncommon}"/>
+                                <ComboBoxItem Tag="rare" Content="{DynamicResource LOCPlayAch_Rarity_Rare}" IsSelected="True"/>
+                                <ComboBoxItem Tag="ultrarare" Content="{DynamicResource LOCPlayAch_Rarity_UltraRare}"/>
+                                <ComboBoxItem Tag="capstone" Content="{DynamicResource LOCPlayAch_Settings_ToastPreviewCapstone}"/>
+                                <ComboBoxItem Tag="complete" Content="{DynamicResource LOCPlayAch_Settings_Style_HeaderCongratulations}"/>
+                            </ComboBox>
+
+                            <!-- Platform selector: Default edits the global appearance; a platform can
+                                 be given its own whole-style copy via the Customize checkbox in the
+                                 scope column. Collapsed in game mode. -->
+                            <ComboBox x:Name="PlatformSelector"
+                                      MinWidth="180"
+                                      Margin="0,0,8,8"
+                                      SelectionChanged="PlatformSelector_SelectionChanged">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal"
+                                                    VerticalAlignment="Center">
+                                            <Image Width="16"
+                                                   Height="16"
+                                                   Margin="{StaticResource PlayAch.Thickness.Right.Sm}"
+                                                   VerticalAlignment="Center"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                                   Visibility="{Binding HasProviderIcon, Converter={StaticResource BoolToVis}}">
+                                                <Image.Source>
+                                                    <MultiBinding Converter="{StaticResource ProviderIconConverter}">
+                                                        <Binding Path="ProviderIconKey"/>
+                                                        <Binding Path="ProviderColorHex"/>
+                                                    </MultiBinding>
+                                                </Image.Source>
+                                            </Image>
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <!-- Fire tests: show the selected sample on screen with the plugin's
+                                 design or the active theme's. -->
+                            <StackPanel Orientation="Horizontal"
+                                        Visibility="{Binding IsSelected, ElementName=ToastTabItem, Converter={StaticResource BoolToVis}}">
+                                <Button Click="FireNotification_Click"
+                                        Tag="PluginStyle"
+                                        Content="{DynamicResource LOCPlayAch_Settings_Style_FirePluginStyle}"
+                                        Margin="0,0,8,8"/>
+                                <Button x:Name="NotificationThemeButton"
+                                        Click="FireNotification_Click"
+                                        Tag="ActiveTheme"
+                                        Content="{DynamicResource LOCPlayAch_Settings_Style_FireTheme}"
+                                        Margin="0,0,0,8"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal"
+                                        Visibility="{Binding IsSelected, ElementName=FrameTabItem, Converter={StaticResource BoolToVis}}">
+                                <Button Click="FireFrame_Click"
+                                        Tag="PluginStyle"
+                                        Content="{DynamicResource LOCPlayAch_Settings_Style_FirePluginStyle}"
+                                        ToolTip="{DynamicResource LOCPlayAch_Settings_FramePreviewButton}"
+                                        Margin="0,0,8,8"/>
+                                <Button x:Name="FrameThemeButton"
+                                        Click="FireFrame_Click"
+                                        Tag="ActiveTheme"
+                                        Content="{DynamicResource LOCPlayAch_Settings_Style_FireTheme}"
+                                        ToolTip="{DynamicResource LOCPlayAch_Settings_FramePreviewButton}"
+                                        ToolTipService.ShowOnDisabled="True"
+                                        Margin="0,0,0,8"/>
+                            </StackPanel>
+
+                            <!-- Resets the active tab's surface to its built-in default (style edits
+                                 and any custom template), after confirmation. -->
+                            <Button Click="ResetStyle_Click"
+                                    Content="&#xEFD1;"
+                                    ToolTip="{DynamicResource LOCPlayAch_Settings_Style_ResetToDefault}"
+                                    Style="{StaticResource PlayAch.Button.ToolbarIconStyle}"
+                                    Margin="16,0,0,8"
+                                    Visibility="{Binding IsSelected, ElementName=SoundsTabItem, Converter={StaticResource InverseBoolToVis}}"/>
+                        </WrapPanel>
+                    </Grid>
+
+                    <!-- Preview on the left, the shared scope column on the right. -->
+                    <!-- Column widths follow the tab (ApplyPreviewColumns): the toast card keeps its
+                         own width and the scope column takes the rest; the frame strip takes the
+                         rest and the scope column sizes to its content. -->
+                    <Grid x:Name="PreviewScopeGrid" Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="PreviewColumn" Width="Auto"/>
+                            <ColumnDefinition x:Name="ScopeColumn" Width="*" MinWidth="240"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Device-pixel snapping for this card comes from the section root, not
+                             from here: layout rounding resolves an element's rect in its parent's
+                             coordinate space, so it cannot repair a fractional offset an ancestor
+                             already introduced. See the root Grid. -->
+                        <Border Grid.Column="0"
+                                Background="{DynamicResource PlayAch.Brush.Surface}"
+                                BorderBrush="{DynamicResource PlayAch.Brush.Border}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                Visibility="{Binding IsSelected, ElementName=ToastTabItem, Converter={StaticResource BoolToVis}}">
+                            <ContentControl x:Name="ToastMockupHost"
+                                            ContentTemplate="{DynamicResource PlayAch.Template.AchievementToast}"/>
+                        </Border>
+
+                        <!-- The 16:9 grid stands in for the screenshot; the frame template lays
+                             out on the same 1080-DIP virtual canvas the compositor uses, scaled
+                             down uniformly. -->
+                        <Border Grid.Column="0"
+                                Background="{DynamicResource PlayAch.Brush.Surface}"
+                                BorderBrush="{DynamicResource PlayAch.Brush.Border}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="10"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Top"
+                                Visibility="{Binding IsSelected, ElementName=FrameTabItem, Converter={StaticResource BoolToVis}}">
+                            <!-- Show only the bottom half of the canvas (the frame's content is
+                                 bottom-anchored), so fitting the column width costs half the height.
+                                 MaxHeight backstops very wide windows. -->
+                            <Viewbox Stretch="Uniform"
+                                     HorizontalAlignment="Stretch"
+                                     MaxHeight="320">
+                                <Border Width="1920"
+                                        Height="540"
+                                        ClipToBounds="True">
+                                    <Grid Width="1920"
+                                          Height="1080"
+                                          VerticalAlignment="Bottom"
+                                          Background="#FF17222D">
+                                        <ContentControl x:Name="FrameMockupHost"/>
+                                    </Grid>
+                                </Border>
+                            </Viewbox>
+                        </Border>
+
+                        <!-- Scope column: every decision about which style the preview and the
+                             editor below show, top to bottom from widest to narrowest scope. -->
+                        <StackPanel Grid.Column="1" Margin="24,0,0,0">
+                            <!-- Platform scope. In game mode the game's own override takes its place. -->
+                            <!-- The style checkboxes serve the notification and frame tabs, the
+                                 sound ones the Sounds tab (ApplySurfaceVisibility). -->
+                            <StackPanel x:Name="PlatformSelectorPanel"
+                                        Margin="0,0,0,10">
+                                <CheckBox x:Name="CustomizeCheckBox"
+                                          Click="CustomizeCheckBox_Click"
+                                          Visibility="Collapsed"/>
+                                <CheckBox x:Name="CustomizeSoundsCheckBox"
+                                          Click="CustomizeSoundsCheckBox_Click"
+                                          Visibility="Collapsed"/>
+                            </StackPanel>
+                            <StackPanel x:Name="GameSelectionPanel"
+                                        Visibility="Collapsed"
+                                        Margin="0,0,0,10">
+                                <CheckBox x:Name="CustomizeGameCheckBox"
+                                          Content="{DynamicResource LOCPlayAch_ManageAchievements_Notifications_Customize}"
+                                          Click="CustomizeGameCheckBox_Click"/>
+                                <CheckBox x:Name="CustomizeGameSoundsCheckBox"
+                                          Click="CustomizeGameSoundsCheckBox_Click"
+                                          Visibility="Collapsed"/>
+                            </StackPanel>
+
+                            <!-- Per-kind styling. With one of the special kinds selected in the sample
+                                 dropdown, this block opts that kind out of the scope's shared style
+                                 into its own copy, seeded from it. It hides for the plain rarity
+                                 samples, which always follow the shared style. One slot covers both
+                                 surfaces, so the toast and frame tabs show the same state. -->
+                            <StackPanel x:Name="KindStylePanel"
+                                        Visibility="Collapsed"
+                                        Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox x:Name="KindStyleCheckBox"
+                                              VerticalAlignment="Center"
+                                              Click="KindStyleCheckBox_Click"/>
+                                    <Button x:Name="ResetKindStyleButton"
+                                            Click="ResetKindStyle_Click"
+                                            Content="&#xEFD1;"
+                                            ToolTip="{DynamicResource LOCPlayAch_Settings_Style_Kind_ResetToBase}"
+                                            Style="{StaticResource PlayAch.Button.ToolbarIconStyle}"
+                                            VerticalAlignment="Center"
+                                            Margin="8,0,0,0"
+                                            Visibility="Collapsed"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Design: whether the live notification / saved frame (and the preview)
+                                 use the theme's design or the plugin's. Each surface persists its
+                                 own flag, so each has its own checkbox. -->
+                            <CheckBox x:Name="ToastThemeStylingCheckBox"
+                                      Content="{DynamicResource LOCPlayAch_Settings_Style_UseThemeTemplate}"
+                                      Click="ThemeStylingCheckBox_Click"
+                                      Visibility="{Binding IsSelected, ElementName=ToastTabItem, Converter={StaticResource BoolToVis}}"/>
+                            <CheckBox x:Name="FrameThemeStylingCheckBox"
+                                      Content="{DynamicResource LOCPlayAch_Settings_Style_UseThemeTemplate}"
+                                      Click="ThemeStylingCheckBox_Click"
+                                      Visibility="{Binding IsSelected, ElementName=FrameTabItem, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- ========================= SCROLL: presets / share / editor ========================= -->
+            <!-- Game mode: the Behavior or Captures section for the selected tab, which scrolls
+                 itself; it replaces the style scroller below while one of those tabs is active. -->
+            <ContentControl x:Name="GameSettingsHost"
+                            Grid.Row="1"
+                            Visibility="Collapsed"/>
+
+            <ScrollViewer x:Name="StyleScroller"
+                          Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+
+                    <!-- Presets and sharing for the tab selected above: the library items of the
+                         active surface in one list (picking one applies it to the scope the selector
+                         names, which then follows it; the item it follows is the one shown), Save
+                         (the active surface with its images and any custom template) and Delete, and
+                         .panotif/.paframe files through Import and Export. Export also offers the
+                         default template as a loose .xaml starting point. -->
+                    <Border Style="{StaticResource SectionBorderStyle}">
+                        <StackPanel>
+                            <TextBlock Text="{DynamicResource LOCPlayAch_Presets_Header}"
+                                       Style="{StaticResource SectionHeaderStyle}"
+                                       Margin="{StaticResource PlayAch.Thickness.Bottom.Md}"/>
+                            <Border Style="{StaticResource SectionAccentRuleStyle}"/>
+
+                            <settingsControls:LibraryPresetPicker x:Name="StylePresetPicker">
+                                <settingsControls:LibraryPresetPicker.ExtraContent>
+                                    <!-- Share the selected surface's style as a .panotif/.paframe file
+                                         or add one to the library. -->
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Click="ImportStyle_Click"
+                                                Content="{DynamicResource LOCImportLabel}" ContentTemplate="{DynamicResource PlayAch.ButtonContent.Import}"
+                                                ToolTip="{DynamicResource LOCPlayAch_Settings_Style_ShareHint}"
+                                                Margin="16,0,0,0"/>
+                                        <Button Click="ExportStyle_Click"
+                                                Content="{DynamicResource LOCPlayAch_ManageAchievements_Overrides_ExportButton}" ContentTemplate="{DynamicResource PlayAch.ButtonContent.Export}"
+                                                ToolTip="{DynamicResource LOCPlayAch_Settings_Style_ShareHint}"
+                                                Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </settingsControls:LibraryPresetPicker.ExtraContent>
+                            </settingsControls:LibraryPresetPicker>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- The editor for the surface selected in the pinned tabs above. Both exist;
+                         each shows only when its tab is active. -->
+                    <notifications:NotificationSurfaceStyleEditor
+                        x:Name="ToastEditor"
+                        Visibility="{Binding IsSelected, ElementName=ToastTabItem, Converter={StaticResource BoolToVis}}"/>
+                    <notifications:NotificationSurfaceStyleEditor
+                        x:Name="FrameEditor"
+                        Visibility="{Binding IsSelected, ElementName=FrameTabItem, Converter={StaticResource BoolToVis}}"/>
+                    <notifications:UnlockSoundsEditor
+                        x:Name="SoundsEditor"
+                        Visibility="{Binding IsSelected, ElementName=SoundsTabItem, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

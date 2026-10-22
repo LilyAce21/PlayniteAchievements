@@ -3823,7 +3823,21 @@
                                                          <DockPanel><TextBlock Text="Progress bar elements" Style="{StaticResource SubSectionHeaderStyle}"/><Button Content="Add bar" Click="NotificationsAddProgressBar_Click" HorizontalAlignment="Right"/></DockPanel>
                                                          <CheckBox Content="Show Progress Bar" IsChecked="{Binding OverlayCustomPreviewShowProgress}" Margin="0,8,0,6"/>
                                                          <TextBlock Text="Each row reserves its own space above or below the main content. Bars can share a row. Bars without a valid counter are hidden. Game and account bars use sample values in previews." TextWrapping="Wrap" Style="{StaticResource MutedTextStyle}" Margin="0,0,0,8"/>
-                                                         <ItemsControl ItemsSource="{Binding OverlayCustomProgressBars}">
+                                                         <ItemsControl ItemsSource="{Binding OverlayCustomProgressBarRows}">
+                                                             <ItemsControl.ItemTemplate><DataTemplate>
+                                                                 <Border BorderBrush="#40808080" BorderThickness="1" Padding="8" Margin="0,0,0,10">
+                                                                     <Expander Header="{Binding Title}" IsExpanded="{Binding Style.IsExpanded, Mode=TwoWay}" HorizontalContentAlignment="Stretch">
+                                                                         <StackPanel>
+                                                                             <TextBlock Text="Row margins" Margin="0,8,0,6"/>
+                                                                             <WrapPanel DataContext="{Binding Style}">
+                                                                                 <StackPanel Margin="0,0,12,8"><TextBlock Text="Space between bars"/><TextBox Width="120" Text="{Binding Gap, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" ToolTip="Horizontal spacing between visible bars in this row. Zero places them together."/></StackPanel>
+                                                                                 <StackPanel Margin="0,0,12,8"><TextBlock Text="All sides"/><TextBox Width="90" Text="{Binding AllMargins, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" ToolTip="Applies to the entire row. Negative values pull the row closer."/></StackPanel>
+                                                                                 <StackPanel Margin="0,0,12,8"><TextBlock Text="Top"/><TextBox Width="90" Text="{Binding Top, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" ToolTip="Applies to the entire row. Negative values pull the row closer."/></StackPanel>
+                                                                                 <StackPanel Margin="0,0,12,8"><TextBlock Text="Right"/><TextBox Width="90" Text="{Binding Right, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" ToolTip="Applies to the entire row. Negative values pull the row closer."/></StackPanel>
+                                                                                 <StackPanel Margin="0,0,12,8"><TextBlock Text="Bottom"/><TextBox Width="90" Text="{Binding Bottom, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" ToolTip="Applies to the entire row. Negative values pull the row closer."/></StackPanel>
+                                                                                 <StackPanel Margin="0,0,12,8"><TextBlock Text="Left"/><TextBox Width="90" Text="{Binding Left, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" ToolTip="Applies to the entire row. Negative values pull the row closer."/></StackPanel>
+                                                                             </WrapPanel>
+                                                         <ItemsControl ItemsSource="{Binding Bars}">
                                                              <ItemsControl.ItemTemplate><DataTemplate>
                                                                  <Border BorderThickness="1" BorderBrush="#40808080" Padding="10" Margin="0,0,0,8"><Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"><Expander.Header><TextBlock Text="{Binding EditorTitle}"/></Expander.Header><StackPanel>
                                                                      <WrapPanel>
@@ -3894,9 +3908,6 @@
                                                                          <StackPanel Margin="0,0,12,8"><TextBlock Text="Width (0 = auto)"/><TextBox Width="120" Text="{Binding Width, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
                                                                          <StackPanel Margin="0,0,12,8"><TextBlock Text="Thickness"/><TextBox Width="120" Text="{Binding Height, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
                                                                          <StackPanel Margin="0,0,12,8"><TextBlock Text="Corner radius"/><TextBox Width="120" Text="{Binding CornerRadius, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Space above"/><TextBox Width="120" Text="{Binding Spacing, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Left inset"/><TextBox Width="120" Text="{Binding LeftInset, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
-                                                                         <StackPanel Margin="0,0,12,8"><TextBlock Text="Right inset"/><TextBox Width="120" Text="{Binding RightInset, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/></StackPanel>
                                                                      </WrapPanel>
                                                                      <TextBlock Text="Colors and gradients" Margin="0,4,0,6"/>
                                                                      <WrapPanel>
@@ -3935,6 +3946,11 @@
                                                                          <StackPanel Margin="0,0,12,8"><TextBlock Text="Gradient angle (0 = left to right)"/><TextBox Width="150" Text="{Binding GradientAngle, UpdateSourceTrigger=LostFocus}"/></StackPanel>
                                                                      </WrapPanel>
                                                                  </StackPanel></Expander></Border>
+                                                             </DataTemplate></ItemsControl.ItemTemplate>
+                                                         </ItemsControl>
+                                                                         </StackPanel>
+                                                                     </Expander>
+                                                                 </Border>
                                                              </DataTemplate></ItemsControl.ItemTemplate>
                                                          </ItemsControl>
                                                      </StackPanel>

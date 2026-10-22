@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-22T08:09:34.9378011Z",
+    "generatedUtc":  "2026-10-22T12:44:26.0015499Z",
     "baselineRef":  "v4.1.1",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "275342A48A54C228F58571956B703AAC3DAC50E479C9419F97229AAE5B142B9E"
+                  "sha256":  "118FD8A6126B3E287F7D2EE0170CE7C280E6409D90A8602D9F192778F5266455"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -146,7 +146,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettings.cs",
-                             "sha256":  "1976A7D2147F1B0DD803B33522029209DB5E939B297FC1642D9425891B0B8167"
+                             "sha256":  "18C1356F55B1EE5E9101F220D6D19BF6EC124AA93CDA7E82F09D3684E8C90DBE"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml",
@@ -162,7 +162,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/NotificationProgressBarDefinition.cs",
-                             "sha256":  "450CEAEECD351225B32533D80904320F4763CDA4C4986BA463C4ABE0717C2B00"
+                             "sha256":  "DB65F74A3B9FF8258A22197DA9D1ADB46FC3548C82B349B7323E97D1707C260C"
                          },
                          {
                              "path":  "source/Providers/Steam/SteamApiTokenService.cs",
@@ -306,7 +306,7 @@
                          },
                          {
                              "path":  "source/Services/UI/CustomNotificationProgressBar.cs",
-                             "sha256":  "AFBADB51457CCA0A1B09540C933A7C33CE0FB2AE659A73CFEC156ECE8AAACF04"
+                             "sha256":  "33B1E025BC1D7E935E27E52B4A8547BF9B321F39BA299625507C7BABD0E31AA0"
                          },
                          {
                              "path":  "source/Services/UI/CustomNotificationProgressTokens.cs",
@@ -358,7 +358,7 @@
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml",
-                             "sha256":  "F7846DC754ECD6336630171010FA57FF37F227CA796BD6504BA0C50A7A3DA8CD"
+                             "sha256":  "824D264764EFBE0BD904F941C01F53C05D3E07B53B03847BEA15C206604E2113"
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml.cs",
@@ -422,7 +422,7 @@
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressBarTests.cs",
-                             "sha256":  "12C06A4ACFAE75163FC4B1A21F88877E50AB38B26C89FF8FA99B145A6ACB55F2"
+                             "sha256":  "35F7692AA5D1170C6ACEEC14A2664A9C8853B915811A504D4CD4D7B3DE9DE544"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressTokensTests.cs",
@@ -450,11 +450,11 @@
                          },
                          {
                              "path":  "tools/notification-template-builder.html",
-                             "sha256":  "A8DEC5C04FE788EA1C0A4DB0049F9C5A0AFCB46D95DA7CA651F6BF98187325A2"
+                             "sha256":  "20624BC2606949611E89F29DB032FFEA79E508D0288905E948C4D35365325B16"
                          },
                          {
                              "path":  "tools/NotificationTemplates/PROGRESS_BAR.md",
-                             "sha256":  "C41A19AB73E1644566033AED4412C5DC47C2402B82EA7FEB3D12A500C45E9633"
+                             "sha256":  "D5395B7F1F0BC1CE60520BD70182F27DA761058354E9B32F7729A046E80F0923"
                          },
                          {
                              "path":  "tools/NotificationTemplates/README.md",

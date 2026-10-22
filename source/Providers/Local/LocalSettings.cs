@@ -1311,6 +1311,21 @@ namespace PlayniteAchievements.Providers.Local
             RefreshProgressBarLinks();
             OnPropertyChanged(nameof(OverlayCustomProgressBars));
         }
+        private readonly ObservableCollection<NotificationBarRowEditor> progressBarRows=new ObservableCollection<NotificationBarRowEditor>();
+        [JsonIgnore] public ObservableCollection<NotificationBarRowEditor> OverlayCustomProgressBarRows => progressBarRows;
+        private void RefreshProgressBarRows()
+        {
+            var groups=NotificationBarLayout.Groups(OverlayCustomProgressBars).OrderBy(row=>NotificationBarLayout.Root(OverlayCustomProgressBars,row[0]).Placement).ToList();
+            var next=new List<NotificationBarRowEditor>();
+            for(var i=0;i<groups.Count;i++)
+            {
+                var root=NotificationBarLayout.Root(OverlayCustomProgressBars,groups[i][0]);
+                var editor=progressBarRows.FirstOrDefault(item=>ReferenceEquals(item.Root,root)) ?? new NotificationBarRowEditor(root);
+                editor.Update(i+1,groups[i]);next.Add(editor);
+            }
+            foreach(var old in progressBarRows.Where(item=>!next.Contains(item)).ToList()) { old.Dispose();progressBarRows.Remove(old); }
+            for(var i=0;i<next.Count;i++) { var index=progressBarRows.IndexOf(next[i]);if(index<0)progressBarRows.Insert(i,next[i]);else if(index!=i)progressBarRows.Move(index,i); }
+        }
         private bool refreshingProgressBarLinks;
         private void RefreshProgressBarLinks(NotificationProgressBarDefinition changed=null,string property=null)
         {
@@ -1322,6 +1337,11 @@ namespace PlayniteAchievements.Providers.Local
                 NotificationBarLayout.Migrate(bars);
                 if(changed!=null && bars.Contains(changed) && (property==nameof(changed.Placement) || property==nameof(changed.RowAnchorId)))
                 {
+                    if(property==nameof(changed.RowAnchorId) && string.IsNullOrEmpty(changed.RowAnchorId))
+                    {
+                        var previous=progressBarRows.FirstOrDefault(row=>row.Bars.Contains(changed));
+                        if(previous!=null && previous.Root!=changed)changed.RowStyle=Newtonsoft.Json.JsonConvert.DeserializeObject<NotificationBarRowStyle>(Newtonsoft.Json.JsonConvert.SerializeObject(previous.Style));
+                    }
                     var root=NotificationBarLayout.Root(bars,changed);
                     var placement=property==nameof(changed.Placement)?changed.Placement:root.Placement;
                     foreach(var bar in bars.Where(bar=>NotificationBarLayout.Root(bars,bar)==root).ToList())bar.Placement=placement;
@@ -1334,6 +1354,7 @@ namespace PlayniteAchievements.Providers.Local
                 }
                 foreach(var group in bars.GroupBy(bar=>NotificationBarLayout.Root(bars,bar)).ToList())foreach(var bar in group)bar.Placement=group.Key.Placement;
                 foreach(var bar in bars) { bar.RowPeers=bars;bar.RefreshRowEditor(); }
+                RefreshProgressBarRows();
             }
             finally { refreshingProgressBarLinks=false; }
         }

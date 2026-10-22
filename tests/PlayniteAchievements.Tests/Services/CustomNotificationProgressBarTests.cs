@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -15,6 +15,125 @@ namespace PlayniteAchievements.Tests.Services
     [TestClass]
     public class CustomNotificationProgressBarTests
     {
+        [TestMethod]
+        public void BarEditorsDefaultToCollapsedWithPlainHyphenTitles()
+        {
+            var bar=new NotificationProgressBarDefinition { Title="Progress" };
+            Assert.IsFalse(bar.IsExpanded);
+            Assert.IsTrue(bar.RowStyle.IsExpanded);
+            Assert.AreEqual("Bar 1 - Progress",bar.EditorTitle);
+            var legacy=JsonConvert.DeserializeObject<NotificationProgressBarDefinition>("{}");
+            Assert.IsFalse(legacy.IsExpanded);
+            bar.IsExpanded=true;
+            Assert.IsTrue(JsonConvert.DeserializeObject<NotificationProgressBarDefinition>(JsonConvert.SerializeObject(bar)).IsExpanded);
+        }
+
+        [TestMethod]
+        public void RowGapIsConfigurableAndPersistsWithoutChangingMargins()
+        {
+            var settings=new LocalSettings();
+            var first=new NotificationProgressBarDefinition { Id="gap-first" };
+            settings.OverlayCustomProgressBars.Add(first);
+            settings.OverlayCustomProgressBars.Add(new NotificationProgressBarDefinition { RowAnchorId=first.Id });
+            Assert.AreEqual(6d,first.RowStyle.Gap);
+            first.RowStyle.Gap=24;
+            var restored=JsonConvert.DeserializeObject<LocalSettings>(JsonConvert.SerializeObject(settings));
+            Assert.AreEqual(24d,restored.OverlayCustomProgressBarRows[0].Style.Gap);
+            var html=CustomNotificationProgressBar.CreateElementsHtml(CustomNotificationProgressTokens.CreateSettingsCopy(restored,16,100),NotificationBarPlacement.AfterContent);
+            StringAssert.Contains(html,"column-gap:24px");
+            first.RowStyle.Gap=-5;Assert.AreEqual(0d,first.RowStyle.Gap);Assert.AreEqual(6d,first.RowStyle.Top);
+            first.RowStyle.Gap=double.NaN;Assert.AreEqual(6d,first.RowStyle.Gap);
+        }
+
+        [TestMethod]
+        public void RowMarginsAndCollapseStateSurviveGroupingDetachingAndSerialization()
+        {
+            var settings=new LocalSettings();
+            var first=new NotificationProgressBarDefinition { Id="first",IsExpanded=false };
+            var second=new NotificationProgressBarDefinition { Id="second",RowAnchorId="first" };
+            var third=new NotificationProgressBarDefinition { Id="third" };
+            settings.OverlayCustomProgressBars.Add(first);settings.OverlayCustomProgressBars.Add(second);settings.OverlayCustomProgressBars.Add(third);
+            Assert.AreEqual(2,settings.OverlayCustomProgressBarRows.Count);
+            var row=settings.OverlayCustomProgressBarRows[0];
+            row.Style.Top=-12;row.Style.Left=9;row.Style.IsExpanded=false;
+            Assert.AreSame(row,settings.OverlayCustomProgressBarRows[0]);
+            Assert.IsFalse(first.IsExpanded);Assert.IsFalse(second.IsExpanded);
+            Assert.IsTrue(settings.OverlayCustomProgressBarRows[1].Style.IsExpanded);
+            var restored=JsonConvert.DeserializeObject<LocalSettings>(JsonConvert.SerializeObject(settings));
+            Assert.AreEqual(-12d,restored.OverlayCustomProgressBarRows[0].Style.Top);
+            Assert.IsFalse(restored.OverlayCustomProgressBarRows[0].Style.IsExpanded);
+            second.RowAnchorId="";
+            Assert.AreEqual(3,settings.OverlayCustomProgressBarRows.Count);
+            Assert.AreEqual(-12d,second.RowStyle.Top);Assert.AreEqual(9d,second.RowStyle.Left);
+            second.RowStyle.Top=20;Assert.AreEqual(-12d,first.RowStyle.Top);
+            second.RowAnchorId="first";
+            NotificationBarLayout.ReparentRemovedBar(settings.OverlayCustomProgressBars,first);settings.OverlayCustomProgressBars.Remove(first);
+            Assert.AreEqual(-12d,second.RowStyle.Top);Assert.IsFalse(second.RowStyle.IsExpanded);
+        }
+
+        [TestMethod]
+        public void HiddenRowLeaderRetainsSharedMarginsForVisibleBars()
+        {
+            var settings=new LocalSettings { OverlayCustomPreviewShowProgress=false };
+            var first=new NotificationProgressBarDefinition { Id="first" };
+            first.RowStyle.Top=-15;first.RowStyle.Right=11;
+            settings.OverlayCustomProgressBars.Add(first);
+            settings.OverlayCustomProgressBars.Add(new NotificationProgressBarDefinition { Id="second",RowAnchorId="first",Source=NotificationBarSource.GameAchievements });
+            settings.OverlayCustomProgressBars.Add(new NotificationProgressBarDefinition { Id="third",RowAnchorId="first",Source=NotificationBarSource.GamePoints });
+            var html=CustomNotificationProgressBar.CreateElementsHtml(CustomNotificationProgressTokens.CreatePreviewSettingsCopy(settings),NotificationBarPlacement.AfterContent);
+            Assert.AreEqual(1,html.Split(new[]{"margin:-15px 11px 0px 0px"},StringSplitOptions.None).Length-1);
+            StringAssert.Contains(html,"27/100");StringAssert.Contains(html,"120/500");
+        }
+
+        [TestMethod]
+        public void AllAroundMarginsSetEverySideAndSurviveIndependentOverrides()
+        {
+            var bar=new NotificationProgressBarDefinition();
+            Assert.IsNull(bar.AllMargins);
+            bar.AllMargins=10;
+            Assert.AreEqual(10d,bar.Spacing);Assert.AreEqual(10d,bar.LeftInset);Assert.AreEqual(10d,bar.RightInset);Assert.AreEqual(10d,bar.BottomMargin);
+            Assert.AreEqual((double?)10,bar.AllMargins);
+            bar.Spacing=-20;Assert.IsNull(bar.AllMargins);
+            var restored=JsonConvert.DeserializeObject<NotificationProgressBarDefinition>(JsonConvert.SerializeObject(bar));
+            Assert.AreEqual(-20d,restored.Spacing);Assert.AreEqual(10d,restored.BottomMargin);Assert.IsFalse(JsonConvert.SerializeObject(bar).Contains("AllMargins"));
+            bar.AllMargins=-12;Assert.AreEqual((double?)-12,bar.AllMargins);
+            bar.BottomMargin=double.NaN;Assert.AreEqual(0d,bar.BottomMargin);
+            var legacy=JsonConvert.DeserializeObject<NotificationProgressBarDefinition>("{\"Spacing\":6,\"LeftInset\":3,\"RightInset\":4}");
+            Assert.AreEqual(0d,legacy.BottomMargin);Assert.AreEqual(6d,legacy.Spacing);
+        }
+
+        [TestMethod]
+        public void NegativeTopMarginClosesGapAndHiddenBarsReserveNoMargins()
+        {
+            Exception failure=null;
+            var thread=new Thread(()=>
+            {
+                try
+                {
+                    var settings=new LocalSettings();
+                    var bar=new NotificationProgressBarDefinition { ShowLabel=false,LeftInset=5,RightInset=7,BottomMargin=14 };
+                    settings.OverlayCustomProgressBars.Add(bar);
+                    StackPanel Layout(double top)
+                    {
+                        bar.Spacing=top;
+                        var panel=CustomNotificationProgressBar.CreateElementsWpf(CustomNotificationProgressTokens.CreateSettingsCopy(settings,16,100),NotificationBarPlacement.AfterContent);
+                        panel.Measure(new Size(300,double.PositiveInfinity));panel.Arrange(new Rect(0,0,300,panel.DesiredSize.Height));panel.UpdateLayout();return panel;
+                    }
+                    var positive=Layout(12);var negative=Layout(-4);
+                    Assert.AreEqual(16d,positive.DesiredSize.Height-negative.DesiredSize.Height,0.01);
+                    var element=(Grid)((Grid)negative.Children[0]).Children[0];
+                    Assert.AreEqual(new Thickness(5,-4,7,14),((Grid)negative.Children[0]).Margin);Assert.AreEqual(new Thickness(0),element.Margin);Assert.AreEqual(288d,element.ActualWidth,0.01);
+                    Assert.AreEqual(-4d,element.TranslatePoint(new Point(),negative).Y,0.01);
+                    StringAssert.Contains(CustomNotificationProgressBar.CreateElementsHtml(CustomNotificationProgressTokens.CreateSettingsCopy(settings,16,100),NotificationBarPlacement.AfterContent),"margin:-4px 7px 14px 5px");
+                    var hidden=CustomNotificationProgressBar.CreateElementsWpf(CustomNotificationProgressTokens.CreateSettingsCopy(settings,null,null),NotificationBarPlacement.AfterContent);
+                    hidden.Measure(new Size(300,double.PositiveInfinity));Assert.AreEqual(0d,hidden.DesiredSize.Height);
+                }
+                catch(Exception ex){failure=ex;}
+            });
+            thread.SetApartmentState(ApartmentState.STA);thread.Start();Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(10)));
+            if(failure!=null)throw failure;
+        }
+
         [TestMethod]
         public void SettingsPreviewSuppliesEveryBarSourceWithoutSavingSampleCounters()
         {
@@ -64,7 +183,7 @@ namespace PlayniteAchievements.Tests.Services
             });
             Assert.AreEqual(3,CustomNotificationProgressBar.Rows(copy,NotificationBarPlacement.BeforeContent).Single().Count);
             Assert.AreEqual(0,CustomNotificationProgressBar.Rows(copy,NotificationBarPlacement.AfterContent).Count());
-            NotificationBarLayout.ReparentRemovedBar(settings.OverlayCustomProgressBars,first);settings.OverlayCustomProgressBars.Remove(first);
+            NotificationBarLayout.ReparentRemovedBar(settings.OverlayCustomProgressBars,first);NotificationBarLayout.ReparentRemovedBar(settings.OverlayCustomProgressBars,first);settings.OverlayCustomProgressBars.Remove(first);
             Assert.AreEqual(1,NotificationBarLayout.Groups(settings.OverlayCustomProgressBars).Count());
             Assert.IsFalse(settings.OverlayCustomProgressBars.Any(bar=>bar.RowAnchorId=="first"));
             second.IsExpanded=false;

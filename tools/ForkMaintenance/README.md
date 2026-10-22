@@ -1,4 +1,27 @@
-﻿# Fork maintenance bundle
+# Fork maintenance bundle
+
+## Progress row layout and editor defaults - 2026-10-22
+
+Progress bar settings are grouped by row. Each row owns its all-around and
+per-side margins plus **Space between bars** (default 6 pixels; 0 joins adjacent
+bars). Margins move every bar in the row together. Hidden row leaders retain
+shared margins, empty rows reserve no space, detaching copies row settings,
+and removing the leader preserves them for surviving bars. Negative margins
+remain available for deliberate overlap; zero spacing attaches progress rows
+to occupied main content instead of unused fixed-height space.
+
+Rows and individual bars have independent saved collapse states. New bar
+editors default to collapsed; existing saved choices are preserved. Headings
+and row selectors use a plain hyphen, for example **Bar 1 - Progress**.
+WPF, SAN, the standalone builder, style slots, and JSON templates carry the
+row settings. The SAN host also updates its height limits to accommodate bars.
+
+The required Release rebuild and all 34 focused notification tests passed.
+A browser check verified grouped editors, margin editing, and independent row
+collapse. The refreshed bundle passed three-way preflight and actual replay onto
+clean upstream v4.1.1 with 170 overlays, localization, component hashes, and
+protected-file checks. All eight changed code/test/guide files match the replay
+byte for byte. Interactive verification of the latest package in Playnite is pending.
 
 ## Custom notification provider filters - 2026-10-22
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
@@ -58,7 +59,7 @@ namespace PlayniteAchievements.Providers.Local
         private double _CornerRadius = 3;
         public double CornerRadius { get => _CornerRadius; set => Set(ref _CornerRadius, Math.Max(0, Math.Min(64, double.IsNaN(value) || double.IsInfinity(value) ? 3 : value))); }
         private double _Spacing = 6;
-        public double Spacing { get => _Spacing; set => Set(ref _Spacing, Math.Max(0, Math.Min(100, double.IsNaN(value) || double.IsInfinity(value) ? 6 : value))); }
+        public double Spacing { get => _Spacing; set { Set(ref _Spacing, NormalizeMargin(value,6)); if(_rowStyle!=null)_rowStyle.Top=_Spacing; Notify(nameof(AllMargins)); } }
         private string _FillColor = "#A7E0FF";
         public string FillColor { get => _FillColor; set => Set(ref _FillColor, value ?? string.Empty); }
         private string _TrackColor = "#30FFFFFF";
@@ -70,15 +71,30 @@ namespace PlayniteAchievements.Providers.Local
         private double _LabelFontSize = 11;
         public double LabelFontSize { get => _LabelFontSize; set => Set(ref _LabelFontSize, Math.Max(6, Math.Min(48, double.IsNaN(value) || double.IsInfinity(value) ? 11 : value))); }
         private double _LeftInset = 0;
-        public double LeftInset { get => _LeftInset; set => Set(ref _LeftInset, Math.Max(0, Math.Min(600, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value))); }
+        public double LeftInset { get => _LeftInset; set { Set(ref _LeftInset, NormalizeMargin(value,0)); if(_rowStyle!=null)_rowStyle.Left=_LeftInset; Notify(nameof(AllMargins)); } }
         private double _RightInset = 0;
-        public double RightInset { get => _RightInset; set => Set(ref _RightInset, Math.Max(0, Math.Min(600, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value))); }
+        public double RightInset { get => _RightInset; set { Set(ref _RightInset, NormalizeMargin(value,0)); if(_rowStyle!=null)_rowStyle.Right=_RightInset; Notify(nameof(AllMargins)); } }
+        private static double NormalizeMargin(double value,double fallback=0) => double.IsNaN(value)||double.IsInfinity(value)?fallback:Math.Max(-600,Math.Min(600,value));
+        private double _BottomMargin;
+        public double BottomMargin { get => _BottomMargin; set { Set(ref _BottomMargin,NormalizeMargin(value)); if(_rowStyle!=null)_rowStyle.Bottom=_BottomMargin; Notify(nameof(AllMargins)); } }
+        [JsonIgnore] public double? AllMargins
+        {
+            get => Spacing==LeftInset && Spacing==RightInset && Spacing==BottomMargin?(double?)Spacing:null;
+            set { if(!value.HasValue)return; var margin=NormalizeMargin(value.Value);Spacing=margin;LeftInset=margin;RightInset=margin;BottomMargin=margin; }
+        }
+        private NotificationBarRowStyle _rowStyle;
+        public NotificationBarRowStyle RowStyle
+        {
+            get { if(_rowStyle==null) { _rowStyle=new NotificationBarRowStyle { Top=Spacing,Right=RightInset,Bottom=BottomMargin,Left=LeftInset };_rowStyle.PropertyChanged+=RowStyleChanged; }return _rowStyle; }
+            set { if(_rowStyle!=null)_rowStyle.PropertyChanged-=RowStyleChanged;_rowStyle=value ?? new NotificationBarRowStyle();_rowStyle.PropertyChanged+=RowStyleChanged;Notify(nameof(RowStyle)); }
+        }
+        private void RowStyleChanged(object sender,PropertyChangedEventArgs args) => Notify(nameof(RowStyle));
         private string _RowAnchorId="";
         public string RowAnchorId { get => _RowAnchorId; set => Set(ref _RowAnchorId,value ?? string.Empty); }
-        private bool _IsExpanded=true;
+        private bool _IsExpanded=false;
         public bool IsExpanded { get => _IsExpanded; set => Set(ref _IsExpanded,value); }
         [JsonIgnore] internal IList<NotificationProgressBarDefinition> RowPeers { get; set; }
-        [JsonIgnore] public string EditorTitle => "Bar " + ((RowPeers?.IndexOf(this) ?? 0)+1) + " ? " + (string.IsNullOrWhiteSpace(Title)?NotificationBarSources.All.FirstOrDefault(option=>option.Value==Source)?.Name ?? Source.ToString():Title);
+        [JsonIgnore] public string EditorTitle => "Bar " + ((RowPeers?.IndexOf(this) ?? 0)+1) + " - " + (string.IsNullOrWhiteSpace(Title)?NotificationBarSources.All.FirstOrDefault(option=>option.Value==Source)?.Name ?? Source.ToString():Title);
         [JsonIgnore] public IReadOnlyList<NotificationBarRowOption> RowTargets => new[] { new NotificationBarRowOption { Id="",Name="Separate row" } }
             .Concat((RowPeers ?? new List<NotificationProgressBarDefinition>()).Where(bar=>bar!=this && !NotificationBarLayout.DependsOn(RowPeers,bar,this)).Select(bar=>new NotificationBarRowOption { Id=bar.Id,Name=bar.EditorTitle })).ToList();
         internal void RefreshRowEditor() { Notify(nameof(RowTargets));Notify(nameof(EditorTitle)); }
@@ -139,6 +155,51 @@ namespace PlayniteAchievements.Providers.Local
         }
         public NotificationProgressBarDefinition Clone() => JsonConvert.DeserializeObject<NotificationProgressBarDefinition>(JsonConvert.SerializeObject(this));
     }
+    public sealed class NotificationBarRowStyle : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void Set<T>(ref T field,T value,[CallerMemberName] string name=null) { if(EqualityComparer<T>.Default.Equals(field,value))return;field=value;PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(name)); }
+        private static double Margin(double value,double fallback=0) => double.IsNaN(value)||double.IsInfinity(value)?fallback:Math.Max(-600,Math.Min(600,value));
+        private double _Gap=6;
+        public double Gap { get => _Gap; set => Set(ref _Gap,double.IsNaN(value)||double.IsInfinity(value)?6:Math.Max(0,Math.Min(600,value))); }
+        private double _Top=6;
+        public double Top { get => _Top; set { Set(ref _Top,Margin(value,6));PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(AllMargins))); } }
+        private double _Right=0;
+        public double Right { get => _Right; set { Set(ref _Right,Margin(value,0));PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(AllMargins))); } }
+        private double _Bottom=0;
+        public double Bottom { get => _Bottom; set { Set(ref _Bottom,Margin(value,0));PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(AllMargins))); } }
+        private double _Left=0;
+        public double Left { get => _Left; set { Set(ref _Left,Margin(value,0));PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(AllMargins))); } }
+        private bool _isExpanded=true;
+        public bool IsExpanded { get => _isExpanded;set => Set(ref _isExpanded,value); }
+        [JsonIgnore] public double? AllMargins
+        {
+            get => Top==Right && Top==Bottom && Top==Left?(double?)Top:null;
+            set { if(!value.HasValue)return;var margin=Margin(value.Value);Top=margin;Right=margin;Bottom=margin;Left=margin; }
+        }
+    }
+    public sealed class NotificationBarRowEditor : INotifyPropertyChanged, IDisposable
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        public NotificationProgressBarDefinition Root { get; }
+        public ObservableCollection<NotificationProgressBarDefinition> Bars { get; }=new ObservableCollection<NotificationProgressBarDefinition>();
+        private NotificationBarRowStyle style;
+        public NotificationBarRowStyle Style => style;
+        private int number;
+        public string Title => "Row "+number+" - "+(Root.Placement==NotificationBarPlacement.BeforeContent?"Above content":"Below content")+" ("+Bars.Count+" bars)";
+        public NotificationBarRowEditor(NotificationProgressBarDefinition root) { Root=root;style=root.RowStyle;root.PropertyChanged+=RootChanged; }
+        private void RootChanged(object sender,PropertyChangedEventArgs args)
+        {
+            if(args.PropertyName==nameof(Root.RowStyle) && !ReferenceEquals(style,Root.RowStyle)) {style=Root.RowStyle;PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(Style)));}
+        }
+        internal void Update(int index,IEnumerable<NotificationProgressBarDefinition> bars)
+        {
+            number=index;var items=bars.ToList();
+            if(!Bars.SequenceEqual(items)) { Bars.Clear();foreach(var item in items)Bars.Add(item); }
+            PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(Title)));
+        }
+        public void Dispose() => Root.PropertyChanged-=RootChanged;
+    }
     public sealed class NotificationBarRowOption
     {
         public string Id { get; set; }
@@ -187,6 +248,7 @@ namespace PlayniteAchievements.Providers.Local
             var replacement=bars.FirstOrDefault(bar=>bar!=removed && Root(bars,bar)==root);
             if(replacement==null)return;
             if(root!=removed)replacement=root;
+            else replacement.RowStyle=JsonConvert.DeserializeObject<NotificationBarRowStyle>(JsonConvert.SerializeObject(root.RowStyle));
             if(replacement.RowAnchorId==removed.Id)replacement.RowAnchorId="";
             foreach(var bar in bars.Where(bar=>bar!=removed && bar!=replacement && bar.RowAnchorId==removed.Id).ToList())bar.RowAnchorId=replacement.Id;
         }

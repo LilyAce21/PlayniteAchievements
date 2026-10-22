@@ -1,0 +1,23 @@
+AddonId: PlayniteAchievements
+Type: Generic
+InstallerManifestUrl: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/InstallerManifest.yaml
+ShortDescription: Modern, performant, and fully customizable achievement tracking for you and your friends, across PC storefronts, consoles, emulators, and more
+Name: Playnite Achievements
+Author: Justin Delano
+SourceUrl: https://github.com/justin-delano/PlayniteAchievements
+IconUrl: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/source/icon.png
+Description: Playnite Achievements is a modern, performant, and fully customizable achievement extension for Playnite. It tracks achievements for you and your friends from Steam, GOG, Epic Games Store, Battle.net, EA app, PlayStation Network, Xbox Live, RetroAchievements, RPCS3, ShadPS4, Xenia, Final Fantasy XIV, HoYoverse, GameJolt, Riot Games, Guild Wars 2, Hypixel, and Exophase, with manual tracking and custom achievements for everything else. Includes achievement unlock notifications with screenshots and recordings, a full achievement editor (capstones, categories, notes, ordering, custom icons, and more), customizable Showcase dashboards, flexible overview visualizations, tag sync, hotkeys, and migration for SuccessStory themes.
+Links:
+  GitHub: https://github.com/justin-delano/PlayniteAchievements
+  Issues Tracker: https://github.com/justin-delano/PlayniteAchievements/issues
+  Translate: https://crowdin.com/project/playniteachievements
+  Support: https://ko-fi.com/justindelano
+Screenshots:
+  - Thumbnail: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/BrandingPackage/01-logo-dark-backgrounds/pa-stacked-master-crest-wordmark-spaced-gold.png
+    Image: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/BrandingPackage/01-logo-dark-backgrounds/pa-stacked-master-crest-wordmark-spaced-gold.png
+  - Thumbnail: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/Images/overview-example.png
+    Image: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/Images/overview-example.png
+  - Thumbnail: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/Images/friends-overview.png
+    Image: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/Images/friends-overview.png
+  - Thumbnail: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/Images/startpage.png
+    Image: https://raw.githubusercontent.com/justin-delano/PlayniteAchievements/main/Images/startpage.png

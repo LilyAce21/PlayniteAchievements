@@ -1,0 +1,164 @@
+<UserControl x:Class="PlayniteAchievements.Views.Controls.PieChartWithRadialIcons"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+             xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
+             xmlns:converters="clr-namespace:PlayniteAchievements.Views.Converters"
+             xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers"
+             x:Name="Root">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <helpers:SharedResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/CommonResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <controls:PieLegendLayoutPanel x:Name="LayoutPanel"
+                                   LegendPosition="{Binding LegendPosition, ElementName=Root}">
+    <!-- The pie and its overlays share one square host; icon and percentage geometry is
+         measured against it, not against the whole control. -->
+    <Grid x:Name="PieHost">
+        <lvc:PieChart x:Name="Chart"
+                      SnapsToDevicePixels="True"
+                      UseLayoutRounding="True"
+                      LegendLocation="None"
+                      InnerRadius="30"
+                      Margin="{Binding PieMargin, ElementName=Root}"
+                      DisableAnimations="True"
+                      Hoverable="True"
+                      HoverPushOut="0"
+                      TooltipTimeout="0:0:0.1"
+                      Series="{Binding PieSeries, ElementName=Root}"
+                      DataHover="OnPieChartDataHover"
+                      MouseMove="OnPieChartMouseMove"
+                      MouseLeave="OnPieChartMouseLeave"
+                      DataClick="OnPieChartDataClick">
+            <lvc:PieChart.DataTooltip>
+                <controls:PieChartTooltip/>
+            </lvc:PieChart.DataTooltip>
+        </lvc:PieChart>
+
+        <!-- A lone slice draws no separator, which would leave a seam at its start angle; its
+             outer and inner edges are outlined here instead, placed from code-behind. -->
+        <Canvas IsHitTestVisible="False">
+            <Ellipse x:Name="SingleSliceOuterOutline"
+                     Stroke="{DynamicResource PlayAch.Brush.Chart.Separator}"
+                     Visibility="Collapsed"/>
+            <Ellipse x:Name="SingleSliceInnerOutline"
+                     Stroke="{DynamicResource PlayAch.Brush.Chart.Separator}"
+                     Visibility="Collapsed"/>
+        </Canvas>
+
+        <TextBlock Text="{Binding CenterPercentageText, ElementName=Root}"
+                   FontSize="{Binding CenterPercentageFontSize, ElementName=Root}"
+                   Visibility="{Binding CenterPercentageVisibility, ElementName=Root}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   LineHeight="{Binding CenterPercentageFontSize, ElementName=Root}"
+                   LineStackingStrategy="BlockLineHeight"
+                   TextAlignment="Center"
+                   TextWrapping="NoWrap"
+                   Foreground="{DynamicResource PlayAch.Brush.Text}"
+                   FontWeight="SemiBold"
+                   Opacity="0.85"
+                   IsHitTestVisible="False"
+                   Panel.ZIndex="1">
+            <TextBlock.RenderTransform>
+                <TranslateTransform X="{Binding CenterPercentageOffsetX, ElementName=Root}"
+                                    Y="{Binding CenterPercentageOffsetY, ElementName=Root}"/>
+            </TextBlock.RenderTransform>
+        </TextBlock>
+
+        <!-- Icon overlay canvas -->
+        <Canvas IsHitTestVisible="False"
+                SnapsToDevicePixels="True">
+            <ItemsControl ItemsSource="{Binding IconPositions, ElementName=Root}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                        <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Width="18" Height="18">
+                            <Grid.RenderTransform>
+                                <TranslateTransform X="{Binding OffsetX}" Y="{Binding OffsetY}"/>
+                            </Grid.RenderTransform>
+                            <!-- Badge icons -->
+                            <Image Effect="{StaticResource BadgeShadow}"
+                                   SnapsToDevicePixels="True"
+                                   RenderOptions.BitmapScalingMode="NearestNeighbor">
+                                <Image.Source>
+                                    <MultiBinding Converter="{StaticResource ResourceKeyToImage}">
+                                        <Binding Path="IconKey"/>
+                                        <Binding Path="IconRefreshKey"/>
+                                    </MultiBinding>
+                                </Image.Source>
+                            </Image>
+                            <!-- Provider icons -->
+                            <Image SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="NearestNeighbor">
+                                <Image.Source>
+                                    <MultiBinding Converter="{StaticResource ProviderIconConverter}">
+                                        <Binding Path="IconKey"/>
+                                        <Binding Path="ColorHex"/>
+                                    </MultiBinding>
+                                </Image.Source>
+                            </Image>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Canvas>
+    </Grid>
+
+    <!-- Legend rows stand in for their slices: hovering one pushes the slice out and clicking
+         one raises SliceClick, exactly as the slice itself would. -->
+    <ItemsControl ItemsSource="{Binding LegendRows, ElementName=Root}"
+                  VerticalAlignment="Center"
+                  Visibility="{Binding ShowLegend, ElementName=Root, Converter={StaticResource BoolToVis}}">
+        <ItemsControl.ItemTemplate>
+            <DataTemplate>
+                <Grid Margin="0,3"
+                      Background="Transparent"
+                      MouseEnter="OnLegendRowMouseEnter"
+                      MouseLeave="OnLegendRowMouseLeave"
+                      MouseLeftButtonUp="OnLegendRowMouseLeftButtonUp">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="8"
+                            Height="8"
+                            CornerRadius="4"
+                            Margin="0,0,7,0"
+                            VerticalAlignment="Center"
+                            Background="{Binding Swatch}"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Label}"
+                               Foreground="{DynamicResource PlayAch.Brush.Text}"
+                               Opacity="{StaticResource PlayAch.Opacity.Hint}"
+                               FontSize="{DynamicResource PlayAch.FontSize.Caption}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CountText}"
+                               Foreground="{DynamicResource PlayAch.Brush.Text}"
+                               FontWeight="SemiBold"
+                               FontSize="{DynamicResource PlayAch.FontSize.Caption}"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    </controls:PieLegendLayoutPanel>
+</UserControl>

@@ -1,4 +1,21 @@
-﻿# Santodan fork feature checklist
+# Santodan fork feature checklist
+
+## Progress row layout and editor defaults - 2026-10-22
+
+- Group three bars in one row and another bar in a second row. Editing the first
+  row's margins moves all three bars; the second row keeps its own settings.
+- Set **Space between bars** to 0 and a positive value. Check WPF, SAN, and the
+  builder; hidden bars leave no extra gap, and automatic widths share the rest.
+- At zero top margin, bars attach to occupied content rather than blank configured
+  height. Check icons, covers, wrapped text, and manually positioned elements.
+  Negative margins intentionally overlap; SAN host height limits must not clip bars.
+- Collapse the first row and edit the second. Bar settings collapse independently,
+  new bars start collapsed, and saved choices survive slots and JSON round trips.
+- Check **Bar 1 - Progress** headings and **Same row as** choices use a hyphen.
+- Hide or remove the row leader and detach a member; preserve row margins, spacing,
+  and collapse settings. Empty rows reserve no space.
+- Validation: required Release rebuild and 34 focused notification tests passed;
+  grouped-editor browser check passed. Latest live Playnite verification is pending.
 
 ## Custom notification progress bar elements - 2026-10-21
 

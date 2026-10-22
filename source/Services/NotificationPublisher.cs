@@ -3505,11 +3505,18 @@ if (sanProgressBefore || sanProgressAfter) {{
     const layoutBars = () => {{
       const before = panels[0].getBoundingClientRect().height;
       const after = panels[1].getBoundingClientRect().height;
-      outer.style.height = (baseHeight + before + after) + 'px';
-      outer.querySelectorAll('#achcont').forEach(card => {{ card.style.height = baseHeight + 'px'; card.style.top = before + 'px'; card.style.alignSelf = 'start'; card.style.marginTop = '0px'; }});
+      const outerTop = outer.getBoundingClientRect().top;
+      const occupied = Array.from(outer.querySelectorAll('#achicon, #logo, .san-generated-line, [data-san-manual-id]')).filter(el => !el.closest('.san-progress-elements') && getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().height > 0).map(el => el.getBoundingClientRect().bottom - outerTop - before);
+      const contentEnd = occupied.length ? Math.max(0, ...occupied) : baseHeight;
+      const afterTop = panels[1].style.display === 'none' ? baseHeight : contentEnd;
+      const totalHeight = Math.max(baseHeight + before, before + afterTop + after);
+      ['height','min-height','max-height'].forEach(property => outer.style.setProperty(property, totalHeight + 'px', 'important'));
+      const bodyStyle = getComputedStyle(document.body);
+      document.body.style.setProperty('height', (totalHeight + (parseFloat(bodyStyle.paddingTop)||0) + (parseFloat(bodyStyle.paddingBottom)||0)) + 'px', 'important');
+      outer.querySelectorAll('#achcont').forEach(card => {{ card.style.setProperty('height', baseHeight + 'px', 'important'); card.style.setProperty('top', before + 'px', 'important'); card.style.alignSelf = 'start'; card.style.marginTop = '0px'; }});
       panels[0].style.top = '0px';
-      panels[1].style.top = (before + baseHeight) + 'px';
-      if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage('san-height:' + Math.ceil(baseHeight + before + after + 8));
+      panels[1].style.top = (before + afterTop) + 'px';
+      if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage('san-height:' + Math.ceil(totalHeight + 8));
     }};
     layoutBars();
     window.addEventListener('resize', layoutBars);
@@ -5700,6 +5707,9 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgress
             beforeBars.Margin = afterBars.Margin = new Thickness(contentPadding.Left, 0, contentPadding.Right, 8);
             if (beforeBars.Children.Count == 0) beforeBars.Margin = new Thickness(0);
             if (afterBars.Children.Count == 0) afterBars.Margin = new Thickness(0);
+            // Progress rows attach to occupied content, rather than unused fixed-height space.
+            if (beforeBars.Children.Count > 0 || afterBars.Children.Count > 0)
+                elementLayout.RowDefinitions[1].Height = GridLength.Auto;
             beforeBars.Measure(new Size(customWidth, double.PositiveInfinity));
             afterBars.Measure(new Size(customWidth, double.PositiveInfinity));
             var barsHeight = beforeBars.DesiredSize.Height + afterBars.DesiredSize.Height;
@@ -5729,7 +5739,9 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgress
             FrameworkElement secondaryIconElement = null;
 
             var grid = new Grid();
-            grid.Margin = contentPadding;
+            grid.Margin = new Thickness(contentPadding.Left,
+                beforeBars.Children.Count > 0 ? 0 : contentPadding.Top,
+                contentPadding.Right, afterBars.Children.Count > 0 ? 0 : contentPadding.Bottom);
             if (coverPosition == LocalOverlayCoverPosition.Left && !coverLeftAbsolute)
             {
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
