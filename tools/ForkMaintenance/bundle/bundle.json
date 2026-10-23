@@ -1,7 +1,7 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-22T13:01:05.5235812Z",
-    "baselineRef":  "v4.1.1",
+    "generatedUtc":  "2026-10-23T09:11:31.8703842Z",
+    "baselineRef":  "upstream/main",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
                            "AddonDBManifest.yaml",
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "FEE6B0EE11B02ADBBE389D114F35B45FC229847D8CDA0C7E049A37BF0C437E57"
+                  "sha256":  "5FB9419B55D915329C39FF364FB6336EB30C298D61E36F581A7ABE1F1F5AC785"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -310,7 +310,7 @@
                          },
                          {
                              "path":  "source/Services/UI/CustomNotificationProgressTokens.cs",
-                             "sha256":  "A18D7EC23436BF712D3292F042ADC0434AAEBA097F0A084E4B540D164540A256"
+                             "sha256":  "E38F6BEBF8176378CA78FA4B0E1C4B2FFDBFCC374E5D3C29F2D2A55BD2F411C7"
                          },
                          {
                              "path":  "source/ViewModels/GameOptionsCustomSchemaTab.cs",
@@ -357,12 +357,16 @@
                              "sha256":  "DF32A96E562C699FAEE45D9FA4B017155B2ADD5F4B82CEF284147FC9582A2106"
                          },
                          {
+                             "path":  "source/Views/Helpers/ButtonLabelTemplateSelector.cs",
+                             "sha256":  "A3B8130643C2BD693B9D86B8D4A89C1FD76507E584C21126A024D336EF9E593C"
+                         },
+                         {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml",
-                             "sha256":  "824D264764EFBE0BD904F941C01F53C05D3E07B53B03847BEA15C206604E2113"
+                             "sha256":  "99BA0004CD70C264D64F1814F50B1C86C63D6D02B096DE87E959B34FFC120B20"
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml.cs",
-                             "sha256":  "F407572AE623C433BF1080ED968C42A9B23FF797171966C4901C1C05DB0CF854"
+                             "sha256":  "9116CF14F26EF645A48BC08E95BD74E42852F233691E303040983938097F9FA4"
                          },
                          {
                              "path":  "source/Views/LocalAchievementEditorControl.xaml",
@@ -426,7 +430,7 @@
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressTokensTests.cs",
-                             "sha256":  "260179F73CED364DB042429B757868A759DB0F560AC59AD566AE26B115D4335A"
+                             "sha256":  "CB0EDB1AF03513ABA6DD40E6CF9A5ACD6C9776F519B8A31B20D5C39D0054848F"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/ForkLoggerTests.cs",
@@ -453,8 +457,12 @@
                              "sha256":  "89155B28C860334C0D342A72ADBD9CFBCEA7082F1C034A78FD380C4500C6CB6D"
                          },
                          {
+                             "path":  "tests/PlayniteAchievements.Tests/Views/LegacySettingsResourceTests.cs",
+                             "sha256":  "A83E5D1BE1A4F48060CBD8B2422460EC723D8DB53C49710964C28C4AD8CBEF7F"
+                         },
+                         {
                              "path":  "tools/notification-template-builder.html",
-                             "sha256":  "20624BC2606949611E89F29DB032FFEA79E508D0288905E948C4D35365325B16"
+                             "sha256":  "947DF71CB907B92C555BAFA676345348843444ED02DB699BC990DE6B1B6570E6"
                          },
                          {
                              "path":  "tools/NotificationTemplates/PROGRESS_BAR.md",

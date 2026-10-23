@@ -141,6 +141,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Fixed the `Custom Notification` not taking into consideration the settings in the `Notifications` --> `Platforms`
 - Fix `Custom Notification` bypassing platform filters
 - Fixed the missing ranks from the `Theme Migration` for the `PS5-Experience`
+- Added conditions to the wildcards in the `Custom Notification` under the `Add a condition to a text row` menu under the wildcards
 
 ## 2026-10-18 - v4.1.0.1
 

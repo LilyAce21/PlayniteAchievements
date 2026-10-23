@@ -1,4 +1,33 @@
-# Santodan fork feature checklist
+﻿# Santodan fork feature checklist
+
+
+## Conditional text and settings visibility - 2026-10-23
+
+- `<achievementName>` must contain only the name. Place progress explicitly.
+  `<achievementName>[[ (<progress> -)]]` must hide the entire suffix when no
+  counter exists; zero current progress remains a populated value.
+- Use the editor below the wildcard buttons and above row 1. Apply conditions
+  to a selected substring and a whole chosen row; check optional otherwise text.
+- Verify has-value, empty, case-insensitive equals/not-equals/contains, and numeric
+  gt/gte/lt/lte comparisons, including percentage values and nonnumeric input.
+- Combine progress and other tokens using All/AND and Any/OR; AND binds first.
+  Check WPF, SAN, and browser previews. Nesting is deliberately unsupported.
+- Missing progress must not substitute default text into an intentionally empty
+  conditional row. Preserve per-notification isolation and saved templates.
+- Check preview actions, long wildcard labels, sound buttons, and hotkey buttons
+  at larger fonts and narrow widths. Labels grow/wrap rather than clip.
+- Check collapsed and expanded settings groups have visible borders, background,
+  and padding, especially the condition editor.
+- Open Achievement Notification and Theme Migration after restarting Playnite;
+  neither may throw the duplicate Button resource exception. Preserve the
+  resource-key regression test; do not add a second implicit style in one scope.
+- Validation: Release rebuild, 15 notification tests, one resource regression test,
+  five browser checks, and 12 WPF button layout checks passed. Full legacy resources
+  load/seal; compiled expander styles load with borders in both states. Final
+  live Playnite verification remains pending.
+- Bundle refresh: clean upstream v4.1.1 preflight and actual replay passed with
+  173 overlays, localization, component hashes, and protected-file checks.
+  All 11 changed source/test/builder files match replay after newline normalization.
 
 ## PS5 Experience rank badge compatibility - 2026-10-22
 
@@ -65,14 +94,11 @@
 
 ## Custom notification progress - 2026-10-20
 
-- Verify a mixed-progress game: `<achievementName>` automatically shows `(X/Y)`
-  for achievements with counters, and ordinary names stay unchanged.
-- Verify `<achievementName> - <achievementDescription>` puts `(X/Y)` directly
-  beside the name, even with `<progress>` or `<progressPercent>` on another line.
-- Verify explicit X/Y on the name line is not duplicated, counters do not leak
-  between notifications, and saved templates are unchanged.
+- Automatic progress beside the achievement name is superseded by the explicit
+  optional/conditional text checks above (2026-10-23). Preserve progress tokens,
+  per-notification isolation, and unchanged saved templates.
 - Verify the progress token buttons, template builder sample counters, silent
-  progress popups, and final unlock counter. Nine focused tests cover formatting
+  progress popups, and final unlock counter. Current focused tests cover formatting
   and notification-copy behavior; final live Playnite verification is pending.
 - Keep native `progress`/`max_progress` support and the existing Custom Schema
   editor. Do not reintroduce the removed cat schema or aggregation experiment.

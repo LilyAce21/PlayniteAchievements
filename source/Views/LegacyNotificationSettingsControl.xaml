@@ -30,6 +30,18 @@
                         Value="{Binding DataContext, ElementName=LegacyNotificationSettingsControlRoot}"/>
             </Style>
 
+            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="Auto"/>
+                <Setter Property="MinWidth" Value="0"/>
+                <Setter Property="MaxWidth" Value="Infinity"/>
+                <Setter Property="MinHeight" Value="28"/>
+                <Setter Property="MaxHeight" Value="Infinity"/>
+                <Setter Property="Padding" Value="12,6"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+
             <!-- Disable Steam auth buttons while busy -->
             <Style x:Key="SteamAuthActionButtonStyle"
                    TargetType="Button"
@@ -271,7 +283,7 @@
             </Style>
 
             <!-- Implicit styles: ensure all Button/ComboBox/TextBox controls inherit the Playnite theme -->
-            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"/>
+            <!-- Button sizing is defined once near the start of this dictionary. -->
             <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"/>
             <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"/>
             <Style x:Key="ProviderNavigationItemContainerStyle" TargetType="ListBoxItem">
@@ -2391,13 +2403,13 @@
                                                            Text="{DynamicResource LOCPlayAch_Filter_ActivitySelectorPlaceholder}"
                                                            VerticalAlignment="Center"
                                                            Margin="0,0,10,8"/>
-                                                <Button x:Name="StartPageActivityScopeSelectionButton"
+                                                <Button MinHeight="30" x:Name="StartPageActivityScopeSelectionButton"
                                                         Grid.Row="0"
                                                         Grid.Column="1"
                                                         Content="{Binding StartPageActivityScopeText, ElementName=LegacyNotificationSettingsControlRoot}"
                                                         Click="StartPageActivityScopeSelectionButton_Click"
                                                         MinWidth="220"
-                                                        Height="30"
+
                                                         Margin="0,0,0,8"
                                                         HorizontalAlignment="Left">
                                                     <Button.ContextMenu>
@@ -2410,13 +2422,13 @@
                                                            Text="{DynamicResource LOCPlayAch_Progress}"
                                                            VerticalAlignment="Center"
                                                            Margin="0,0,10,0"/>
-                                                <Button x:Name="StartPageProgressScopeSelectionButton"
+                                                <Button MinHeight="30" x:Name="StartPageProgressScopeSelectionButton"
                                                         Grid.Row="1"
                                                         Grid.Column="1"
                                                         Content="{Binding StartPageProgressScopeText, ElementName=LegacyNotificationSettingsControlRoot}"
                                                         Click="StartPageProgressScopeSelectionButton_Click"
                                                         MinWidth="220"
-                                                        Height="30"
+
                                                         HorizontalAlignment="Left">
                                                     <Button.ContextMenu>
                                                         <ContextMenu x:Name="StartPageProgressScopeSelectionContextMenu"/>
@@ -2895,46 +2907,25 @@
                                               Margin="8,0,0,0"
                                               DisplayMemberPath="DisplayName"
                                               Visibility="Collapsed"/>
-                                        <Button Content="Save"
-                                            Width="70"
+                                        <Button MinWidth="70" Content="Save"
+
                                             Margin="8,0,0,0"
                                             Click="NotificationsSaveProviderStyleOverride_Click"
                                             Visibility="Collapsed"/>
-                                        <Button Content="Clear"
-                                            Width="70"
+                                        <Button MinWidth="70" Content="Clear"
+
                                             Margin="8,0,0,0"
                                             Click="NotificationsClearProviderStyleOverride_Click"
                                             Visibility="Collapsed"/>
                                     </DockPanel>
-<Grid Margin="0,0,0,6">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="8"/>
-                                            <ColumnDefinition Width="260"/>
-                                            <ColumnDefinition Width="16"/>
-                                            <ColumnDefinition Width="170"/>
-                                            <ColumnDefinition Width="8"/>
-                                            <ColumnDefinition Width="140"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0"
-                                            Text="Preview game:"
-                                            VerticalAlignment="Center"
-                                            FontWeight="SemiBold"/>
-                                        <ComboBox Grid.Column="2"
-                                            x:Name="NotificationsPreviewGameComboBox"
-                                            MinWidth="240"
-                                            IsEditable="True"
-                                            IsTextSearchEnabled="True"
-                                            StaysOpenOnEdit="True"
-                                            DisplayMemberPath="DisplayName"
-                                            SelectionChanged="NotificationsPreviewGameComboBox_SelectionChanged"/>
-                                        <Button Grid.Column="4"
-                                                Content="Preview Selected Style"
-                                                Click="NotificationsPreviewSelectedStyle_Click"/>
-                                        <Button Grid.Column="6"
-                                                Content="Preview All Styles"
-                                                Click="NotificationsPreviewAllStyles_Click"/>
-                                    </Grid>
+<WrapPanel Margin="0,0,0,6">
+                                        <TextBlock Text="Preview game:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,8,6"/>
+                                        <ComboBox x:Name="NotificationsPreviewGameComboBox" Width="260" MinWidth="240"
+                                                  IsEditable="True" IsTextSearchEnabled="True" StaysOpenOnEdit="True"
+                                                  DisplayMemberPath="DisplayName" SelectionChanged="NotificationsPreviewGameComboBox_SelectionChanged" Margin="0,0,16,6"/>
+                                        <Button Content="Preview Selected Style" Click="NotificationsPreviewSelectedStyle_Click" Margin="0,0,8,6"/>
+                                        <Button Content="Preview All Styles" Click="NotificationsPreviewAllStyles_Click" Margin="0,0,0,6"/>
+                                    </WrapPanel>
 <Grid Margin="0,0,0,6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -3029,15 +3020,15 @@
                                                      <Button Grid.Column="5"
                                                              Content="Load Slot"
                                                              Click="NotificationsLoadCustomStyleSlot_Click"/>
-                                                     <Button Grid.Column="7"
+                                                     <Button MinWidth="90" Grid.Column="7"
                                                              Content="+"
                                                              ToolTip="Add slot"
-                                                             Width="90"
+
                                                              Click="NotificationsAddCustomStyleSlot_Click"/>
-                                                     <Button Grid.Column="9"
+                                                     <Button MinWidth="90" Grid.Column="9"
                                                              Content="-"
                                                              ToolTip="Remove current slot"
-                                                             Width="90"
+
                                                              Click="NotificationsRemoveCustomStyleSlot_Click"/>
                                                      <Button Grid.Column="11"
                                                              Content="Clear all slots"
@@ -3379,6 +3370,8 @@
                                                                     Style="{StaticResource MutedTextStyle}"
                                                                     TextWrapping="Wrap"
                                                                     Margin="0,0,0,8"/>
+                                                         <TextBlock Text="Optional groups: &lt;achievementName&gt;[[ (&lt;progress&gt; -)]]. A group appears only when every wildcard inside has a value. Include its spaces and punctuation inside [[...]]. Use separate groups; nesting is not supported."
+                                                                    Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"/>
                                                          <StackPanel Margin="0,0,0,8">
                                                              <TextBlock Text="Achievement" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                                              <WrapPanel Margin="0,0,0,6">
@@ -3446,6 +3439,34 @@
                                                              <Button Content="&lt;dateTime&gt;" Tag="&lt;dateTime&gt;" Click="NotificationTemplateToken_Click" Margin="0,0,6,6"/>
                                                              </WrapPanel>
                                                          </StackPanel>
+
+                                                         <Expander Header="Add a condition to a text row" Margin="0,0,0,8">
+                                                             <StackPanel Margin="0,6,0,0">
+                                                                 <TextBlock Text="Choose a wildcard and a condition. Apply to the selected text, or the entire row when no text is selected. Add several conditions using All (AND) or Any (OR)." TextWrapping="Wrap"/>
+                                                                 <WrapPanel Margin="0,6,0,6">
+                                                                     <ComboBox x:Name="NotificationConditionToken" IsEditable="True" Text="&lt;progress&gt;" Width="180" Margin="0,0,6,0">
+                                                                         <ComboBoxItem Content="&lt;progress&gt;"/><ComboBoxItem Content="&lt;progressCurrent&gt;"/><ComboBoxItem Content="&lt;progressMax&gt;"/><ComboBoxItem Content="&lt;progressPercent&gt;"/><ComboBoxItem Content="&lt;points&gt;"/><ComboBoxItem Content="&lt;rarity&gt;"/><ComboBoxItem Content="&lt;achievementDescription&gt;"/><ComboBoxItem Content="&lt;provider&gt;"/>
+                                                                     </ComboBox>
+                                                                     <ComboBox x:Name="NotificationConditionOperator" SelectedIndex="0" Width="180" Margin="0,0,6,0">
+                                                                         <ComboBoxItem Content="Has a value" Tag="hasValue"/><ComboBoxItem Content="Is empty" Tag="empty"/><ComboBoxItem Content="Equals" Tag="eq"/><ComboBoxItem Content="Does not equal" Tag="ne"/><ComboBoxItem Content="Contains" Tag="contains"/><ComboBoxItem Content="Greater than" Tag="gt"/><ComboBoxItem Content="At least" Tag="gte"/><ComboBoxItem Content="Less than" Tag="lt"/><ComboBoxItem Content="At most" Tag="lte"/>
+                                                                     </ComboBox>
+                                                                     <TextBox x:Name="NotificationConditionValue" Width="100" ToolTip="Comparison value; numeric comparisons also accept percentages."/>
+                                                                 </WrapPanel>
+                                                                 <WrapPanel>
+                                                                     <ComboBox x:Name="NotificationConditionJoin" SelectedIndex="0" Width="110" Margin="0,0,6,0"><ComboBoxItem Content="All (AND)"/><ComboBoxItem Content="Any (OR)"/></ComboBox>
+                                                                     <Button Content="Add condition" Click="NotificationConditionAdd_Click" Margin="0,0,6,0"/>
+                                                                     <Button Content="Clear" Click="NotificationConditionClear_Click"/>
+                                                                 </WrapPanel>
+                                                                 <TextBox x:Name="NotificationConditionExpression" IsReadOnly="True" Margin="0,6,0,6" ToolTip="Conditions to apply"/>
+                                                                 <TextBlock Text="Otherwise show (optional):"/>
+                                                                 <TextBox x:Name="NotificationConditionOtherwise" Margin="0,4,0,6"/>
+                                                                 <WrapPanel>
+                                                                     <ComboBox x:Name="NotificationConditionRow" SelectedIndex="0" Width="110" Margin="0,0,6,0"><ComboBoxItem Content="Row 1"/><ComboBoxItem Content="Row 2"/><ComboBoxItem Content="Row 3"/><ComboBoxItem Content="Row 4"/><ComboBoxItem Content="Row 5"/><ComboBoxItem Content="Row 6"/></ComboBox>
+                                                                     <Button Content="Apply condition" Click="NotificationConditionApply_Click"/>
+                                                                 </WrapPanel>
+                                                                 <TextBlock x:Name="NotificationConditionStatus" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                                             </StackPanel>
+                                                         </Expander>
 
                                                          <DockPanel Margin="0,0,0,6" LastChildFill="True">
                                                              <CheckBox Content="Line 1"
@@ -3842,11 +3863,11 @@
                                                                  <Border BorderThickness="1" BorderBrush="#40808080" Padding="10" Margin="0,0,0,8"><Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"><Expander.Header><TextBlock Text="{Binding EditorTitle}"/></Expander.Header><StackPanel>
                                                                      <WrapPanel>
                                                                          <CheckBox Content="Enabled" IsChecked="{Binding Enabled}" VerticalAlignment="Center"/>
-                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Remove" Tag="{Binding}" Click="NotificationsRemoveProgressBar_Click" HorizontalAlignment="Right"/>
-                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Down" Tag="{Binding}" Click="NotificationsMoveProgressBarDown_Click"/>
-                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Up" Tag="{Binding}" Click="NotificationsMoveProgressBarUp_Click"/>
-                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Left" Tag="{Binding}" Click="NotificationsMoveProgressBarLeft_Click" ToolTip="Join the previous bar's row, or move left within the row"/>
-                                                                         <Button Width="70" Height="30" Padding="6,2" MinWidth="70" Margin="2,0" Content="Right" Tag="{Binding}" Click="NotificationsMoveProgressBarRight_Click" ToolTip="Move right within the row, or move into a new row"/>
+                                                                         <Button MinHeight="30"   Padding="6,2" MinWidth="70" Margin="2,0" Content="Remove" Tag="{Binding}" Click="NotificationsRemoveProgressBar_Click" HorizontalAlignment="Right"/>
+                                                                         <Button MinHeight="30"   Padding="6,2" MinWidth="70" Margin="2,0" Content="Down" Tag="{Binding}" Click="NotificationsMoveProgressBarDown_Click"/>
+                                                                         <Button MinHeight="30"   Padding="6,2" MinWidth="70" Margin="2,0" Content="Up" Tag="{Binding}" Click="NotificationsMoveProgressBarUp_Click"/>
+                                                                         <Button MinHeight="30"   Padding="6,2" MinWidth="70" Margin="2,0" Content="Left" Tag="{Binding}" Click="NotificationsMoveProgressBarLeft_Click" ToolTip="Join the previous bar's row, or move left within the row"/>
+                                                                         <Button MinHeight="30"   Padding="6,2" MinWidth="70" Margin="2,0" Content="Right" Tag="{Binding}" Click="NotificationsMoveProgressBarRight_Click" ToolTip="Move right within the row, or move into a new row"/>
                                                                      </WrapPanel>
                                                                      <TextBlock Text="Progress source" Margin="0,8,0,3"/>
                                                                      <ComboBox ItemsSource="{x:Static local:NotificationBarSources.All}" DisplayMemberPath="Name" SelectedValuePath="Value" SelectedValue="{Binding Source, Mode=TwoWay}"/>
@@ -4159,8 +4180,8 @@
                                                                 Margin="0,0,8,0"
                                                                 FontWeight="SemiBold"/>
                                                      <DockPanel Grid.Column="1" LastChildFill="True">
-                                                         <Button Content="Pick"
-                                                                 Width="52"
+                                                         <Button MinWidth="52" Content="Pick"
+
                                                                  Tag="Background"
                                                                  Click="NotificationsPickCustomColor_Click"/>
                                                          <TextBox Text="{Binding OverlayCustomBackgroundColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -4179,8 +4200,8 @@
                                                              <ColumnDefinition Width="54"/>
                                                              <ColumnDefinition Width="Auto"/>
                                                          </Grid.ColumnDefinitions>
-                                                         <Button Content="Pick"
-                                                                 Width="52"
+                                                         <Button MinWidth="52" Content="Pick"
+
                                                                  Tag="Border"
                                                                  Click="NotificationsPickCustomColor_Click"/>
                                                          <TextBox Grid.Column="1"
@@ -4204,8 +4225,8 @@
                                                                 Margin="0,0,8,0"
                                                                 FontWeight="SemiBold"/>
                                                      <DockPanel Grid.Column="7" LastChildFill="True">
-                                                         <Button Content="Pick"
-                                                                 Width="52"
+                                                         <Button MinWidth="52" Content="Pick"
+
                                                                  Tag="Accent"
                                                                  Click="NotificationsPickCustomColor_Click"/>
                                                          <TextBox Text="{Binding OverlayCustomAccentColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -4244,24 +4265,24 @@
                                         </DockPanel>
 
                                         <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                            <Button Content="Add File"
-                                                Width="90"
+                                            <Button MinWidth="90" Content="Add File"
+
                                                 Click="NotificationsAddSoundFile_Click"/>
-                                            <Button Content="Add Folder"
-                                                Width="100"
+                                            <Button MinWidth="100" Content="Add Folder"
+
                                                 Margin="8,0,0,0"
                                                 Click="NotificationsAddSoundFolder_Click"/>
-                                            <Button x:Name="NotificationsRemoveSoundButton"
+                                            <Button MinWidth="90" x:Name="NotificationsRemoveSoundButton"
                                                 Content="Remove"
-                                                Width="90"
+
                                                 Margin="8,0,0,0"
                                                 Click="NotificationsRemoveSound_Click"/>
                                         </DockPanel>
 
                                         <DockPanel Margin="0,0,0,4">
-                                            <Button x:Name="NotificationsTestUnlockSoundButton"
+                                            <Button MinWidth="130" x:Name="NotificationsTestUnlockSoundButton"
                                                 Content="Test Notification"
-                                                Width="130"
+
                                                     Padding="12,6"
                                                     Click="NotificationsTestUnlockSoundButton_Click"/>
                                             <TextBlock x:Name="NotificationsUnlockSoundStatusTextBlock"
@@ -4318,10 +4339,10 @@
                                                     <TextBlock Text="Sound:" Width="90" VerticalAlignment="Center"/>
                                                     <ComboBox x:Name="CollectionProgressSoundComboBox" Width="240" DisplayMemberPath="DisplayName"
                                                               SelectedValuePath="SoundPath" SelectedValue="{Binding CollectionProgressNotifications.SoundPath, Mode=TwoWay}"/>
-                                                    <Button Content="Browse" Tag="Collection" Width="72" Margin="8,0,0,0" Click="ScoreProgressSoundBrowse_Click"/>
+                                                    <Button MinWidth="72" Content="Browse" Tag="Collection"  Margin="8,0,0,0" Click="ScoreProgressSoundBrowse_Click"/>
                                                     <TextBlock Text="Lead (ms):" Margin="12,0,6,0" VerticalAlignment="Center"/>
                                                     <TextBox Width="70" Text="{Binding CollectionProgressNotifications.SoundLeadMilliseconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
-                                                    <Button Content="Test" Tag="Collection" Width="58" Margin="8,0,0,0" Click="ScoreProgressNotificationTest_Click"/>
+                                                    <Button MinWidth="58" Content="Test" Tag="Collection"  Margin="8,0,0,0" Click="ScoreProgressNotificationTest_Click"/>
                                                 </DockPanel>
                                             </StackPanel>
                                         </GroupBox>
@@ -4340,10 +4361,10 @@
                                                     <TextBlock Text="Sound:" Width="90" VerticalAlignment="Center"/>
                                                     <ComboBox x:Name="PrestigeProgressSoundComboBox" Width="240" DisplayMemberPath="DisplayName"
                                                               SelectedValuePath="SoundPath" SelectedValue="{Binding PrestigeProgressNotifications.SoundPath, Mode=TwoWay}"/>
-                                                    <Button Content="Browse" Tag="Prestige" Width="72" Margin="8,0,0,0" Click="ScoreProgressSoundBrowse_Click"/>
+                                                    <Button MinWidth="72" Content="Browse" Tag="Prestige"  Margin="8,0,0,0" Click="ScoreProgressSoundBrowse_Click"/>
                                                     <TextBlock Text="Lead (ms):" Margin="12,0,6,0" VerticalAlignment="Center"/>
                                                     <TextBox Width="70" Text="{Binding PrestigeProgressNotifications.SoundLeadMilliseconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
-                                                    <Button Content="Test" Tag="Prestige" Width="58" Margin="8,0,0,0" Click="ScoreProgressNotificationTest_Click"/>
+                                                    <Button MinWidth="58" Content="Test" Tag="Prestige"  Margin="8,0,0,0" Click="ScoreProgressNotificationTest_Click"/>
                                                 </DockPanel>
                                             </StackPanel>
                                         </GroupBox>
@@ -4488,8 +4509,8 @@
                                                            Margin="0,0,8,0"
                                                            Foreground="{DynamicResource TextBrush}"
                                                            FontWeight="SemiBold"/>
-                                                <Button Content="{DynamicResource LOCPlayAch_Button_Browse}"
-                                                        Width="90"
+                                                <Button MinWidth="90" Content="{DynamicResource LOCPlayAch_Button_Browse}"
+
                                                         DockPanel.Dock="Right"
                                                         Margin="8,0,0,0"
                                                         Click="NotificationsScreenshotSaveFolder_Click"/>
@@ -4569,7 +4590,7 @@
                                             </StackPanel>
                                             <DockPanel Margin="0,0,0,6">
                                                 <TextBlock Text="Save folder:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
-                                                <Button Content="{DynamicResource LOCPlayAch_Button_Browse}" Width="90" DockPanel.Dock="Right"
+                                                <Button MinWidth="90" Content="{DynamicResource LOCPlayAch_Button_Browse}"  DockPanel.Dock="Right"
                                                         Margin="8,0,0,0" Click="NotificationsRecordingSaveFolder_Click"/>
                                                 <TextBox x:Name="NotificationsRecordingSaveFolderTextBox"
                                                          Text="{Binding RecordingSaveFolder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

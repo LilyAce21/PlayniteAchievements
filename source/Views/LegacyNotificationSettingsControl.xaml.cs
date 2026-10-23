@@ -914,6 +914,65 @@ namespace PlayniteAchievements.Views
             _lastNotificationTemplateCaretIndex = Math.Max(0, Math.Min(textBox.SelectionStart, textBox.Text?.Length ?? 0));
         }
 
+        private void NotificationConditionAdd_Click(object sender, RoutedEventArgs e)
+        {
+            var token = NotificationConditionToken.Text.Trim();
+            var operation = (NotificationConditionOperator.SelectedItem as ComboBoxItem)?.Tag as string;
+            var value = NotificationConditionValue.Text.Trim();
+            if (!Regex.IsMatch(token, @"^<[a-zA-Z0-9]+>$") || string.IsNullOrEmpty(operation) ||
+                value.Contains("::") || value.Contains("[[") || value.Contains("]]") || value.Contains("&&") || value.Contains("||"))
+            {
+                NotificationConditionStatus.Text = "Choose a wildcard. Comparison values cannot contain condition delimiters.";
+                return;
+            }
+            if (operation != "hasValue" && operation != "empty" && value.Length == 0)
+            {
+                NotificationConditionStatus.Text = "Enter a comparison value.";
+                return;
+            }
+            var clause = token + " " + operation + (operation == "hasValue" || operation == "empty" ? "" : " " + value);
+            var join = NotificationConditionJoin.SelectedIndex == 0 ? " && " : " || ";
+            NotificationConditionExpression.Text += (NotificationConditionExpression.Text.Length == 0 ? "" : join) + clause;
+            NotificationConditionStatus.Text = "Condition added. Choose the row and apply.";
+        }
+
+        private void NotificationConditionClear_Click(object sender, RoutedEventArgs e)
+        {
+            NotificationConditionExpression.Clear();
+            NotificationConditionStatus.Text = string.Empty;
+        }
+
+        private void NotificationConditionApply_Click(object sender, RoutedEventArgs e)
+        {
+            if (NotificationConditionExpression.Text.Length == 0)
+            {
+                NotificationConditionAdd_Click(sender, e);
+                if (NotificationConditionExpression.Text.Length == 0) return;
+            }
+            var rows = new[] { NotificationLine1TemplateTextBox, NotificationLine2TemplateTextBox,
+                NotificationLine3TemplateTextBox, NotificationLine4TemplateTextBox,
+                NotificationLine5TemplateTextBox, NotificationLine6TemplateTextBox };
+            var target = rows[Math.Max(0, NotificationConditionRow.SelectedIndex)];
+            if (target == null) return;
+            var start = target.SelectionLength > 0 ? target.SelectionStart : 0;
+            var length = target.SelectionLength > 0 ? target.SelectionLength : target.Text.Length;
+            var content = target.Text.Substring(start, length);
+            var otherwise = NotificationConditionOtherwise.Text;
+            if (content.Contains("[[") || content.Contains("]]") || content.Contains("::") ||
+                otherwise.Contains("[[") || otherwise.Contains("]]") || otherwise.Contains("::"))
+            {
+                NotificationConditionStatus.Text = "Select plain text or wildcards. Nested conditions are not supported; use All/Any to combine conditions.";
+                return;
+            }
+            var expression = "[[if " + NotificationConditionExpression.Text + "::" + content +
+                (otherwise.Length > 0 ? "::" + otherwise : "") + "]]";
+            target.Text = target.Text.Remove(start, length).Insert(start, expression);
+            target.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            target.Focus();
+            target.Select(start, expression.Length);
+            NotificationConditionStatus.Text = "Applied to row " + (NotificationConditionRow.SelectedIndex + 1) + ".";
+        }
+
         private void NotificationTemplateToken_Click(object sender, RoutedEventArgs e)
         {
             var token = (sender as FrameworkElement)?.Tag as string;

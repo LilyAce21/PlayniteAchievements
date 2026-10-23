@@ -1590,6 +1590,42 @@ index 7b4a4677a872aa4cc9d67f9e4567a110f17423d4..d81182a9278a162f1793af74bdbd0c24
                  else return null;
              }
  
+diff --git a/source/Providers/ProviderSettingsScopedControlStyles.xaml b/source/Providers/ProviderSettingsScopedControlStyles.xaml
+index 9048db200af6053540ab1a01e5f77497454fef44..31a552b452224ac0916c848479875bd6b917b1e6 100644
+--- a/source/Providers/ProviderSettingsScopedControlStyles.xaml
++++ b/source/Providers/ProviderSettingsScopedControlStyles.xaml
+@@ -1,5 +1,6 @@
+-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
++﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
++                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
++                    xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers">
+ 
+     <!--
+         Scoped control styles for provider settings pages. Pulls the shared implicit control styles
+@@ -11,4 +12,22 @@
+         <ResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/PlayAchImplicitControlStyles.xaml"/>
+     </ResourceDictionary.MergedDictionaries>
+ 
++    <helpers:ButtonLabelTemplateSelector x:Key="SettingsButtonLabelTemplateSelector">
++        <helpers:ButtonLabelTemplateSelector.LabelTemplate>
++            <DataTemplate>
++                <TextBlock Text="{Binding}" TextWrapping="Wrap" TextTrimming="None" TextAlignment="Center"/>
++            </DataTemplate>
++        </helpers:ButtonLabelTemplateSelector.LabelTemplate>
++    </helpers:ButtonLabelTemplateSelector>
++    <Style TargetType="Button" BasedOn="{StaticResource PlayAch.Button.BaseStyle}">
++        <Setter Property="ContentTemplateSelector" Value="{StaticResource SettingsButtonLabelTemplateSelector}"/>
++    </Style>
++    <!-- Keep collapsed settings groups visible against their parent section. -->
++    <Style TargetType="Expander" BasedOn="{StaticResource PlayAch.Expander.BaseStyle}">
++        <Setter Property="BorderThickness" Value="1"/>
++        <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Button.Border}"/>
++        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Button.Background}"/>
++        <Setter Property="Padding" Value="12,10"/>
++        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
++    </Style>
+ </ResourceDictionary>
 diff --git a/source/Providers/RetroAchievements/RetroAchievementsDataProvider.cs b/source/Providers/RetroAchievements/RetroAchievementsDataProvider.cs
 index b637f57a02ccba09c0b34e91011ecfa8f34a7295..3920464dffa180e13a6c1221b70c4d9d406ca1a8 100644
 --- a/source/Providers/RetroAchievements/RetroAchievementsDataProvider.cs
@@ -4877,6 +4913,42 @@ index cd3effde0f98c0eb3bc1765fbdd5dd6a8b824622..23268e3ab73c78295f5fb693515d9890
              var scoped = TryResolveFromScopedAuthContext();
              if (scoped != null)
              {
+diff --git a/source/Resources/SettingsScopedControlStyles.xaml b/source/Resources/SettingsScopedControlStyles.xaml
+index c7e86c7409741494c6cdb17c85bd30252590c161..798ae91006d8326953c3944e526979e31650c4f4 100644
+--- a/source/Resources/SettingsScopedControlStyles.xaml
++++ b/source/Resources/SettingsScopedControlStyles.xaml
+@@ -1,5 +1,6 @@
+-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
++﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
++                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
++                    xmlns:helpers="clr-namespace:PlayniteAchievements.Views.Helpers">
+ 
+     <!--
+         Scoped control styles for the Settings window. Pulls the shared implicit control styles plus
+@@ -12,4 +13,22 @@
+         <ResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/PlayAchImplicitControlStyles.xaml"/>
+     </ResourceDictionary.MergedDictionaries>
+ 
++    <helpers:ButtonLabelTemplateSelector x:Key="SettingsButtonLabelTemplateSelector">
++        <helpers:ButtonLabelTemplateSelector.LabelTemplate>
++            <DataTemplate>
++                <TextBlock Text="{Binding}" TextWrapping="Wrap" TextTrimming="None" TextAlignment="Center"/>
++            </DataTemplate>
++        </helpers:ButtonLabelTemplateSelector.LabelTemplate>
++    </helpers:ButtonLabelTemplateSelector>
++    <Style TargetType="Button" BasedOn="{StaticResource PlayAch.Button.BaseStyle}">
++        <Setter Property="ContentTemplateSelector" Value="{StaticResource SettingsButtonLabelTemplateSelector}"/>
++    </Style>
++    <!-- Keep collapsed settings groups visible against their parent section. -->
++    <Style TargetType="Expander" BasedOn="{StaticResource PlayAch.Expander.BaseStyle}">
++        <Setter Property="BorderThickness" Value="1"/>
++        <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Button.Border}"/>
++        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Button.Background}"/>
++        <Setter Property="Padding" Value="12,10"/>
++        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
++    </Style>
+ </ResourceDictionary>
 diff --git a/source/Services/Achievements/AchievementDataService.cs b/source/Services/Achievements/AchievementDataService.cs
 index e5bd649a6f76adc7e05ff7663abe41dffbc8848f..91912be671165454b0fd89c0c1d7ba4d1a84b1cc 100644
 --- a/source/Services/Achievements/AchievementDataService.cs
@@ -6286,7 +6358,7 @@ index 7b369bfa892da989d430520fb04a2f9ca1a93ca6..37ce96991a75fb5eca6cc4dbeac4692a
          {
              _innerLogger.Debug($"[{_loggerName}] {message}");
 diff --git a/source/Services/NotificationPublisher.cs b/source/Services/NotificationPublisher.cs
-index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..c44185da9cac7fc20cad25dd0f734574b12516cd 100644
+index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6364849d1 100644
 --- a/source/Services/NotificationPublisher.cs
 +++ b/source/Services/NotificationPublisher.cs
 @@ -1,23 +1,84 @@
@@ -7257,7 +7329,7 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..c44185da9cac7fc20cad25dd0f734574
          private static string AuthNotificationId(string providerKey) => $"PlayAch-AuthFailed-{providerKey}";
  
          public void ShowProviderAuthFailed(List<string> providerKeys)
-@@ -163,5 +1091,7997 @@ private void OpenPluginSettingsForProvider(string providerKey)
+@@ -163,5 +1091,8021 @@ private void OpenPluginSettingsForProvider(string providerKey)
                  _logger?.Debug(ex, "Failed to open plugin settings from notification click.");
              }
          }
@@ -13463,6 +13535,14 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..c44185da9cac7fc20cad25dd0f734574
 +                return string.Empty;
 +            }
 +
++            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
++            {
++                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
++                    title, gameName, achievementName, achievementDescription, achievementPoints,
++                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
++                return value == token ? string.Empty : value;
++            });
++
 +            var replaced = OverlayTemplateTokenPattern.Replace(
 +                effectiveTemplate,
 +                match => ResolveCustomTemplateToken(
@@ -13512,6 +13592,14 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..c44185da9cac7fc20cad25dd0f734574
 +            {
 +                return string.Empty;
 +            }
++
++            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
++            {
++                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
++                    title, gameName, achievementName, achievementDescription, achievementPoints,
++                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
++                return value == token ? string.Empty : value;
++            });
 +
 +            var builder = new StringBuilder();
 +            var hasVisibleContent = false;
@@ -13629,6 +13717,14 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..c44185da9cac7fc20cad25dd0f734574
 +            {
 +                return null;
 +            }
++
++            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
++            {
++                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
++                    title, gameName, achievementName, achievementDescription, achievementPoints,
++                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
++                return value == token ? string.Empty : value;
++            });
 +
 +            var textBlock = new TextBlock
 +            {
@@ -21081,6 +21177,121 @@ index f380a0c8f2e4d0168462c3a8ab921737dafb2d7b..e8c1ec58f65703979061f4465b8bb24b
          }
  
          private static string L(string key)
+diff --git a/source/Views/Settings/General/HotkeySettingsSection.xaml b/source/Views/Settings/General/HotkeySettingsSection.xaml
+index 07101135218704f829ac4417559422759ef19650..8e4b305da243180ed59d15728bedd63dcd90bc82 100644
+--- a/source/Views/Settings/General/HotkeySettingsSection.xaml
++++ b/source/Views/Settings/General/HotkeySettingsSection.xaml
+@@ -1,4 +1,4 @@
+-<UserControl x:Class="PlayniteAchievements.Views.Settings.General.HotkeySettingsSection"
++﻿<UserControl x:Class="PlayniteAchievements.Views.Settings.General.HotkeySettingsSection"
+              x:Name="HotkeySettingsSectionRoot"
+              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+@@ -49,12 +49,12 @@
+                                 <CheckBox IsChecked="{Binding Persisted.EnableViewAchievementsHotkey}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+-                                <Button x:Name="ViewAchievementsHotkeyCaptureButton"
++                                <Button MinWidth="150" x:Name="ViewAchievementsHotkeyCaptureButton"
+                                         Content="{Binding ViewAchievementsHotkeyButtonText, ElementName=HotkeySettingsSectionRoot}"
+                                         Click="HotkeyCapture_Click"
+                                         CommandParameter="ViewAchievements"
+                                         PreviewKeyDown="HotkeyCapture_PreviewKeyDown"
+-                                        Width="150"
++
+                                         Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+                                 <Button Content="{DynamicResource LOCResetLabel}"
+                                         Click="ResetHotkey_Click"
+@@ -68,12 +68,12 @@
+                                 <CheckBox IsChecked="{Binding Persisted.EnableManageAchievementsHotkey}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+-                                <Button x:Name="ManageAchievementsHotkeyCaptureButton"
++                                <Button MinWidth="150" x:Name="ManageAchievementsHotkeyCaptureButton"
+                                         Content="{Binding ManageAchievementsHotkeyButtonText, ElementName=HotkeySettingsSectionRoot}"
+                                         Click="HotkeyCapture_Click"
+                                         CommandParameter="ManageAchievements"
+                                         PreviewKeyDown="HotkeyCapture_PreviewKeyDown"
+-                                        Width="150"
++
+                                         Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+                                 <Button Content="{DynamicResource LOCResetLabel}"
+                                         Click="ResetHotkey_Click"
+@@ -87,12 +87,12 @@
+                                 <CheckBox IsChecked="{Binding Persisted.EnableOverviewHotkey}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+-                                <Button x:Name="OverviewHotkeyCaptureButton"
++                                <Button MinWidth="150" x:Name="OverviewHotkeyCaptureButton"
+                                         Content="{Binding OverviewHotkeyButtonText, ElementName=HotkeySettingsSectionRoot}"
+                                         Click="HotkeyCapture_Click"
+                                         CommandParameter="Overview"
+                                         PreviewKeyDown="HotkeyCapture_PreviewKeyDown"
+-                                        Width="150"
++
+                                         Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+                                 <Button Content="{DynamicResource LOCResetLabel}"
+                                         Click="ResetHotkey_Click"
+@@ -106,12 +106,12 @@
+                                 <CheckBox IsChecked="{Binding Persisted.EnableOpenSettingsHotkey}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+-                                <Button x:Name="OpenSettingsHotkeyCaptureButton"
++                                <Button MinWidth="150" x:Name="OpenSettingsHotkeyCaptureButton"
+                                         Content="{Binding OpenSettingsHotkeyButtonText, ElementName=HotkeySettingsSectionRoot}"
+                                         Click="HotkeyCapture_Click"
+                                         CommandParameter="OpenSettings"
+                                         PreviewKeyDown="HotkeyCapture_PreviewKeyDown"
+-                                        Width="150"
++
+                                         Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+                                 <Button Content="{DynamicResource LOCResetLabel}"
+                                         Click="ResetHotkey_Click"
+@@ -125,12 +125,12 @@
+                                 <CheckBox IsChecked="{Binding Persisted.EnableWorkshopHotkey}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+-                                <Button x:Name="WorkshopHotkeyCaptureButton"
++                                <Button MinWidth="150" x:Name="WorkshopHotkeyCaptureButton"
+                                         Content="{Binding WorkshopHotkeyButtonText, ElementName=HotkeySettingsSectionRoot}"
+                                         Click="HotkeyCapture_Click"
+                                         CommandParameter="Workshop"
+                                         PreviewKeyDown="HotkeyCapture_PreviewKeyDown"
+-                                        Width="150"
++
+                                         Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+                                 <Button Content="{DynamicResource LOCResetLabel}"
+                                         Click="ResetHotkey_Click"
+@@ -145,12 +145,12 @@
+                                 <CheckBox IsChecked="{Binding Persisted.EnableCategoryModeHotkey}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+-                                <Button x:Name="CategoryModeHotkeyCaptureButton"
++                                <Button MinWidth="150" x:Name="CategoryModeHotkeyCaptureButton"
+                                         Content="{Binding CategoryModeHotkeyButtonText, ElementName=HotkeySettingsSectionRoot}"
+                                         Click="HotkeyCapture_Click"
+                                         CommandParameter="CategoryMode"
+                                         PreviewKeyDown="HotkeyCapture_PreviewKeyDown"
+-                                        Width="150"
++
+                                         Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+                                 <Button Content="{DynamicResource LOCResetLabel}"
+                                         Click="ResetHotkey_Click"
+@@ -165,12 +165,12 @@
+                                 <CheckBox IsChecked="{Binding Persisted.EnableTestUnlockHotkey}"
+                                           VerticalAlignment="Center"
+                                           Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+-                                <Button x:Name="TestUnlockHotkeyCaptureButton"
++                                <Button MinWidth="150" x:Name="TestUnlockHotkeyCaptureButton"
+                                         Content="{Binding TestUnlockHotkeyButtonText, ElementName=HotkeySettingsSectionRoot}"
+                                         Click="HotkeyCapture_Click"
+                                         CommandParameter="TestUnlock"
+                                         PreviewKeyDown="HotkeyCapture_PreviewKeyDown"
+-                                        Width="150"
++
+                                         Margin="{StaticResource PlayAch.Thickness.Right.Sm}"/>
+                                 <Button Content="{DynamicResource LOCResetLabel}"
+                                         Click="ResetHotkey_Click"
 diff --git a/source/Views/SettingsControl.xaml b/source/Views/SettingsControl.xaml
 index faecf5fa804a3aafec164f7f03d853cde223fe70..f9dcd188c07745d2bf6c31c143b61b3fbf73e541 100644
 --- a/source/Views/SettingsControl.xaml

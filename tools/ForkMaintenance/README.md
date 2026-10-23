@@ -1,4 +1,43 @@
-# Fork maintenance bundle
+﻿# Fork maintenance bundle
+
+
+## Conditional notification text and settings visibility - 2026-10-23
+
+`<achievementName>` now expands to the name alone. Progress is explicitly placed
+with `<progress>`, `<progressCurrent>`, `<progressMax>`, or `<progressPercent>`.
+Optional groups such as `<achievementName>[[ (<progress> -)]]` include their
+spaces and punctuation only when every wildcard inside has a value.
+
+The condition editor sits below the wildcards and above the first text row.
+Choose a wildcard, has-value/empty, equals/not-equals/contains, or a numeric
+comparison (greater than, at least, less than, at most). Combine conditions with
+All/AND or Any/OR, apply to a selected range or an entire chosen row, and optionally
+supply otherwise text. Example: `[[if <progressPercent> gte 50::Halfway::Starting]]`.
+Comparisons ignore case; numeric comparisons accept a trailing percent sign and
+use invariant numbers. AND binds more tightly than OR. Groups cannot be nested;
+combine conditions or use separate groups instead. WPF, SAN, previews, and the
+standalone HTML builder support the syntax. Missing progress does not cause an
+empty expression to revert to default notification text. Saved templates stay intact.
+
+Text buttons use automatic sizing; the preview action row wraps instead of
+constraining its labels to fixed columns. Settings/provider labels wrap while
+icon and custom content templates remain intact. Collapsible settings groups
+have borders, a subtle background, and inner padding, including the condition
+editor. The duplicate implicit Button resource introduced during sizing changes
+was removed: both Achievement Notification and Theme Migration load the same
+legacy control and previously failed with the duplicate-key XAML exception.
+
+Validation: Release rebuilds passed; 15 focused notification tests and the
+legacy-resource duplicate-key regression test passed. Five browser formatting
+checks and 12 WPF button layout checks passed. The full legacy resource dictionary
+loaded in WPF with all 30 resources and every style resolved/sealed. Compiled
+settings/provider dictionaries load and expander border thickness/padding were
+checked collapsed and expanded. Final visual verification in Playnite is pending.
+The refreshed bundle passed clean three-way preflight and actual replay onto
+upstream v4.1.1 (002eaa8b2): 173 overlays, one localization recipe, component
+hashes, and protected-file checks. All 11 changed source/test/builder files match
+the replay after line-ending normalization. No validation snapshot was added to
+the repository; the replay used a temporary checkout.
 
 ## PS5 Experience rank badge compatibility - 2026-10-22
 
@@ -142,10 +181,9 @@ excluded from this bundle refresh.
 ## Custom notification progress - 2026-10-20
 
 Custom text notifications carry each achievement's current and maximum progress.
-The visible achievement name automatically includes X/Y when the counter exists,
-even when other lines display progress or percent. Ordinary achievements keep
-their normal text. An explicit X/Y on the name's own line keeps its chosen
-placement. Tokens include `<progress>`, `<progressCurrent>`, `<progressMax>`,
+Automatic name suffixing described in the original progress implementation has
+been superseded by explicit placement and conditional text (2026-10-23 above).
+Tokens include `<progress>`, `<progressCurrent>`, `<progressMax>`,
 and `<progressPercent>`; the editor and HTML template builder expose them.
 Per-notification settings copies preserve saved templates and keep progress
 popups silent. Unlock events also carry their final counter when available.

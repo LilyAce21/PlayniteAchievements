@@ -7293,6 +7293,14 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgress
                 return string.Empty;
             }
 
+            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
+            {
+                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
+                    title, gameName, achievementName, achievementDescription, achievementPoints,
+                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
+                return value == token ? string.Empty : value;
+            });
+
             var replaced = OverlayTemplateTokenPattern.Replace(
                 effectiveTemplate,
                 match => ResolveCustomTemplateToken(
@@ -7342,6 +7350,14 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgress
             {
                 return string.Empty;
             }
+
+            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
+            {
+                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
+                    title, gameName, achievementName, achievementDescription, achievementPoints,
+                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
+                return value == token ? string.Empty : value;
+            });
 
             var builder = new StringBuilder();
             var hasVisibleContent = false;
@@ -7459,6 +7475,14 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgress
             {
                 return null;
             }
+
+            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
+            {
+                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
+                    title, gameName, achievementName, achievementDescription, achievementPoints,
+                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
+                return value == token ? string.Empty : value;
+            });
 
             var textBlock = new TextBlock
             {

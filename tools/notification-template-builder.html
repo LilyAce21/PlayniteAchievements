@@ -1400,6 +1400,53 @@
         bar.appendChild(row);
       });
 
+      const editor = document.createElement('details');
+      editor.innerHTML = `<summary>Apply conditions to a text row</summary>
+        <p>Select text in a row to condition just that text, or apply to the whole row. Existing optional groups cannot be nested.</p>
+        <select data-condition-token aria-label="Wildcard"></select>
+        <select data-condition-op aria-label="Condition">
+          <option value="hasValue">Has a value</option><option value="empty">Is empty</option>
+          <option value="eq">Equals</option><option value="ne">Does not equal</option><option value="contains">Contains</option>
+          <option value="gt">Greater than</option><option value="gte">At least</option><option value="lt">Less than</option><option value="lte">At most</option>
+        </select>
+        <input data-condition-value aria-label="Comparison value" placeholder="Comparison value">
+        <select data-condition-join aria-label="Combine conditions"><option value=" && ">All (AND)</option><option value=" || ">Any (OR)</option></select>
+        <button type="button" data-condition-add>Add condition</button><button type="button" data-condition-clear>Clear</button>
+        <p data-condition-expression></p>
+        <input data-condition-else aria-label="Otherwise show" placeholder="Otherwise show (optional)">
+        <select data-condition-row aria-label="Text row"></select>
+        <button type="button" data-condition-apply>Apply condition</button><p data-condition-status role="status"></p>`;
+      const control = name => editor.querySelector(`[data-condition-${name}]`);
+      const status = message => control('status').textContent = message;
+      tokenGroups.flatMap(group => group.tokens).forEach(token => control('token').add(new Option(token, token)));
+      document.querySelectorAll('[data-template-field]').forEach((input, index) => control('row').add(new Option(`Row ${index + 1}`, input.id)));
+      let expression = '';
+      const addCondition = () => {
+        const value = control('value').value.trim(), op = control('op').value;
+        if (/::|\[\[|\]\]|&&|\|\|/.test(value)) { status('Comparison values cannot contain condition delimiters.'); return false; }
+        if (!['hasValue', 'empty'].includes(op) && !value) { status('Enter a comparison value.'); return false; }
+        const clause = `${control('token').value} ${op}${['hasValue', 'empty'].includes(op) ? '' : ' ' + value}`;
+        expression += (expression ? control('join').value : '') + clause;
+        control('expression').textContent = expression;
+        status('Condition added. Choose a row and apply.');
+        return true;
+      };
+      control('add').onclick = addCondition;
+      control('clear').onclick = () => { expression = ''; control('expression').textContent = ''; status(''); };
+      control('apply').onclick = () => {
+        if (!expression && !addCondition()) return;
+        const target = $(control('row').value);
+        const selected = target.selectionEnd > target.selectionStart;
+        const start = selected ? target.selectionStart : 0, end = selected ? target.selectionEnd : target.value.length;
+        const content = target.value.slice(start, end), otherwise = control('else').value;
+        if (/::|\[\[|\]\]/.test(content + otherwise)) { status('Select plain text or wildcards. Use All/Any to combine conditions; nesting is not supported.'); return; }
+        const block = `[[if ${expression}::${content}${otherwise ? '::' + otherwise : ''}]]`;
+        target.value = target.value.slice(0, start) + block + target.value.slice(end);
+        target.focus(); target.setSelectionRange(start, start + block.length);
+        status('Condition applied.'); render();
+      };
+      bar.appendChild(editor);
+
       document.querySelectorAll('[data-template-field]').forEach(input => {
         input.addEventListener('focus', () => focusedTemplateField = input);
       });
@@ -2183,6 +2230,36 @@
       };
 
       return (template || '')
+        .replace(/\[\[([^\[\]]*)\]\]/g, (_, content) => {
+          if (/^if /i.test(content)) {
+            const parts = content.slice(3).split('::');
+            if (parts.length < 2 || parts.length > 3) return '';
+            const evaluate = clause => {
+              const match = clause.trim().match(/^(<[a-zA-Z0-9]+>)\s+(hasValue|empty|eq|ne|contains|gt|gte|lt|lte)(?:\s+(.*))?$/i);
+              if (!match) return false;
+              const value = String(map[match[1].slice(1, -1).toLowerCase()] ?? '').trim();
+              const expected = (match[3] || '').trim();
+              const op = match[2].toLowerCase();
+              if (op === 'hasvalue') return value.length > 0;
+              if (op === 'empty') return value.length === 0;
+              if (op === 'eq') return value.toLowerCase() === expected.toLowerCase();
+              if (op === 'ne') return value.toLowerCase() !== expected.toLowerCase();
+              if (op === 'contains') return value.toLowerCase().includes(expected.toLowerCase());
+              const a = value.replace(/%$/, ''), b = expected.replace(/%$/, '');
+              if (!a || !b || !Number.isFinite(Number(a)) || !Number.isFinite(Number(b))) return false;
+              return op === 'gt' ? Number(a) > Number(b) : op === 'gte' ? Number(a) >= Number(b)
+                : op === 'lt' ? Number(a) < Number(b) : Number(a) <= Number(b);
+            };
+            const show = parts[0].split(/\s+\|\|\s+/).some(or => or.split(/\s+&&\s+/).every(evaluate));
+            return show ? parts[1] : (parts[2] || '');
+          }
+          const tokens = content.match(/<[a-zA-Z0-9]+>/g) || [];
+          return tokens.every(token => {
+            const key = token.slice(1, -1).toLowerCase();
+            if (key === 'trophyicon' || key === 'rarityicon') return true;
+            return String(map[key] ?? '').trim().length > 0;
+          }) ? content : '';
+        })
         .replace(/<([a-zA-Z0-9]+)>/g, (_, key) => {
           const normalized = (key || '').toLowerCase();
           if (normalized === 'trophyicon') {
