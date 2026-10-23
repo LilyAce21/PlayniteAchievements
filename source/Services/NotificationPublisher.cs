@@ -1574,6 +1574,21 @@ steamImage +
                             return;
                         }
 
+                        var existingOverlay = persistentPreviewRequested ? null : FindSingleOverlay("WPF");
+                        if (existingOverlay != null)
+                        {
+                            existingOverlay.Window.Content = BuildOverlayContent(title, safeGameName, safeAchievement, achievementIconPath, style, providerKey, localSettings, overlayScale, game, achievementDescription, achievementPoints, achievementRarity, achievementTrophy);
+                            existingOverlay.CloseTimer?.Stop();
+                            if (existingOverlay.CloseTimer != null)
+                            {
+                                existingOverlay.CloseTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
+                                existingOverlay.CloseTimer.Start();
+                            }
+                            existingOverlay.Window.UpdateLayout();
+                            PositionOverlayWindow(existingOverlay.Window, position, 0, localSettings?.ShowOverlayOnActiveGameMonitor == true, debugLoggingEnabled);
+                            return;
+                        }
+
                         var customBorderSpace = isCustomStyle && localSettings?.OverlayCustomShowBorder != false
                             ? Math.Max(0.5, Math.Min(12, localSettings?.OverlayCustomBorderWidth ?? 1.5)) * overlayScale
                             : 0;
@@ -1614,6 +1629,7 @@ steamImage +
                         PositionOverlayWindow(overlayWindow, position, GetOverlayStackIndex(overlayState), localSettings?.ShowOverlayOnActiveGameMonitor == true, debugLoggingEnabled);
                         LogOverlayWindowLifecycle(overlayWindow, "WPF", "positioned-before-show", overlayOpacity, debugLoggingEnabled);
 
+                        if (overlayState != null) overlayState.Renderer = "WPF";
                         overlayWindow.Loaded += (sender, args) =>
                         {
                             try
@@ -1660,6 +1676,7 @@ steamImage +
                                     ApplyOverlayExitAnimation(overlayWindow, overlayOpacity, fadeOutMs, transitionStyle, slideDistance, () => overlayWindow.Close());
                                 };
 
+                                if (overlayState != null) overlayState.CloseTimer = closeTimer;
                                 closeTimer.Start();
                             }
                             catch (Exception animEx)
@@ -1818,6 +1835,22 @@ steamImage +
             return 110;
         }
 
+        private OverlayWindowState FindSingleOverlay(string renderer)
+        {
+            if (_settings?.Persisted?.SingleCustomNotification != true)
+                return null;
+
+            OverlayWindowState reusable = null;
+            foreach (var state in ActiveOverlayWindows.ToList())
+            {
+                if (reusable == null && !state.IsClosing && state.Window.IsVisible && state.Renderer == renderer)
+                    reusable = state;
+                else
+                    state.Window.Close();
+            }
+            return reusable;
+        }
+
         private static OverlayWindowState RegisterOverlayWindow(Window window, LocalUnlockOverlayPosition position)
         {
             if (window == null)
@@ -1838,6 +1871,7 @@ steamImage +
                 return;
             }
 
+            state.CloseTimer?.Stop();
             ActiveOverlayWindows.Remove(state);
             RepositionActiveOverlayWindows(state.Position);
         }
@@ -1884,6 +1918,9 @@ steamImage +
             public Window Window { get; }
             public LocalUnlockOverlayPosition Position { get; }
             public bool IsClosing { get; set; }
+            public string Renderer { get; set; }
+            public DispatcherTimer CloseTimer { get; set; }
+            public Action<string> UpdateHtml { get; set; }
         }
 
         private bool TryShowSanWebViewOverlayNotification(
@@ -1979,6 +2016,14 @@ steamImage +
                     durationMs,
                     width,
                     height);
+                var existingOverlay = persistentPreviewRequested ? null : FindSingleOverlay("SAN");
+                if (existingOverlay?.UpdateHtml != null)
+                {
+                    existingOverlay.UpdateHtml(html);
+                    existingOverlay.CloseTimer?.Stop();
+                    existingOverlay.CloseTimer?.Start();
+                    return true;
+                }
                 var htmlPath = WriteSanWebViewDocumentToTempFile(html);
 
                 var webView = new WebView2
@@ -2169,6 +2214,19 @@ steamImage +
                     {
                     }
                 };
+                if (overlayState != null)
+                {
+                    overlayState.Renderer = "SAN";
+                    overlayState.CloseTimer = closeTimer;
+                    overlayState.UpdateHtml = updatedHtml =>
+                    {
+                        var previousPath = htmlPath;
+                        htmlPath = WriteSanWebViewDocumentToTempFile(updatedHtml);
+                        if (webView.CoreWebView2 != null)
+                            webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
+                        TryDeleteSanWebViewDocument(previousPath);
+                    };
+                }
                 closeTimer.Start();
                 window.Show();
                 LogOverlayWindowLifecycle(window, "SAN-WebView2", "show-returned", overlayOpacity, debugLoggingEnabled);

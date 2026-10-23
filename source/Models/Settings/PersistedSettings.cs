@@ -103,6 +103,7 @@ namespace PlayniteAchievements.Models.Settings
         private double _notificationDelaySeconds = 0;
         private double _captureDelaySeconds = 0;
         private int _maxConcurrentToasts = 3;
+        private bool _singleCustomNotification;
         private bool _enableControllerVibration = false;
         private int _controllerVibrationStrengthPercent = 50;
         private int _controllerVibrationDurationMs = 650;
@@ -1328,6 +1329,12 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _captureDelaySeconds;
             set => SetValue(ref _captureDelaySeconds, Math.Max(0, value));
+        }
+
+        public bool SingleCustomNotification
+        {
+            get => _singleCustomNotification;
+            set => SetValue(ref _singleCustomNotification, value);
         }
 
         public int MaxConcurrentToasts
@@ -3369,6 +3376,7 @@ namespace PlayniteAchievements.Models.Settings
                 NotificationDelaySeconds = this.NotificationDelaySeconds,
                 CaptureDelaySeconds = this.CaptureDelaySeconds,
                 MaxConcurrentToasts = this.MaxConcurrentToasts,
+                SingleCustomNotification = this.SingleCustomNotification,
                 ToastPosition = this.ToastPosition,
                 NotificationRenderMode = this.NotificationRenderMode,
                 EnableControllerVibration = this.EnableControllerVibration,

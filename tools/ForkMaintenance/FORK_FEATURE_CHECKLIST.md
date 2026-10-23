@@ -1,5 +1,23 @@
-﻿# Santodan fork feature checklist
+# Santodan fork feature checklist
 
+
+## Single custom notification and General layout - 2026-10-23
+
+- Find **Use a single custom notification** only under Santodan-Fork > Achievement
+  Notifications > General. Keep standard notification tabs unchanged.
+- Disabled (default): multiple unlocks retain separate custom overlays.
+- Enabled: trigger successive unlocks while an overlay is visible; WPF and SAN
+  must show the latest achievement in one overlay and restart its display time.
+- Check closing overlays, switching renderers, enabling while several overlays
+  exist, and persistent settings previews. Keep preview lifecycle separate.
+- Save/apply/reopen settings and verify the selection survives.
+- General's delivery mode and notification switches must align with preceding
+  settings, without an inset card background or additional card padding.
+- Release rebuild and both settings round-trip tests passed; live Playnite
+  behavior and visual verification remain pending.
+- Bundle preflight and actual replay against clean upstream v4.1.1 passed with
+  173 overlays, one localization recipe, hashes, and protected-file checks.
+  All six relevant notification/settings files match after newline normalization.
 
 ## Conditional text and settings visibility - 2026-10-23
 

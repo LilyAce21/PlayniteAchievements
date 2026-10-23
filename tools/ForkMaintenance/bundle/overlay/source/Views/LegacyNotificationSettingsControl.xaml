@@ -2828,48 +2828,49 @@
                                            TextWrapping="Wrap"/>
 
                                 <!-- Notification Options -->
-                                <Border Style="{StaticResource SettingGroupCardStyle}"
-                                        IsEnabled="{Binding EnableActiveGameMonitoring}">
-                                    <StackPanel>
-                                        <DockPanel Margin="0,0,0,8">
-                                            <TextBlock Text="Delivery mode:"
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,0,8,0"
-                                                       Foreground="{DynamicResource TextBrush}"
-                                                       FontWeight="SemiBold"/>
-                                            <ComboBox SelectedValue="{Binding UnlockNotificationDeliveryMode, Mode=TwoWay}"
-                                                      SelectedValuePath="Tag"
-                                                      MinWidth="200">
-                                                <ComboBoxItem Content="Windows toast only"
-                                                              Tag="{x:Static local:LocalUnlockNotificationDeliveryMode.WindowsToast}"/>
-                                                <ComboBoxItem Content="Overlay only"
-                                                              Tag="{x:Static local:LocalUnlockNotificationDeliveryMode.Overlay}"/>
-                                                <ComboBoxItem Content="Hybrid (Overlay + Toast)"
-                                                              Tag="{x:Static local:LocalUnlockNotificationDeliveryMode.Hybrid}"/>
-                                            </ComboBox>
-                                        </DockPanel>
+                                <StackPanel IsEnabled="{Binding EnableActiveGameMonitoring}">
+                                <CheckBox Content="{DynamicResource LOCPlayAch_Settings_SingleCustomNotification}"
+                                          IsChecked="{Binding DataContext.Persisted.SingleCustomNotification, ElementName=LegacyNotificationSettingsControlRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          ToolTip="{DynamicResource LOCPlayAch_Settings_SingleCustomNotificationHelp}"
+                                          Margin="0,0,0,8"/>
+                                <DockPanel Margin="0,0,0,8">
+                                    <TextBlock Text="Delivery mode:"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               FontWeight="SemiBold"/>
+                                    <ComboBox SelectedValue="{Binding UnlockNotificationDeliveryMode, Mode=TwoWay}"
+                                              SelectedValuePath="Tag"
+                                              MinWidth="200">
+                                        <ComboBoxItem Content="Windows toast only"
+                                                      Tag="{x:Static local:LocalUnlockNotificationDeliveryMode.WindowsToast}"/>
+                                        <ComboBoxItem Content="Overlay only"
+                                                      Tag="{x:Static local:LocalUnlockNotificationDeliveryMode.Overlay}"/>
+                                        <ComboBoxItem Content="Hybrid (Overlay + Toast)"
+                                                      Tag="{x:Static local:LocalUnlockNotificationDeliveryMode.Hybrid}"/>
+                                    </ComboBox>
+                                </DockPanel>
 
-                                        <CheckBox Content="Show overlay on the active game's monitor (windowed or borderless fullscreen)"
-                                                  IsChecked="{Binding ShowOverlayOnActiveGameMonitor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  Margin="0,0,0,4"/>
-                                        <TextBlock Text="Keeps the notification above the game and follows it to another monitor. Exclusive fullscreen may block external Windows overlays; use borderless fullscreen when that happens."
-                                                   Style="{StaticResource MutedTextStyle}"
-                                                   Margin="18,0,0,12"
-                                                   TextWrapping="Wrap"/>
+                                <CheckBox Content="Show overlay on the active game's monitor (windowed or borderless fullscreen)"
+                                          IsChecked="{Binding ShowOverlayOnActiveGameMonitor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          Margin="0,0,0,4"/>
+                                <TextBlock Text="Keeps the notification above the game and follows it to another monitor. Exclusive fullscreen may block external Windows overlays; use borderless fullscreen when that happens."
+                                           Style="{StaticResource MutedTextStyle}"
+                                           Margin="18,0,0,12"
+                                           TextWrapping="Wrap"/>
 
-                                        <CheckBox Content="Show in-app notification when achievement is unlocked"
-                                                  IsChecked="{Binding EnableInAppUnlockNotifications, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  Margin="0,0,0,12"/>
+                                <CheckBox Content="Show in-app notification when achievement is unlocked"
+                                          IsChecked="{Binding EnableInAppUnlockNotifications, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          Margin="0,0,0,12"/>
 
-                                        <CheckBox Content="Send System notification"
-                                                  IsChecked="{Binding EnableWindowsToastNotifications, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                  Margin="0,0,0,0"/>
-                                        <TextBlock Text="Sends a system notification that appears in selected delivery mode."
-                                                   Style="{StaticResource MutedTextStyle}"
-                                                   Margin="18,4,0,0"
-                                                   TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
+                                <CheckBox Content="Send System notification"
+                                          IsChecked="{Binding EnableWindowsToastNotifications, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          Margin="0,0,0,0"/>
+                                <TextBlock Text="Sends a system notification that appears in selected delivery mode."
+                                           Style="{StaticResource MutedTextStyle}"
+                                           Margin="18,4,0,0"
+                                           TextWrapping="Wrap"/>
+                                </StackPanel>
 
                                 </StackPanel>
 

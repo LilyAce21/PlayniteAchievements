@@ -558,7 +558,7 @@ index 8ddbc8620b2e670bbb0da8506421e8550f712c65..f6cdb423790df74adebf73bda409622d
                  ShadPS4MatchIdOverride = ShadPS4MatchIdOverride,
                  ForceUseExophase = ForceUseExophase,
 diff --git a/source/Models/Settings/PersistedSettings.cs b/source/Models/Settings/PersistedSettings.cs
-index d389442fe56e17768babb3f8cc416eadccd25691..76ff060012e1b4dfeb85943145f938dbf4743780 100644
+index d389442fe56e17768babb3f8cc416eadccd25691..52719c2bfb61036ab95b74f9492496e2c3e933f8 100644
 --- a/source/Models/Settings/PersistedSettings.cs
 +++ b/source/Models/Settings/PersistedSettings.cs
 @@ -27,6 +27,13 @@ namespace PlayniteAchievements.Models.Settings
@@ -575,7 +575,15 @@ index d389442fe56e17768babb3f8cc416eadccd25691..76ff060012e1b4dfeb85943145f938db
          public const double DefaultAchievementDataGridMaxHeight = 600d;
          public const double MinimumGridRowHeight = 32d;
          public const int DefaultStartPageGridMaxRows = 25;
-@@ -261,6 +268,8 @@ public PersistedSettings()
+@@ -96,6 +103,7 @@ public PersistedSettings()
+         private double _notificationDelaySeconds = 0;
+         private double _captureDelaySeconds = 0;
+         private int _maxConcurrentToasts = 3;
++        private bool _singleCustomNotification;
+         private bool _enableControllerVibration = false;
+         private int _controllerVibrationStrengthPercent = 50;
+         private int _controllerVibrationDurationMs = 650;
+@@ -261,6 +269,8 @@ public PersistedSettings()
          private bool _viewAchievementsTimelineVisible = false;
          private bool _firstTimeSetupCompleted = false;
          private bool _seenThemeMigration = false;
@@ -584,7 +592,20 @@ index d389442fe56e17768babb3f8cc416eadccd25691..76ff060012e1b4dfeb85943145f938db
          private HashSet<Guid> _excludedGameIds = new HashSet<Guid>();
          private HashSet<Guid> _excludedFromSummariesGameIds = new HashSet<Guid>();
          private Dictionary<Guid, string> _manualCapstones = new Dictionary<Guid, string>();
-@@ -2972,6 +2981,54 @@ public bool SeenThemeMigration
+@@ -1321,6 +1331,12 @@ public double CaptureDelaySeconds
+             set => SetValue(ref _captureDelaySeconds, Math.Max(0, value));
+         }
+ 
++        public bool SingleCustomNotification
++        {
++            get => _singleCustomNotification;
++            set => SetValue(ref _singleCustomNotification, value);
++        }
++
+         public int MaxConcurrentToasts
+         {
+             get => _maxConcurrentToasts;
+@@ -2972,6 +2988,54 @@ public bool SeenThemeMigration
              set => SetValue(ref _seenThemeMigration, value);
          }
  
@@ -639,7 +660,7 @@ index d389442fe56e17768babb3f8cc416eadccd25691..76ff060012e1b4dfeb85943145f938db
          /// <summary>
          /// Cache mapping ThemePath -> last migrated theme.yaml Version.
          /// Used to detect themes that have been upgraded since migration and may need re-migration.
-@@ -3227,6 +3284,7 @@ public PersistedSettings Clone()
+@@ -3227,6 +3291,7 @@ public PersistedSettings Clone()
              {
                  // Provider Settings Dictionary (contains all provider-specific settings)
                  ProviderSettings = clonedProviderSettings,
@@ -647,7 +668,15 @@ index d389442fe56e17768babb3f8cc416eadccd25691..76ff060012e1b4dfeb85943145f938db
                  EnableFriendsFeatures = this.EnableFriendsFeatures,
                  AutoDiscoverFriendProviderKeys = this.AutoDiscoverFriendProviderKeys != null
                      ? new HashSet<string>(this.AutoDiscoverFriendProviderKeys, StringComparer.OrdinalIgnoreCase)
-@@ -3368,6 +3426,66 @@ public PersistedSettings Clone()
+@@ -3311,6 +3376,7 @@ public PersistedSettings Clone()
+                 NotificationDelaySeconds = this.NotificationDelaySeconds,
+                 CaptureDelaySeconds = this.CaptureDelaySeconds,
+                 MaxConcurrentToasts = this.MaxConcurrentToasts,
++                SingleCustomNotification = this.SingleCustomNotification,
+                 ToastPosition = this.ToastPosition,
+                 NotificationRenderMode = this.NotificationRenderMode,
+                 EnableControllerVibration = this.EnableControllerVibration,
+@@ -3368,6 +3434,66 @@ public PersistedSettings Clone()
                          StringComparer.OrdinalIgnoreCase)
                      : new Dictionary<string, ProviderNotificationOverride>(StringComparer.OrdinalIgnoreCase),
  
@@ -714,7 +743,7 @@ index d389442fe56e17768babb3f8cc416eadccd25691..76ff060012e1b4dfeb85943145f938db
                  // Display Preferences
                  ShowHiddenIcon = this.ShowHiddenIcon,
                  ShowHiddenTitle = this.ShowHiddenTitle,
-@@ -3476,6 +3594,12 @@ public PersistedSettings Clone()
+@@ -3476,6 +3602,12 @@ public PersistedSettings Clone()
                  // General Settings
                  FirstTimeSetupCompleted = this.FirstTimeSetupCompleted,
                  SeenThemeMigration = this.SeenThemeMigration,
@@ -728,7 +757,7 @@ index d389442fe56e17768babb3f8cc416eadccd25691..76ff060012e1b4dfeb85943145f938db
                      ? this.ThemeMigrationVersionCache.ToDictionary(
                          kvp => kvp.Key,
 diff --git a/source/Models/Settings/SettingsExtensions.cs b/source/Models/Settings/SettingsExtensions.cs
-index 1e7e238dce7848df633a8be145f7d7cbaccd286f..e2dd0d7e67e2f3ff3299bb43fddf3cc5c3ebc422 100644
+index 1e7e238dce7848df633a8be145f7d7cbaccd286f..d190c2ca31f996f71881e9a98b9a4e35358bd657 100644
 --- a/source/Models/Settings/SettingsExtensions.cs
 +++ b/source/Models/Settings/SettingsExtensions.cs
 @@ -39,6 +39,7 @@ public static void CopyFrom(this PersistedSettings target, PersistedSettings sou
@@ -739,7 +768,15 @@ index 1e7e238dce7848df633a8be145f7d7cbaccd286f..e2dd0d7e67e2f3ff3299bb43fddf3cc5
              target.EnableFriendsFeatures = source.EnableFriendsFeatures;
              target.IncludeUnownedFriendGames = source.IncludeUnownedFriendGames;
              target.AutoDiscoverFriendProviderKeys = source.AutoDiscoverFriendProviderKeys != null
-@@ -289,6 +290,12 @@ public static void CopyFrom(this PersistedSettings target, PersistedSettings sou
+@@ -122,6 +123,7 @@ public static void CopyFrom(this PersistedSettings target, PersistedSettings sou
+             target.NotificationDelaySeconds = source.NotificationDelaySeconds;
+             target.CaptureDelaySeconds = source.CaptureDelaySeconds;
+             target.MaxConcurrentToasts = source.MaxConcurrentToasts;
++            target.SingleCustomNotification = source.SingleCustomNotification;
+             target.ToastPosition = source.ToastPosition;
+             target.NotificationRenderMode = source.NotificationRenderMode;
+             target.EnableControllerVibration = source.EnableControllerVibration;
+@@ -289,6 +291,12 @@ public static void CopyFrom(this PersistedSettings target, PersistedSettings sou
              // General Settings
              target.FirstTimeSetupCompleted = source.FirstTimeSetupCompleted;
              target.SeenThemeMigration = source.SeenThemeMigration;
@@ -752,7 +789,7 @@ index 1e7e238dce7848df633a8be145f7d7cbaccd286f..e2dd0d7e67e2f3ff3299bb43fddf3cc5
              target.ThemeMigrationVersionCache = source.ThemeMigrationVersionCache != null
                  ? source.ThemeMigrationVersionCache.ToDictionary(
                      kvp => kvp.Key,
-@@ -338,6 +345,62 @@ public static void CopyFrom(this PersistedSettings target, PersistedSettings sou
+@@ -338,6 +346,62 @@ public static void CopyFrom(this PersistedSettings target, PersistedSettings sou
  
              // Tagging Settings
              target.TaggingSettings = source.TaggingSettings?.Clone() ?? new TaggingSettings();
@@ -6358,7 +6395,7 @@ index 7b369bfa892da989d430520fb04a2f9ca1a93ca6..37ce96991a75fb5eca6cc4dbeac4692a
          {
              _innerLogger.Debug($"[{_loggerName}] {message}");
 diff --git a/source/Services/NotificationPublisher.cs b/source/Services/NotificationPublisher.cs
-index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6364849d1 100644
+index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..49b8370962952d51b7eee56fc329eeebeab7986c 100644
 --- a/source/Services/NotificationPublisher.cs
 +++ b/source/Services/NotificationPublisher.cs
 @@ -1,23 +1,84 @@
@@ -7329,7 +7366,7 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
          private static string AuthNotificationId(string providerKey) => $"PlayAch-AuthFailed-{providerKey}";
  
          public void ShowProviderAuthFailed(List<string> providerKeys)
-@@ -163,5 +1091,8021 @@ private void OpenPluginSettingsForProvider(string providerKey)
+@@ -163,5 +1091,8079 @@ private void OpenPluginSettingsForProvider(string providerKey)
                  _logger?.Debug(ex, "Failed to open plugin settings from notification click.");
              }
          }
@@ -7816,6 +7853,21 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +                            return;
 +                        }
 +
++                        var existingOverlay = persistentPreviewRequested ? null : FindSingleOverlay("WPF");
++                        if (existingOverlay != null)
++                        {
++                            existingOverlay.Window.Content = BuildOverlayContent(title, safeGameName, safeAchievement, achievementIconPath, style, providerKey, localSettings, overlayScale, game, achievementDescription, achievementPoints, achievementRarity, achievementTrophy);
++                            existingOverlay.CloseTimer?.Stop();
++                            if (existingOverlay.CloseTimer != null)
++                            {
++                                existingOverlay.CloseTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
++                                existingOverlay.CloseTimer.Start();
++                            }
++                            existingOverlay.Window.UpdateLayout();
++                            PositionOverlayWindow(existingOverlay.Window, position, 0, localSettings?.ShowOverlayOnActiveGameMonitor == true, debugLoggingEnabled);
++                            return;
++                        }
++
 +                        var customBorderSpace = isCustomStyle && localSettings?.OverlayCustomShowBorder != false
 +                            ? Math.Max(0.5, Math.Min(12, localSettings?.OverlayCustomBorderWidth ?? 1.5)) * overlayScale
 +                            : 0;
@@ -7856,6 +7908,7 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +                        PositionOverlayWindow(overlayWindow, position, GetOverlayStackIndex(overlayState), localSettings?.ShowOverlayOnActiveGameMonitor == true, debugLoggingEnabled);
 +                        LogOverlayWindowLifecycle(overlayWindow, "WPF", "positioned-before-show", overlayOpacity, debugLoggingEnabled);
 +
++                        if (overlayState != null) overlayState.Renderer = "WPF";
 +                        overlayWindow.Loaded += (sender, args) =>
 +                        {
 +                            try
@@ -7902,6 +7955,7 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +                                    ApplyOverlayExitAnimation(overlayWindow, overlayOpacity, fadeOutMs, transitionStyle, slideDistance, () => overlayWindow.Close());
 +                                };
 +
++                                if (overlayState != null) overlayState.CloseTimer = closeTimer;
 +                                closeTimer.Start();
 +                            }
 +                            catch (Exception animEx)
@@ -8060,6 +8114,22 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +            return 110;
 +        }
 +
++        private OverlayWindowState FindSingleOverlay(string renderer)
++        {
++            if (_settings?.Persisted?.SingleCustomNotification != true)
++                return null;
++
++            OverlayWindowState reusable = null;
++            foreach (var state in ActiveOverlayWindows.ToList())
++            {
++                if (reusable == null && !state.IsClosing && state.Window.IsVisible && state.Renderer == renderer)
++                    reusable = state;
++                else
++                    state.Window.Close();
++            }
++            return reusable;
++        }
++
 +        private static OverlayWindowState RegisterOverlayWindow(Window window, LocalUnlockOverlayPosition position)
 +        {
 +            if (window == null)
@@ -8080,6 +8150,7 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +                return;
 +            }
 +
++            state.CloseTimer?.Stop();
 +            ActiveOverlayWindows.Remove(state);
 +            RepositionActiveOverlayWindows(state.Position);
 +        }
@@ -8126,6 +8197,9 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +            public Window Window { get; }
 +            public LocalUnlockOverlayPosition Position { get; }
 +            public bool IsClosing { get; set; }
++            public string Renderer { get; set; }
++            public DispatcherTimer CloseTimer { get; set; }
++            public Action<string> UpdateHtml { get; set; }
 +        }
 +
 +        private bool TryShowSanWebViewOverlayNotification(
@@ -8221,6 +8295,14 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +                    durationMs,
 +                    width,
 +                    height);
++                var existingOverlay = persistentPreviewRequested ? null : FindSingleOverlay("SAN");
++                if (existingOverlay?.UpdateHtml != null)
++                {
++                    existingOverlay.UpdateHtml(html);
++                    existingOverlay.CloseTimer?.Stop();
++                    existingOverlay.CloseTimer?.Start();
++                    return true;
++                }
 +                var htmlPath = WriteSanWebViewDocumentToTempFile(html);
 +
 +                var webView = new WebView2
@@ -8411,6 +8493,19 @@ index 039e45a5d992d54a3a2b30cd8ee6160f95c7b703..7eddd49697c176deea4ef289a0e03fa6
 +                    {
 +                    }
 +                };
++                if (overlayState != null)
++                {
++                    overlayState.Renderer = "SAN";
++                    overlayState.CloseTimer = closeTimer;
++                    overlayState.UpdateHtml = updatedHtml =>
++                    {
++                        var previousPath = htmlPath;
++                        htmlPath = WriteSanWebViewDocumentToTempFile(updatedHtml);
++                        if (webView.CoreWebView2 != null)
++                            webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
++                        TryDeleteSanWebViewDocument(previousPath);
++                    };
++                }
 +                closeTimer.Start();
 +                window.Show();
 +                LogOverlayWindowLifecycle(window, "SAN-WebView2", "show-returned", overlayOpacity, debugLoggingEnabled);

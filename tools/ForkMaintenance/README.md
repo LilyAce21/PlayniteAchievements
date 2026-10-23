@@ -1,5 +1,24 @@
-﻿# Fork maintenance bundle
+# Fork maintenance bundle
 
+
+## Single custom notification and General layout - 2026-10-23
+
+Santodan-Fork > Achievement Notifications > General now offers **Use a single
+custom notification**. Disabled by default, it preserves separate achievement
+overlays. Enabled, WPF and SAN reuse the visible overlay for the latest achievement
+and restart its display time. Closing or incompatible overlays are replaced;
+persistent settings previews remain separate. The option survives settings clone
+and apply. Standard notification tabs have no UI changes.
+
+General's delivery and notification options now align with the settings above,
+without a nested card background or extra card padding.
+
+Validation: the required Release rebuild and both settings round-trip tests passed.
+Live Playnite verification remains pending. The refreshed bundle passed clean
+three-way preflight and actual replay onto upstream v4.1.1 (002eaa8b2), including
+173 overlays, one localization recipe, component hashes, and protected-file checks.
+All six relevant notification/settings files match the replay after newline
+normalization. Validation used a temporary checkout; no snapshot is included.
 
 ## Conditional notification text and settings visibility - 2026-10-23
 

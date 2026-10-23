@@ -616,6 +616,8 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_InGamePollRefreshFriends">Also Refresh Friends Who Own the Running Game</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_InGameFriendRefreshMultiplier">Friend Refresh Every N Polls:</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_InGameFriendBatchSize">Friends per Refresh (0 = all):</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SingleCustomNotification">Use a single custom notification:</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SingleCustomNotificationHelp">Replace the visible custom achievement notification with the latest achievement and restart its display time. Disable to show separate notifications.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_MaxConcurrentToasts">Concurrent notifications:</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ToastDurationSeconds">Duration (seconds):</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_NotificationDelaySeconds">Notification delay (seconds):</sys:String>
