@@ -113,7 +113,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 ## Next release - TBD
 
-## 2026-10-XX - v4.1.1.1
+## 2026-10-25 - v4.1.1.1
 
 - v4.1.1 merge
 - Fixed the missing key for the `Cancel` button for the `Logs` buttons
