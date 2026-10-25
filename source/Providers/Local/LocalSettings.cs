@@ -677,6 +677,14 @@ namespace PlayniteAchievements.Providers.Local
 
         public string ExcludedLocalPaths { get; set; } = string.Empty;
 
+        private bool _useUpstreamNotificationTemplate;
+
+        public bool UseUpstreamNotificationTemplate
+        {
+            get => _useUpstreamNotificationTemplate;
+            set => SetValue(ref _useUpstreamNotificationTemplate, value);
+        }
+
         public bool EnableActiveGameMonitoring
         {
             get => _enableActiveGameMonitoring;

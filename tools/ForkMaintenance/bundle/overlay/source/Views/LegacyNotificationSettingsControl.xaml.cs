@@ -2150,6 +2150,24 @@ namespace PlayniteAchievements.Views
                 var previewGameName = string.IsNullOrWhiteSpace(previewGame?.Name) ? "Current Game" : previewGame.Name;
                 var previewAchievement = GetSelectedNotificationPreviewAchievement();
                 var previewProviderKey = ResolveCurrentNotificationTestProviderKey();
+                if (localSettings.UseUpstreamNotificationTemplate)
+                {
+                    PlayniteAchievementsPlugin.NotifyAchievementUnlocked(new Models.AchievementUnlockedEventArgs
+                    {
+                        PlayniteGameId = previewGame?.Id ?? Guid.Empty,
+                        GameName = previewGameName,
+                        ProviderKey = previewProviderKey,
+                        DisplayName = previewAchievement?.DisplayName ?? "Test Achievement",
+                        IconPath = previewAchievement?.UnlockedIconPath,
+                        Description = previewAchievement?.Description ?? "Test description for preview.",
+                        Points = previewAchievement?.Points ?? 25,
+                        TrophyType = previewAchievement?.TrophyType ?? "Gold",
+                        IsPreview = true
+                    });
+                    NotificationsUnlockSoundStatusTextBlock.Text = "Test upstream notification sent.";
+                    NotificationsTestUnlockSoundButton.IsEnabled = true;
+                    return;
+                }
                 var requiresCustomOverlay = IsSanTransitionStyle(localSettings.UnlockOverlayTransitionStyle) ||
                     !string.IsNullOrWhiteSpace(localSettings.OverlayCustomSanElementPresetId);
                 if (requiresCustomOverlay && string.IsNullOrWhiteSpace(soundPath))

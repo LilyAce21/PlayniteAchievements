@@ -144,6 +144,7 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Added conditions to the wildcards in the `Custom Notification` under the `Add a condition to a text row` menu under the wildcards
 - Added the option to choose between multiple notification or update the current notification for multiple achievements
   - Option present in `Achievement Notifications` --> `General` --> `Use a Single custom notification`
+- Added the option to use the upstream notification template instead
 
 ## 2026-10-18 - v4.1.0.1
 

@@ -9,6 +9,18 @@ namespace PlayniteAchievements.Tests.Models
     public class LocalNotificationTypographySettingsTests
     {
         [TestMethod]
+        public void UpstreamNotificationTemplate_DefaultsToForkAndPersistsSelection()
+        {
+            var settings = new LocalSettings();
+            Assert.IsFalse(settings.UseUpstreamNotificationTemplate);
+
+            settings.UseUpstreamNotificationTemplate = true;
+            var restored = JsonConvert.DeserializeObject<LocalSettings>(JsonConvert.SerializeObject(settings));
+            Assert.IsTrue(restored.UseUpstreamNotificationTemplate);
+            Assert.IsFalse(JsonConvert.DeserializeObject<LocalSettings>("{}").UseUpstreamNotificationTemplate);
+        }
+
+        [TestMethod]
         public void TypographySettings_DefaultAndNormalizeFontFamilies()
         {
             var settings = new LocalSettings();

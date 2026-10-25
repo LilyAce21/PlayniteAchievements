@@ -1240,7 +1240,7 @@ index 1f9cddd7060d1664c1694d9a03184635e52c3d2c..6dcfaa2280881fcb3952313fd43ca0aa
          {
              _resourceService.EnsureAchievementResourcesLoaded(_settingsViewModel.Settings);
 diff --git a/source/PlayniteAchievementsPlugin.cs b/source/PlayniteAchievementsPlugin.cs
-index c4bf80fc573e19cfab6ad045004094a7a44c1530..7995510855aee3b4f6e805f2ad9ea0f2319089bf 100644
+index c4bf80fc573e19cfab6ad045004094a7a44c1530..2879554a4a90f436fe5b100cf0097317d96a3275 100644
 --- a/source/PlayniteAchievementsPlugin.cs
 +++ b/source/PlayniteAchievementsPlugin.cs
 @@ -1,4 +1,5 @@
@@ -1318,7 +1318,7 @@ index c4bf80fc573e19cfab6ad045004094a7a44c1530..7995510855aee3b4f6e805f2ad9ea0f2
 +            }
 +
 +            var localSettings = ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-+            if (localSettings?.EnableActiveGameMonitoring != true)
++            if (localSettings?.EnableActiveGameMonitoring != true || localSettings.UseUpstreamNotificationTemplate)
 +            {
 +                return false;
 +            }

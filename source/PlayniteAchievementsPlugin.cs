@@ -669,7 +669,7 @@ namespace PlayniteAchievements
             }
 
             var localSettings = ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-            if (localSettings?.EnableActiveGameMonitoring != true)
+            if (localSettings?.EnableActiveGameMonitoring != true || localSettings.UseUpstreamNotificationTemplate)
             {
                 return false;
             }

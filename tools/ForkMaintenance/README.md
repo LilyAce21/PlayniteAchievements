@@ -1,5 +1,26 @@
 # Fork maintenance bundle
 
+## Upstream notification template and General sections - 2026-10-25
+
+Santodan-Fork > Achievement Notifications > General offers **Use upstream
+notification template**, disabled by default. Enabled, live unlocks use the
+upstream toast and capture pipeline for screenshots and video overlays. Disabled,
+the fork renderer remains active. The Test Notification action follows the
+selection, and the setting survives JSON serialization.
+
+General groups controls into Notification template, Live unlock detection, and
+Notification delivery cards. Help text is shorter; debug logging is inside a
+collapsed Troubleshooting expander. Fork-only delivery controls are disabled and
+dimmed with the upstream template selected, with guidance to upstream settings.
+This supersedes the flat General layout described in the 2026-10-23 entry.
+
+Validation: required Release rebuild and three targeted settings tests passed.
+The refreshed bundle passed clean three-way preflight and actual replay onto
+upstream v4.1.1 (002eaa8b2), including 173 overlays, one localization recipe,
+component hashes, and protected-file checks. All five changed source/test files
+match the replay after newline normalization. Live Playnite verification remains
+pending. Replay used a temporary checkout; no validation snapshot was added.
+
 
 ## Single custom notification and General layout - 2026-10-23
 

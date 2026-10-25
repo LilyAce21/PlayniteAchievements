@@ -1,5 +1,22 @@
 # Santodan fork feature checklist
 
+## Upstream template and General sections - 2026-10-25
+
+- In Santodan-Fork > Achievement Notifications > General, verify separate template,
+  live detection, and delivery cards, shorter help, and collapsed Troubleshooting.
+- Upstream template defaults off and survives save/apply/reopen.
+- With it off, verify fork notifications and fork capture overlays.
+- With it on, verify upstream live notifications, screenshots, video overlays, and
+  Test Notification. Upstream appearance/capture settings should apply.
+- Fork-only delivery controls must dim/disable with upstream selected and recover
+  when deselected. Keep the single-notification option accessible.
+- Expand Troubleshooting and verify debug logging remains available.
+- The grouped General layout supersedes the 2026-10-23 flat-layout requirement.
+- Validation: Release rebuild and three targeted settings tests passed; clean
+  preflight and replay onto upstream v4.1.1 passed (173 overlays, one localization
+  recipe, hashes, protected files). All five changed source/test files match
+  after newline normalization. Live Playnite verification remains pending.
+
 
 ## Single custom notification and General layout - 2026-10-23
 

@@ -1,6 +1,6 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-23T09:31:52.2300912Z",
+    "generatedUtc":  "2026-10-25T08:21:10.8920096Z",
     "baselineRef":  "upstream/main",
     "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
@@ -11,7 +11,7 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "0C9889C26A7842D8D939D08ACF25A6289211F30F9F28DA42E6980A4D02024548"
+                  "sha256":  "1EA83FBF10C2857DA33E5B154BF950DB3067E0C21D23E00AAAC937C48133B975"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
@@ -146,7 +146,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettings.cs",
-                             "sha256":  "18C1356F55B1EE5E9101F220D6D19BF6EC124AA93CDA7E82F09D3684E8C90DBE"
+                             "sha256":  "EFF0029ED4EF57E43F0936EF3769F647F1F6686B0A3F6DF07EAE2781B94C3AFE"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml",
@@ -362,11 +362,11 @@
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml",
-                             "sha256":  "91E113B4F4D3628EA59FD6455FF0C7E8DA3B70F540DAEF0FF4092DCFE852EBE9"
+                             "sha256":  "B96E11036BE2451A386D1134F1347414B5DD706A8575A6187EAAC7B97767D778"
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml.cs",
-                             "sha256":  "9116CF14F26EF645A48BC08E95BD74E42852F233691E303040983938097F9FA4"
+                             "sha256":  "0E70EDAFD48969596AC294F1969318352B548C322D9D68C69426DC9EE2F1278A"
                          },
                          {
                              "path":  "source/Views/LocalAchievementEditorControl.xaml",
@@ -410,7 +410,7 @@
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Models/LocalNotificationTypographySettingsTests.cs",
-                             "sha256":  "A17794A597B882860E303D07AE29E2EE564C73EC7B6930A19A8505F1673FD37A"
+                             "sha256":  "3750439D77F53B87E8E3EDDE118BA61861BA18BA890CEFA36D2275F645407DF8"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Models/ThemeMigrationSettingsTests.cs",
