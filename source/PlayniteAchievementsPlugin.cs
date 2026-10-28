@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -602,13 +603,15 @@ namespace PlayniteAchievements
         /// <summary>
         /// A goal is something still to be earned, so unlocking it retires the goal. Skips the
         /// synthetic notifications (previews, test fires, the game-complete banner) and friend
-        /// unlocks, none of which represent the user earning that achievement.
+        /// unlocks, none of which represent the user earning that achievement. Progress updates
+        /// are skipped too: the achievement is still locked.
         /// </summary>
         private static void ClearGoalForUnlock(AchievementUnlockedEventArgs args)
         {
             if (args.IsPreview ||
                 args.IsTestFire ||
                 args.IsFriendUnlock ||
+                args.IsProgressUpdate ||
                 args.IsGameCompleted ||
                 args.PlayniteGameId == Guid.Empty ||
                 string.IsNullOrWhiteSpace(args.ApiName))
@@ -671,7 +674,7 @@ namespace PlayniteAchievements
             }
 
             var localSettings = ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-            if (localSettings?.EnableActiveGameMonitoring != true)
+            if (localSettings?.EnableActiveGameMonitoring != true || localSettings.UseUpstreamNotificationTemplate)
             {
                 return false;
             }
@@ -709,9 +712,10 @@ namespace PlayniteAchievements
                         },
                         localSettings?.UnlockSoundPath,
                         notificationProviderKey: args.ProviderKey,
-                        game: game);
+                        game: game,
+                        progressContext: args);
                     args.SuppressStandardToast = true;
-                    _logger?.Info(
+                    ForkLog.Wrap(_logger)?.Info(
                         $"[AchievementNotification] Upstream poll detection routed to custom notification: game={args.GameName}, provider={args.ProviderKey}, achievement={args.DisplayName ?? args.ApiName}.");
                     AchievementNotificationDebugLog.Info(
                         $"Detection routed to custom notification: game='{args.GameName}', gameId='{args.PlayniteGameId}', " +
@@ -719,7 +723,7 @@ namespace PlayniteAchievements
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Error(ex, "[AchievementNotification] Failed to render upstream poll detection with the custom notification.");
+                    ForkLog.Wrap(_logger)?.Error(ex, "[AchievementNotification] Failed to render upstream poll detection with the custom notification.");
                     AchievementNotificationDebugLog.Error(ex, "Failed to route a detected unlock to the custom notification renderer.");
                 }
             }
@@ -2526,7 +2530,7 @@ namespace PlayniteAchievements
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to reconfigure unlock recording.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to reconfigure unlock recording.");
             }
         }
 

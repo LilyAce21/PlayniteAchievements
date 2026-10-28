@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Playnite.SDK;
@@ -178,8 +179,8 @@ namespace PlayniteAchievements.Providers.Steam
                 return null;
             }
 
-            logger?.Info($"[SteamAch] Store token response requires store warmup ({initialParse.Detail}).");
-            logger?.Info("[SteamAch] Warming Steam store session before retrying token request...");
+            ForkLog.Wrap(logger)?.Info($"[SteamAch] Store token response requires store warmup ({initialParse.Detail}).");
+            ForkLog.Wrap(logger)?.Info("[SteamAch] Warming Steam store session before retrying token request...");
 
             var warmupSucceeded = false;
             try
@@ -192,7 +193,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, "[SteamAch] Steam store warmup failed before token retry.");
+                ForkLog.Wrap(logger)?.Debug(ex, "[SteamAch] Steam store warmup failed before token retry.");
             }
 
             try
@@ -201,14 +202,14 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                logger?.Debug(ex, "[SteamAch] Failed to sync Steam cookies after store warmup.");
+                ForkLog.Wrap(logger)?.Debug(ex, "[SteamAch] Failed to sync Steam cookies after store warmup.");
             }
 
             var retryResult = await requestAsync(ct).ConfigureAwait(false);
             var retryParse = ParseRequestResult(retryResult, "Store token retry", logger);
             if (retryParse.HasToken)
             {
-                logger?.Info("[SteamAch] Steam store warmup resolved token request.");
+                ForkLog.Wrap(logger)?.Info("[SteamAch] Steam store warmup resolved token request.");
                 return retryParse.Token;
             }
 
@@ -220,7 +221,7 @@ namespace PlayniteAchievements.Providers.Steam
                     : "hard_failure";
             }
 
-            logger?.Info($"[SteamAch] Steam store warmup retry did not return a usable token ({retryDetail}, warmupSucceeded={warmupSucceeded}).");
+            ForkLog.Wrap(logger)?.Info($"[SteamAch] Steam store warmup retry did not return a usable token ({retryDetail}, warmupSucceeded={warmupSucceeded}).");
             return null;
         }
 
@@ -231,19 +232,19 @@ namespace PlayniteAchievements.Providers.Steam
         {
             if (requestResult == null)
             {
-                logger?.Debug($"[SteamAch] {operationLabel} failed: no response.");
+                ForkLog.Wrap(logger)?.Debug($"[SteamAch] {operationLabel} failed: no response.");
                 return SteamAsyncConfigParseResult.HardFailure("no_response");
             }
 
             if (requestResult.Exception != null)
             {
-                logger?.Debug(requestResult.Exception, $"[SteamAch] {operationLabel} failed.");
+                ForkLog.Wrap(logger)?.Debug(requestResult.Exception, $"[SteamAch] {operationLabel} failed.");
                 return SteamAsyncConfigParseResult.HardFailure("request_exception", requestResult.Exception);
             }
 
             if (!requestResult.IsSuccessStatusCode)
             {
-                logger?.Debug($"[SteamAch] {operationLabel} failed: {requestResult.StatusCode} {requestResult.ReasonPhrase}");
+                ForkLog.Wrap(logger)?.Debug($"[SteamAch] {operationLabel} failed: {requestResult.StatusCode} {requestResult.ReasonPhrase}");
                 return SteamAsyncConfigParseResult.HardFailure("http_failure");
             }
 
@@ -252,11 +253,11 @@ namespace PlayniteAchievements.Providers.Steam
             {
                 if (parseResult.Exception != null)
                 {
-                    logger?.Debug(parseResult.Exception, $"[SteamAch] {operationLabel} returned malformed async config JSON.");
+                    ForkLog.Wrap(logger)?.Debug(parseResult.Exception, $"[SteamAch] {operationLabel} returned malformed async config JSON.");
                 }
                 else
                 {
-                    logger?.Debug($"[SteamAch] {operationLabel} returned an unsupported async config payload ({parseResult.Detail}).");
+                    ForkLog.Wrap(logger)?.Debug($"[SteamAch] {operationLabel} returned an unsupported async config payload ({parseResult.Detail}).");
                 }
             }
 

@@ -201,7 +201,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                         count = Count(o => HasText(o.DisplayName), c => HasText(c.DisplayName));
                         break;
                     case AchievementCustomizationFacet.Description:
-                        count = Count(o => HasText(o.Description), c => HasText(c.Description));
+                        count = Count(o => HasText(o.Description) || o.ClearDescription, c => HasText(c.Description));
                         break;
                     case AchievementCustomizationFacet.UnlockedIcon:
                         count = Count(o => HasText(o.UnlockedIconPath), c => HasText(c.UnlockedIconPath));
@@ -213,7 +213,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
                         count = Count(o => o.Points.HasValue, c => c.Points.HasValue);
                         break;
                     case AchievementCustomizationFacet.TrophyType:
-                        count = Count(o => HasText(o.TrophyType), c => HasText(c.TrophyType));
+                        count = Count(o => HasText(o.TrophyType) || o.ClearTrophyType, c => HasText(c.TrophyType));
                         break;
                     case AchievementCustomizationFacet.UnlockTime:
                         count = Count(

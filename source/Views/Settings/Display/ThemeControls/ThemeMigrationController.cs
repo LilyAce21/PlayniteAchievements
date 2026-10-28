@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -212,7 +213,7 @@ namespace PlayniteAchievements.Views.Settings.Display.ThemeControls
             }
 
             var highlightLatest = customSelection?.HighlightLatestUnlockedAchievement;
-            _logger?.Info(
+            ForkLog.Wrap(_logger)?.Info(
                 $"User requested {mode} theme migration for: {selectedThemePath}; " +
                 $"highlightLatestUnlockedAchievement={highlightLatest?.ToString() ?? "not-applicable"}");
 
@@ -225,7 +226,7 @@ namespace PlayniteAchievements.Views.Settings.Display.ThemeControls
 
                 if (result.Success)
                 {
-                    _logger?.Info($"Theme migration ({mode}) successful: {selectedThemePath}");
+                    ForkLog.Wrap(_logger)?.Info($"Theme migration ({mode}) successful: {selectedThemePath}");
 
                     // Only show restart dialog if files were actually modified
                     if (result.FilesBackedUp > 0)
@@ -368,7 +369,7 @@ namespace PlayniteAchievements.Views.Settings.Display.ThemeControls
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to resolve the configured desktop theme.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to resolve the configured desktop theme.");
             }
 
             var selected = AvailableThemes.FirstOrDefault(theme =>

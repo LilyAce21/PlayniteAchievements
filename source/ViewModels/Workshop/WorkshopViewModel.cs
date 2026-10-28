@@ -78,6 +78,9 @@ namespace PlayniteAchievements.ViewModels.Workshop
         private readonly ConcurrentDictionary<string, WorkshopGameMatch> _matches = new ConcurrentDictionary<string, WorkshopGameMatch>(StringComparer.OrdinalIgnoreCase);
 
         private string _searchText = string.Empty;
+        private string _tagFilterText = string.Empty;
+        private IReadOnlyList<string> _tagFilter = Array.Empty<string>();
+        private bool _excludeTags;
         private WorkshopKindOption _selectedKind;
         private WorkshopSortOption _selectedSort;
         private bool _onlyMyGames = true;
@@ -184,6 +187,37 @@ namespace PlayniteAchievements.ViewModels.Workshop
             set
             {
                 if (SetValueAndReturn(ref _searchText, value ?? string.Empty, nameof(SearchText)))
+                {
+                    ItemsView.Refresh();
+                }
+            }
+        }
+
+        /// <summary>Comma-separated tags matched exactly against each item's tags.</summary>
+        public string TagFilterText
+        {
+            get => _tagFilterText;
+            set
+            {
+                if (SetValueAndReturn(ref _tagFilterText, value ?? string.Empty, nameof(TagFilterText)))
+                {
+                    var previous = _tagFilter;
+                    _tagFilter = WorkshopTags.Parse(_tagFilterText);
+                    if (!previous.SequenceEqual(_tagFilter))
+                    {
+                        ItemsView.Refresh();
+                    }
+                }
+            }
+        }
+
+        /// <summary>False lists only items with any filter tag; true hides them.</summary>
+        public bool ExcludeTags
+        {
+            get => _excludeTags;
+            set
+            {
+                if (SetValueAndReturn(ref _excludeTags, value, nameof(ExcludeTags)) && _tagFilter.Count > 0)
                 {
                     ItemsView.Refresh();
                 }
@@ -678,6 +712,11 @@ namespace PlayniteAchievements.ViewModels.Workshop
                 }
             }
             else if (_onlyMyGames && row.Kind == WorkshopItemKind.GameCustomData && !row.IsInLibrary)
+            {
+                return false;
+            }
+
+            if (!WorkshopTags.Matches(row.TagSet, _tagFilter, _excludeTags))
             {
                 return false;
             }

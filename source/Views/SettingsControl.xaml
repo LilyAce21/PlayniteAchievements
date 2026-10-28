@@ -29,6 +29,62 @@
 
     <Grid Margin="24,20,24,24">
         <TabControl x:Name="SettingsTabControl" SelectionChanged="TabControl_SelectionChanged" BorderThickness="0">
+            <TabItem x:Name="SantodanForkTab" AutomationProperties.Name="Santodan-Fork">
+                <TabItem.Header>
+                    <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                        <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEF3A;"/>
+                        <TextBlock Text="Santodan-Fork" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <TabControl x:Name="ForkSettingsTabControl" SelectionChanged="TabControl_SelectionChanged" BorderThickness="0">
+                    <TabItem x:Name="ForkGeneralTab" AutomationProperties.Name="{DynamicResource LOCGeneralLabel}">
+                        <TabItem.Header>
+                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEF3A;"/>
+                                <TextBlock Text="{DynamicResource LOCGeneralLabel}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <ContentControl x:Name="ForkGeneralSettingsContent"/>
+                    </TabItem>
+                    <TabItem x:Name="ForkPlatformsTab" AutomationProperties.Name="{DynamicResource LOCPlatformsTitle}">
+                        <TabItem.Header>
+                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEA30;"/>
+                                <TextBlock Text="{DynamicResource LOCPlatformsTitle}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <nav:SettingsMasterDetailControl
+                            ItemsSource="{Binding ForkProviderNavigationItems, ElementName=SettingsControlRoot}"
+                            SelectedItem="{Binding SelectedForkProviderNavigationItem, ElementName=SettingsControlRoot, Mode=TwoWay}"
+                            ShowSearch="True"
+                            EnableGrouping="True"/>
+                    </TabItem>
+                    <!-- Fork notification editor retained alongside the v3 settings pages. -->
+                    <TabItem x:Name="AchievementNotificationsTab" AutomationProperties.Name="Achievement Notification">
+                        <TabItem.Header>
+                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xECA7;"/>
+                                <TextBlock Text="Achievement Notification" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <ContentControl x:Name="AchievementNotificationsContent"/>
+                    </TabItem>
+
+                    <!-- Fork migration workflow retained as a separate page alongside v3 migration. -->
+                    <TabItem x:Name="ForkThemeMigrationTab"
+                             AutomationProperties.Name="{DynamicResource LOCPlayAch_ThemeMigration_Title}">
+                        <TabItem.Header>
+                            <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
+                                <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEFD2;"/>
+                                <TextBlock Text="{DynamicResource LOCPlayAch_ThemeMigration_Title}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <ContentControl x:Name="ForkThemeMigrationContent"/>
+                    </TabItem>
+                </TabControl>
+            </TabItem>
+
             <!-- ================== TAB: GENERAL SETTINGS ================== -->
             <TabItem x:Name="GeneralTab" AutomationProperties.Name="{DynamicResource LOCGeneralLabel}">
                 <TabItem.Header>
@@ -65,30 +121,6 @@
                     </StackPanel>
                 </TabItem.Header>
                 <ContentControl x:Name="FriendsSettingsContent"/>
-            </TabItem>
-
-            <!-- Fork notification editor retained alongside the v3 settings pages. -->
-            <TabItem x:Name="AchievementNotificationsTab" AutomationProperties.Name="Achievement Notifications">
-                <TabItem.Header>
-                    <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
-                        <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xECA7;"/>
-                        <TextBlock Text="Achievement Notifications" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </TabItem.Header>
-                <ContentControl x:Name="AchievementNotificationsContent"/>
-            </TabItem>
-
-            <!-- Fork migration workflow retained as a separate page alongside v3 migration. -->
-            <TabItem x:Name="ForkThemeMigrationTab"
-                     AutomationProperties.Name="{DynamicResource LOCPlayAch_ThemeMigration_Title}">
-                <TabItem.Header>
-                    <StackPanel Style="{StaticResource TabHeaderWithIconStyle}">
-                        <controls:GlyphIcon Style="{StaticResource HeaderGlyphStyle}" Glyph="&#xEFD2;"/>
-                        <TextBlock Text="{DynamicResource LOCPlayAch_ThemeMigration_Title}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </TabItem.Header>
-                <ContentControl x:Name="ForkThemeMigrationContent"/>
             </TabItem>
 
             <!-- ================== TAB: DISPLAY ================== -->

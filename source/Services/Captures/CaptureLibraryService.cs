@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -163,7 +164,7 @@ namespace PlayniteAchievements.Services.Captures
                 }
                 catch (ArgumentException ex)
                 {
-                    _logger?.Debug(ex, "Ignoring an invalid capture directory.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, "Ignoring an invalid capture directory.");
                 }
             }
             if (ResolveGameDirectories().TryGetValue(sanitizedFolder, out var own))
@@ -585,16 +586,24 @@ namespace PlayniteAchievements.Services.Captures
 
         private void CaptureFileChanged(object sender, FileSystemEventArgs e)
         {
-            // A rename away from the capture shape still removes a capture, so either end counts.
-            var isCapture = IsCaptureFile(e?.FullPath) ||
-                (e is RenamedEventArgs renamed && IsCaptureFile(renamed.OldFullPath));
-            if (!isCapture || IsReservedTestCapture(sender, e?.FullPath))
+            // Raised on a thread-pool thread, where an unhandled throw ends the process.
+            try
             {
-                return;
-            }
+                // A rename away from the capture shape still removes a capture, so either end counts.
+                var isCapture = IsCaptureFile(e?.FullPath) ||
+                    (e is RenamedEventArgs renamed && IsCaptureFile(renamed.OldFullPath));
+                if (!isCapture || IsReservedTestCapture(sender, e?.FullPath))
+                {
+                    return;
+                }
 
-            ClearCaches();
-            SignalChanged();
+                ClearCaches();
+                SignalChanged();
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, "Capture file change handling failed.");
+            }
         }
 
         private void SignalChanged()
@@ -871,7 +880,7 @@ namespace PlayniteAchievements.Services.Captures
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, $"Capture scan failed for folder '{gameFolder}' and game '{sanitizedFolder}'.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, $"Capture scan failed for folder '{gameFolder}' and game '{sanitizedFolder}'.");
                 }
             }
 

@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -1809,7 +1810,7 @@ namespace PlayniteAchievements.Services.UI
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, $"Failed to open local achievements editor for gameId={gameId}");
+                ForkLog.Wrap(_logger).Error(ex, $"Failed to open local achievements editor for gameId={gameId}");
                 _api?.Dialogs?.ShowErrorMessage(
                     $"Failed to open local achievements editor: {ex.Message}",
                     "Playnite Achievements");

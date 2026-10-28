@@ -123,6 +123,7 @@ namespace PlayniteAchievements.Models.Settings
             target.NotificationDelaySeconds = source.NotificationDelaySeconds;
             target.CaptureDelaySeconds = source.CaptureDelaySeconds;
             target.MaxConcurrentToasts = source.MaxConcurrentToasts;
+            target.SingleCustomNotification = source.SingleCustomNotification;
             target.ToastPosition = source.ToastPosition;
             target.NotificationRenderMode = source.NotificationRenderMode;
             target.EnableControllerVibration = source.EnableControllerVibration;

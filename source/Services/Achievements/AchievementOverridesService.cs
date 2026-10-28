@@ -1078,14 +1078,19 @@ namespace PlayniteAchievements.Services.Achievements
                         case AchievementEditableField.DisplayName:
                             entry.DisplayName = NormalizeText(value as string);
                             break;
+                        // An emptied description or a None trophy is an explicit clear, for the
+                        // same reason as the unlock timestamp below: a null alone falls back to
+                        // the provider's value.
                         case AchievementEditableField.Description:
                             entry.Description = NormalizeText(value as string);
+                            entry.ClearDescription = entry.Description == null;
                             break;
                         case AchievementEditableField.Points:
                             entry.Points = value as int?;
                             break;
                         case AchievementEditableField.TrophyType:
                             entry.TrophyType = NormalizeText(value as string);
+                            entry.ClearTrophyType = entry.TrophyType == null;
                             break;
                         case AchievementEditableField.UnlockTimeUtc:
                             // A null timestamp is an explicit clear, not "no customization":

@@ -1,3 +1,4 @@
+﻿using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,6 +31,7 @@ using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.Local;
 using PlayniteAchievements.Services.Logging;
+using PlayniteAchievements.Services.UI;
 
 namespace PlayniteAchievements.Services
 {
@@ -173,7 +175,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to restart Playnite after automatic theme migration.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to restart Playnite after automatic theme migration.");
                 _api.Dialogs.ShowErrorMessage("Playnite could not restart automatically. Please restart Playnite to apply the migrated theme.");
             }
         }
@@ -209,7 +211,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to show upstream release notification.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to show upstream release notification.");
             }
         }
 
@@ -235,7 +237,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to show fork release notification.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to show fork release notification.");
             }
         }
 
@@ -252,7 +254,8 @@ namespace PlayniteAchievements.Services
             string forcedStyle = null,
             LocalUnlockNotificationDeliveryMode? forcedDeliveryMode = null,
             LocalSettings overrideLocalSettings = null,
-            string notificationProviderKey = "Local")
+            string notificationProviderKey = "Local",
+            bool isSettingsPreview = false)
         {
             var achievementItems = unlockedAchievementNames?
                 .Select((name, index) => new AchievementUnlockNotificationItem(
@@ -272,7 +275,8 @@ namespace PlayniteAchievements.Services
                 forcedDeliveryMode,
                 overrideLocalSettings,
                 notificationProviderKey,
-                game);
+                game,
+                isSettingsPreview: isSettingsPreview);
         }
 
         public void ShowLocalAchievementUnlocked(
@@ -283,8 +287,28 @@ namespace PlayniteAchievements.Services
             LocalUnlockNotificationDeliveryMode? forcedDeliveryMode = null,
             LocalSettings overrideLocalSettings = null,
             string notificationProviderKey = "Local",
-            Game game = null)
+            Game game = null,
+            AchievementUnlockedEventArgs progressContext = null,
+            bool isSettingsPreview = false)
         {
+            var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
+            if (!isSettingsPreview && progressContext?.IsPreview != true)
+            {
+                var gameId = game?.Id ?? progressContext?.PlayniteGameId ?? Guid.Empty;
+                var store = PlayniteAchievementsPlugin.Instance?.GameCustomDataStore;
+                var gameData = store != null && store.TryLoad(gameId, out var data) ? data : null;
+                var effective = ProviderNotificationPolicy.Resolve(_settings?.Persisted, resolvedProviderKey, gameData);
+                var shouldNotify = progressContext?.IsProgressUpdate == true
+                    ? effective.ProgressToasts
+                    : progressContext?.IsFriendUnlock == true
+                        ? effective.FriendUnlockToasts
+                        : effective.UnlockToasts;
+                if (!shouldNotify)
+                {
+                    return;
+                }
+            }
+
             var achievements = unlockedAchievements?
                 .Where(item => !string.IsNullOrWhiteSpace(item?.Name))
                 .GroupBy(item => item.Name.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -292,13 +316,19 @@ namespace PlayniteAchievements.Services
                 .ToList() ?? new List<AchievementUnlockNotificationItem>();
             var names = achievements.Select(item => item.Name.Trim()).ToList();
             var unlockCount = Math.Max(unlockedAchievements?.Count ?? 0, achievements.Count);
-            if (unlockCount <= 0)
+            if (unlockCount <= 0 || achievements.Count == 0)
             {
                 return;
             }
 
-            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
-            var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
+            var configuredSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
+            var localSettings = isSettingsPreview
+                ? CustomNotificationProgressTokens.CreatePreviewSettingsCopy(configuredSettings)
+                : CustomNotificationProgressTokens.CreateSettingsCopy(
+                configuredSettings,
+                progressContext?.ProgressNum, progressContext?.ProgressDenom, progressContext?.IsProgressUpdate == true,
+                CreateNotificationBarCounters(game, gameName, achievements[0].Name, achievements[0].Rarity, progressContext));
+            if (progressContext?.IsProgressUpdate == true) customSoundPath = null;
             var enableInAppNotification = localSettings?.EnableInAppUnlockNotifications != false;
             if (localSettings?.EnableOverlayDebugLogging == true)
             {
@@ -361,7 +391,7 @@ namespace PlayniteAchievements.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, "Failed to show Local unlock notification.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, "Failed to show Local unlock notification.");
                 }
             }
 
@@ -405,7 +435,7 @@ namespace PlayniteAchievements.Services
                         }
                         catch (Exception ex)
                         {
-                            _logger?.Debug(ex, "Failed to send delayed Local unlock popup.");
+                            ForkLog.Wrap(_logger)?.Debug(ex, "Failed to send delayed Local unlock popup.");
                         }
                     });
                 }
@@ -421,7 +451,7 @@ namespace PlayniteAchievements.Services
                         }
                         catch (Exception ex)
                         {
-                            _logger?.Debug(ex, "Failed to play delayed Local unlock sound.");
+                            ForkLog.Wrap(_logger)?.Debug(ex, "Failed to play delayed Local unlock sound.");
                         }
                     });
                 }
@@ -448,9 +478,12 @@ namespace PlayniteAchievements.Services
             int? achievementPoints = null,
             string achievementRarity = null,
             string achievementTrophy = null,
-            int? forcedSanPreviewView = null)
+            int? forcedSanPreviewView = null,
+            bool isSettingsPreview = false)
         {
-            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
+            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
+            if (isSettingsPreview)
+                localSettings = CustomNotificationProgressTokens.CreatePreviewSettingsCopy(localSettings);
             var mode = forcedDeliveryMode ?? localSettings?.UnlockNotificationDeliveryMode ?? LocalUnlockNotificationDeliveryMode.Hybrid;
             // Achievement notifications use the custom renderer by default. The provider key
             // supplies provider-specific icons and wildcard values; it does not select a style.
@@ -459,7 +492,7 @@ namespace PlayniteAchievements.Services
                 ? NotificationStyleCustom
                 : ResolveUnlockNotificationStyle(providerKey, forcedStyle);
 
-            _logger?.Info(
+            ForkLog.Wrap(_logger)?.Info(
                 $"[LocalOverlay] Dispatching unlock popup provider='{providerKey}', mode='{mode}', style='{style}', " +
                 $"transition='{localSettings?.UnlockOverlayTransitionStyle}', sanElement='{localSettings?.OverlayCustomSanElementPresetId ?? string.Empty}'.");
             if (localSettings?.EnableOverlayDebugLogging == true)
@@ -498,6 +531,24 @@ namespace PlayniteAchievements.Services
             }
         }
 
+        private static Dictionary<NotificationBarSource, NotificationBarCounter> CreateNotificationBarCounters(
+            Game game, string gameName, string achievementName, string rarity, AchievementUnlockedEventArgs args = null)
+        {
+            var values = new Dictionary<NotificationBarSource, NotificationBarCounter>();
+            void Add(NotificationBarSource source, int current, int maximum)
+            {
+                if (maximum > 0) values[source] = new NotificationBarCounter { Current = current, Maximum = maximum };
+            }
+            var scores = GetNotificationScoreContext(game, gameName, achievementName, rarity);
+            Add(NotificationBarSource.GameAchievements, args?.UnlockedCount ?? scores.GameUnlockedCount, args?.TotalCount ?? scores.GameAchievementCount);
+            Add(NotificationBarSource.GamePoints, scores.GamePoints, scores.GamePointsTotal);
+            Add(NotificationBarSource.GameCollectionScore, scores.GameCollectionScore, scores.GameCollectionScoreTotal);
+            Add(NotificationBarSource.GamePrestigeScore, scores.GamePrestigeScore, scores.GamePrestigeScoreTotal);
+            Add(NotificationBarSource.CollectionLevelExperience, scores.CollectionExp, scores.CollectionExpTotal);
+            Add(NotificationBarSource.PrestigeLevelExperience, scores.PrestigeExp, scores.PrestigeExpTotal);
+            return values;
+        }
+
         public FrameworkElement CreateOverlayPreviewContent(
             string gameName,
             string achievementName,
@@ -509,9 +560,12 @@ namespace PlayniteAchievements.Services
             string achievementDescription = null,
             int? achievementPoints = null,
             string achievementRarity = null,
-            string achievementTrophy = null)
+            string achievementTrophy = null,
+            int? progressCurrent = 16,
+            int? progressMaximum = 100)
         {
-            var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
+            var previewSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
+            var localSettings = CustomNotificationProgressTokens.CreatePreviewSettingsCopy(previewSettings,progressCurrent,progressMaximum);
             var style = string.IsNullOrWhiteSpace(forcedStyle)
                 ? ResolveUnlockNotificationStyle(providerKey, null)
                 : NormalizeNotificationStyle(forcedStyle);
@@ -556,9 +610,9 @@ namespace PlayniteAchievements.Services
                 MinHeight = height + (borderSpace * 2)
             };
 
-            if (localSettings?.OverlayCustomAutoResizeToContent == true)
+            if (localSettings?.OverlayCustomAutoResizeToContent == true || CustomNotificationProgressBar.Definitions(localSettings).Any())
             {
-                frame.MaxHeight = Math.Max(height + (borderSpace * 2), 520 + (borderSpace * 2));
+                frame.MaxHeight = Math.Max(height + (borderSpace * 2), (CustomNotificationProgressBar.Definitions(localSettings).Any() ? 2000 : 520) + (borderSpace * 2));
             }
             else
             {
@@ -581,7 +635,9 @@ namespace PlayniteAchievements.Services
                 return null;
             }
 
-            var settings = ProviderRegistry.Settings<LocalSettings>() ?? new LocalSettings();
+            var settings = CustomNotificationProgressTokens.CreateSettingsCopy(
+                ProviderRegistry.Settings<LocalSettings>(), args.ProgressNum, args.ProgressDenom, args.IsProgressUpdate,
+                CreateNotificationBarCounters(_api?.Database?.Games?.Get(args.PlayniteGameId), args.GameName, args.DisplayName, args.RarityTier, args));
             var game = _api?.Database?.Games?.Get(args.PlayniteGameId);
             var rarity = args.GlobalPercent.HasValue
                 ? AchievementRarityResolver.GetDetailText(
@@ -650,7 +706,7 @@ namespace PlayniteAchievements.Services
             var outerWidth = width + (borderSpace * 2);
             var outerHeight = height + (borderSpace * 2);
             var durationMs = Math.Max(1200, settings.UnlockOverlayDurationMilliseconds);
-            var autoResizeToContent = settings.OverlayCustomAutoResizeToContent;
+            var autoResizeToContent = settings.OverlayCustomAutoResizeToContent || CustomNotificationProgressBar.Definitions(settings).Any();
             var host = new Grid
             {
                 Width = outerWidth,
@@ -839,7 +895,7 @@ namespace PlayniteAchievements.Services
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger?.Debug(ex, "[LocalOverlay] SAN capture mirror frame failed.");
+                                    ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] SAN capture mirror frame failed.");
                                 }
                                 finally
                                 {
@@ -856,7 +912,7 @@ namespace PlayniteAchievements.Services
                 {
                     if (generation == loadGeneration && host.IsLoaded)
                     {
-                        _logger?.Warn(ex, "[LocalOverlay] Failed to initialize the inline SAN WebView2 preview; falling back to WPF.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to initialize the inline SAN WebView2 preview; falling back to WPF.");
                         AchievementNotificationDebugLog.Error(ex, "The inline SAN WebView2 preview failed to initialize; falling back to WPF.");
                         DisposeActivePreview();
                         host.Children.Add(BuildOverlayContent(
@@ -1053,7 +1109,7 @@ namespace PlayniteAchievements.Services
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed to open URL: {url}");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to open URL: {url}");
             }
         }
 
@@ -1069,7 +1125,7 @@ namespace PlayniteAchievements.Services
                 soundPath = ResolveSoundPath(soundPath);
                 if (!File.Exists(soundPath))
                 {
-                    _logger?.Warn($"Configured Local unlock sound file was not found: {soundPath}");
+                    ForkLog.Wrap(_logger)?.Warn($"Configured Local unlock sound file was not found: {soundPath}");
                     AchievementNotificationDebugLog.Warn($"Configured unlock sound was not found: '{soundPath}'.");
                     return;
                 }
@@ -1088,14 +1144,14 @@ namespace PlayniteAchievements.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
+                        ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
                         AchievementNotificationDebugLog.Error(ex, $"Unlock sound playback failed for '{soundPath}'.");
                     }
                 });
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to play Local unlock sound: {soundPath}");
                 AchievementNotificationDebugLog.Error(ex, $"Failed to resolve or start the unlock sound '{soundPath}'.");
             }
         }
@@ -1113,7 +1169,7 @@ namespace PlayniteAchievements.Services
                 var localSettings = overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>();
                 if (localSettings?.EnableWindowsToastNotifications != true)
                 {
-                    _logger?.Info("[LocalToast] Skipping Windows toast because EnableWindowsToastNotifications is disabled.");
+                    ForkLog.Wrap(_logger)?.Info("[LocalToast] Skipping Windows toast because EnableWindowsToastNotifications is disabled.");
                     AchievementNotificationDebugLog.Info("Windows toast skipped because EnableWindowsToastNotifications is disabled.");
                     return;
                 }
@@ -1174,13 +1230,13 @@ try {{
                     RedirectStandardError = true
                 };
 
-                _logger?.Info($"[LocalToast] Sending Windows toast for game='{safeGameName}', achievement='{safeAchievementName}', provider='{providerKey}', style='{style}'.");
+                ForkLog.Wrap(_logger)?.Info($"[LocalToast] Sending Windows toast for game='{safeGameName}', achievement='{safeAchievementName}', provider='{providerKey}', style='{style}'.");
                 AchievementNotificationDebugLog.Info(
                     $"Starting Windows toast provider='{providerKey}', style='{style}', imageResolved='{!string.IsNullOrWhiteSpace(toastIconSource)}'.");
                 var process = Process.Start(processStartInfo);
                 if (process == null)
                 {
-                    _logger?.Warn("[LocalToast] PowerShell process did not start (Process.Start returned null).");
+                    ForkLog.Wrap(_logger)?.Warn("[LocalToast] PowerShell process did not start (Process.Start returned null).");
                     AchievementNotificationDebugLog.Warn("Windows toast PowerShell process did not start (Process.Start returned null).");
                     return;
                 }
@@ -1191,7 +1247,7 @@ try {{
                     {
                         if (!process.WaitForExit(5000))
                         {
-                            _logger?.Warn($"[LocalToast] PowerShell toast process timed out. Pid={process.Id}");
+                            ForkLog.Wrap(_logger)?.Warn($"[LocalToast] PowerShell toast process timed out. Pid={process.Id}");
                             AchievementNotificationDebugLog.Warn($"Windows toast PowerShell process timed out; pid='{process.Id}'.");
                             try
                             {
@@ -1211,20 +1267,20 @@ try {{
 
                         if (process.ExitCode == 0)
                         {
-                            _logger?.Info($"[LocalToast] PowerShell toast command succeeded. ExitCode=0, StdOut={logStdout}, StdErr={logStderr}");
+                            ForkLog.Wrap(_logger)?.Info($"[LocalToast] PowerShell toast command succeeded. ExitCode=0, StdOut={logStdout}, StdErr={logStderr}");
                             AchievementNotificationDebugLog.Info(
                                 $"Windows toast command completed exitCode='0', stdout='{logStdout}', stderr='{logStderr}'.");
                         }
                         else
                         {
-                            _logger?.Warn($"[LocalToast] PowerShell toast command failed. ExitCode={process.ExitCode}, StdOut={logStdout}, StdErr={logStderr}");
+                            ForkLog.Wrap(_logger)?.Warn($"[LocalToast] PowerShell toast command failed. ExitCode={process.ExitCode}, StdOut={logStdout}, StdErr={logStderr}");
                             AchievementNotificationDebugLog.Warn(
                                 $"Windows toast command failed exitCode='{process.ExitCode}', stdout='{logStdout}', stderr='{logStderr}'.");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "[LocalToast] Failed while waiting for PowerShell toast command result.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalToast] Failed while waiting for PowerShell toast command result.");
                         AchievementNotificationDebugLog.Error(ex, "Failed while waiting for the Windows toast command result.");
                     }
                     finally
@@ -1238,7 +1294,7 @@ try {{
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalToast] Failed to send Windows toast notification.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalToast] Failed to send Windows toast notification.");
                 AchievementNotificationDebugLog.Error(ex, "Failed to construct or send the Windows toast notification.");
             }
         }
@@ -1271,15 +1327,15 @@ try {{
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, "[LocalToast] Tray balloon fallback failed.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, "[LocalToast] Tray balloon fallback failed.");
                     }
                 });
 
-                _logger?.Info("[LocalToast] Tray balloon fallback notification requested.");
+                ForkLog.Wrap(_logger)?.Info("[LocalToast] Tray balloon fallback notification requested.");
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalToast] Failed to initialize tray balloon fallback.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalToast] Failed to initialize tray balloon fallback.");
             }
         }
 
@@ -1477,7 +1533,7 @@ steamImage +
                         var safeGameName = string.IsNullOrWhiteSpace(gameName) ? "Current Game" : gameName.Trim();
                         var safeAchievement = string.IsNullOrWhiteSpace(achievementName) ? "Achievement unlocked" : achievementName.Trim();
                         var isCustomStyle = string.Equals(style, NotificationStyleCustom, StringComparison.OrdinalIgnoreCase);
-                        var autoResizeCustom = isCustomStyle && (localSettings?.OverlayCustomAutoResizeToContent == true);
+                        var autoResizeCustom = isCustomStyle && (localSettings?.OverlayCustomAutoResizeToContent == true || CustomNotificationProgressBar.Definitions(localSettings).Any());
                         var transitionStyle = localSettings?.UnlockOverlayTransitionStyle ?? LocalUnlockOverlayTransitionStyle.Fade;
                         var slideDistance = localSettings?.UnlockOverlaySlideDistance ?? 72;
 
@@ -1518,6 +1574,21 @@ steamImage +
                             return;
                         }
 
+                        var existingOverlay = persistentPreviewRequested ? null : FindSingleOverlay("WPF");
+                        if (existingOverlay != null)
+                        {
+                            existingOverlay.Window.Content = BuildOverlayContent(title, safeGameName, safeAchievement, achievementIconPath, style, providerKey, localSettings, overlayScale, game, achievementDescription, achievementPoints, achievementRarity, achievementTrophy);
+                            existingOverlay.CloseTimer?.Stop();
+                            if (existingOverlay.CloseTimer != null)
+                            {
+                                existingOverlay.CloseTimer.Interval = TimeSpan.FromMilliseconds(durationMs);
+                                existingOverlay.CloseTimer.Start();
+                            }
+                            existingOverlay.Window.UpdateLayout();
+                            PositionOverlayWindow(existingOverlay.Window, position, 0, localSettings?.ShowOverlayOnActiveGameMonitor == true, debugLoggingEnabled);
+                            return;
+                        }
+
                         var customBorderSpace = isCustomStyle && localSettings?.OverlayCustomShowBorder != false
                             ? Math.Max(0.5, Math.Min(12, localSettings?.OverlayCustomBorderWidth ?? 1.5)) * overlayScale
                             : 0;
@@ -1542,7 +1613,7 @@ steamImage +
                         if (autoResizeCustom)
                         {
                             overlayWindow.MinHeight = windowHeight;
-                            overlayWindow.MaxHeight = Math.Max(windowHeight, 520 + (customBorderSpace * 2));
+                            overlayWindow.MaxHeight = Math.Max(windowHeight, (CustomNotificationProgressBar.Definitions(localSettings).Any() ? 2000 : 520) + (customBorderSpace * 2));
                             overlayWindow.SizeToContent = SizeToContent.Height;
                         }
                         else
@@ -1558,6 +1629,7 @@ steamImage +
                         PositionOverlayWindow(overlayWindow, position, GetOverlayStackIndex(overlayState), localSettings?.ShowOverlayOnActiveGameMonitor == true, debugLoggingEnabled);
                         LogOverlayWindowLifecycle(overlayWindow, "WPF", "positioned-before-show", overlayOpacity, debugLoggingEnabled);
 
+                        if (overlayState != null) overlayState.Renderer = "WPF";
                         overlayWindow.Loaded += (sender, args) =>
                         {
                             try
@@ -1604,11 +1676,12 @@ steamImage +
                                     ApplyOverlayExitAnimation(overlayWindow, overlayOpacity, fadeOutMs, transitionStyle, slideDistance, () => overlayWindow.Close());
                                 };
 
+                                if (overlayState != null) overlayState.CloseTimer = closeTimer;
                                 closeTimer.Start();
                             }
                             catch (Exception animEx)
                             {
-                                _logger?.Warn(animEx, "[LocalOverlay] Failed in loaded animation pipeline.");
+                                ForkLog.Wrap(_logger)?.Warn(animEx, "[LocalOverlay] Failed in loaded animation pipeline.");
                                 AchievementNotificationDebugLog.Error(animEx, "The WPF overlay loaded-animation pipeline failed.");
                                 try
                                 {
@@ -1644,14 +1717,14 @@ steamImage +
                     }
                     catch (Exception uiEx)
                     {
-                        _logger?.Warn(uiEx, "[LocalOverlay] Failed to render overlay on UI thread.");
+                        ForkLog.Wrap(_logger)?.Warn(uiEx, "[LocalOverlay] Failed to render overlay on UI thread.");
                         AchievementNotificationDebugLog.Error(uiEx, "The WPF overlay failed while rendering on the UI thread.");
                     }
                 });
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalOverlay] Failed to show overlay notification.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] Failed to show overlay notification.");
                 AchievementNotificationDebugLog.Error(ex, "The overlay notification failed before or during UI dispatch.");
             }
         }
@@ -1762,6 +1835,22 @@ steamImage +
             return 110;
         }
 
+        private OverlayWindowState FindSingleOverlay(string renderer)
+        {
+            if (_settings?.Persisted?.SingleCustomNotification != true)
+                return null;
+
+            OverlayWindowState reusable = null;
+            foreach (var state in ActiveOverlayWindows.ToList())
+            {
+                if (reusable == null && !state.IsClosing && state.Window.IsVisible && state.Renderer == renderer)
+                    reusable = state;
+                else
+                    state.Window.Close();
+            }
+            return reusable;
+        }
+
         private static OverlayWindowState RegisterOverlayWindow(Window window, LocalUnlockOverlayPosition position)
         {
             if (window == null)
@@ -1782,6 +1871,7 @@ steamImage +
                 return;
             }
 
+            state.CloseTimer?.Stop();
             ActiveOverlayWindows.Remove(state);
             RepositionActiveOverlayWindows(state.Position);
         }
@@ -1828,6 +1918,9 @@ steamImage +
             public Window Window { get; }
             public LocalUnlockOverlayPosition Position { get; }
             public bool IsClosing { get; set; }
+            public string Renderer { get; set; }
+            public DispatcherTimer CloseTimer { get; set; }
+            public Action<string> UpdateHtml { get; set; }
         }
 
         private bool TryShowSanWebViewOverlayNotification(
@@ -1902,13 +1995,13 @@ steamImage +
                     : 0;
                 var canvasWidth = (int)Math.Ceiling(Math.Max(1, width + (borderSpace * 2)));
                 var canvasHeight = (int)Math.Ceiling(Math.Max(1, height + (borderSpace * 2)));
-                var autoResizeToContent = settings.OverlayCustomAutoResizeToContent;
+                var autoResizeToContent = settings.OverlayCustomAutoResizeToContent || CustomNotificationProgressBar.Definitions(settings).Any();
                 var isSanTransition = IsSanTransitionStyle(settings.UnlockOverlayTransitionStyle);
                 var overlayOpacity = Math.Max(0.35, Math.Min(1.0, settings.OverlayCustomOpacity));
                 var fadeInMs = settings.UnlockOverlayFadeInMilliseconds;
                 var fadeOutMs = settings.UnlockOverlayFadeOutMilliseconds;
                 var slideDistance = settings.UnlockOverlaySlideDistance;
-                _logger?.Info($"[LocalOverlay] Rendering SAN WebView overlay preset='{settings.OverlayCustomSanPresetId}', themeDir='{settings.OverlayCustomSanThemeDirectory}'.");
+                ForkLog.Wrap(_logger)?.Info($"[LocalOverlay] Rendering SAN WebView overlay preset='{settings.OverlayCustomSanPresetId}', themeDir='{settings.OverlayCustomSanThemeDirectory}'.");
                 var html = BuildSanWebViewDocument(
                     gameName,
                     achievementName,
@@ -1923,6 +2016,14 @@ steamImage +
                     durationMs,
                     width,
                     height);
+                var existingOverlay = persistentPreviewRequested ? null : FindSingleOverlay("SAN");
+                if (existingOverlay?.UpdateHtml != null)
+                {
+                    existingOverlay.UpdateHtml(html);
+                    existingOverlay.CloseTimer?.Stop();
+                    existingOverlay.CloseTimer?.Start();
+                    return true;
+                }
                 var htmlPath = WriteSanWebViewDocumentToTempFile(html);
 
                 var webView = new WebView2
@@ -2005,7 +2106,7 @@ steamImage +
                                 }
                                 catch (Exception ex)
                                 {
-                                    _logger?.Debug(ex, "Could not select the requested SAN settings preview view.");
+                                    ForkLog.Wrap(_logger)?.Debug(ex, "Could not select the requested SAN settings preview view.");
                                 }
                             }
                         };
@@ -2056,7 +2157,7 @@ steamImage +
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "[LocalOverlay] Failed to initialize SAN WebView2 overlay.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to initialize SAN WebView2 overlay.");
                         AchievementNotificationDebugLog.Error(ex, "SAN WebView2 initialization failed.");
                         try
                         {
@@ -2113,6 +2214,19 @@ steamImage +
                     {
                     }
                 };
+                if (overlayState != null)
+                {
+                    overlayState.Renderer = "SAN";
+                    overlayState.CloseTimer = closeTimer;
+                    overlayState.UpdateHtml = updatedHtml =>
+                    {
+                        var previousPath = htmlPath;
+                        htmlPath = WriteSanWebViewDocumentToTempFile(updatedHtml);
+                        if (webView.CoreWebView2 != null)
+                            webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
+                        TryDeleteSanWebViewDocument(previousPath);
+                    };
+                }
                 closeTimer.Start();
                 window.Show();
                 LogOverlayWindowLifecycle(window, "SAN-WebView2", "show-returned", overlayOpacity, debugLoggingEnabled);
@@ -2120,7 +2234,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalOverlay] Failed to render SAN WebView2 overlay; falling back to WPF renderer.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to render SAN WebView2 overlay; falling back to WPF renderer.");
                 AchievementNotificationDebugLog.Error(ex, "SAN WebView2 rendering failed; falling back to the WPF renderer.");
                 return false;
             }
@@ -2143,7 +2257,7 @@ steamImage +
                     var loaderPath = Path.Combine(loaderDirectory, "WebView2Loader.dll");
                     if (!File.Exists(loaderPath))
                     {
-                        _logger?.Warn($"[LocalOverlay] WebView2 loader was not found at '{loaderPath}'.");
+                        ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] WebView2 loader was not found at '{loaderPath}'.");
                         return;
                     }
 
@@ -2152,12 +2266,12 @@ steamImage +
                     var module = LoadLibrary(loaderPath);
                     if (module == IntPtr.Zero)
                     {
-                        _logger?.Warn($"[LocalOverlay] Failed to preload WebView2 loader from '{loaderPath}'.");
+                        ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] Failed to preload WebView2 loader from '{loaderPath}'.");
                     }
 
                     if (!SetDllDirectory(loaderDirectory))
                     {
-                        _logger?.Warn($"[LocalOverlay] Failed to set WebView2 loader directory to '{loaderDirectory}'.");
+                        ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] Failed to set WebView2 loader directory to '{loaderDirectory}'.");
                     }
 
                     _webView2LoaderConfigured = true;
@@ -2165,7 +2279,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalOverlay] Failed to configure WebView2 loader directory.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to configure WebView2 loader directory.");
             }
         }
 
@@ -2240,7 +2354,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalOverlay] Failed to collect window diagnostics for renderer='{renderer}', phase='{phase}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalOverlay] Failed to collect window diagnostics for renderer='{renderer}', phase='{phase}'.");
             }
         }
 
@@ -2404,7 +2518,7 @@ steamImage +
                         else if (!succeeded && !loggedFailure)
                         {
                             loggedFailure = true;
-                            _logger?.Warn(
+                            ForkLog.Wrap(_logger)?.Warn(
                                 $"[LocalOverlay] Topmost guard failed renderer='{ResolveOverlayRendererName(window)}', " +
                                 $"hwnd='{FormatHandle(handle)}', win32Error='{Marshal.GetLastWin32Error()}'.");
                         }
@@ -2415,7 +2529,7 @@ steamImage +
                     if (!loggedFailure)
                     {
                         loggedFailure = true;
-                        _logger?.Warn(ex, "[LocalOverlay] Topmost guard threw an exception.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Topmost guard threw an exception.");
                     }
                 }
             };
@@ -2559,11 +2673,11 @@ steamImage +
                         // Application.Current.Windows. Fullscreen themes can treat any visible secondary
                         // window as an active overlay and stop updating their focus/navigation state.
                         window.Hide();
-                        _logger?.Debug("[LocalOverlay] SAN WebView2 controller warm-up completed.");
+                        ForkLog.Wrap(_logger)?.Debug("[LocalOverlay] SAN WebView2 controller warm-up completed.");
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, "[LocalOverlay] SAN WebView2 controller warm-up failed.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] SAN WebView2 controller warm-up failed.");
                         try
                         {
                             _sanWebViewWarmupWindow?.Close();
@@ -2580,7 +2694,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[LocalOverlay] Failed to schedule SAN WebView2 warm-up.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[LocalOverlay] Failed to schedule SAN WebView2 warm-up.");
             }
         }
 
@@ -2614,7 +2728,7 @@ steamImage +
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[LocalOverlay] Failed to stage WebView2 loader in the plugin root.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[LocalOverlay] Failed to stage WebView2 loader in the plugin root.");
             }
         }
 
@@ -2718,7 +2832,7 @@ steamImage +
             }
             else if (isSanTransition && !AreSanElementAndTransitionCompatible(animationPreset, configuredElementPreset))
             {
-                _logger?.Warn($"[LocalOverlay] SAN element preset '{configuredElementPreset}' is not compatible with transition preset '{animationPreset}'. Using the transition element instead.");
+                ForkLog.Wrap(_logger)?.Warn($"[LocalOverlay] SAN element preset '{configuredElementPreset}' is not compatible with transition preset '{animationPreset}'. Using the transition element instead.");
                 followsTransitionElement = true;
                 elementPreset = animationPreset;
             }
@@ -2821,6 +2935,8 @@ steamImage +
                 : string.Empty;
             var sanElems = ResolveSanTextElements(settings, line1, line2, line3, out var unlockMessage, out var title, out var desc);
             var sanLineDefinitionsJson = BuildSanLineDefinitionsJson(settings, line1, line2, line3, line4, line5, line6);
+            var sanProgressBeforeJson = Newtonsoft.Json.JsonConvert.SerializeObject(CustomNotificationProgressBar.CreateElementsHtml(settings, NotificationBarPlacement.BeforeContent));
+            var sanProgressAfterJson = Newtonsoft.Json.JsonConvert.SerializeObject(CustomNotificationProgressBar.CreateElementsHtml(settings, NotificationBarPlacement.AfterContent));
             var sanElementAnchorsJson = "{}";
             if (!string.IsNullOrWhiteSpace(settings?.OverlayCustomElementAnchorsJson))
             {
@@ -3190,7 +3306,7 @@ const sanApplyElems = () => {{
     while (targets.length < desiredCount) {{
       const span = document.createElement('span');
       span.className = 'san-generated-line';
-      stack.appendChild(span);
+      stack.insertBefore(span, stack.querySelector('.san-achievement-progress'));
       targets.push(span);
     }}
     return targets.slice(0, desiredCount);
@@ -3429,6 +3545,43 @@ document.querySelectorAll('#logo').forEach(el => {{
     el.style.backgroundImage = 'url(' + {JsString(logoUri)} + ')';
   }}
 }});
+const sanProgressBefore = {sanProgressBeforeJson};
+const sanProgressAfter = {sanProgressAfterJson};
+if (sanProgressBefore || sanProgressAfter) {{
+  const outer = document.getElementById('outerwrapper');
+  if (outer) {{
+    const baseHeight = {height};
+    const panels = [sanProgressBefore, sanProgressAfter].map(html => {{
+      const panel = document.createElement('div');
+      panel.className = 'san-progress-elements';
+      panel.style.cssText = 'position:absolute;left:0;width:100%;padding:0 16px 8px;box-sizing:border-box;z-index:10';
+      panel.innerHTML = html;
+      if (!html) panel.style.display = 'none';
+      outer.appendChild(panel);
+      return panel;
+    }});
+    const layoutBars = () => {{
+      const before = panels[0].getBoundingClientRect().height;
+      const after = panels[1].getBoundingClientRect().height;
+      const outerTop = outer.getBoundingClientRect().top;
+      const occupied = Array.from(outer.querySelectorAll('#achicon, #logo, .san-generated-line, [data-san-manual-id]')).filter(el => !el.closest('.san-progress-elements') && getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().height > 0).map(el => el.getBoundingClientRect().bottom - outerTop - before);
+      const contentEnd = occupied.length ? Math.max(0, ...occupied) : baseHeight;
+      const afterTop = panels[1].style.display === 'none' ? baseHeight : contentEnd;
+      const totalHeight = Math.max(baseHeight + before, before + afterTop + after);
+      ['height','min-height','max-height'].forEach(property => outer.style.setProperty(property, totalHeight + 'px', 'important'));
+      const bodyStyle = getComputedStyle(document.body);
+      document.body.style.setProperty('height', (totalHeight + (parseFloat(bodyStyle.paddingTop)||0) + (parseFloat(bodyStyle.paddingBottom)||0)) + 'px', 'important');
+      outer.querySelectorAll('#achcont').forEach(card => {{ card.style.setProperty('height', baseHeight + 'px', 'important'); card.style.setProperty('top', before + 'px', 'important'); card.style.alignSelf = 'start'; card.style.marginTop = '0px'; }});
+      panels[0].style.top = '0px';
+      panels[1].style.top = (before + afterTop) + 'px';
+      if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage('san-height:' + Math.ceil(totalHeight + 8));
+    }};
+    layoutBars();
+    window.addEventListener('resize', layoutBars);
+    window.setTimeout(layoutBars, 100);
+    window.setTimeout(layoutBars, 500);
+  }}
+}}
 window.requestAnimationFrame(sanApplyElementAnchors);
 if (Object.keys(sanElementAnchors || {{}}).length) {{
   const sanAnchorResizeObserver = new ResizeObserver(() => window.requestAnimationFrame(sanApplyElementAnchors));
@@ -3461,7 +3614,7 @@ window.setTimeout(() => {{
   }});
 if (!visibleText) document.body.classList.add('san-webview-force-visible');
 }}, 250);
-if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
+if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgressBefore && !sanProgressAfter) {{
   let lastSanHeight = 0;
   const reportSanContentHeight = () => {{
     let bottom = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
@@ -5599,17 +5752,31 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
             }
             else
             {
-                root.Height = customHeight;
+                root.MinHeight = customHeight;
             }
 
-            var container = new Grid
-            {
-                ClipToBounds = true
-            };
+            var container = new Grid { ClipToBounds = true };
+            var elementLayout = new Grid();
+            elementLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            elementLayout.RowDefinitions.Add(new RowDefinition { Height = settings?.OverlayCustomAutoResizeToContent == true ? new GridLength(1, GridUnitType.Star) : new GridLength(customHeight) });
+            elementLayout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var beforeBars = CustomNotificationProgressBar.CreateElementsWpf(settings, NotificationBarPlacement.BeforeContent);
+            var afterBars = CustomNotificationProgressBar.CreateElementsWpf(settings, NotificationBarPlacement.AfterContent);
+            beforeBars.Margin = afterBars.Margin = new Thickness(contentPadding.Left, 0, contentPadding.Right, 8);
+            if (beforeBars.Children.Count == 0) beforeBars.Margin = new Thickness(0);
+            if (afterBars.Children.Count == 0) afterBars.Margin = new Thickness(0);
+            // Progress rows attach to occupied content, rather than unused fixed-height space.
+            if (beforeBars.Children.Count > 0 || afterBars.Children.Count > 0)
+                elementLayout.RowDefinitions[1].Height = GridLength.Auto;
+            beforeBars.Measure(new Size(customWidth, double.PositiveInfinity));
+            afterBars.Measure(new Size(customWidth, double.PositiveInfinity));
+            var barsHeight = beforeBars.DesiredSize.Height + afterBars.DesiredSize.Height;
+            if (settings?.OverlayCustomAutoResizeToContent == true) root.MinHeight += barsHeight;
+
             if (bannerSource != null)
             {
                 AddBannerBackground(
-                    container,
+                    elementLayout,
                     bannerSource,
                     CreateOverlayTintBrush(ParseBrushOrDefault(settings?.OverlayCustomBackgroundColor, Color.FromRgb(30, 36, 48)), 194),
                     settings?.GameBannerOpacity ?? 0.3,
@@ -5630,7 +5797,9 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
             FrameworkElement secondaryIconElement = null;
 
             var grid = new Grid();
-            grid.Margin = contentPadding;
+            grid.Margin = new Thickness(contentPadding.Left,
+                beforeBars.Children.Count > 0 ? 0 : contentPadding.Top,
+                contentPadding.Right, afterBars.Children.Count > 0 ? 0 : contentPadding.Bottom);
             if (coverPosition == LocalOverlayCoverPosition.Left && !coverLeftAbsolute)
             {
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -5684,7 +5853,7 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
                     }
                     else if (settings?.OverlayCustomAutoResizeToContent == true && settings.CenterGameCoverVertically)
                     {
-                        CenterCanvasElementVertically(root, leftCover);
+                        CenterCanvasElementVertically(container, leftCover);
                     }
                 }
             }
@@ -5994,7 +6163,7 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
                     }
                     else if (settings?.OverlayCustomAutoResizeToContent == true && settings.CenterGameCoverVertically)
                     {
-                        CenterCanvasElementVertically(root, rightCover);
+                        CenterCanvasElementVertically(container, rightCover);
                     }
                 }
             }
@@ -6005,7 +6174,13 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
                 container.Children.Add(absoluteLayer);
             }
             ConfigureAbsoluteManualReflow(absoluteLayer, absoluteLines, manualOffsets, icon, secondaryIconElement, settings);
-            root.Child = container;
+            foreach (UIElement background in elementLayout.Children) Grid.SetRowSpan(background, 3);
+            Grid.SetRow(container, 1);
+            elementLayout.Children.Add(container);
+            elementLayout.Children.Add(beforeBars);
+            Grid.SetRow(afterBars, 2);
+            elementLayout.Children.Add(afterBars);
+            root.Child = elementLayout;
             root.Margin = new Thickness(borderWidth);
             var visualRoot = new Grid();
             visualRoot.Children.Add(root);
@@ -7176,6 +7351,14 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
                 return string.Empty;
             }
 
+            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
+            {
+                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
+                    title, gameName, achievementName, achievementDescription, achievementPoints,
+                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
+                return value == token ? string.Empty : value;
+            });
+
             var replaced = OverlayTemplateTokenPattern.Replace(
                 effectiveTemplate,
                 match => ResolveCustomTemplateToken(
@@ -7225,6 +7408,14 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
             {
                 return string.Empty;
             }
+
+            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
+            {
+                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
+                    title, gameName, achievementName, achievementDescription, achievementPoints,
+                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
+                return value == token ? string.Empty : value;
+            });
 
             var builder = new StringBuilder();
             var hasVisibleContent = false;
@@ -7342,6 +7533,14 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
             {
                 return null;
             }
+
+            effectiveTemplate = CustomNotificationProgressTokens.ExpandOptionalGroups(effectiveTemplate, token =>
+            {
+                var value = ResolveCustomTemplateToken(token.Substring(1, token.Length - 2),
+                    title, gameName, achievementName, achievementDescription, achievementPoints,
+                    achievementRarity, achievementTrophy, providerKey, style, game, sourceName, timestamp, token);
+                return value == token ? string.Empty : value;
+            });
 
             var textBlock = new TextBlock
             {
@@ -8855,7 +9054,7 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)}) {{
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalToast] Failed to cache remote icon: {url}");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalToast] Failed to cache remote icon: {url}");
                 return string.Empty;
             }
         }

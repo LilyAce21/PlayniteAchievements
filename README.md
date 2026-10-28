@@ -113,6 +113,41 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 ## Next release - TBD
 
+## 2026-10-25 - v4.1.1.1
+
+- v4.1.1 merge
+- Fixed the missing key for the `Cancel` button for the `Logs` buttons
+- Fixed the theme migration for `Solaris` theme
+- Fixed the missing label for the `Revert` button under the `Theme Migration` tab
+- Fixed the `Revert` button not finding any backups to revert under the `Theme Migration` tab
+- Fixed blank button labels across `Local` settings, `Local Overrides`, `Custom Schema`, `import dialogs`, and `notification` settings.
+- Restored the `Edit Local Achievements` action for `Local` provider games.
+- Fixed the installation folder disappearing from the multiple-folders dropdown after applying a folder override.
+- Standardized folder and source-path displays to use the casing stored on disk, with uppercase drive letters.
+- Added detection for nested `steam_settings` folders beneath the game’s installation directory, including their `settings` and `stats` subfolders. The search respects excluded paths and skips directory links.
+- Updated the `Automatic folders` list with missing scan locations and an explanation of nested `steam_settings` detection.
+- Restored the upstream themes tabs to the original state
+- Moved all the settings related to this fork to the `Santodan-Fork` tab so it is more clear to differentiate the upstream from mine
+- Added wildcards to both `Custom Folders` and for `Local Save Folder Override`
+- Added wildcards to the `Excluded Folders`
+- Changed the entries for my fork related log to be called as `[PlayniteAchievementsPlugin-Santodan]`
+- Fixed the progress detecting for achievements with progress
+- Added progress related wildcards to the custom notification - `<progress>`, `<progressCurrent>`, `<progressMax>`, and `<progressPercent>`
+- Fixed custom schema overrides contaminating the Steam schema cache
+- Removed the `Custom Background Image` from the `Achievement Notification` since you can add a `Custom banner image`
+- Added a progress bar like option to the `Achievement Notification`
+- Redesigned the `Notification Style` tab
+- Fixed the `Show Notification` not respecting the `Custom Style`
+- Fixed the `Custom Notification` not taking into consideration the settings in the `Notifications` --> `Platforms`
+- Fixed `Custom Notification` bypassing platform filters
+- Fixed the missing ranks from the `Theme Migration` for the `PS5-Experience`
+- Added conditions to the wildcards in the `Custom Notification` under the `Add a condition to a text row` menu under the wildcards
+- Added the option to choose between multiple notification or update the current notification for multiple achievements
+  - Option present in `Achievement Notifications` --> `General` --> `Use a Single custom notification`
+- Added the option to use the upstream notification template instead
+
+## 2026-10-18 - v4.1.0.1
+
 - v4.1.0 merge
 - Fixed `PS5-Experience` theme not showing the trophy for 100% games
 
@@ -123,6 +158,9 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 - Clicking the `New Theme Migrated` popup will restart playnite automatically
 - Fixed achievement notification replay after cache relocks and update fork bundle
 - Added some log management buttons in the `General`--> `Maintenance` window
+
+## Old Changelogs
+<details>
 
 ## 2026-10-05 - v4.0.1.1
 
@@ -166,9 +204,6 @@ The entries below are fork-side changes, grouped by date. When a date includes a
 
 - v3.2.1 merge
 - Made the extension setting to open quicker. It will now load the `Achievement Notification` UI only when entering in it's tab.
-
-## Old Changelogs
-<details>
 
 ## 2026-09-09 - v3.2.0.2
 

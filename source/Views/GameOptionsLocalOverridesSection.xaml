@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
              xmlns:converters="clr-namespace:PlayniteAchievements.Views.Converters"
              mc:Ignorable="d"
              d:DesignHeight="420"
@@ -81,7 +82,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBox Grid.Column="0"
+                    <TextBox x:Name="LocalFolderOverrideTextBox" Grid.Column="0"
                              Text="{Binding LocalFolderOverrideInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Padding="8,6" />
                     <Button Grid.Column="1"
@@ -105,6 +106,10 @@
                             Padding="12,6"
                             Margin="8,0,0,0" />
                 </Grid>
+                <TextBlock Text="Path variables are resolved for this game. Click a variable to insert it at the cursor; hover for its description."
+                           Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <controls:FolderVariableButtons TargetTextBox="{Binding ElementName=LocalFolderOverrideTextBox}"/>
+
 
             </StackPanel>
         </Border>

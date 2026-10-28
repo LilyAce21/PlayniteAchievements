@@ -154,7 +154,8 @@
                                          KeyDown="ExportPath_KeyDown"
                                          LostFocus="ExportPath_LostFocus"/>
                                 <Button Grid.Column="1"
-                                        Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                        Content="..."
+                                        ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                         Tag="Genshin"
                                         Click="BrowseExport_Click"
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Compact}"/>
@@ -180,7 +181,8 @@
                                          KeyDown="ExportPath_KeyDown"
                                          LostFocus="ExportPath_LostFocus"/>
                                 <Button Grid.Column="1"
-                                        Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                        Content="..."
+                                        ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                         Tag="Hsr"
                                         Click="BrowseExport_Click"
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Compact}"/>
@@ -206,7 +208,8 @@
                                          KeyDown="ExportPath_KeyDown"
                                          LostFocus="ExportPath_LostFocus"/>
                                 <Button Grid.Column="1"
-                                        Content="{DynamicResource LOCPlayAch_Button_Browse}"
+                                        Content="..."
+                                        ToolTip="{DynamicResource LOCPlayAch_Button_Browse}"
                                         Tag="Zzz"
                                         Click="BrowseExport_Click"
                                         Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Compact}"/>

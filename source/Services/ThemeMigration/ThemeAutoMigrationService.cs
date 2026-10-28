@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,7 +36,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
         {
             if (_settings?.Persisted?.EnableAutomaticThemeMigration != true)
             {
-                _logger?.Info("Automatic theme migration is disabled.");
+                ForkLog.Wrap(_logger)?.Info("Automatic theme migration is disabled.");
                 return;
             }
 
@@ -144,17 +145,17 @@ namespace PlayniteAchievements.Services.ThemeMigration
                                     CustomMigrationSelection.FromSettings(persisted));
                                 if (result.Success)
                                 {
-                                    _logger.Info($"Auto-migrated first-time theme: {theme.Name}");
+                                    ForkLog.Wrap(_logger).Info($"Auto-migrated first-time theme: {theme.Name}");
                                     migratedThemes.Add(theme.BestDisplayName);
                                 }
                                 else
                                 {
-                                    _logger.Warn($"Failed to auto-migrate first-time theme '{theme.Name}': {result.Message}");
+                                    ForkLog.Wrap(_logger).Warn($"Failed to auto-migrate first-time theme '{theme.Name}': {result.Message}");
                                 }
                             }
                             catch (Exception ex)
                             {
-                                _logger.Error(ex, $"Exception auto-migrating first-time theme: {theme.Name}");
+                                ForkLog.Wrap(_logger).Error(ex, $"Exception auto-migrating first-time theme: {theme.Name}");
                             }
                         }
 

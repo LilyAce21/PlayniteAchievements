@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -203,7 +204,7 @@ namespace PlayniteAchievements.Providers.Steam
         {
             if (!await EnsureSessionAsync(ct).ConfigureAwait(false))
             {
-                _logger?.Warn("[SteamAch] Steam session is not available; cannot resolve store web API token.");
+                ForkLog.Wrap(_logger)?.Warn("[SteamAch] Steam session is not available; cannot resolve store web API token.");
                 return null;
             }
 
@@ -225,7 +226,7 @@ namespace PlayniteAchievements.Providers.Steam
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[SteamAch] Store token request failed.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[SteamAch] Store token request failed.");
                 return null;
             }
         }
@@ -279,7 +280,7 @@ namespace PlayniteAchievements.Providers.Steam
         {
             ct.ThrowIfCancellationRequested();
 
-            _logger?.Info("[SteamAch] Loading owned Steam games from authenticated store session.");
+            ForkLog.Wrap(_logger)?.Info("[SteamAch] Loading owned Steam games from authenticated store session.");
             var ownedAppIds = await GetOwnedAppIdsFromDynamicStoreAsync(ct).ConfigureAwait(false);
             ownedAppIds = FilterExcludedOwnedAppIds(ownedAppIds, excludedAppIds, "owned Steam games");
             if (ownedAppIds.Count == 0)
@@ -324,7 +325,7 @@ namespace PlayniteAchievements.Providers.Steam
                     {
                         if (!response.IsSuccessStatusCode)
                         {
-                            _logger?.Warn($"[SteamAch] GetOwnedGames by API key failed with HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
+                            ForkLog.Wrap(_logger)?.Warn($"[SteamAch] GetOwnedGames by API key failed with HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
                             return result;
                         }
 
@@ -369,7 +370,7 @@ namespace PlayniteAchievements.Providers.Steam
                         result.Games.Clear();
                         result.Games.AddRange(deduplicatedGames);
 
-                        _logger?.Info($"[SteamAch] GetOwnedGames by API key returned {result.Games.Count} owned Steam app entries after filtering.");
+                        ForkLog.Wrap(_logger)?.Info($"[SteamAch] GetOwnedGames by API key returned {result.Games.Count} owned Steam app entries after filtering.");
                         return result;
                     }
                 }
@@ -380,7 +381,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[SteamAch] Failed resolving owned Steam games by API key.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[SteamAch] Failed resolving owned Steam games by API key.");
                 return result;
             }
         }
@@ -426,12 +427,12 @@ namespace PlayniteAchievements.Providers.Steam
                 return new OwnedGamesResolutionResult();
             }
 
-            _logger?.Info("[SteamAch] Loading family-shared Steam games from authenticated store session.");
+            ForkLog.Wrap(_logger)?.Info("[SteamAch] Loading family-shared Steam games from authenticated store session.");
 
             var accessToken = await GetWebApiTokenAsync(ct).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(accessToken))
             {
-                _logger?.Warn("[SteamAch] Unable to locate a Steam web API access token from the authenticated store session. Family-shared imports will be skipped.");
+                ForkLog.Wrap(_logger)?.Warn("[SteamAch] Unable to locate a Steam web API access token from the authenticated store session. Family-shared imports will be skipped.");
                 return new OwnedGamesResolutionResult();
             }
 
@@ -441,7 +442,7 @@ namespace PlayniteAchievements.Providers.Steam
                 return new OwnedGamesResolutionResult();
             }
 
-            _logger?.Info($"[SteamAch] Steam Family Groups session returned {sharedAppIds.Count} family-shared Steam app ids.");
+            ForkLog.Wrap(_logger)?.Info($"[SteamAch] Steam Family Groups session returned {sharedAppIds.Count} family-shared Steam app ids.");
             return await ResolveOwnedGamesFromAppIdsAsync(sharedAppIds, "Steam Family Sharing", ct, progress, excludedAppIds).ConfigureAwait(false);
         }
 
@@ -562,7 +563,7 @@ namespace PlayniteAchievements.Providers.Steam
             var page = await GetSteamPageAsync(url, true, ct).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(page?.Html))
             {
-                _logger?.Warn("[SteamAch] Steam owned-games lookup returned an empty dynamic store payload.");
+                ForkLog.Wrap(_logger)?.Warn("[SteamAch] Steam owned-games lookup returned an empty dynamic store payload.");
                 return new List<int>();
             }
 
@@ -576,12 +577,12 @@ namespace PlayniteAchievements.Providers.Steam
                     .Distinct()
                     .ToList() ?? new List<int>();
 
-                _logger?.Info($"[SteamAch] Dynamic store returned {appIds.Count} owned Steam app ids.");
+                ForkLog.Wrap(_logger)?.Info($"[SteamAch] Dynamic store returned {appIds.Count} owned Steam app ids.");
                 return appIds;
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[SteamAch] Failed parsing Steam dynamic store owned-games payload.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[SteamAch] Failed parsing Steam dynamic store owned-games payload.");
                 return new List<int>();
             }
         }
@@ -737,7 +738,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed resolving fallback appdetails for Steam appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed resolving fallback appdetails for Steam appId={appId}.");
             }
         }
 
@@ -764,13 +765,13 @@ namespace PlayniteAchievements.Providers.Steam
             var appType = data?["type"]?.Value<string>()?.Trim();
             if (!IsImportableOwnedGameType(appType))
             {
-                _logger?.Info($"[SteamAch] Skipping Steam owned appId={appId} name='{name}' type='{appType ?? "unknown"}' because it is not a base-game import candidate.");
+                ForkLog.Wrap(_logger)?.Info($"[SteamAch] Skipping Steam owned appId={appId} name='{name}' type='{appType ?? "unknown"}' because it is not a base-game import candidate.");
                 return;
             }
 
             if (LooksLikeNonBaseOwnedGameName(name))
             {
-                _logger?.Info($"[SteamAch] Skipping Steam owned appId={appId} name='{name}' because its store name looks like DLC or supplemental content.");
+                ForkLog.Wrap(_logger)?.Info($"[SteamAch] Skipping Steam owned appId={appId} name='{name}' because its store name looks like DLC or supplemental content.");
                 return;
             }
 
@@ -800,7 +801,7 @@ namespace PlayniteAchievements.Providers.Steam
             var skippedCount = originalCount - filtered.Count;
             if (skippedCount > 0)
             {
-                _logger?.Info($"[SteamAch] Skipping {skippedCount} existing {label} app ids before resolving store appdetails.");
+                ForkLog.Wrap(_logger)?.Info($"[SteamAch] Skipping {skippedCount} existing {label} app ids before resolving store appdetails.");
             }
 
             return filtered;
@@ -859,7 +860,7 @@ namespace PlayniteAchievements.Providers.Steam
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, "[SteamAch] Failed resolving Steam Family Groups shared app ids from access token.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, "[SteamAch] Failed resolving Steam Family Groups shared app ids from access token.");
                 }
             }
 
@@ -1210,28 +1211,28 @@ namespace PlayniteAchievements.Providers.Steam
                                                 // Additional check: verify the HTML actually contains achievement content
                                                 if (HasAnyAchievementRows(cefHtml))
                                                 {
-                                                    _logger.Info($"[SteamAch] CEF fallback succeeded for {url}");
+                                                    ForkLog.Wrap(_logger).Info($"[SteamAch] CEF fallback succeeded for {url}");
                                                     result.Html = cefHtml;
                                                     result.FinalUrl = cefFinalUrl;
                                                     result.StatusCode = HttpStatusCode.OK;
                                                     result.WasRedirected = !string.Equals(result.FinalUrl, url, StringComparison.OrdinalIgnoreCase);
                                                     return result;
                                                 }
-                                                _logger.Warn($"[SteamAch] CEF fallback for {url} returned HTML with no achievement rows (length={cefHtml.Length}, finalUrl={cefFinalUrl})");
+                                                ForkLog.Wrap(_logger).Warn($"[SteamAch] CEF fallback for {url} returned HTML with no achievement rows (length={cefHtml.Length}, finalUrl={cefFinalUrl})");
                                             }
                                             else
                                             {
-                                                _logger.Warn($"[SteamAch] CEF fallback returned unauthenticated content for {url}");
+                                                ForkLog.Wrap(_logger).Warn($"[SteamAch] CEF fallback returned unauthenticated content for {url}");
                                             }
                                         }
                                         else
                                         {
-                                            _logger.Warn($"[SteamAch] CEF fallback returned empty HTML for {url}");
+                                            ForkLog.Wrap(_logger).Warn($"[SteamAch] CEF fallback returned empty HTML for {url}");
                                         }
                                     }
                                     catch (Exception cefEx)
                                     {
-                                        _logger.Warn(cefEx, $"[SteamAch] CEF fallback failed for {url}");
+                                        ForkLog.Wrap(_logger).Warn(cefEx, $"[SteamAch] CEF fallback failed for {url}");
                                     }
 
                                     await EnsureSessionAsync(ct, forceRefresh: true).ConfigureAwait(false);
@@ -1245,7 +1246,7 @@ namespace PlayniteAchievements.Providers.Steam
                                 (LooksUnauthenticatedStatsPayload(responseHtml, result.FinalUrl) ||
                                  LooksLoggedOutStatsPayloadWithoutRows(responseHtml, result.FinalUrl)))
                             {
-                                _logger?.Warn($"[SteamAch] Logged-out stats payload detected for {url} (Status={resp.StatusCode}, Url={result.FinalUrl}). Rebuilding the authenticated client, refreshing the session, and retrying once.");
+                                ForkLog.Wrap(_logger)?.Warn($"[SteamAch] Logged-out stats payload detected for {url} (Status={resp.StatusCode}, Url={result.FinalUrl}). Rebuilding the authenticated client, refreshing the session, and retrying once.");
                                 await EnsureSessionAsync(ct, forceRefresh: true).ConfigureAwait(false);
                                 continue;
                             }

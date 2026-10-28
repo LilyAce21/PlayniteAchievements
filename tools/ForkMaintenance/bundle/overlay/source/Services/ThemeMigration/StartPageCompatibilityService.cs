@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using SqlNado;
 using Playnite.SDK;
 using System;
@@ -90,12 +91,12 @@ namespace PlayniteAchievements.Services.ThemeMigration
                     {
                         File.Copy(bundledDll, GetPendingDllPath(), overwrite: true);
                         dllStaged = true;
-                        _logger.Info("Staged patched StartPage DLL for install on next restart.");
+                        ForkLog.Wrap(_logger).Info("Staged patched StartPage DLL for install on next restart.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.Warn($"Could not stage StartPage DLL update: {ex.Message}");
+                    ForkLog.Wrap(_logger).Warn($"Could not stage StartPage DLL update: {ex.Message}");
                 }
 
                 long updatedRows;
@@ -147,7 +148,7 @@ WHERE g.ProviderKey = 'Local'
                 if (dllStaged)
                     message += $"{Environment.NewLine}{Environment.NewLine}The patched StartPage plugin is ready — click Restart Playnite to apply it.";
 
-                _logger.Info($"StartPage compatibility migration complete. UpdatedRows={updatedRows}, AlreadyCompatible={alreadyCompatibleRows}, DllStaged={dllStaged}");
+                ForkLog.Wrap(_logger).Info($"StartPage compatibility migration complete. UpdatedRows={updatedRows}, AlreadyCompatible={alreadyCompatibleRows}, DllStaged={dllStaged}");
 
                 return new StartPageCompatibilityResult
                 {
@@ -161,7 +162,7 @@ WHERE g.ProviderKey = 'Local'
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to apply StartPage compatibility migration.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to apply StartPage compatibility migration.");
                 return new StartPageCompatibilityResult
                 {
                     Success = false,
@@ -265,7 +266,7 @@ WHERE g.ProviderKey = 'Local'
             {
                 // Restore database.
                 File.Copy(backupPath, cacheDbPath, overwrite: true);
-                _logger.Info($"StartPage compatibility DB reverted from backup: {backupPath}");
+                ForkLog.Wrap(_logger).Info($"StartPage compatibility DB reverted from backup: {backupPath}");
 
                 // Stage the original DLL for restoration on next restart.
                 bool dllStaged = false;
@@ -277,11 +278,11 @@ WHERE g.ProviderKey = 'Local'
                     {
                         File.Copy(dllBackupPath, GetPendingDllPath(), overwrite: true);
                         dllStaged = true;
-                        _logger.Info("Staged original StartPage DLL for restore on next restart.");
+                        ForkLog.Wrap(_logger).Info("Staged original StartPage DLL for restore on next restart.");
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warn($"Could not stage DLL revert: {ex.Message}");
+                        ForkLog.Wrap(_logger).Warn($"Could not stage DLL revert: {ex.Message}");
                     }
                 }
 
@@ -299,7 +300,7 @@ WHERE g.ProviderKey = 'Local'
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to revert StartPage compatibility migration.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to revert StartPage compatibility migration.");
                 return new StartPageCompatibilityResult
                 {
                     Success = false,

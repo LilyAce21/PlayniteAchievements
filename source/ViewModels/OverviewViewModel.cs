@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -4459,7 +4460,7 @@ namespace PlayniteAchievements.ViewModels
                 return;
             }
 
-            _logger?.Debug(
+            ForkLog.Wrap(_logger)?.Debug(
                 $"[OverviewSort] context={context} mode={persisted.DefaultAchievementSortMode} " +
                 $"recentPath='{_recentSortPath ?? "<source>"}' recentSource={persisted.RecentAchievementsCustomSortUsesSourceOrder} " +
                 $"selectedPath='{_selectedGameSortPath ?? "<source>"}' selectedSource={persisted.SidebarSelectedGameCustomSortUsesSourceOrder} " +
@@ -5099,7 +5100,7 @@ namespace PlayniteAchievements.ViewModels
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to persist overview sort settings.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to persist overview sort settings.");
             }
         }
 

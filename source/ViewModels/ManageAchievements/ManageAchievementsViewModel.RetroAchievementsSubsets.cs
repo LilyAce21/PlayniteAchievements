@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Providers;
@@ -162,7 +163,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, $"[RA] Failed loading subset choices for gameId={gameId}.");
+                ForkLog.Wrap(_logger)?.Error(ex, $"[RA] Failed loading subset choices for gameId={gameId}.");
                 RetroAchievementsSubsetOptions.Clear();
                 OnPropertyChanged(nameof(HasRetroAchievementsSubsetOptions));
                 RetroAchievementsSubsetStatusText = L("LOCPlayAch_ManageAchievements_Overrides_RaSubsets_LoadFailed");
@@ -237,7 +238,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[RA] Failed resolving saved achievement-set titles for gameId={baseGameId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[RA] Failed resolving saved achievement-set titles for gameId={baseGameId}.");
             }
             finally
             {

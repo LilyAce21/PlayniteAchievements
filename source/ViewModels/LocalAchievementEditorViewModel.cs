@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -157,6 +158,7 @@ namespace PlayniteAchievements.ViewModels
                 return;
             }
 
+            _localProvider.ResetLocalFolderDiscovery(game);
             if (!_localProvider.TryResolveWritableAchievementFilePath(game, out var writableFilePath, out var fileKind, out _, out _))
             {
                 ErrorMessage = "This game does not use a writable Local achievements.json or achievements.ini file.";
@@ -171,7 +173,7 @@ namespace PlayniteAchievements.ViewModels
             if (gameData?.Achievements == null || gameData.Achievements.Count == 0)
             {
                 ErrorMessage = "No local achievements were found for this game.";
-                _logger?.Warn($"Local achievement editor load found no cached achievements for gameId={_gameId}.");
+                ForkLog.Wrap(_logger)?.Warn($"Local achievement editor load found no cached achievements for gameId={_gameId}.");
                 return;
             }
 
@@ -197,7 +199,7 @@ namespace PlayniteAchievements.ViewModels
 
             ApplyFilter();
             StatusMessage = $"Loaded {_allAchievements.Count} achievements from cache.";
-            _logger?.Info($"Local achievement editor loaded gameId={_gameId} provider={gameData.ProviderKey ?? "unknown"} achievements={_allAchievements.Count} file={FilePath}");
+            ForkLog.Wrap(_logger)?.Info($"Local achievement editor loaded gameId={_gameId} provider={gameData.ProviderKey ?? "unknown"} achievements={_allAchievements.Count} file={FilePath}");
             OnPropertyChanged(nameof(CanSave));
         }
 
@@ -236,7 +238,7 @@ namespace PlayniteAchievements.ViewModels
             {
                 var savePayload = BuildSavePayloadFromUiState();
                 var unlockedCount = savePayload.Count(a => a != null && a.Unlocked);
-                _logger?.Info($"Local achievement editor saving gameId={_gameId} achievements={savePayload.Count} unlocked={unlockedCount} file={FilePath}");
+                ForkLog.Wrap(_logger)?.Info($"Local achievement editor saving gameId={_gameId} achievements={savePayload.Count} unlocked={unlockedCount} file={FilePath}");
                 var result = await _localProvider.SaveLocalAchievementsAsync(
                     game,
                     savePayload,
@@ -257,7 +259,7 @@ namespace PlayniteAchievements.ViewModels
                     return false;
                 }
                 _cacheManager?.NotifyCacheInvalidated();
-                _logger?.Info($"Local achievement editor save completed gameId={_gameId} updated={result.UpdatedCount} cacheRefreshed={cacheRefreshed} file={result.FilePath}");
+                ForkLog.Wrap(_logger)?.Info($"Local achievement editor save completed gameId={_gameId} updated={result.UpdatedCount} cacheRefreshed={cacheRefreshed} file={result.FilePath}");
 
                 try
                 {
@@ -265,7 +267,7 @@ namespace PlayniteAchievements.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Debug(ex, "Failed to request theme update after Local achievement save.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, "Failed to request theme update after Local achievement save.");
                 }
 
                 return true;
@@ -277,7 +279,7 @@ namespace PlayniteAchievements.ViewModels
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, $"Failed to save Local achievements for gameId={_gameId}");
+                ForkLog.Wrap(_logger)?.Error(ex, $"Failed to save Local achievements for gameId={_gameId}");
                 ErrorMessage = ex.Message;
                 return false;
             }
@@ -367,7 +369,7 @@ namespace PlayniteAchievements.ViewModels
                 var refreshedData = await _localProvider.GetAchievementsAsync(game, null).ConfigureAwait(false);
                 if (refreshedData == null)
                 {
-                    _logger?.Warn($"Local achievement editor could not refresh Local data after save for gameId={_gameId}.");
+                    ForkLog.Wrap(_logger)?.Warn($"Local achievement editor could not refresh Local data after save for gameId={_gameId}.");
                     return false;
                 }
 
@@ -382,7 +384,7 @@ namespace PlayniteAchievements.ViewModels
                     return true;
                 }
 
-                _logger?.Warn($"Local achievement editor failed to persist refreshed cache for gameId={_gameId}: {writeResult?.ErrorMessage ?? "unknown cache write error"}");
+                ForkLog.Wrap(_logger)?.Warn($"Local achievement editor failed to persist refreshed cache for gameId={_gameId}: {writeResult?.ErrorMessage ?? "unknown cache write error"}");
                 return false;
             }
             catch (OperationCanceledException)
@@ -391,7 +393,7 @@ namespace PlayniteAchievements.ViewModels
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, $"Local achievement editor refresh-after-save failed for gameId={_gameId}");
+                ForkLog.Wrap(_logger)?.Error(ex, $"Local achievement editor refresh-after-save failed for gameId={_gameId}");
                 return false;
             }
         }

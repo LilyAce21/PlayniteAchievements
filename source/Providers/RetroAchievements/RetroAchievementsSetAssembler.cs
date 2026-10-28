@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Providers.RetroAchievements.Models;
 using Playnite.SDK;
@@ -58,11 +59,11 @@ namespace PlayniteAchievements.Providers.RetroAchievements
                 result.Achievements.AddRange(baseAchievements);
                 result.CategoryImageSources.Add(("Base", baseGameInfo));
 
-                logger?.Info($"{logPrefix} Parsed {baseAchievements.Count} achievements for '{baseGameInfo?.GameTitle}'.");
+                ForkLog.Wrap(logger)?.Info($"{logPrefix} Parsed {baseAchievements.Count} achievements for '{baseGameInfo?.GameTitle}'.");
             }
             else
             {
-                logger?.Info($"{logPrefix} Per-game subset selection is active; excluding the base set.");
+                ForkLog.Wrap(logger)?.Info($"{logPrefix} Per-game subset selection is active; excluding the base set.");
             }
 
             if (hasSubsetSelection && selectedSubsetIds.Count == 1 && includeBaseSet)
@@ -147,7 +148,7 @@ namespace PlayniteAchievements.Providers.RetroAchievements
                 var missingIds = selectedSubsetIds.Where(id => !resolvedIds.Contains(id)).ToList();
                 if (missingIds.Count > 0)
                 {
-                    logger?.Warn($"{logPrefix} Selected subset game ID(s) were not found for gameId={baseGameId}: {string.Join(",", missingIds)}");
+                    ForkLog.Wrap(logger)?.Warn($"{logPrefix} Selected subset game ID(s) were not found for gameId={baseGameId}: {string.Join(",", missingIds)}");
                 }
             }
 

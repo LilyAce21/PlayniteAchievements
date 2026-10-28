@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -1229,7 +1230,7 @@ namespace PlayniteAchievements.Services
 
             if (shouldLogConfigured)
             {
-                _logger?.Debug(
+                ForkLog.Wrap(_logger)?.Debug(
                     $"[InGameMonitor] Configured game={state.Game.Name}, provider={provider.ProviderKey}, " +
                     $"prongs={DescribeProngs(state)}, " +
                     $"targets={nextTargets.Count}.");
@@ -1328,7 +1329,7 @@ namespace PlayniteAchievements.Services
                             if (localProvider.RefreshMissingAchievementFileDiscovery(state.Game, out var discoveredPath))
                             {
                                 state.WaitingForLocalAchievementFile = false;
-                                _logger?.Info($"[InGameMonitor] Detected Local achievement file for '{state.Game.Name}': {discoveredPath}");
+                                ForkLog.Wrap(_logger)?.Info($"[InGameMonitor] Detected Local achievement file for '{state.Game.Name}': {discoveredPath}");
                             }
                         }
                     }
@@ -2219,7 +2220,9 @@ namespace PlayniteAchievements.Services
                 UnlockedCount = data?.UnlockedCount ?? 0,
                 TotalCount = data?.AchievementCount ?? 0,
                 AchievementNumber = achievementNumber,
-                IsCompletionAchievement = isCompletionAchievement
+                IsCompletionAchievement = isCompletionAchievement,
+                ProgressNum = achievement?.ProgressNum,
+                ProgressDenom = achievement?.ProgressDenom
             };
         }
 

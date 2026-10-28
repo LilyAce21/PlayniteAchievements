@@ -91,15 +91,14 @@ namespace PlayniteAchievements.Models
         /// <summary>
         /// True for an incremental-progress notification: a still-locked achievement whose
         /// provider-reported progress (e.g. 3/10 kills) advanced without unlocking. Silent and
-        /// capture-free. The three progress values below are set only for this kind; unlock
-        /// notifications leave them null.
+        /// capture-free. Unlock notifications can also carry the final current/target values.
         /// </summary>
         public bool IsProgressUpdate { get; set; }
 
-        /// <summary>Progress numerator after the advance (progress notifications only).</summary>
+        /// <summary>Progress numerator for an advance or an unlock carrying a counter.</summary>
         public int? ProgressNum { get; set; }
 
-        /// <summary>Progress denominator, the achievement's target (progress notifications only).</summary>
+        /// <summary>Progress denominator, the achievement's target when supplied.</summary>
         public int? ProgressDenom { get; set; }
 
         /// <summary>

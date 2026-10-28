@@ -1,8 +1,8 @@
 {
     "schemaVersion":  1,
-    "generatedUtc":  "2026-10-18T08:02:21.3725872Z",
+    "generatedUtc":  "2026-10-25T08:21:10.8920096Z",
     "baselineRef":  "upstream/main",
-    "baselineCommit":  "bd9a01d8a87c82ae90c5278ac82f324f227dafff",
+    "baselineCommit":  "002eaa8b2cdcc5df4c6f4bf2d886c5fbbc2390b2",
     "protectedPaths":  [
                            "AddonDBManifest.yaml",
                            "README.md",
@@ -11,18 +11,22 @@
                        ],
     "patch":  {
                   "path":  "fork-changes.patch",
-                  "sha256":  "B3D88B22F13A3F483240E4570EBE0C4046CDB5FF61572C5F370261428EF086BF"
+                  "sha256":  "1EA83FBF10C2857DA33E5B154BF950DB3067E0C21D23E00AAAC937C48133B975"
               },
     "localizationRecipes":  {
                                 "path":  "localization-recipes.json",
-                                "sha256":  "54159851C8BE2752138A07A65B29D1A47DB06CD0AE454DAFADA09DC891C56D85",
+                                "sha256":  "57A4F5E4756780564B94987908329C2109843AAA79DEAEA78F4EF1FB48586EA0",
                                 "fileCount":  1,
-                                "entryCount":  385
+                                "entryCount":  383
                             },
     "overlayFiles":  [
                          {
                              "path":  "ACHIEVEMENT_NOTIFICATIONS_GUIDE.md",
                              "sha256":  "6A39FD788D91C704E254E2DFB5B2F63A1883F011CEDF7019977C0A90FA012694"
+                         },
+                         {
+                             "path":  "build/progress-bar-preview.png",
+                             "sha256":  "97F49F7140FC9D87CA635F0F8D8DE9F8BD57CED2EF14F3ECD3C14E7C9F75B042"
                          },
                          {
                              "path":  "Images/AchievementNotificationMenu.png",
@@ -102,15 +106,15 @@
                          },
                          {
                              "path":  "source/PlayniteAchievementsPlugin.LocalMenus.cs",
-                             "sha256":  "060712A45728B4D32663A658DEFF5050485310DC6414EE612724FF0087246C0E"
+                             "sha256":  "93637E68DF80E27DD7E188F90A60393ED0198BF42C98A0B269A2693CED7A41F0"
                          },
                          {
                              "path":  "source/Providers/ImportedGameMetadata/ImportedGameMetadataApplier.cs",
-                             "sha256":  "5AD7A2753B4557F50E1CD9BA93B6EBE422BF6B7783CA71A94D4AE2343D0723AC"
+                             "sha256":  "4384E712271C4202691CE653C914FB15371B65777D2E6659205F9A78E59BA556"
                          },
                          {
                              "path":  "source/Providers/ImportedGameMetadata/ImportedGameMetadataSourceCatalog.cs",
-                             "sha256":  "21E46A920CA4CDB7F851507EA5442D11716C6415F8E90AB0CB61D29EF569C583"
+                             "sha256":  "DA5B033EC68A0E3A6011EE685CA46F21AB1E287BE81100327C4BA462B9A098E9"
                          },
                          {
                              "path":  "source/Providers/IRefreshTargetFilter.cs",
@@ -118,7 +122,7 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalFolderGamesImporter.cs",
-                             "sha256":  "1188122501AACA95807EDB9DD7CAA9C9E2A4D332E223659863D5E850328E9F36"
+                             "sha256":  "900B961DA9D6952D805DC56DDE8EB19ACEC4527176D1EF35FF9F7088950F1BF5"
                          },
                          {
                              "path":  "source/Providers/Local/LocalImportProgressControl.xaml",
@@ -138,35 +142,39 @@
                          },
                          {
                              "path":  "source/Providers/Local/LocalSavesProvider.cs",
-                             "sha256":  "E5F9BCEA690E3A61975A661386698543CB3C32172AB7B3C9BCE005F217A3D459"
+                             "sha256":  "E760FA7C1495F7A09C64C05EC49ECCE105CE43BFB94B3160A44DCE30CCA9380F"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettings.cs",
-                             "sha256":  "617DBEC280687A16F1204A43BC33ACE19DBC9FAC32A2528DFCCC24BAED7516F3"
+                             "sha256":  "EFF0029ED4EF57E43F0936EF3769F647F1F6686B0A3F6DF07EAE2781B94C3AFE"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml",
-                             "sha256":  "CBD82F4AC5C02640A9720BA50F42092E7C9DA36AA8687606F288E8CB3516401C"
+                             "sha256":  "05D553A9D36163539F42797CBA209E30BF2BA2031A0B646AEC0441FCA8F2161C"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSettingsView.xaml.cs",
-                             "sha256":  "A949099929CC6B9B43E0C64080A3F00504D8C219D6C9995AFA9F5FB32DE6C353"
+                             "sha256":  "1F851BCE5E9D65C747671395D96A68D9B332BDEEB8FE08701C71374A40A0F115"
                          },
                          {
                              "path":  "source/Providers/Local/LocalSuccessStoryImportService.cs",
-                             "sha256":  "BB482172F1200D67C7A8784DA67F1B1884B5E22E2BA79634FA8D7FDE25F225AD"
+                             "sha256":  "A987962FBF00B3A7597BF48CCCDC271AF671453EF06A2AFB1F1DA417B586DBFC"
+                         },
+                         {
+                             "path":  "source/Providers/Local/NotificationProgressBarDefinition.cs",
+                             "sha256":  "DB65F74A3B9FF8258A22197DA9D1ADB46FC3548C82B349B7323E97D1707C260C"
                          },
                          {
                              "path":  "source/Providers/Steam/SteamApiTokenService.cs",
-                             "sha256":  "A7681D291C2237DFDDB94BF68316A68FBA56A49550B778BDCA38087058153D44"
+                             "sha256":  "98C996EDB1D73E09022B343BEFCFCDCF092B17E0E2F0B4913FB530691355838A"
                          },
                          {
                              "path":  "source/Providers/Steam/SteamAsyncConfigTokenHelper.cs",
-                             "sha256":  "4C574EA386DB5F91D922C0E5766CEFFEAF0E90813A96FBACE300F3A86F619AC3"
+                             "sha256":  "100429FEFA4A230997E4F9F9EF83AA5BBBC62FCC7D111545F5F0BD12FA2FFB3D"
                          },
                          {
                              "path":  "source/Providers/Steam/SteamOwnedGamesImporter.cs",
-                             "sha256":  "141EEB7766629B709E5982210819C7842A91657D82151E4D09AC63B2B2679764"
+                             "sha256":  "4A239F433BE39072D3A5004FF21E596CDEE094E017C874D3940583C85F835B20"
                          },
                          {
                              "path":  "source/Resources/AdditionalSounds/Android 9 Notification Popcorn.wav",
@@ -230,7 +238,7 @@
                          },
                          {
                              "path":  "source/Services/Exophase/ExophaseGameAchievementMonitor.cs",
-                             "sha256":  "5C374747F81C18BBF25CB9EEE90673C5772B0E49097AF5A9EAEB0E1AD6834E4D"
+                             "sha256":  "D3138727570B80E6E29BE59AFAD9636E8FB440074629325B544412FCBBACEDCE"
                          },
                          {
                              "path":  "source/Services/InGameMonitoring/InGameSessionUnlocks.cs",
@@ -238,15 +246,19 @@
                          },
                          {
                              "path":  "source/Services/Local/ActiveGameAchievementMonitor.cs",
-                             "sha256":  "034590F9631AA7399E1DC62327B75166421C4A045C3ED1CA1613173F77DC6652"
+                             "sha256":  "70F15AC934ED76B0CCB43DD14880E1A2C9F6311D1103E0F1F0C918DA32A29328"
                          },
                          {
                              "path":  "source/Services/Local/LocalAchievementScreenshotService.cs",
-                             "sha256":  "DFA4C5AB619E6EB7D5E9B1693366D3D20EE0A44108B6125093779CFB6D017C65"
+                             "sha256":  "A4B40E9EF02A8FB76B8606763401B0D8C622E8DC4E508ABC27FC4DFA8F2CC83F"
                          },
                          {
                              "path":  "source/Services/Logging/AchievementNotificationDebugLog.cs",
-                             "sha256":  "4A8399F32C38DBC0671814DCE3F07BBFA4611BFF44597F6266784D10989D7ABA"
+                             "sha256":  "BD053D1FD37E4261B0FDFA52851F087C6449A4B8903DA715B4D993E1B54F85E7"
+                         },
+                         {
+                             "path":  "source/Services/Logging/ForkLogger.cs",
+                             "sha256":  "87C7CE5ECD4A57EA338842DEC16256B723716092BF4096704DF0498BCFAB2CF1"
                          },
                          {
                              "path":  "source/Services/Logging/RealtimePollingLogScope.cs",
@@ -266,31 +278,39 @@
                          },
                          {
                              "path":  "source/Services/ReleaseMonitoring/ForkReleaseMonitor.cs",
-                             "sha256":  "8EA41FDEF21F6EDCB3B5774D4298BE7AF9F96CDC0DA5E40FEC16DCC13D05F567"
+                             "sha256":  "092F1C8596467165BE66516A05A7CB6F9069D03EA4930BDCC6F15C608B830038"
                          },
                          {
                              "path":  "source/Services/ReleaseMonitoring/UpstreamReleaseMonitor.cs",
-                             "sha256":  "3E190F092D73EBD3D013202C9B482112C2F0F7730D9B21DAE8BB00375B2664A0"
+                             "sha256":  "217D33783BC4095F8F45CC9BD33E5B161037CB6BDA4D8251E5C91CE859686513"
                          },
                          {
                              "path":  "source/Services/RetroAchievements/RetroAchievementsGameAchievementMonitor.cs",
-                             "sha256":  "611A763AA65F32BCB069D3CE79FDB87DA210E590C3F756AE327BA32645FFAF6E"
+                             "sha256":  "343E87B6454C8A65E4E396D7E2FC0FFDE0B8CE53921477CE9030019162D67C59"
                          },
                          {
                              "path":  "source/Services/ThemeMigration/Ps5AchievementStateSynchronizer.cs",
-                             "sha256":  "B807162EE6D9E834343B5E661362BF07EE36F6CA78CFA87CF2A80E48192B9773"
+                             "sha256":  "115E728491088FEA6BF78FCE34BB663E6904A7C087EE9750781483E80917832A"
                          },
                          {
                              "path":  "source/Services/ThemeMigration/Ps5TrophyProgressBridge.cs",
-                             "sha256":  "3CDFB239261F02C3D98F7663A4F44FD8DF00D54651646F4F3064367D30177DA0"
+                             "sha256":  "365DC11EC1FB2CD774C1A334F571A2223A5810D14FC98D17D80C230CDDA07261"
                          },
                          {
                              "path":  "source/Services/ThemeMigration/StartPageCompatibilityService.cs",
-                             "sha256":  "1AEB0FDAD6A73D8160117DB0A1D6DADF8F15FE9659BF9DEE9A9C88096041F4F6"
+                             "sha256":  "EEB49F32671925112A9FC75471130DF9058A168329CBA7146B1A6C05FB357653"
                          },
                          {
                              "path":  "source/Services/ThemeMigration/StartPageGameContextMenuBridge.cs",
-                             "sha256":  "277A0D951E668BB1C6608913D3F6DEBBEBBE4996CDFAA50D577AEABF77E18475"
+                             "sha256":  "EC9D466FE97213CD0E3B09EF8733EAED16F7365F235C2EBDC8A57085EF8DF0FE"
+                         },
+                         {
+                             "path":  "source/Services/UI/CustomNotificationProgressBar.cs",
+                             "sha256":  "33B1E025BC1D7E935E27E52B4A8547BF9B321F39BA299625507C7BABD0E31AA0"
+                         },
+                         {
+                             "path":  "source/Services/UI/CustomNotificationProgressTokens.cs",
+                             "sha256":  "E38F6BEBF8176378CA78FA4B0E1C4B2FFDBFCC374E5D3C29F2D2A55BD2F411C7"
                          },
                          {
                              "path":  "source/ViewModels/GameOptionsCustomSchemaTab.cs",
@@ -306,35 +326,47 @@
                          },
                          {
                              "path":  "source/ViewModels/LocalAchievementEditorViewModel.cs",
-                             "sha256":  "521E63F80C7990B544DB42D74B7D037A7D19B17788F1034328D9B62CF0B8E283"
+                             "sha256":  "4F6BF0B55B54B9D6DBE6FBA03680F959D41556C37A99B82C693D9DA6EBE9F226"
                          },
                          {
                              "path":  "source/ViewModels/ManageAchievements/ManageAchievementsViewModel.RetroAchievementsSubsets.cs",
-                             "sha256":  "BC8FEB10B4DFAEBB3AFBFD454AFEE0DBE98C358386C5A57891FD5158C0305A6B"
+                             "sha256":  "F454C842FDC0B7C3227B27C400F1C508B8D8B72F9220691AF3732FDBC28E6EF6"
                          },
                          {
                              "path":  "source/ViewModels/ManageAchievementsViewModel.CustomSchema.cs",
-                             "sha256":  "E04C646732B9DDC80899781ADFF41450F5B21F12298F9611CAD692A31E6FBF99"
+                             "sha256":  "1AB8C3BACA8DC8C0767DF421278DC320AD919E4120980FFF67F426E80571C9E6"
                          },
                          {
                              "path":  "source/ViewModels/ManageAchievementsViewModel.ForkOverrides.cs",
-                             "sha256":  "A71F60C692E53D7CFB22B0220D848DADB76231E59710DA857D0F2468EA122148"
+                             "sha256":  "E355097A59297B30F795B3037CCB3958F041CA0C33C5A3E5358C55DDD7B7E44E"
+                         },
+                         {
+                             "path":  "source/Views/Controls/FolderVariableButtons.xaml",
+                             "sha256":  "1B986DD8B2A91E93A1A32E977162C9797D0B21148C8AB72107B120E789880940"
+                         },
+                         {
+                             "path":  "source/Views/Controls/FolderVariableButtons.xaml.cs",
+                             "sha256":  "5F41268BB3996F6D0FC54F2F1FA798B522A70D9170E8010A5D697646FB234430"
                          },
                          {
                              "path":  "source/Views/GameOptionsLocalOverridesSection.xaml",
-                             "sha256":  "270197FD656C5B04DAD43916D05AD840EC4120C4E6D6F181B9AC54CD84050F8E"
+                             "sha256":  "4090DD87BAB8B1E65C5E959607F275D809986FE32D9758709D36E5897D95050C"
                          },
                          {
                              "path":  "source/Views/GameOptionsLocalOverridesSection.xaml.cs",
                              "sha256":  "DF32A96E562C699FAEE45D9FA4B017155B2ADD5F4B82CEF284147FC9582A2106"
                          },
                          {
+                             "path":  "source/Views/Helpers/ButtonLabelTemplateSelector.cs",
+                             "sha256":  "A3B8130643C2BD693B9D86B8D4A89C1FD76507E584C21126A024D336EF9E593C"
+                         },
+                         {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml",
-                             "sha256":  "6CF44E49E72F295515FC25C2960CAB2F154230199EB60699EF9DA8EF54CFE232"
+                             "sha256":  "B96E11036BE2451A386D1134F1347414B5DD706A8575A6187EAAC7B97767D778"
                          },
                          {
                              "path":  "source/Views/LegacyNotificationSettingsControl.xaml.cs",
-                             "sha256":  "09AE24AAC4B722DD76F9C64111CAEE84851F73A252BD17C438D0E6843548A3BA"
+                             "sha256":  "0E70EDAFD48969596AC294F1969318352B548C322D9D68C69426DC9EE2F1278A"
                          },
                          {
                              "path":  "source/Views/LocalAchievementEditorControl.xaml",
@@ -369,12 +401,40 @@
                              "sha256":  "B984FF0DDE83794901F7994862AF7D5AFC009FE4BD9F43C64D0D5DBE688A6E10"
                          },
                          {
+                             "path":  "source/Views/Settings/General/ForkGeneralSettingsSection.xaml",
+                             "sha256":  "461E8AE9EC3E7866B327CBC6D22D26D704879F5AC7D1EA3894AE2FB15975BBC5"
+                         },
+                         {
+                             "path":  "source/Views/Settings/General/ForkGeneralSettingsSection.xaml.cs",
+                             "sha256":  "755BB07FA63CEC8E7FDA7EF8CA7BC5052DB1D69FDF6AB7BBF75C8CF03DD87E1A"
+                         },
+                         {
                              "path":  "tests/PlayniteAchievements.Tests/Models/LocalNotificationTypographySettingsTests.cs",
-                             "sha256":  "A17794A597B882860E303D07AE29E2EE564C73EC7B6930A19A8505F1673FD37A"
+                             "sha256":  "3750439D77F53B87E8E3EDDE118BA61861BA18BA890CEFA36D2275F645407DF8"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Models/ThemeMigrationSettingsTests.cs",
                              "sha256":  "D43DCF4CA916AC97AE819E1850BDECDE217229F4E22409EF89C2D4723E7F35BE"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Providers/LocalCustomFolderTemplateTests.cs",
+                             "sha256":  "C22CB284BAF8AC761D3B135A7B90074334E5540341628101F8D76148D746E999"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Providers/LocalCustomSchemaCacheTests.cs",
+                             "sha256":  "991938FC6F84F2BDBE95618116C8849537228E8F682BB5794F21519787573B17"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressBarTests.cs",
+                             "sha256":  "35F7692AA5D1170C6ACEEC14A2664A9C8853B915811A504D4CD4D7B3DE9DE544"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Services/CustomNotificationProgressTokensTests.cs",
+                             "sha256":  "CB0EDB1AF03513ABA6DD40E6CF9A5ACD6C9776F519B8A31B20D5C39D0054848F"
+                         },
+                         {
+                             "path":  "tests/PlayniteAchievements.Tests/Services/ForkLoggerTests.cs",
+                             "sha256":  "164A523AFE81450339CDEED9C7D0C2C337902E59910E49DDDEDF475772A51EEA"
                          },
                          {
                              "path":  "tests/PlayniteAchievements.Tests/Services/InGameSessionUnlocksTests.cs",
@@ -385,6 +445,10 @@
                              "sha256":  "478BA33685EC8CD25CFFA1C7551ED02F907331848A3FFF716786A787BB6A2BC9"
                          },
                          {
+                             "path":  "tests/PlayniteAchievements.Tests/Services/Ps5RankMigrationTests.cs",
+                             "sha256":  "7804BEA69578C714B094A37424FAFAA33B9D8BF8955F4C88F91AD239FF07DF9E"
+                         },
+                         {
                              "path":  "tests/PlayniteAchievements.Tests/Steam/SteamAsyncConfigTokenHelperTests.cs",
                              "sha256":  "1456844C879D1CD7FA072327FC55E527E4E321D98293813925FD275FB3263FEC"
                          },
@@ -393,8 +457,16 @@
                              "sha256":  "89155B28C860334C0D342A72ADBD9CFBCEA7082F1C034A78FD380C4500C6CB6D"
                          },
                          {
+                             "path":  "tests/PlayniteAchievements.Tests/Views/LegacySettingsResourceTests.cs",
+                             "sha256":  "A83E5D1BE1A4F48060CBD8B2422460EC723D8DB53C49710964C28C4AD8CBEF7F"
+                         },
+                         {
                              "path":  "tools/notification-template-builder.html",
-                             "sha256":  "8FE7AB3733BCBCBEA2C2726022308A2C1DAD26E0D7C9686855BF2D4F8BB10B4B"
+                             "sha256":  "947DF71CB907B92C555BAFA676345348843444ED02DB699BC990DE6B1B6570E6"
+                         },
+                         {
+                             "path":  "tools/NotificationTemplates/PROGRESS_BAR.md",
+                             "sha256":  "D5395B7F1F0BC1CE60520BD70182F27DA761058354E9B32F7729A046E80F0923"
                          },
                          {
                              "path":  "tools/NotificationTemplates/README.md",

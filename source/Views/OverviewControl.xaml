@@ -711,7 +711,7 @@
                                             VerticalAlignment="Stretch"
                                             BorderThickness="0"
                                             Background="Transparent">
-                                    <TabItem Header="{DynamicResource LOCPlayAch_RecentAchievements}"/>
+                                    <TabItem Header="{DynamicResource LOCPlayAch_Achievements}"/>
                                     <TabItem Header="All Achievements"/>
                                 </TabControl>
 

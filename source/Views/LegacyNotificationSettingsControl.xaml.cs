@@ -1,4 +1,5 @@
 ﻿// LegacyNotificationSettingsControl.xaml.cs
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -821,21 +822,21 @@ namespace PlayniteAchievements.Views
             UpdateHotkeyButtonTexts();
 
             // Debug logging to verify DataContext and Settings values
-            _logger?.Info($"LegacyNotificationSettingsControl created. DataContext type: {DataContext?.GetType().Name}");
-            _logger?.Info($"Settings.EnablePeriodicUpdates: {_settingsViewModel.Settings.Persisted.EnablePeriodicUpdates}");
+            ForkLog.Wrap(_logger)?.Info($"LegacyNotificationSettingsControl created. DataContext type: {DataContext?.GetType().Name}");
+            ForkLog.Wrap(_logger)?.Info($"Settings.EnablePeriodicUpdates: {_settingsViewModel.Settings.Persisted.EnablePeriodicUpdates}");
 
             Loaded += (s, e) =>
             {
                 // Ensure DataContext is still correct after Playnite initialization
                 if (DataContext is not PlayniteAchievementsSettings)
                 {
-                    _logger?.Info($"DataContext was wrong type in Loaded event: {DataContext?.GetType().Name}, fixing...");
+                    ForkLog.Wrap(_logger)?.Info($"DataContext was wrong type in Loaded event: {DataContext?.GetType().Name}, fixing...");
                     DataContext = _settingsViewModel.Settings;
-                    _logger?.Info($"DataContext fixed to: {DataContext?.GetType().Name}");
+                    ForkLog.Wrap(_logger)?.Info($"DataContext fixed to: {DataContext?.GetType().Name}");
                 }
                 else
                 {
-                    _logger?.Info($"DataContext verified correct in Loaded event: {DataContext?.GetType().Name}");
+                    ForkLog.Wrap(_logger)?.Info($"DataContext verified correct in Loaded event: {DataContext?.GetType().Name}");
                 }
 
                 // Load themes on initial load
@@ -911,6 +912,65 @@ namespace PlayniteAchievements.Views
 
             _lastNotificationTemplateTextBox = textBox;
             _lastNotificationTemplateCaretIndex = Math.Max(0, Math.Min(textBox.SelectionStart, textBox.Text?.Length ?? 0));
+        }
+
+        private void NotificationConditionAdd_Click(object sender, RoutedEventArgs e)
+        {
+            var token = NotificationConditionToken.Text.Trim();
+            var operation = (NotificationConditionOperator.SelectedItem as ComboBoxItem)?.Tag as string;
+            var value = NotificationConditionValue.Text.Trim();
+            if (!Regex.IsMatch(token, @"^<[a-zA-Z0-9]+>$") || string.IsNullOrEmpty(operation) ||
+                value.Contains("::") || value.Contains("[[") || value.Contains("]]") || value.Contains("&&") || value.Contains("||"))
+            {
+                NotificationConditionStatus.Text = "Choose a wildcard. Comparison values cannot contain condition delimiters.";
+                return;
+            }
+            if (operation != "hasValue" && operation != "empty" && value.Length == 0)
+            {
+                NotificationConditionStatus.Text = "Enter a comparison value.";
+                return;
+            }
+            var clause = token + " " + operation + (operation == "hasValue" || operation == "empty" ? "" : " " + value);
+            var join = NotificationConditionJoin.SelectedIndex == 0 ? " && " : " || ";
+            NotificationConditionExpression.Text += (NotificationConditionExpression.Text.Length == 0 ? "" : join) + clause;
+            NotificationConditionStatus.Text = "Condition added. Choose the row and apply.";
+        }
+
+        private void NotificationConditionClear_Click(object sender, RoutedEventArgs e)
+        {
+            NotificationConditionExpression.Clear();
+            NotificationConditionStatus.Text = string.Empty;
+        }
+
+        private void NotificationConditionApply_Click(object sender, RoutedEventArgs e)
+        {
+            if (NotificationConditionExpression.Text.Length == 0)
+            {
+                NotificationConditionAdd_Click(sender, e);
+                if (NotificationConditionExpression.Text.Length == 0) return;
+            }
+            var rows = new[] { NotificationLine1TemplateTextBox, NotificationLine2TemplateTextBox,
+                NotificationLine3TemplateTextBox, NotificationLine4TemplateTextBox,
+                NotificationLine5TemplateTextBox, NotificationLine6TemplateTextBox };
+            var target = rows[Math.Max(0, NotificationConditionRow.SelectedIndex)];
+            if (target == null) return;
+            var start = target.SelectionLength > 0 ? target.SelectionStart : 0;
+            var length = target.SelectionLength > 0 ? target.SelectionLength : target.Text.Length;
+            var content = target.Text.Substring(start, length);
+            var otherwise = NotificationConditionOtherwise.Text;
+            if (content.Contains("[[") || content.Contains("]]") || content.Contains("::") ||
+                otherwise.Contains("[[") || otherwise.Contains("]]") || otherwise.Contains("::"))
+            {
+                NotificationConditionStatus.Text = "Select plain text or wildcards. Nested conditions are not supported; use All/Any to combine conditions.";
+                return;
+            }
+            var expression = "[[if " + NotificationConditionExpression.Text + "::" + content +
+                (otherwise.Length > 0 ? "::" + otherwise : "") + "]]";
+            target.Text = target.Text.Remove(start, length).Insert(start, expression);
+            target.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            target.Focus();
+            target.Select(start, expression.Length);
+            NotificationConditionStatus.Text = "Applied to row " + (NotificationConditionRow.SelectedIndex + 1) + ".";
         }
 
         private void NotificationTemplateToken_Click(object sender, RoutedEventArgs e)
@@ -1182,7 +1242,7 @@ namespace PlayniteAchievements.Views
                 var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
                 if (localSettings == null)
                 {
-                    _logger?.Warn("Could not get Local provider settings for Achievement Notifications tab.");
+                    ForkLog.Wrap(_logger)?.Warn("Could not get Local provider settings for Achievement Notifications tab.");
                     return;
                 }
 
@@ -1215,7 +1275,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to initialize Achievement Notifications tab.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to initialize Achievement Notifications tab.");
             }
         }
 
@@ -1415,6 +1475,20 @@ namespace PlayniteAchievements.Views
                 case nameof(Providers.Local.LocalSettings.OverlayCustomShowLine4):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomShowLine5):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomShowLine6):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBars):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomShowProgressBar):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarWidth):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarHeight):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarCornerRadius):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarSpacing):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarFillColor):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarTrackColor):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarShowLabel):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarLabelColor):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarLabelFontSize):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarOffsetX):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomProgressBarOffsetY):
+                case nameof(Providers.Local.LocalSettings.OverlayCustomPreviewShowProgress):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomLine4Color):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomLine5Color):
                 case nameof(Providers.Local.LocalSettings.OverlayCustomLine6Color):
@@ -1935,7 +2009,8 @@ namespace PlayniteAchievements.Views
                 achievementDescription: previewAchievement?.Description ?? "Win your first fight without taking damage.",
                 achievementPoints: previewAchievement?.Points ?? 25,
                 achievementRarity: FormatPreviewAchievementRarity(previewAchievement, "12.7%"),
-                achievementTrophy: previewAchievement?.TrophyType ?? "Gold");
+                achievementTrophy: previewAchievement?.TrophyType ?? "Gold",
+                isSettingsPreview: true);
             NotificationsUnlockSoundStatusTextBlock.Text = $"Previewed {styleOption.DisplayName} style for {providerOption.DisplayName} using {localSettings.UnlockNotificationDeliveryMode}.";
         }
 
@@ -1970,7 +2045,8 @@ namespace PlayniteAchievements.Views
                     achievementDescription: previewAchievement?.Description ?? "Win your first fight without taking damage.",
                     achievementPoints: previewAchievement?.Points ?? 25,
                     achievementRarity: FormatPreviewAchievementRarity(previewAchievement, "12.7%"),
-                    achievementTrophy: previewAchievement?.TrophyType ?? "Gold");
+                    achievementTrophy: previewAchievement?.TrophyType ?? "Gold",
+                    isSettingsPreview: true);
             }
 
             NotificationsUnlockSoundStatusTextBlock.Text = $"Previewed all styles for {providerOption.DisplayName} using {localSettings.UnlockNotificationDeliveryMode}.";
@@ -2074,6 +2150,24 @@ namespace PlayniteAchievements.Views
                 var previewGameName = string.IsNullOrWhiteSpace(previewGame?.Name) ? "Current Game" : previewGame.Name;
                 var previewAchievement = GetSelectedNotificationPreviewAchievement();
                 var previewProviderKey = ResolveCurrentNotificationTestProviderKey();
+                if (localSettings.UseUpstreamNotificationTemplate)
+                {
+                    PlayniteAchievementsPlugin.NotifyAchievementUnlocked(new Models.AchievementUnlockedEventArgs
+                    {
+                        PlayniteGameId = previewGame?.Id ?? Guid.Empty,
+                        GameName = previewGameName,
+                        ProviderKey = previewProviderKey,
+                        DisplayName = previewAchievement?.DisplayName ?? "Test Achievement",
+                        IconPath = previewAchievement?.UnlockedIconPath,
+                        Description = previewAchievement?.Description ?? "Test description for preview.",
+                        Points = previewAchievement?.Points ?? 25,
+                        TrophyType = previewAchievement?.TrophyType ?? "Gold",
+                        IsPreview = true
+                    });
+                    NotificationsUnlockSoundStatusTextBlock.Text = "Test upstream notification sent.";
+                    NotificationsTestUnlockSoundButton.IsEnabled = true;
+                    return;
+                }
                 var requiresCustomOverlay = IsSanTransitionStyle(localSettings.UnlockOverlayTransitionStyle) ||
                     !string.IsNullOrWhiteSpace(localSettings.OverlayCustomSanElementPresetId);
                 if (requiresCustomOverlay && string.IsNullOrWhiteSpace(soundPath))
@@ -2098,7 +2192,8 @@ namespace PlayniteAchievements.Views
                     forcedStyle: NotificationPublisher.NotificationStyleCustom,
                     forcedDeliveryMode: forcedDeliveryMode,
                     overrideLocalSettings: localSettings,
-                    notificationProviderKey: previewProviderKey);
+                    notificationProviderKey: previewProviderKey,
+                    isSettingsPreview: true);
 
                 NotificationsUnlockSoundStatusTextBlock.Text = requiresCustomOverlay
                     ? $"Test custom overlay sent using transition '{localSettings.UnlockOverlayTransitionStyle}'."
@@ -2830,6 +2925,8 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
+            localSettings.OverlayCustomBackgroundImagePath = string.Empty;
+            localSettings.EnableGameBannerAsBackground = true;
             localSettings.OverlayCustomBannerImagePath = selectedPath;
             NotificationsUnlockSoundStatusTextBlock.Text = "Custom banner image selected.";
         }
@@ -2842,6 +2939,7 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
+            localSettings.OverlayCustomBackgroundImagePath = string.Empty;
             localSettings.OverlayCustomBannerImagePath = string.Empty;
             NotificationsUnlockSoundStatusTextBlock.Text = "Custom banner image cleared.";
         }
@@ -3245,7 +3343,7 @@ namespace PlayniteAchievements.Views
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "Failed to initialize Flaticon WebView.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "Failed to initialize Flaticon WebView.");
                         NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open Flaticon WebView.";
                     }
                 };
@@ -3263,7 +3361,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to open Flaticon WebView.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to open Flaticon WebView.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open Flaticon WebView.";
             }
         }
@@ -3298,7 +3396,7 @@ namespace PlayniteAchievements.Views
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Warn(ex, "Failed to initialize SVG Repo WebView.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "Failed to initialize SVG Repo WebView.");
                         NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open SVG Repo WebView.";
                     }
                 };
@@ -3316,7 +3414,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to open SVG Repo WebView.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to open SVG Repo WebView.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open SVG Repo WebView.";
             }
         }
@@ -3398,7 +3496,7 @@ namespace PlayniteAchievements.Views
                     }
                     else
                     {
-                        _logger?.Warn(ex, "Failed to search SVG Repo.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "Failed to search SVG Repo.");
                         NotificationsUnlockSoundStatusTextBlock.Text = "Failed to search SVG Repo.";
                     }
                 }
@@ -3570,7 +3668,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to import SVG Repo icon.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to import SVG Repo icon.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to import SVG Repo icon.";
             }
         }
@@ -3714,7 +3812,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to save notification custom icon source paths.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to save notification custom icon source paths.");
             }
         }
 
@@ -3862,7 +3960,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to copy custom notification icon.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to copy custom notification icon.");
                 return string.Empty;
             }
         }
@@ -3938,7 +4036,8 @@ namespace PlayniteAchievements.Views
                 achievementPoints: previewAchievement?.Points ?? 25,
                 achievementRarity: FormatPreviewAchievementRarity(previewAchievement, "12.7%"),
                 achievementTrophy: previewAchievement?.TrophyType ?? "Gold",
-                forcedSanPreviewView: forcedSanView);
+                forcedSanPreviewView: forcedSanView,
+                isSettingsPreview: true);
 
             if (forceStatusMessage)
             {
@@ -3954,6 +4053,7 @@ namespace PlayniteAchievements.Views
 
         private void RefreshCustomStyleSlotControls(Providers.Local.LocalSettings localSettings)
         {
+            EnsureProgressBarElements(localSettings);
             if (localSettings == null || NotificationsCustomStyleSlotComboBox == null)
                 return;
 
@@ -4346,6 +4446,19 @@ namespace PlayniteAchievements.Views
                 ShowLine4 = localSettings.OverlayCustomShowLine4,
                 ShowLine5 = localSettings.OverlayCustomShowLine5,
                 ShowLine6 = localSettings.OverlayCustomShowLine6,
+                ProgressBars = Providers.Local.LocalSettings.CloneProgressBars(localSettings.OverlayCustomProgressBars),
+                ShowProgressBar = localSettings.OverlayCustomShowProgressBar,
+                ProgressBarWidth = localSettings.OverlayCustomProgressBarWidth,
+                ProgressBarHeight = localSettings.OverlayCustomProgressBarHeight,
+                ProgressBarCornerRadius = localSettings.OverlayCustomProgressBarCornerRadius,
+                ProgressBarSpacing = localSettings.OverlayCustomProgressBarSpacing,
+                ProgressBarFillColor = localSettings.OverlayCustomProgressBarFillColor,
+                ProgressBarTrackColor = localSettings.OverlayCustomProgressBarTrackColor,
+                ProgressBarShowLabel = localSettings.OverlayCustomProgressBarShowLabel,
+                ProgressBarLabelColor = localSettings.OverlayCustomProgressBarLabelColor,
+                ProgressBarLabelFontSize = localSettings.OverlayCustomProgressBarLabelFontSize,
+                ProgressBarOffsetX = localSettings.OverlayCustomProgressBarOffsetX,
+                ProgressBarOffsetY = localSettings.OverlayCustomProgressBarOffsetY,
                 Line4Color = localSettings.OverlayCustomLine4Color,
                 Line5Color = localSettings.OverlayCustomLine5Color,
                 Line6Color = localSettings.OverlayCustomLine6Color,
@@ -4556,6 +4669,19 @@ namespace PlayniteAchievements.Views
                         ShowLine4 = localSettings.OverlayCustomShowLine4,
                         ShowLine5 = localSettings.OverlayCustomShowLine5,
                         ShowLine6 = localSettings.OverlayCustomShowLine6,
+                ProgressBars = Providers.Local.LocalSettings.CloneProgressBars(localSettings.OverlayCustomProgressBars),
+                ShowProgressBar = localSettings.OverlayCustomShowProgressBar,
+                ProgressBarWidth = localSettings.OverlayCustomProgressBarWidth,
+                ProgressBarHeight = localSettings.OverlayCustomProgressBarHeight,
+                ProgressBarCornerRadius = localSettings.OverlayCustomProgressBarCornerRadius,
+                ProgressBarSpacing = localSettings.OverlayCustomProgressBarSpacing,
+                ProgressBarFillColor = localSettings.OverlayCustomProgressBarFillColor,
+                ProgressBarTrackColor = localSettings.OverlayCustomProgressBarTrackColor,
+                ProgressBarShowLabel = localSettings.OverlayCustomProgressBarShowLabel,
+                ProgressBarLabelColor = localSettings.OverlayCustomProgressBarLabelColor,
+                ProgressBarLabelFontSize = localSettings.OverlayCustomProgressBarLabelFontSize,
+                ProgressBarOffsetX = localSettings.OverlayCustomProgressBarOffsetX,
+                ProgressBarOffsetY = localSettings.OverlayCustomProgressBarOffsetY,
                         Line4Color = localSettings.OverlayCustomLine4Color,
                         Line5Color = localSettings.OverlayCustomLine5Color,
                         Line6Color = localSettings.OverlayCustomLine6Color,
@@ -4717,7 +4843,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to export notification custom style template.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to export notification custom style template.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to export custom template.";
             }
         }
@@ -4820,7 +4946,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to import notification custom style template.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to import notification custom style template.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to import custom template.";
             }
         }
@@ -4950,7 +5076,7 @@ namespace PlayniteAchievements.Views
                 return true;
             }
 
-            return string.IsNullOrWhiteSpace(slot.SanPresetId) &&
+            return (slot.ProgressBars?.Count ?? 0) == 0 && !slot.ShowProgressBar && string.IsNullOrWhiteSpace(slot.SanPresetId) &&
                 string.IsNullOrWhiteSpace(slot.SanPresetHtml) &&
                 string.IsNullOrWhiteSpace(slot.SanThemeJson) &&
                 (string.IsNullOrWhiteSpace(slot.Name) || slot.Name.StartsWith("Slot ", StringComparison.OrdinalIgnoreCase));
@@ -5078,7 +5204,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to parse SAN preset template.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to parse SAN preset template.");
                 return null;
             }
         }
@@ -5197,7 +5323,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to parse SAN export template.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to parse SAN export template.");
                 return null;
             }
         }
@@ -5795,7 +5921,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to open notification template builder.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to open notification template builder.");
                 NotificationsUnlockSoundStatusTextBlock.Text = "Failed to open notification template builder.";
                 _plugin?.PlayniteApi?.Dialogs?.ShowMessage(
                     $"Failed to open notification template builder: {ex.Message}",
@@ -5909,6 +6035,19 @@ namespace PlayniteAchievements.Views
             localSettings.OverlayCustomShowLine4 = slot.ShowLine4;
             localSettings.OverlayCustomShowLine5 = slot.ShowLine5;
             localSettings.OverlayCustomShowLine6 = slot.ShowLine6;
+            localSettings.OverlayCustomProgressBars = Providers.Local.LocalSettings.CloneProgressBars(slot.ProgressBars);
+            localSettings.OverlayCustomShowProgressBar = slot.ShowProgressBar;
+            localSettings.OverlayCustomProgressBarWidth = slot.ProgressBarWidth;
+            localSettings.OverlayCustomProgressBarHeight = slot.ProgressBarHeight;
+            localSettings.OverlayCustomProgressBarCornerRadius = slot.ProgressBarCornerRadius;
+            localSettings.OverlayCustomProgressBarSpacing = slot.ProgressBarSpacing;
+            localSettings.OverlayCustomProgressBarFillColor = slot.ProgressBarFillColor;
+            localSettings.OverlayCustomProgressBarTrackColor = slot.ProgressBarTrackColor;
+            localSettings.OverlayCustomProgressBarShowLabel = slot.ProgressBarShowLabel;
+            localSettings.OverlayCustomProgressBarLabelColor = slot.ProgressBarLabelColor;
+            localSettings.OverlayCustomProgressBarLabelFontSize = slot.ProgressBarLabelFontSize;
+            localSettings.OverlayCustomProgressBarOffsetX = slot.ProgressBarOffsetX;
+            localSettings.OverlayCustomProgressBarOffsetY = slot.ProgressBarOffsetY;
             localSettings.OverlayCustomLine4Color = slot.Line4Color;
             localSettings.OverlayCustomLine5Color = slot.Line5Color;
             localSettings.OverlayCustomLine6Color = slot.Line6Color;
@@ -6128,7 +6267,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to save embedded custom icon from notification template.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to save embedded custom icon from notification template.");
                 return string.Empty;
             }
         }
@@ -6210,6 +6349,109 @@ namespace PlayniteAchievements.Views
             }
         }
 
+        private void EnsureProgressBarElements(Providers.Local.LocalSettings settings)
+        {
+            if (settings == null || settings.OverlayCustomProgressBars.Count > 0 || !settings.OverlayCustomShowProgressBar) return;
+            var legacy = PlayniteAchievements.Services.UI.CustomNotificationProgressBar.Definitions(settings).ToList();
+            settings.OverlayCustomShowProgressBar = false;
+            foreach (var bar in legacy) settings.OverlayCustomProgressBars.Add(bar);
+        }
+        private void NotificationsAddProgressBar_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (settings == null) return;
+            EnsureProgressBarElements(settings);
+            settings.OverlayCustomShowProgressBar = false;
+            settings.OverlayCustomProgressBars.Add(new Providers.Local.NotificationProgressBarDefinition());
+        }
+        private void NotificationsRemoveProgressBar_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (settings == null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            settings.OverlayCustomShowProgressBar = false;
+            Providers.Local.NotificationBarLayout.ReparentRemovedBar(settings.OverlayCustomProgressBars,bar);
+            settings.OverlayCustomProgressBars.Remove(bar);
+        }
+        private void MoveProgressBar(object sender, int direction)
+        {
+            var settings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (settings == null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            var index = settings.OverlayCustomProgressBars.IndexOf(bar);
+            var next = index + direction;
+            if (index >= 0 && next >= 0 && next < settings.OverlayCustomProgressBars.Count) settings.OverlayCustomProgressBars.Move(index, next);
+        }
+        private void NotificationsMoveProgressBarUp_Click(object sender, RoutedEventArgs e) => MoveProgressBar(sender, -1);
+        private void NotificationsMoveProgressBarDown_Click(object sender, RoutedEventArgs e) => MoveProgressBar(sender, 1);
+        private void NotificationsProgressBarRowTarget_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if(!(sender is ComboBox combo) || !(combo.DataContext is Providers.Local.NotificationProgressBarDefinition bar) || !(combo.SelectedItem is Providers.Local.NotificationBarRowOption option))return;
+            if((combo.IsDropDownOpen || combo.IsKeyboardFocusWithin) && bar.RowAnchorId!=option.Id)bar.RowAnchorId=option.Id;
+        }
+        private void NotificationsMoveProgressBarLeft_Click(object sender, RoutedEventArgs e)
+        {
+            var settings=_providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if(settings==null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar))return;
+            var bars=settings.OverlayCustomProgressBars;var index=bars.IndexOf(bar);if(index<=0)return;
+            var previous=bars[index-1];
+            if(Providers.Local.NotificationBarLayout.Root(bars,bar)!=Providers.Local.NotificationBarLayout.Root(bars,previous))bar.RowAnchorId=previous.Id;
+            else bars.Move(index,index-1);
+        }
+        private void NotificationsMoveProgressBarRight_Click(object sender, RoutedEventArgs e)
+        {
+            var settings=_providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if(settings==null || !(sender is Button button) || !(button.Tag is Providers.Local.NotificationProgressBarDefinition bar))return;
+            var bars=settings.OverlayCustomProgressBars;var index=bars.IndexOf(bar);
+            if(index>=0 && index+1<bars.Count && Providers.Local.NotificationBarLayout.Root(bars,bar)==Providers.Local.NotificationBarLayout.Root(bars,bars[index+1]))bars.Move(index,index+1);
+            else if(!string.IsNullOrEmpty(bar.RowAnchorId))bar.RowAnchorId="";
+        }
+        private static bool TryPickProgressColor(string current, out string selected)
+        {
+            selected=null;
+            var initial=System.Drawing.Color.White;
+            try
+            {
+                var color=(System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(current);
+                initial=System.Drawing.Color.FromArgb(color.A,color.R,color.G,color.B);
+            }
+            catch { }
+            using(var dialog=new WinForms.ColorDialog { FullOpen=true, Color=initial })
+            {
+                if(dialog.ShowDialog()!=WinForms.DialogResult.OK) return false;
+                selected=$"#{initial.A:X2}{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
+                return true;
+            }
+        }
+        private void NotificationsAddGradientColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            var fill=string.Equals(button.Tag as string,"Fill",StringComparison.Ordinal);
+            var colors=bar.GetGradientColors(fill);
+            if(colors.Count>=32 || !TryPickProgressColor(colors.LastOrDefault() ?? (fill?bar.FillColor:bar.TrackColor),out var selected)) return;
+            bar.SetGradientColor(fill,-1,selected);
+            if(fill) bar.FillGradientEnabled=true; else bar.TrackGradientEnabled=true;
+        }
+        private void NotificationsEditGradientColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationGradientColor stop)) return;
+            if(TryPickProgressColor(stop.Color,out var selected)) stop.Bar.SetGradientColor(stop.Fill,stop.Index,selected);
+        }
+        private void NotificationsRemoveGradientColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is Providers.Local.NotificationGradientColor stop) stop.Bar.SetGradientColor(stop.Fill,stop.Index,null);
+        }
+        private void NotificationsPickBarFontColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationBarFont font)) return;
+            var property=typeof(Providers.Local.NotificationBarFont).GetProperty(button.Tag as string ?? "");
+            if(property?.PropertyType==typeof(string) && TryPickProgressColor(property.GetValue(font) as string,out var selected)) property.SetValue(font,selected);
+        }
+        private void NotificationsPickProgressBarColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(sender is Button button) || !(button.DataContext is Providers.Local.NotificationProgressBarDefinition bar)) return;
+            var property=typeof(Providers.Local.NotificationProgressBarDefinition).GetProperty(button.Tag as string ?? "");
+            if(property?.PropertyType==typeof(string) && TryPickProgressColor(property.GetValue(bar) as string,out var selected)) property.SetValue(bar,selected);
+        }
+
         private void UpdateCustomStyleInlinePreview(Providers.Local.LocalSettings localSettings)
         {
             if (localSettings == null || NotificationsCustomInlinePreviewHost == null)
@@ -6263,7 +6505,7 @@ namespace PlayniteAchievements.Views
 
         private static Brush ResolveInlinePreviewBackground(Providers.Local.LocalSettings localSettings)
         {
-            var imagePath = localSettings?.OverlayCustomBackgroundImagePath?.Trim();
+            var imagePath = (localSettings?.OverlayCustomBannerImagePath ?? localSettings?.OverlayCustomBackgroundImagePath)?.Trim();
             if (!string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath))
             {
                 try
@@ -6322,6 +6564,12 @@ namespace PlayniteAchievements.Views
                     return localSettings.OverlayCustomBorderColor;
                 case "Accent":
                     return localSettings.OverlayCustomAccentColor;
+                case "ProgressBarFill":
+                    return localSettings.OverlayCustomProgressBarFillColor;
+                case "ProgressBarTrack":
+                    return localSettings.OverlayCustomProgressBarTrackColor;
+                case "ProgressBarLabel":
+                    return localSettings.OverlayCustomProgressBarLabelColor;
                 case "PrimaryIconBackground":
                     return localSettings.OverlayCustomIconBackgroundColor;
                 case "SecondaryIconBackground":
@@ -6381,6 +6629,15 @@ namespace PlayniteAchievements.Views
                     break;
                 case "Accent":
                     localSettings.OverlayCustomAccentColor = colorHex;
+                    break;
+                case "ProgressBarFill":
+                    localSettings.OverlayCustomProgressBarFillColor = colorHex;
+                    break;
+                case "ProgressBarTrack":
+                    localSettings.OverlayCustomProgressBarTrackColor = colorHex;
+                    break;
+                case "ProgressBarLabel":
+                    localSettings.OverlayCustomProgressBarLabelColor = colorHex;
                     break;
                 case "PrimaryIconBackground":
                     localSettings.OverlayCustomIconBackgroundColor = colorHex;
@@ -6480,7 +6737,7 @@ namespace PlayniteAchievements.Views
                     .ToList();
                 if (themes.Count == 0)
                 {
-                    _logger.Info("No themes path found for theme migration.");
+                    ForkLog.Wrap(_logger).Info("No themes path found for theme migration.");
                     UpdateThemeMigrationState();
                     return;
                 }
@@ -6521,11 +6778,11 @@ namespace PlayniteAchievements.Views
 
                 UpdateThemeMigrationState();
 
-                _logger.Info($"Loaded {AvailableThemes.Count} themes to migrate, {RevertableThemes.Count} themes to revert.");
+                ForkLog.Wrap(_logger).Info($"Loaded {AvailableThemes.Count} themes to migrate, {RevertableThemes.Count} themes to revert.");
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to load themes for migration.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to load themes for migration.");
             }
         }
 
@@ -6552,7 +6809,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "Failed to detect StartPage installation state.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to detect StartPage installation state.");
                 HasStartPageInstalled = false;
                 ShowStartPageNotInstalledMessage = true;
                 HasStartPageBackup = false;
@@ -6646,7 +6903,7 @@ namespace PlayniteAchievements.Views
             {
                 Services.Logging.AchievementNotificationDebugLog.SetEnabled(false);
                 localSettings.EnableOverlayDebugLogging = false;
-                _logger?.Error(ex, "Failed to enable the Achievement Notification debug log.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to enable the Achievement Notification debug log.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     $"AchNotifDebug.log could not be created.\n\n{ex.Message}",
                     "Achievement Notification Debug Log",
@@ -6691,13 +6948,13 @@ namespace PlayniteAchievements.Views
             var selectedThemePath = SelectedThemePath;
             if (string.IsNullOrWhiteSpace(selectedThemePath))
             {
-                _logger.Warn("Migrate clicked but no theme selected.");
+                ForkLog.Wrap(_logger).Warn("Migrate clicked but no theme selected.");
                 return;
             }
 
             var highlightLatest = customSelection?.HighlightLatestUnlockedAchievement;
             var useScrollable = customSelection?.ModernizeCompactAchievementLists;
-            _logger.Info(
+            ForkLog.Wrap(_logger).Info(
                 $"User requested {mode} theme migration for: {selectedThemePath}; " +
                 $"useScrollableAchievements={useScrollable?.ToString() ?? "not-applicable"}; " +
                 $"highlightLatestUnlockedAchievement={highlightLatest?.ToString() ?? "not-applicable"}");
@@ -6707,12 +6964,12 @@ namespace PlayniteAchievements.Views
                 var selectedThemeHasBackup = _themeMigration.HasBackup(selectedThemePath);
                 if (selectedThemeHasBackup)
                 {
-                    _logger.Info($"Selected theme already has backup. Reverting before migration: {selectedThemePath}");
+                    ForkLog.Wrap(_logger).Info($"Selected theme already has backup. Reverting before migration: {selectedThemePath}");
 
                     var revertResult = await _themeMigration.RevertThemeAsync(selectedThemePath);
                     if (!revertResult.Success)
                     {
-                        _logger.Warn($"Pre-migration revert failed: {revertResult.Message}");
+                        ForkLog.Wrap(_logger).Warn($"Pre-migration revert failed: {revertResult.Message}");
                         _plugin.PlayniteApi.Dialogs.ShowMessage(
                             revertResult.Message,
                             L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
@@ -6729,7 +6986,7 @@ namespace PlayniteAchievements.Views
 
                 if (result.Success)
                 {
-                    _logger.Info($"Theme migration ({mode}) successful: {selectedThemePath}");
+                    ForkLog.Wrap(_logger).Info($"Theme migration ({mode}) successful: {selectedThemePath}");
 
                     // Show restart notice whenever files were modified.
                     if (result.FilesProcessed > 0)
@@ -6755,7 +7012,7 @@ namespace PlayniteAchievements.Views
                 }
                 else
                 {
-                    _logger.Warn($"Theme migration failed: {result.Message}");
+                    ForkLog.Wrap(_logger).Warn($"Theme migration failed: {result.Message}");
                     _plugin.PlayniteApi.Dialogs.ShowMessage(
                         result.Message,
                         L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
@@ -6765,7 +7022,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to execute theme migration.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to execute theme migration.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
@@ -6778,7 +7035,7 @@ namespace PlayniteAchievements.Views
         {
             if (string.IsNullOrWhiteSpace(SelectedRevertThemePath))
             {
-                _logger.Warn("Revert clicked but no theme selected.");
+                ForkLog.Wrap(_logger).Warn("Revert clicked but no theme selected.");
                 return;
             }
 
@@ -6792,7 +7049,7 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
-            _logger.Info($"User requested theme revert for: {SelectedRevertThemePath}");
+            ForkLog.Wrap(_logger).Info($"User requested theme revert for: {SelectedRevertThemePath}");
 
             try
             {
@@ -6800,7 +7057,7 @@ namespace PlayniteAchievements.Views
 
                 if (result.Success)
                 {
-                    _logger.Info($"Theme revert successful: {SelectedRevertThemePath}");
+                    ForkLog.Wrap(_logger).Info($"Theme revert successful: {SelectedRevertThemePath}");
                     _plugin.PlayniteApi.Dialogs.ShowMessage(
                         result.Message,
                         L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
@@ -6812,7 +7069,7 @@ namespace PlayniteAchievements.Views
                 }
                 else
                 {
-                    _logger.Warn($"Theme revert failed: {result.Message}");
+                    ForkLog.Wrap(_logger).Warn($"Theme revert failed: {result.Message}");
                     _plugin.PlayniteApi.Dialogs.ShowMessage(
                         result.Message,
                         L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
@@ -6822,7 +7079,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to execute theme revert.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to execute theme revert.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
@@ -6878,7 +7135,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to apply StartPage compatibility migration from settings.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to apply StartPage compatibility migration from settings.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
@@ -6914,7 +7171,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to revert StartPage compatibility migration from settings.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to revert StartPage compatibility migration from settings.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
@@ -6961,7 +7218,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to restart Playnite.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to restart Playnite.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
@@ -7452,11 +7709,11 @@ namespace PlayniteAchievements.Views
         {
             try
             {
-                _logger.Info($"Resetting FirstTimeSetupCompleted. Current value before: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
+                ForkLog.Wrap(_logger).Info($"Resetting FirstTimeSetupCompleted. Current value before: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
 
                 _settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted = false;
 
-                _logger.Info($"Value after setting to false: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
+                ForkLog.Wrap(_logger).Info($"Value after setting to false: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
 
                 _plugin.SavePluginSettings(_settingsViewModel.Settings);
                 NotificationPublisher.ClosePersistentSettingsPreview();
@@ -7469,7 +7726,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to reset first-time setup.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to reset first-time setup.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7482,7 +7739,7 @@ namespace PlayniteAchievements.Views
         {
             try
             {
-                _logger.Info("Resetting Display tab settings to defaults.");
+                ForkLog.Wrap(_logger).Info("Resetting Display tab settings to defaults.");
 
                 _settingsViewModel.Settings.Persisted.ResetDisplaySettingsToDefaults();
                 PercentRarityHelper.ApplyBadgeApplicationResources(
@@ -7498,7 +7755,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to reset Display tab settings.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to reset Display tab settings.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7514,7 +7771,7 @@ namespace PlayniteAchievements.Views
                 var exportBaseDir = _plugin.GetPluginUserDataPath();
                 var exportDir = _plugin.RefreshRuntime.Cache.ExportDatabaseToCsv(exportBaseDir);
 
-                _logger.Info($"Database exported to: {exportDir}");
+                ForkLog.Wrap(_logger).Info($"Database exported to: {exportDir}");
 
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     L("LOCPlayAch_Status_Succeeded", "Success!") + "\n" + exportDir,
@@ -7524,7 +7781,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to export database.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to export database.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7553,7 +7810,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger?.Error(ex, "Failed to open extension data folder.");
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to open extension data folder.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
@@ -7589,11 +7846,11 @@ namespace PlayniteAchievements.Views
                     {
                         System.IO.File.Delete(file);
                         deletedCount++;
-                        _logger.Info($"Deleted hash index cache: {file}");
+                        ForkLog.Wrap(_logger).Info($"Deleted hash index cache: {file}");
                     }
                     catch (Exception ex)
                     {
-                        _logger.Warn(ex, $"Failed to delete hash index cache: {file}");
+                        ForkLog.Wrap(_logger).Warn(ex, $"Failed to delete hash index cache: {file}");
                     }
                 }
 
@@ -7605,7 +7862,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to force hash index rebuild.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to force hash index rebuild.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
@@ -8006,7 +8263,7 @@ namespace PlayniteAchievements.Views
                 var tagSyncService = _plugin.TagSyncService;
                 if (tagSyncService == null)
                 {
-                    _logger?.Warn("TagSyncService not available");
+                    ForkLog.Wrap(_logger)?.Warn("TagSyncService not available");
                     return;
                 }
 
@@ -8015,7 +8272,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to apply and sync tags.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to apply and sync tags.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
@@ -8042,7 +8299,7 @@ namespace PlayniteAchievements.Views
                 var tagSyncService = _plugin.TagSyncService;
                 if (tagSyncService == null)
                 {
-                    _logger?.Warn("TagSyncService not available");
+                    ForkLog.Wrap(_logger)?.Warn("TagSyncService not available");
                     return;
                 }
 
@@ -8050,7 +8307,7 @@ namespace PlayniteAchievements.Views
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to remove tags.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to remove tags.");
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
                     L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
@@ -8137,7 +8394,7 @@ namespace PlayniteAchievements.Views
             }
 
             _providerNavigationBuilt = true;
-            _logger?.Info($"Built {LegacyProviderNavigationItems.Count} platform navigation items");
+            ForkLog.Wrap(_logger)?.Info($"Built {LegacyProviderNavigationItems.Count} platform navigation items");
         }
 
         private static string GetProviderSettingsGroupName(string providerKey)
@@ -8231,11 +8488,11 @@ namespace PlayniteAchievements.Views
                 {
                     ProviderSearchText = string.Empty;
                     SelectedLegacyProviderNavigationItem = redirectItem;
-                    _logger?.Info($"Redirected {item.ProviderKey} settings navigation to {redirectItem.ProviderKey}");
+                    ForkLog.Wrap(_logger)?.Info($"Redirected {item.ProviderKey} settings navigation to {redirectItem.ProviderKey}");
                 }
                 else
                 {
-                    _logger?.Warn($"Provider settings redirect target not found for {item.ProviderKey}: {item.RedirectProviderKey}");
+                    ForkLog.Wrap(_logger)?.Warn($"Provider settings redirect target not found for {item.ProviderKey}: {item.RedirectProviderKey}");
                 }
 
                 return;
@@ -8249,11 +8506,11 @@ namespace PlayniteAchievements.Views
                 try
                 {
                     await authRefreshable.RefreshAuthStatusAsync();
-                    _logger?.Info($"Refreshed auth status for {item.ProviderKey}");
+                    ForkLog.Wrap(_logger)?.Info($"Refreshed auth status for {item.ProviderKey}");
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Error(ex, $"Failed to refresh auth status for {item.ProviderKey}");
+                    ForkLog.Wrap(_logger)?.Error(ex, $"Failed to refresh auth status for {item.ProviderKey}");
                 }
             }
         }
@@ -8272,7 +8529,7 @@ namespace PlayniteAchievements.Views
                 {
                     SettingsTabControl.SelectedItem = ProvidersTab;
                     SelectedLegacyProviderNavigationItem = targetItem;
-                    _logger?.Info($"Navigated to pending provider: {targetKey}");
+                    ForkLog.Wrap(_logger)?.Info($"Navigated to pending provider: {targetKey}");
                     return;
                 }
 
@@ -8319,7 +8576,7 @@ namespace PlayniteAchievements.Views
             if (string.Equals(name, "ThemeMigrationTab", StringComparison.OrdinalIgnoreCase))
             {
                 LoadThemes();
-                _logger?.Info("Loaded themes for Theme Migration tab.");
+                ForkLog.Wrap(_logger)?.Info("Loaded themes for Theme Migration tab.");
             }
         }
 
@@ -8690,6 +8947,16 @@ namespace PlayniteAchievements.Views
             if (ThemeMigrationTab != null)
             {
                 ThemeMigrationTab.Content = null;
+            }
+
+            if (content is FrameworkElement contentElement)
+            {
+                // This page moves into SettingsControl, outside this control's name scope.
+                // Keep its ElementName bindings connected to the instance that owns both
+                // the selected theme paths and the click handlers.
+                var scope = new NameScope();
+                scope.RegisterName(nameof(LegacyNotificationSettingsControlRoot), this);
+                NameScope.SetNameScope(contentElement, scope);
             }
 
             return content;

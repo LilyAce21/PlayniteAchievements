@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using HtmlAgilityPack;
 using Playnite.SDK;
 using Playnite.SDK.Models;
@@ -90,7 +91,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                 return ApplyFastMetadata(importedGame, appId, fastMetadataDownloader);
             }
 
-            _logger?.Info($"[{_logPrefix}] No metadata source was available for appId={appId}; skipping metadata download.");
+            ForkLog.Wrap(_logger)?.Info($"[{_logPrefix}] No metadata source was available for appId={appId}; skipping metadata download.");
             return false;
         }
 
@@ -163,38 +164,38 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                 universalPlugin = ImportedGameMetadataSourceCatalog.ResolveUniversalSteamMetadataPlugin(_api, _logger);
             }
 
-            _logger?.Debug($"[{_logPrefix}] Automatic metadata chain start for appId={appId}. universalPlugin={(universalPlugin?.Name ?? "<none>")}");
+            ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain start for appId={appId}. universalPlugin={(universalPlugin?.Name ?? "<none>")}");
 
             if (universalPlugin != null && ApplyMetadataPlugin(importedGame, appId, universalPlugin))
             {
-                _logger?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=UniversalSteamMetadata for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=UniversalSteamMetadata for appId={appId}.");
                 return true;
             }
 
-            _logger?.Debug($"[{_logPrefix}] Automatic metadata chain stage=UniversalSteamMetadata failed for appId={appId}; trying SteamHunters+SGDB.");
+            ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain stage=UniversalSteamMetadata failed for appId={appId}; trying SteamHunters+SGDB.");
 
             if (ApplyBuiltInAutomaticStage(importedGame, appId, ImportedGameMetadataSourceCatalog.SteamHuntersId))
             {
-                _logger?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=SteamHunters+SGDB for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=SteamHunters+SGDB for appId={appId}.");
                 return true;
             }
 
-            _logger?.Debug($"[{_logPrefix}] Automatic metadata chain stage=SteamHunters+SGDB failed for appId={appId}; trying Completionist+SGDB.");
+            ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain stage=SteamHunters+SGDB failed for appId={appId}; trying Completionist+SGDB.");
 
             if (ApplyBuiltInAutomaticStage(importedGame, appId, ImportedGameMetadataSourceCatalog.CompletionistId))
             {
-                _logger?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=Completionist+SGDB for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=Completionist+SGDB for appId={appId}.");
                 return true;
             }
 
             var igdbPlugin = ImportedGameMetadataSourceCatalog.ResolveIgdbMetadataPlugin(_api, _logger);
             if (igdbPlugin != null && ApplyMetadataPlugin(importedGame, appId, igdbPlugin))
             {
-                _logger?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=IGDB for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain succeeded at stage=IGDB for appId={appId}.");
                 return true;
             }
 
-            _logger?.Debug($"[{_logPrefix}] Automatic metadata chain exhausted all stages for appId={appId}.");
+            ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Automatic metadata chain exhausted all stages for appId={appId}.");
 
             return false;
         }
@@ -372,7 +373,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[{_logPrefix}] Failed applying fast metadata for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[{_logPrefix}] Failed applying fast metadata for appId={appId}.");
                 return false;
             }
         }
@@ -532,7 +533,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[{_logPrefix}] Failed applying metadata plugin '{metadataPlugin?.Name}' for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[{_logPrefix}] Failed applying metadata plugin '{metadataPlugin?.Name}' for appId={appId}.");
                 return false;
             }
         }
@@ -625,15 +626,15 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                     && !string.IsNullOrWhiteSpace(requestHost))
                 {
                     _blockedMetadataHosts.Add(requestHost);
-                    _logger?.Debug($"[{_logPrefix}] Marked metadata host as blocked due to {(int) statusCode}: {requestHost}");
+                    ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Marked metadata host as blocked due to {(int) statusCode}: {requestHost}");
                 }
 
-                _logger?.Debug(webEx, $"[{_logPrefix}] Failed downloading imported metadata page '{url}'.");
+                ForkLog.Wrap(_logger)?.Debug(webEx, $"[{_logPrefix}] Failed downloading imported metadata page '{url}'.");
                 return null;
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[{_logPrefix}] Failed downloading imported metadata page '{url}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[{_logPrefix}] Failed downloading imported metadata page '{url}'.");
                 return null;
             }
         }
@@ -855,7 +856,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[{_logPrefix}] Failed applying Steam Store fallback metadata for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[{_logPrefix}] Failed applying Steam Store fallback metadata for appId={appId}.");
                 return false;
             }
         }
@@ -1060,7 +1061,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[{_logPrefix}] Failed persisting metadata file for gameId={gameId} from '{metadataFile?.Path}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[{_logPrefix}] Failed persisting metadata file for gameId={gameId} from '{metadataFile?.Path}'.");
             }
             finally
             {
@@ -1424,7 +1425,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                             _steamCommunityRateLimitedMissAppIds.Remove(appId);
                         }
 
-                        _logger?.Debug($"[{_logPrefix}] Steam community app icon resolved for appId={appId}: {iconUrl}");
+                        ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Steam community app icon resolved for appId={appId}: {iconUrl}");
                         _steamGridDbIconUrlCache[appId] = iconUrl;
                         return iconUrl;
                     }
@@ -1450,7 +1451,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                             }
                         }
 
-                        _logger?.Debug($"[{_logPrefix}] Steam community app icon rate-limited for appId={appId}; attempt={attempt}/{maxAttempts}; backing off for {retryDelay.TotalSeconds:0.##}s.");
+                        ForkLog.Wrap(_logger)?.Debug($"[{_logPrefix}] Steam community app icon rate-limited for appId={appId}; attempt={attempt}/{maxAttempts}; backing off for {retryDelay.TotalSeconds:0.##}s.");
 
                         if (attempt < maxAttempts)
                         {
@@ -1462,7 +1463,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                             _steamCommunityRateLimitedMissAppIds.Add(appId);
                         }
 
-                        _logger?.Debug(webEx, $"[{_logPrefix}] Steam community app icon lookup failed for appId={appId} after {maxAttempts} attempts.");
+                        ForkLog.Wrap(_logger)?.Debug(webEx, $"[{_logPrefix}] Steam community app icon lookup failed for appId={appId} after {maxAttempts} attempts.");
                         return null;
                     }
 
@@ -1474,7 +1475,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                         }
                     }
 
-                    _logger?.Debug(webEx, $"[{_logPrefix}] Steam community app icon lookup failed for appId={appId}.");
+                    ForkLog.Wrap(_logger)?.Debug(webEx, $"[{_logPrefix}] Steam community app icon lookup failed for appId={appId}.");
                     return null;
                 }
                 catch (Exception ex)
@@ -1487,7 +1488,7 @@ namespace PlayniteAchievements.Providers.ImportedGameMetadata
                         }
                     }
 
-                    _logger?.Debug(ex, $"[{_logPrefix}] Steam community app icon lookup failed for appId={appId}.");
+                    ForkLog.Wrap(_logger)?.Debug(ex, $"[{_logPrefix}] Steam community app icon lookup failed for appId={appId}.");
                     return null;
                 }
             }

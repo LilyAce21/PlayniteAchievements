@@ -1,7 +1,10 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using PlayniteAchievements.Common;
 using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Providers.Steam;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PlayniteAchievements.Steam.Tests
 {
@@ -694,6 +697,85 @@ namespace PlayniteAchievements.Steam.Tests
             Assert.AreEqual(1, plan.Count);
             Assert.AreEqual("Portal 2", plan[0].Key);
             Assert.AreEqual(620, plan[0].Value);
+        }
+
+        [DataTestMethod]
+        [DataRow(null)]
+        [DataRow("")]
+        [DataRow("<html><title>Just a moment...</title></html>")]
+        public async Task EnrichAsync_NoUsableGroups_ReturnsFalseAndLeavesAchievements(string body)
+        {
+            var enricher = CreateEnricher(_ => body);
+            var achievements = new List<AchievementDetail>
+            {
+                new AchievementDetail { ApiName = "ach_1", Category = "Stored", CategoryType = "DLC" }
+            };
+
+            var applied = await enricher.EnrichAsync(620, "Portal 2", achievements, null, CancellationToken.None);
+
+            Assert.IsFalse(applied);
+            Assert.AreEqual("Stored", achievements[0].Category);
+            Assert.AreEqual("DLC", achievements[0].CategoryType);
+        }
+
+        [TestMethod]
+        public async Task EnrichAsync_ValidGroups_ReturnsTrueAndAppliesThem()
+        {
+            var enricher = CreateEnricher(url => url.Contains("GetAchievementGroups")
+                ? "{\"groupBy\":\"dlcandupdate\",\"groups\":[{\"dlcAppId\":2561440,\"dlcAppName\":\"The Pale Reach\",\"achievementApiNames\":[\"ach_1\"]}]}"
+                : null);
+            var achievements = new List<AchievementDetail> { new AchievementDetail { ApiName = "ach_1" } };
+
+            var applied = await enricher.EnrichAsync(1562430, "DREDGE", achievements, null, CancellationToken.None);
+
+            Assert.IsTrue(applied);
+            Assert.AreEqual("The Pale Reach", achievements[0].Category);
+            Assert.AreEqual("DLC", achievements[0].CategoryType);
+        }
+
+        [TestMethod]
+        public async Task GetAchievementGroupsAsync_ErrorPageThenJson_RetriesAndReturnsGroups()
+        {
+            var calls = 0;
+            var client = new SteamHuntersApiClient(
+                (url, ct) => Task.FromResult(++calls == 1
+                    ? "Error 1015: You are being rate limited."
+                    : "{\"groups\":[{\"name\":\"Multiplayer\",\"achievementApiNames\":[\"ach_1\"]}]}"),
+                null,
+                new RateLimiter(0, 3),
+                requestGapMs: 0);
+
+            var response = await client.GetAchievementGroupsAsync(442070, CancellationToken.None);
+
+            Assert.AreEqual(2, calls);
+            Assert.AreEqual(1, response.Groups.Count);
+        }
+
+        [TestMethod]
+        public async Task GetAchievementGroupsAsync_PersistentErrorPage_GivesUpAfterRetries()
+        {
+            var calls = 0;
+            var client = new SteamHuntersApiClient(
+                (url, ct) =>
+                {
+                    calls++;
+                    return Task.FromResult("Error 1015: You are being rate limited.");
+                },
+                null,
+                new RateLimiter(0, 2),
+                requestGapMs: 0);
+
+            var response = await client.GetAchievementGroupsAsync(442070, CancellationToken.None);
+
+            Assert.IsNull(response);
+            Assert.AreEqual(3, calls);
+        }
+
+        private static SteamHuntersCategoryEnricher CreateEnricher(System.Func<string, string> respond)
+        {
+            return new SteamHuntersCategoryEnricher(
+                new SteamHuntersApiClient((url, ct) => Task.FromResult(respond(url)), null, new RateLimiter(0, 0), requestGapMs: 0),
+                null);
         }
     }
 }

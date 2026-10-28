@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Models;
 using PlayniteAchievements.Models.Settings;
@@ -1649,7 +1650,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
                 }
 
                 _logger?.Info($"PopulateAllGamesDataSync: State created - TotalTrophies={state.TotalTrophies}, PlatinumTrophies={state.PlatinumTrophies}, GoldTrophies={state.GoldTrophies}, Rank={state.Rank}");
-                _logger?.Debug(
+                ForkLog.Wrap(_logger)?.Debug(
                     "PopulateAllGamesDataSync: Providers=" +
                     string.Join(
                         ", ",
@@ -2088,7 +2089,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "Failed to persist all-games score snapshot.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "Failed to persist all-games score snapshot.");
             }
         }
 

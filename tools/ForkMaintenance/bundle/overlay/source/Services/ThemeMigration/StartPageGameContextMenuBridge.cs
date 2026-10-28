@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using Playnite.SDK;
 using Playnite.SDK.Models;
 using System;
@@ -81,7 +82,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "Failed to open Playnite's game context menu from StartPage.");
+                ForkLog.Wrap(Logger).Error(ex, "Failed to open Playnite's game context menu from StartPage.");
             }
         }
 
@@ -137,7 +138,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 .FirstOrDefault(type => type != null);
             if (menuType == null || !typeof(ContextMenu).IsAssignableFrom(menuType))
             {
-                Logger.Warn("Playnite's desktop GameMenu type was not available.");
+                ForkLog.Wrap(Logger).Warn("Playnite's desktop GameMenu type was not available.");
                 return null;
             }
 
@@ -158,7 +159,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 null);
             if (initializeForGame == null)
             {
-                Logger.Warn("Playnite's GameMenu initializer was not available.");
+                ForkLog.Wrap(Logger).Warn("Playnite's GameMenu initializer was not available.");
                 return null;
             }
 

@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Playnite.SDK;
@@ -297,7 +298,7 @@ namespace PlayniteAchievements.Providers.Local
                 catch (Exception ex)
                 {
                     result.FailedFileCount++;
-                    _logger?.Warn(ex, $"[LocalSuccessStoryImport] Failed processing '{filePath}'.");
+                    ForkLog.Wrap(_logger)?.Warn(ex, $"[LocalSuccessStoryImport] Failed processing '{filePath}'.");
                 }
 
                 await Task.Yield();
@@ -695,7 +696,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"[LocalSuccessStoryImport] Failed creating game '{gameName}' from SuccessStory root.");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"[LocalSuccessStoryImport] Failed creating game '{gameName}' from SuccessStory root.");
                 return null;
             }
         }
@@ -732,7 +733,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[LocalSuccessStoryImport] Failed resolving source name '{targetName}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[LocalSuccessStoryImport] Failed resolving source name '{targetName}'.");
                 return null;
             }
         }
@@ -753,11 +754,11 @@ namespace PlayniteAchievements.Providers.Local
             {
                 _metadataApplier.ApplyToGame(game, appId, _metadataSourceId, _metadataPlugin, fastMetadataDownloader: null);
                 _api.Database.Games.Update(game);
-                _logger?.Debug($"[LocalSuccessStoryImport] Applied metadata for '{game.Name}' (appId={appId}).");
+                ForkLog.Wrap(_logger)?.Debug($"[LocalSuccessStoryImport] Applied metadata for '{game.Name}' (appId={appId}).");
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, $"[LocalSuccessStoryImport] Failed applying metadata for '{game.Name}' (appId={appId}).");
+                ForkLog.Wrap(_logger)?.Warn(ex, $"[LocalSuccessStoryImport] Failed applying metadata for '{game.Name}' (appId={appId}).");
             }
         }
 

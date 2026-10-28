@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -236,7 +237,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to get default themes paths.");
+                ForkLog.Wrap(_logger).Error(ex, "Failed to get default themes paths.");
             }
 
             return roots
@@ -404,6 +405,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             }
 
             if (ThemeMigrationService.NeedsPs5TrophyProgressMigration(content)) return true;
+            if (ThemeMigrationService.NeedsPs5RankMigration(content)) return true;
 
             if (content.IndexOf("SuccessStoryFullscreenHelper", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 content.IndexOf("playnite-successstory-plugin", StringComparison.OrdinalIgnoreCase) >= 0 ||

@@ -11,6 +11,10 @@ namespace PlayniteAchievements.Views.Controls
     /// </summary>
     public sealed class CenteredWrapPanel : Panel
     {
+        // Arranged widths come back through layout rounding, so a line that measured exactly
+        // to the available width can arrive a fraction short; don't wrap over that.
+        private const double WrapTolerance = 0.5;
+
         protected override Size MeasureOverride(Size availableSize)
         {
             var childConstraint = new Size(double.PositiveInfinity, availableSize.Height);
@@ -61,7 +65,7 @@ namespace PlayniteAchievements.Views.Controls
             for (var i = 0; i < InternalChildren.Count; i++)
             {
                 var size = InternalChildren[i]?.DesiredSize ?? default(Size);
-                if (line.End > line.Start && line.Width + size.Width > maxWidth)
+                if (line.End > line.Start && line.Width + size.Width > maxWidth + WrapTolerance)
                 {
                     lines.Add(line);
                     line = new Line { Start = i, End = i };

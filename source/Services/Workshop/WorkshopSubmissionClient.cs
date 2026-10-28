@@ -132,14 +132,19 @@ namespace PlayniteAchievements.Services.Workshop
             return key;
         }
 
-        public Task<WorkshopSubmissionReceipt> SubmitAsync(WorkshopSubmission submission, string submitterHash, string packageKey, string previewKey, string pluginVersion, CancellationToken cancel, string coverKey = null)
+        /// <summary>
+        /// Opens a submission. The submitter key itself is sent, not its hash: the hash is public
+        /// in every manifest, so only the key proves this install owns an item. The service
+        /// hashes it and never publishes it.
+        /// </summary>
+        public Task<WorkshopSubmissionReceipt> SubmitAsync(WorkshopSubmission submission, string submitterKey, string packageKey, string previewKey, string pluginVersion, CancellationToken cancel, string coverKey = null)
 
-            => Task.Run(() => SubmitCoreAsync(submission, submitterHash, packageKey, previewKey, coverKey, pluginVersion, cancel), cancel);
+            => Task.Run(() => SubmitCoreAsync(submission, submitterKey, packageKey, previewKey, coverKey, pluginVersion, cancel), cancel);
 
 
         private async Task<WorkshopSubmissionReceipt> SubmitCoreAsync(
             WorkshopSubmission submission,
-            string submitterHash,
+            string submitterKey,
             string packageKey,
             string previewKey,
             string coverKey,
@@ -162,7 +167,7 @@ namespace PlayniteAchievements.Services.Workshop
                 existingId = submission.ExistingId,
                 remove = submission.Remove,
                 readme = submission.Readme,
-                submitterHash,
+                submitterKey,
                 packageKey,
                 previewKey,
                 coverKey,

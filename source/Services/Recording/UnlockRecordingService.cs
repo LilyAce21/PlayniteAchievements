@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -382,7 +383,7 @@ namespace PlayniteAchievements.Services.Recording
             var gameData = LoadGameData(game?.Id ?? Guid.Empty);
             if (!ProviderNotificationPolicy.Resolve(persisted, null, gameData).RecordingsEnabled)
             {
-                _logger?.Info($"[Recording] Capture not started for '{game?.Name}': unlock recordings are disabled.");
+                ForkLog.Wrap(_logger)?.Info($"[Recording] Capture not started for '{game?.Name}': unlock recordings are disabled.");
                 return;
             }
 
@@ -1205,7 +1206,7 @@ namespace PlayniteAchievements.Services.Recording
                 _awaitingTrack.Add(request);
             }
 
-            _logger?.Info(
+            ForkLog.Wrap(_logger)?.Info(
                 $"[Recording] Queued unlock clip for '{request.AchievementName}' in '{request.GameName}'.");
 
             // Production starts immediately. With no delay configured the clip window is

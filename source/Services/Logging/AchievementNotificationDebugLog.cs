@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -103,7 +104,7 @@ namespace PlayniteAchievements.Services.Logging
                 // rotate an existing file behind their back when append was selected.
                 _logger = new FileLogger(_logDirectory, FileName, long.MaxValue);
                 _lastSettingsSnapshot = null;
-                _logger.Info(
+                ForkLog.Wrap(_logger).Info(
                     $"Achievement Notification debug session started. " +
                     $"pluginVersion='{Assembly.GetExecutingAssembly().GetName().Version}', " +
                     $"OS='{Environment.OSVersion}', process64Bit='{Environment.Is64BitProcess}'.");
@@ -112,22 +113,22 @@ namespace PlayniteAchievements.Services.Logging
 
         public static void Info(string message)
         {
-            lock (SyncRoot) { _logger?.Info(message); }
+            lock (SyncRoot) { ForkLog.Wrap(_logger)?.Info(message); }
         }
 
         public static void Warn(string message)
         {
-            lock (SyncRoot) { _logger?.Warn(message); }
+            lock (SyncRoot) { ForkLog.Wrap(_logger)?.Warn(message); }
         }
 
         public static void Warn(Exception exception, string message)
         {
-            lock (SyncRoot) { _logger?.Warn(exception, message); }
+            lock (SyncRoot) { ForkLog.Wrap(_logger)?.Warn(exception, message); }
         }
 
         public static void Error(Exception exception, string message)
         {
-            lock (SyncRoot) { _logger?.Error(exception, message); }
+            lock (SyncRoot) { ForkLog.Wrap(_logger)?.Error(exception, message); }
         }
 
         public static void LogSettingsSnapshot(
@@ -152,7 +153,7 @@ namespace PlayniteAchievements.Services.Logging
                     }
 
                     _lastSettingsSnapshot = snapshot;
-                    _logger.Info(
+                    ForkLog.Wrap(_logger).Info(
                         $"Achievement Notification settings snapshot reason='{reason ?? "unspecified"}':" +
                         Environment.NewLine + snapshot);
                 }

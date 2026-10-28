@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using HtmlAgilityPack;
 using Playnite.SDK;
 using Playnite.SDK.Models;
@@ -101,7 +102,7 @@ namespace PlayniteAchievements.Providers.Steam
             var steamUserId = useApiKey ? account.SteamUserId.Trim() : probe?.UserId?.Trim();
             if ((!useApiKey && probe?.IsSuccess != true) || string.IsNullOrWhiteSpace(steamUserId))
             {
-                _logger?.Warn("[SteamAch] Owned-games import skipped because Steam web auth is not available.");
+                ForkLog.Wrap(_logger)?.Warn("[SteamAch] Owned-games import skipped because Steam web auth is not available.");
                 return result;
             }
 
@@ -116,12 +117,12 @@ namespace PlayniteAchievements.Providers.Steam
             var overwriteExisting = (steamSettings?.ExistingGameImportBehavior ?? SteamExistingGameImportBehavior.OverwriteExisting)
                 == SteamExistingGameImportBehavior.OverwriteExisting;
 
-            _logger?.Info($"[SteamAch] Selected import metadata provider id='{metadataSourceId}', resolved='{selectedMetadataPlugin?.Name ?? (usesBuiltInMetadata ? metadataSourceId : "<automatic>")}'.");
+            ForkLog.Wrap(_logger)?.Info($"[SteamAch] Selected import metadata provider id='{metadataSourceId}', resolved='{selectedMetadataPlugin?.Name ?? (usesBuiltInMetadata ? metadataSourceId : "<automatic>")}'.");
 
             var steamLibraryPlugin = ResolveSteamLibraryPlugin();
             if (steamLibraryPlugin == null)
             {
-                _logger?.Warn("[SteamAch] Owned-games import skipped because the Steam library plugin could not be resolved.");
+                ForkLog.Wrap(_logger)?.Warn("[SteamAch] Owned-games import skipped because the Steam library plugin could not be resolved.");
                 return result;
             }
 
@@ -241,7 +242,7 @@ namespace PlayniteAchievements.Providers.Steam
                         catch (Exception ex)
                         {
                             result.FailedCount++;
-                            _logger?.Warn(ex, $"[SteamAch] Failed importing owned Steam game appId={ownedGame?.AppId} name='{ownedGame?.Name}'.");
+                            ForkLog.Wrap(_logger)?.Warn(ex, $"[SteamAch] Failed importing owned Steam game appId={ownedGame?.AppId} name='{ownedGame?.Name}'.");
                         }
                     }
                 }
@@ -251,7 +252,7 @@ namespace PlayniteAchievements.Providers.Steam
                 }
             }
 
-            _logger?.Info($"[SteamAch] Owned-games import finished. owned={result.OwnedCount} existing={result.ExistingCount} imported={result.ImportedCount} updated={result.UpdatedCount} failed={result.FailedCount}");
+            ForkLog.Wrap(_logger)?.Info($"[SteamAch] Owned-games import finished. owned={result.OwnedCount} existing={result.ExistingCount} imported={result.ImportedCount} updated={result.UpdatedCount} failed={result.FailedCount}");
             return result;
         }
 
@@ -324,7 +325,7 @@ namespace PlayniteAchievements.Providers.Steam
             catch (OperationCanceledException)
             {
                 resolvedGames.WasCanceled = true;
-                _logger?.Info("[SteamAch] Steam import canceled while resolving owned games. Importing any already resolved games.");
+                ForkLog.Wrap(_logger)?.Info("[SteamAch] Steam import canceled while resolving owned games. Importing any already resolved games.");
                 return resolvedGames;
             }
 
@@ -345,7 +346,7 @@ namespace PlayniteAchievements.Providers.Steam
                 catch (OperationCanceledException)
                 {
                     resolvedGames.WasCanceled = true;
-                    _logger?.Info($"[SteamAch] Steam import canceled while resolving family-shared games. Importing the already resolved {resolvedGames.Games.Count} game(s).");
+                    ForkLog.Wrap(_logger)?.Info($"[SteamAch] Steam import canceled while resolving family-shared games. Importing the already resolved {resolvedGames.Games.Count} game(s).");
                 }
             }
 
@@ -354,7 +355,7 @@ namespace PlayniteAchievements.Providers.Steam
             resolvedGames.Games.AddRange(deduplicatedResolvedGames);
             if (resolvedGames.WasCanceled)
             {
-                _logger?.Info($"[SteamAch] Steam import was canceled after resolving {resolvedGames.Games.Count} game(s). Importing the already resolved games.");
+                ForkLog.Wrap(_logger)?.Info($"[SteamAch] Steam import was canceled after resolving {resolvedGames.Games.Count} game(s). Importing the already resolved games.");
             }
 
             return resolvedGames;
@@ -411,7 +412,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed applying import metadata for appId={appId} game '{importedGame?.Name}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed applying import metadata for appId={appId} game '{importedGame?.Name}'.");
             }
         }
 
@@ -592,7 +593,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed applying downloaded Steam metadata for imported game '{importedGame?.Name}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed applying downloaded Steam metadata for imported game '{importedGame?.Name}'.");
             }
         }
 
@@ -774,7 +775,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed applying metadata plugin '{metadataPlugin?.Name}' for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed applying metadata plugin '{metadataPlugin?.Name}' for appId={appId}.");
                 return false;
             }
         }
@@ -847,7 +848,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed downloading imported metadata page '{url}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed downloading imported metadata page '{url}'.");
                 return null;
             }
         }
@@ -1018,7 +1019,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed applying Steam Store fallback metadata for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed applying Steam Store fallback metadata for appId={appId}.");
             }
         }
 
@@ -1357,7 +1358,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed persisting metadata file for gameId={gameId} from '{metadataFile?.Path}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed persisting metadata file for gameId={gameId} from '{metadataFile?.Path}'.");
             }
             finally
             {
@@ -1514,7 +1515,7 @@ namespace PlayniteAchievements.Providers.Steam
                     var series = provider.GetSeries(args)?.ToList();
                     var links = provider.GetLinks(args)?.ToList();
 
-                    _logger?.Info(
+                    ForkLog.Wrap(_logger)?.Info(
                         $"[SteamAch] Metadata plugin '{metadataPlugin.Name}' metadata-build field counts for appId={appId}: " +
                         $"platforms={platforms?.Count ?? 0}, genres={genres?.Count ?? 0}, developers={developers?.Count ?? 0}, " +
                         $"publishers={publishers?.Count ?? 0}, tags={tags?.Count ?? 0}, features={features?.Count ?? 0}, " +
@@ -1585,7 +1586,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[SteamAch] Failed applying metadata plugin '{metadataPlugin?.Name}' while building metadata for appId={appId}.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[SteamAch] Failed applying metadata plugin '{metadataPlugin?.Name}' while building metadata for appId={appId}.");
                 return false;
             }
         }
@@ -1600,7 +1601,7 @@ namespace PlayniteAchievements.Providers.Steam
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, "[SteamAch] Failed resolving Steam library plugin instance.");
+                ForkLog.Wrap(_logger)?.Debug(ex, "[SteamAch] Failed resolving Steam library plugin instance.");
                 return null;
             }
         }

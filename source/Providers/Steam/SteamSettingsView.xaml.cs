@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -35,6 +36,13 @@ namespace PlayniteAchievements.Providers.Steam
         private bool _loadingSteamAccountState;
         public ObservableCollection<ImportedGameMetadataSourceOption> AvailableMetadataSources { get; } = new ObservableCollection<ImportedGameMetadataSourceOption>();
         public ObservableCollection<SteamAccountSettings> SteamAccounts { get; } = new ObservableCollection<SteamAccountSettings>();
+
+        internal void ShowSecondarySettings(bool secondary)
+        {
+            OriginalSettingsTab.Visibility = secondary ? Visibility.Collapsed : Visibility.Visible;
+            SecondarySettingsTab.Visibility = secondary ? Visibility.Visible : Visibility.Collapsed;
+            SteamSettingsTabs.SelectedItem = secondary ? SecondarySettingsTab : OriginalSettingsTab;
+        }
 
         #region DependencyProperties
 
@@ -464,7 +472,7 @@ private static void OnDefaultSteamAccountIdChanged(DependencyObject d, Dependenc
             }
             catch (Exception)
             {
-                Logger.Debug("Failed resolving Steam ID from vanity URL during API-key account lookup.");
+                ForkLog.Wrap(Logger).Debug("Failed resolving Steam ID from vanity URL during API-key account lookup.");
                 return string.Empty;
             }
         }
@@ -694,7 +702,7 @@ private static void OnDefaultSteamAccountIdChanged(DependencyObject d, Dependenc
             }
             catch (Exception ex)
             {
-                Logger.Error(ex, "Steam owned-games import failed");
+                ForkLog.Wrap(Logger).Error(ex, "Steam owned-games import failed");
                 if (showDialog)
                 {
                     _api.Dialogs.ShowMessage(
@@ -798,7 +806,7 @@ private static void OnDefaultSteamAccountIdChanged(DependencyObject d, Dependenc
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error(ex, "Steam owned-games import failed");
+                    ForkLog.Wrap(Logger).Error(ex, "Steam owned-games import failed");
                     Dispatcher.Invoke(() =>
                     {
                         progressControl.MarkFailed(

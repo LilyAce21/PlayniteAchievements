@@ -1,0 +1,259 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Playnite.SDK;
+using PlayniteAchievements.Models;
+using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Services.UI;
+
+namespace PlayniteAchievements.Services.Sound
+{
+    /// <summary>What one wave played, so the recorder can mix the same file at the same level.</summary>
+    internal sealed class UnlockSoundPlayback
+    {
+        public UnlockSoundPlayback(int id, DateTime sentUtc, ResolvedUnlockSound sound, double gain)
+        {
+            Id = id;
+            SentUtc = sentUtc;
+            Sound = sound;
+            Gain = gain;
+        }
+
+        /// <summary>The host's play id; <see cref="UnlockSoundService.TryGetAudibleOnsetUtc"/> resolves it later.</summary>
+        public int Id { get; }
+
+        /// <summary>When the plugin asked for the sound (the launch moment, not the audible onset).</summary>
+        public DateTime SentUtc { get; }
+        public ResolvedUnlockSound Sound { get; }
+        public double Gain { get; }
+        public string FilePath => Sound?.Path;
+    }
+
+    /// <summary>
+    /// The one object the notification service depends on for sound: reads the settings, resolves
+    /// a tier to a file, keeps the sound host alive and preloaded, and reports what played.
+    /// </summary>
+    internal sealed class UnlockSoundService : IDisposable
+    {
+        private readonly PlayniteAchievementsSettings _settings;
+        private readonly UnlockSoundResolver _resolver;
+        private readonly UnlockSoundHost _host;
+        private readonly ILogger _logger;
+        private readonly object _gate = new object();
+        private bool _disposed;
+
+        public UnlockSoundService(
+            PlayniteAchievementsSettings settings,
+            UnlockSoundResolver resolver,
+            string pluginInstallDirectory,
+            ILogger logger)
+        {
+            _settings = settings;
+            _resolver = resolver;
+            _logger = logger;
+            var executable = string.IsNullOrWhiteSpace(pluginInstallDirectory)
+                ? null
+                : Path.Combine(pluginInstallDirectory, SoundHostProtocol.ExecutableName);
+            _host = new UnlockSoundHost(executable, logger);
+        }
+
+        public UnlockSoundResolver Resolver => _resolver;
+
+        /// <summary>The sound host's pid for the recorder's reference capture; null when it is down.</summary>
+        public int? HostProcessId => _host.ProcessId;
+
+        /// <summary>
+        /// How long a sound may play, in seconds, or null for the whole file. Wired to the toast
+        /// service's resolved display time so a sound never outlives the card it belongs to, which
+        /// also bounds an over-long theme file. Assigned after construction because the toast
+        /// service is built after this one.
+        /// </summary>
+        public Func<double?> MaxPlaybackSeconds { get; set; }
+
+        /// <summary>
+        /// The sound pack an unlock of a game on a platform plays: the game's own, its platform's,
+        /// or the global pack. Assigned after construction because the custom data store is wired
+        /// separately; null plays the global pack for every unlock.
+        /// </summary>
+        public Func<string, Guid, UnlockSoundSettings> ResolvePack { get; set; }
+
+        private bool Enabled
+        {
+            get
+            {
+                var persisted = _settings?.Persisted;
+                return persisted != null && persisted.EnableNotifications && persisted.EnableUnlockSounds;
+            }
+        }
+
+        /// <summary>
+        /// Starts the host and preloads the resolved set when sounds are enabled; stops the host
+        /// when they are not. Idempotent, so it runs on startup and on every settings save.
+        /// </summary>
+        public void ApplySettings()
+        {
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                if (!Enabled)
+                {
+                    // A disabled setting leaves no helper process behind; the next enable (or a
+                    // Test button press) launches it again.
+                    _host.Shutdown();
+                    return;
+                }
+
+                if (_host.TryStart())
+                {
+                    _host.Preload(ResolvedPaths());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Plays the tier's sound at the configured volume, from the pack of the game's scope:
+        /// <paramref name="gameId"/>'s own, else <paramref name="providerKey"/>'s, else the global
+        /// pack. Null when sounds are off, nothing resolved, or the host is unavailable.
+        /// <paramref name="force"/> plays even when the master switch is off, for the settings
+        /// page's Test button.
+        /// </summary>
+        public UnlockSoundPlayback Play(
+            UnlockSoundTier tier,
+            string providerKey = null,
+            Guid gameId = default,
+            bool force = false)
+        {
+            lock (_gate)
+            {
+                if (_disposed || (!force && !Enabled))
+                {
+                    return null;
+                }
+
+                var resolved = _resolver.Resolve(tier, SafeResolvePack(providerKey, gameId));
+                if (resolved?.Path == null)
+                {
+                    return null;
+                }
+
+                var gain = (_settings?.Persisted?.UnlockSoundVolumePercent ?? 0) / 100.0;
+                var sentUtc = _host.Play(resolved.Path, gain, SafeMaxSeconds(), out var id);
+                return sentUtc.HasValue ? new UnlockSoundPlayback(id, sentUtc.Value, resolved, gain) : null;
+            }
+        }
+
+        /// <summary>
+        /// Plays one named file at the configured volume, for the settings page's per-tier theme
+        /// test. Always forced and never preloaded: the file is a theme's, possibly from the mode
+        /// Playnite is not running, so it is deliberately outside the resolved set the host keeps
+        /// warm. Returns whether the host took it.
+        /// </summary>
+        public bool PlayFile(string path)
+        {
+            return PlayFile(path, SafeMaxSeconds());
+        }
+
+        /// <summary>
+        /// Plays one named file at the configured volume for at most <paramref name="maxSeconds"/>
+        /// (0 for the whole file), independent of the toast display time. Always forced and never
+        /// preloaded. Returns whether the host took it.
+        /// </summary>
+        public bool PlayFile(string path, double maxSeconds)
+        {
+            lock (_gate)
+            {
+                if (_disposed || string.IsNullOrWhiteSpace(path))
+                {
+                    return false;
+                }
+
+                var gain = (_settings?.Persisted?.UnlockSoundVolumePercent ?? 0) / 100.0;
+                return _host.Play(path, gain, maxSeconds > 0 ? maxSeconds : 0.0, out _).HasValue;
+            }
+        }
+
+        /// <summary>
+        /// The play-time cap, or 0 for the whole file. A provider that throws or is unset leaves the
+        /// sound uncapped rather than silencing or truncating it unpredictably.
+        /// </summary>
+        private double SafeMaxSeconds()
+        {
+            try
+            {
+                var seconds = MaxPlaybackSeconds?.Invoke();
+                return seconds.HasValue && seconds.Value > 0 ? seconds.Value : 0.0;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, "[UnlockSound] The playback cap could not be read; playing the whole file.");
+                return 0.0;
+            }
+        }
+
+        /// <summary>The measured audible onset of a played sound, once the host has reported it.</summary>
+        public DateTime? TryGetAudibleOnsetUtc(int playbackId)
+        {
+            return _host.TryGetAudibleOnsetUtc(playbackId);
+        }
+
+        public void Dispose()
+        {
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+            }
+
+            _host.Dispose();
+        }
+
+        private UnlockSoundSettings SafeResolvePack(string providerKey, Guid gameId)
+        {
+            var global = _settings?.Persisted?.UnlockSounds;
+            if (ResolvePack == null || (string.IsNullOrWhiteSpace(providerKey) && gameId == Guid.Empty))
+            {
+                return global;
+            }
+
+            try
+            {
+                return ResolvePack(providerKey, gameId) ?? global;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, $"[UnlockSound] The sound pack for provider={providerKey ?? "<none>"} game={gameId} could not be read; using the global pack.");
+                return global;
+            }
+        }
+
+        /// <summary>
+        /// The global pack and every platform pack, which are what the host keeps warm. A game's
+        /// own pack is played without a preload.
+        /// </summary>
+        private IReadOnlyList<string> ResolvedPaths()
+        {
+            var persisted = _settings?.Persisted;
+            var packs = new List<UnlockSoundSettings> { persisted?.UnlockSounds };
+            if (persisted != null)
+            {
+                packs.AddRange(persisted.ProviderUnlockSounds.Values);
+            }
+
+            return packs
+                .SelectMany(pack => _resolver.ResolveAll(pack))
+                .Select(r => r.Path)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+    }
+}

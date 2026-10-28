@@ -1,3 +1,4 @@
+using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using Playnite.SDK;
 using Playnite.SDK.Models;
 using System;
@@ -202,7 +203,7 @@ namespace PlayniteAchievements.Providers.Local
                 }
             }
 
-            _logger?.Info($"[Local] {msg}");
+            ForkLog.Wrap(_logger)?.Info($"[Local] {msg}");
         }
 
         internal IDisposable BeginRealtimeLogThrottle()
@@ -353,7 +354,7 @@ namespace PlayniteAchievements.Providers.Local
             // Fetch toggle controls whether game/steam icon metadata gets injected upstream.
             var includeSchemaIconFallback = true;
             string configuredFolderOverridePath = null;
-            var hasFolderOverride = game != null && TryGetFolderOverride(game.Id, out configuredFolderOverridePath);
+            var hasFolderOverride = game != null && TryGetExpandedFolderOverride(game, out configuredFolderOverridePath);
             var hasDirectAchievementFileOverride = hasFolderOverride && File.Exists(configuredFolderOverridePath);
             if (hasFolderOverride &&
                 TryFindSovereignIniPathFromFolder(configuredFolderOverridePath, out var configuredSovereignIniPath) &&
@@ -386,7 +387,7 @@ namespace PlayniteAchievements.Providers.Local
 
                 if (string.IsNullOrEmpty(appId) &&
                     game != null &&
-                    TryGetFolderOverride(game.Id, out var tenokeOverrideFolderPath) &&
+                    TryGetExpandedFolderOverride(game, out var tenokeOverrideFolderPath) &&
                     TryFindTenokeIniPathFromFolder(tenokeOverrideFolderPath, out var discoveredTenokeIniPath) &&
                     TryExtractAppIdFromTenokeIni(discoveredTenokeIniPath, out var appIdFromTenokeIni))
                 {
@@ -543,8 +544,8 @@ namespace PlayniteAchievements.Providers.Local
                             includeIconMetadata: shouldFetchIconsFromGame);
                     }
 
-                    steamSchema ??= new SchemaAndPercentages();
-                    steamSchema.Achievements = customSchemaAchievements;
+                    steamSchema = (steamSchema ?? new SchemaAndPercentages())
+                        .WithAchievements(customSchemaAchievements);
                     steamSchemaSource = string.IsNullOrWhiteSpace(steamSchemaSource)
                         ? "custom-schema"
                         : $"custom-schema+{steamSchemaSource}";
@@ -920,7 +921,7 @@ namespace PlayniteAchievements.Providers.Local
             var appId = GetAppId(game, out _);
             int lumaAppId;
 
-            if (TryGetFolderOverride(game.Id, out var configuredFolderOverridePath) &&
+            if (TryGetExpandedFolderOverride(game, out var configuredFolderOverridePath) &&
                 TryFindSovereignIniPathFromFolder(configuredFolderOverridePath, out var sovereignIniPath) &&
                 TryExtractAppIdFromSovereignIni(sovereignIniPath, out var sovereignAppId))
             {
@@ -947,7 +948,7 @@ namespace PlayniteAchievements.Providers.Local
                     appId = lumaAppId.ToString(CultureInfo.InvariantCulture);
                     AddExistingPath(paths, lumaOverridePath);
                 }
-                else if (TryGetFolderOverride(game.Id, out var overriddenFolderPath))
+                else if (TryGetExpandedFolderOverride(game, out var overriddenFolderPath))
                 {
                     if (TryFindTenokeIniPathFromFolder(overriddenFolderPath, out var tenokePath) &&
                              TryExtractAppIdFromTenokeIni(tenokePath, out var tenokeAppId))
@@ -1095,6 +1096,19 @@ namespace PlayniteAchievements.Providers.Local
                    appId > 0;
         }
 
+        internal static IEnumerable<string> ExpandFolderPaths(IPlayniteAPI api, Game game, string path) =>
+            PathExpansion.ExpandCustomFolderPaths(api, game, path, candidate =>
+                TryResolveAppId(candidate, out var appId, out _) && appId > 0
+                    ? appId.ToString(CultureInfo.InvariantCulture) : null);
+
+        private bool TryGetExpandedFolderOverride(Game game, out string path)
+        {
+            path = null;
+            if (game == null || !TryGetFolderOverride(game.Id, out var configuredPath)) return false;
+            path = ExpandFolderPaths(_api, game, configuredPath).FirstOrDefault();
+            return !string.IsNullOrWhiteSpace(path);
+        }
+
         internal static bool TryGetFolderOverride(Guid gameId, out string folderPath)
         {
             folderPath = null;
@@ -1157,7 +1171,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.CustomSchemaEnabledOverrides[gameId] = isEnabled;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local custom schema enabled override for '{gameName}' to '{isEnabled}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local custom schema enabled override for '{gameName}' to '{isEnabled}'");
             return true;
         }
 
@@ -1176,7 +1190,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local custom schema enabled override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local custom schema enabled override for '{gameName}'");
             return true;
         }
 
@@ -1322,7 +1336,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared all Local overrides for '{gameName}'.");
+            ForkLog.Wrap(logger)?.Info($"Cleared all Local overrides for '{gameName}'.");
             return true;
         }
 
@@ -1355,7 +1369,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.SteamAppIdOverrides[gameId] = appId;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local Steam App ID override for '{gameName}' to {appId}");
+            ForkLog.Wrap(logger)?.Info($"Set Local Steam App ID override for '{gameName}' to {appId}");
             return true;
         }
 
@@ -1374,7 +1388,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local Steam App ID override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local Steam App ID override for '{gameName}'");
             return true;
         }
 
@@ -1390,7 +1404,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.LocalFolderOverrides[gameId] = normalizedPath;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local folder override for '{gameName}' to '{normalizedPath}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local folder override for '{gameName}' to '{normalizedPath}'");
             return true;
         }
 
@@ -1409,7 +1423,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.CustomSchemaEnabledOverrides[gameId] = true;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local custom schema override for '{gameName}' to '{normalizedPath}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local custom schema override for '{gameName}' to '{normalizedPath}'");
             return true;
         }
 
@@ -1438,7 +1452,7 @@ namespace PlayniteAchievements.Providers.Local
             selector(settings)[gameId] = path.Trim();
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local {label} override for '{gameName}' to '{path.Trim()}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local {label} override for '{gameName}' to '{path.Trim()}'");
             return true;
         }
 
@@ -1450,7 +1464,7 @@ namespace PlayniteAchievements.Providers.Local
             if (values == null || !values.Remove(gameId)) return false;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local {label} override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local {label} override for '{gameName}'");
             return true;
         }
 
@@ -1465,7 +1479,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.LumaPlayAppIdOverrides[gameId] = appId;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local LumaPlay Uplay App ID override for '{gameName}' to {appId}");
+            ForkLog.Wrap(logger)?.Info($"Set Local LumaPlay Uplay App ID override for '{gameName}' to {appId}");
             return true;
         }
 
@@ -1484,7 +1498,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local LumaPlay Uplay App ID override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local LumaPlay Uplay App ID override for '{gameName}'");
             return true;
         }
 
@@ -1500,7 +1514,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.LumaPlayIniPathOverrides[gameId] = normalizedPath;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local LumaPlay.ini override for '{gameName}' to '{normalizedPath}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local LumaPlay.ini override for '{gameName}' to '{normalizedPath}'");
             return true;
         }
 
@@ -1519,7 +1533,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local LumaPlay.ini override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local LumaPlay.ini override for '{gameName}'");
             return true;
         }
 
@@ -1538,7 +1552,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local folder override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local folder override for '{gameName}'");
             return true;
         }
 
@@ -1559,7 +1573,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local custom schema override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local custom schema override for '{gameName}'");
             return true;
         }
 
@@ -1576,7 +1590,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.SteamAppCacheUserOverrides[gameId] = normalizedUserId;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local Steam appcache user override for '{gameName}' to '{normalizedUserId}'");
+            ForkLog.Wrap(logger)?.Info($"Set Local Steam appcache user override for '{gameName}' to '{normalizedUserId}'");
             return true;
         }
 
@@ -1592,7 +1606,7 @@ namespace PlayniteAchievements.Providers.Local
             settings.RefreshOnGameCloseOverrides[gameId] = shouldRefresh;
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Set Local refresh-on-game-close override for '{gameName}' to '{shouldRefresh}'.");
+            ForkLog.Wrap(logger)?.Info($"Set Local refresh-on-game-close override for '{gameName}' to '{shouldRefresh}'.");
             return true;
         }
 
@@ -1611,7 +1625,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local Steam appcache user override for '{gameName}'");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local Steam appcache user override for '{gameName}'");
             return true;
         }
 
@@ -1630,7 +1644,7 @@ namespace PlayniteAchievements.Providers.Local
 
             ProviderRegistry.Write(settings);
             persistSettingsForUi?.Invoke();
-            logger?.Info($"Cleared Local refresh-on-game-close override for '{gameName}'.");
+            ForkLog.Wrap(logger)?.Info($"Cleared Local refresh-on-game-close override for '{gameName}'.");
             return true;
         }
 
@@ -1886,22 +1900,85 @@ namespace PlayniteAchievements.Providers.Local
 
         private bool TryGetInstallLocalAchievementFolder(Game game, out string folderPath)
         {
-            folderPath = null;
+            folderPath = GetInstallLocalAchievementFolders(game).FirstOrDefault();
+            return !string.IsNullOrWhiteSpace(folderPath);
+        }
+
+        private IEnumerable<string> GetInstallLocalAchievementFolders(Game game)
+        {
             if (game == null)
             {
-                return false;
+                yield break;
             }
 
             var installDirectory = PathExpansion.ExpandGamePath(_api, game, game.InstallDirectory)?.Trim();
-            if (string.IsNullOrWhiteSpace(installDirectory) ||
-                !Directory.Exists(installDirectory) ||
-                !HasLocalAchievementFiles(installDirectory))
+            var excludedPaths = GetExcludedLocalPathEntries(game).ToList();
+            if (string.IsNullOrWhiteSpace(installDirectory) || !Directory.Exists(installDirectory) ||
+                IsPathExcludedFromLocalScan(installDirectory, excludedPaths))
             {
-                return false;
+                yield break;
             }
 
-            folderPath = installDirectory;
-            return true;
+            if (HasLocalAchievementFiles(installDirectory))
+            {
+                yield return installDirectory;
+            }
+
+            foreach (var folder in EnumerateNestedSteamSettingsParents(installDirectory, excludedPaths))
+            {
+                if (HasLocalAchievementFiles(folder))
+                {
+                    yield return folder;
+                }
+            }
+        }
+
+        private static IEnumerable<string> EnumerateNestedSteamSettingsParents(string root, IReadOnlyList<string> excludedPaths)
+        {
+            var pending = new Stack<string>();
+            pending.Push(root);
+            while (pending.Count > 0)
+            {
+                var current = pending.Pop();
+                string[] children;
+                try
+                {
+                    children = Directory.GetDirectories(current);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (var child in children)
+                {
+                    try
+                    {
+                        if (IsPathExcludedFromLocalScan(child, excludedPaths) ||
+                            (File.GetAttributes(child) & FileAttributes.ReparsePoint) != 0)
+                        {
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(Path.GetFileName(child), "steam_settings", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // The existing resolver understands steam_settings and its settings/stats
+                        // children relative to the containing folder. The root was checked above.
+                        if (!string.Equals(current, root, StringComparison.OrdinalIgnoreCase))
+                        {
+                            yield return current;
+                        }
+                        continue;
+                    }
+
+                    pending.Push(child);
+                }
+            }
         }
 
         private static bool TryExtractAppIdFromSovereignIni(string iniPath, out int appId)
@@ -2219,7 +2296,7 @@ namespace PlayniteAchievements.Providers.Local
                         }
                         catch (Exception ex)
                         {
-                            _logger?.Debug(ex, $"[Local] Steam store search request failed for query '{query}'.");
+                            ForkLog.Wrap(_logger)?.Debug(ex, $"[Local] Steam store search request failed for query '{query}'.");
                             continue;
                         }
 
@@ -2297,7 +2374,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"[Local] Steam store search failed for game '{gameName}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"[Local] Steam store search failed for game '{gameName}'.");
                 _lumaPlaySteamAppIdCache[gameName] = 0;
                 return 0;
             }
@@ -4515,13 +4592,13 @@ namespace PlayniteAchievements.Providers.Local
                     }
                 }
 
-                _logger?.Debug(
+                ForkLog.Wrap(_logger)?.Debug(
                     $"[Local] Background Steam menu-user discovery completed: " +
                     $"users={users?.Count ?? 0}, ms={(DateTime.UtcNow - startedUtc).TotalMilliseconds:0}.");
             }
             catch (Exception ex)
             {
-                _logger?.Warn(ex, "[Local] Background Steam menu-user discovery failed.");
+                ForkLog.Wrap(_logger)?.Warn(ex, "[Local] Background Steam menu-user discovery failed.");
             }
             finally
             {
@@ -4724,20 +4801,65 @@ namespace PlayniteAchievements.Providers.Local
                 return false;
             }
 
-            return TryResolveLocalFolder(
+            var resolved = TryResolveLocalFolder(
                 game,
                 appId.ToString(CultureInfo.InvariantCulture),
                 out selectedFolderPath,
                 out candidateFolders,
                 out isOverridden,
                 out isAmbiguous);
+            selectedFolderPath = GetExistingPathDisplayCasing(selectedFolderPath);
+            candidateFolders = candidateFolders.Select(GetExistingPathDisplayCasing).ToList();
+            return resolved;
+        }
+
+        private static string GetExistingPathDisplayCasing(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return path;
+            }
+
+            try
+            {
+                var fullPath = Path.GetFullPath(path);
+                var root = Path.GetPathRoot(fullPath);
+                var current = root;
+                if (root.Length >= 2 && root[1] == ':')
+                {
+                    current = char.ToUpperInvariant(root[0]) + root.Substring(1);
+                }
+
+                // FullName alone preserves input casing. Read each directory entry to
+                // display its stored spelling without resolving junctions or symlinks.
+                foreach (var part in fullPath.Substring(root.Length).Split(
+                    new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                    StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var entry = Directory.EnumerateFileSystemEntries(current, part)
+                        .FirstOrDefault(candidate => string.Equals(
+                            Path.GetFileName(candidate), part, StringComparison.OrdinalIgnoreCase));
+                    if (entry == null)
+                    {
+                        return path;
+                    }
+                    current = entry;
+                }
+
+                return current;
+            }
+            catch
+            {
+                // Unavailable paths must remain usable in settings.
+                return path;
+            }
         }
 
         internal string GetLocalAchievementSourceDisplayPath(Game game, string folderOrFilePath)
         {
             if (string.IsNullOrWhiteSpace(folderOrFilePath) || File.Exists(folderOrFilePath))
             {
-                return folderOrFilePath ?? string.Empty;
+                return GetExistingPathDisplayCasing(folderOrFilePath) ?? string.Empty;
             }
 
             var sourcePaths = new List<string>();
@@ -4769,8 +4891,8 @@ namespace PlayniteAchievements.Providers.Local
             }
 
             return sourcePaths.Count > 0
-                ? string.Join(" | ", sourcePaths)
-                : folderOrFilePath;
+                ? string.Join(" | ", sourcePaths.Select(GetExistingPathDisplayCasing))
+                : GetExistingPathDisplayCasing(folderOrFilePath);
         }
 
         private static void AddSourcePathWithinFolder(ICollection<string> paths, string folderPath, string sourcePath)
@@ -8264,31 +8386,29 @@ namespace PlayniteAchievements.Providers.Local
             isOverridden = false;
             isAmbiguous = false;
 
-            if (game != null && TryGetFolderOverride(game.Id, out var overriddenFolderPath))
+            var candidates = string.IsNullOrWhiteSpace(appId)
+                ? new List<string>()
+                : FindLocalFolders(appId, game);
+            foreach (var installLocalFolder in GetInstallLocalAchievementFolders(game))
+            {
+                if (!candidates.Contains(installLocalFolder, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidates.Add(installLocalFolder);
+                }
+            }
+
+            if (game != null && TryGetExpandedFolderOverride(game, out var overriddenFolderPath))
             {
                 if (Directory.Exists(overriddenFolderPath) || File.Exists(overriddenFolderPath))
                 {
-                    var overrideCandidates = string.IsNullOrWhiteSpace(appId)
-                        ? new List<string>()
-                        : FindLocalFolders(appId);
-
                     folderPath = overriddenFolderPath;
-                    candidateFolders = overrideCandidates;
+                    candidateFolders = candidates;
                     isOverridden = true;
-                    isAmbiguous = overrideCandidates.Count > 1;
+                    isAmbiguous = candidates.Count > 1;
                     return true;
                 }
 
-                _logger?.Warn($"Local save folder or file override for '{game.Name}' no longer exists: {overriddenFolderPath}");
-            }
-
-            var candidates = string.IsNullOrWhiteSpace(appId)
-                ? new List<string>()
-                : FindLocalFolders(appId);
-            if (TryGetInstallLocalAchievementFolder(game, out var installLocalFolder) &&
-                !candidates.Contains(installLocalFolder, StringComparer.OrdinalIgnoreCase))
-            {
-                candidates.Add(installLocalFolder);
+                ForkLog.Wrap(_logger)?.Warn($"Local save folder or file override for '{game.Name}' no longer exists: {overriddenFolderPath}");
             }
 
             candidateFolders = candidates;
@@ -8310,25 +8430,32 @@ namespace PlayniteAchievements.Providers.Local
             return !string.IsNullOrWhiteSpace(folderPath);
         }
 
-        private List<string> FindLocalFolders(string appId)
+        private List<string> FindLocalFolders(string appId, Game game = null)
         {
             if (string.IsNullOrWhiteSpace(appId))
             {
                 return new List<string>();
             }
 
+            var customPaths = LocalSettings.SplitExtraLocalPaths(_pluginSettings?.Persisted?.ExtraLocalPaths).ToList();
+            var useCache = !customPaths.Any(PathExpansion.IsCustomFolderTemplate) &&
+                !LocalSettings.SplitExtraLocalPaths(_pluginSettings?.Persisted?.ExcludedLocalPaths)
+                    .Any(PathExpansion.IsCustomFolderTemplate);
             lock (_discoveryCacheLock)
             {
-                if (_localFolderCandidatesCache.TryGetValue(appId, out var cachedFolders))
+                if (useCache && _localFolderCandidatesCache.TryGetValue(appId, out var cachedFolders))
                 {
                     return cachedFolders.ToList();
                 }
             }
 
             var folders = new List<string>();
-            var excludedLocalPaths = GetExcludedLocalPathEntries().ToList();
+            var excludedLocalPaths = GetExcludedLocalPathEntries(game).ToList();
 
-            foreach (var root in GetLocalRootPaths())
+            var gameCustomRoots = game == null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) :
+                new HashSet<string>(customPaths.Where(PathExpansion.IsCustomFolderTemplate)
+                    .SelectMany(path => ExpandFolderPaths(_api, game, path)), StringComparer.OrdinalIgnoreCase);
+            foreach (var root in GetLocalRootPaths(game))
             {
                 if (string.IsNullOrWhiteSpace(root))
                 {
@@ -8344,6 +8471,10 @@ namespace PlayniteAchievements.Providers.Local
                 {
                     if (Directory.Exists(root))
                     {
+                        if (gameCustomRoots.Contains(root))
+                        {
+                            TryAddLocalFolderCandidate(folders, root);
+                        }
                         var candidate = Path.Combine(root, appId);
                         if (!IsPathExcludedFromLocalScan(candidate, excludedLocalPaths))
                         {
@@ -8393,7 +8524,7 @@ namespace PlayniteAchievements.Providers.Local
 
             lock (_discoveryCacheLock)
             {
-                _localFolderCandidatesCache[appId] = resolvedFolders;
+                if (useCache) _localFolderCandidatesCache[appId] = resolvedFolders;
             }
 
             return resolvedFolders.ToList();
@@ -8575,7 +8706,7 @@ namespace PlayniteAchievements.Providers.Local
             }
             catch (Exception ex)
             {
-                _logger?.Debug(ex, $"Failed to show Local folder ambiguity notification for '{game.Name}'.");
+                ForkLog.Wrap(_logger)?.Debug(ex, $"Failed to show Local folder ambiguity notification for '{game.Name}'.");
             }
         }
 
@@ -9212,7 +9343,7 @@ namespace PlayniteAchievements.Providers.Local
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Debug(ex, $"[Local] Steam Web API schema fetch failed for appId={appId}; falling back to anonymous sources.");
+                        ForkLog.Wrap(_logger)?.Debug(ex, $"[Local] Steam Web API schema fetch failed for appId={appId}; falling back to anonymous sources.");
                     }
                 }
 
@@ -10399,9 +10530,10 @@ namespace PlayniteAchievements.Providers.Local
         private IEnumerable<string> GetInstallSchemaFilePaths(int appId)
         {
             var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var excludedLocalPaths = GetExcludedLocalPathEntries().ToList();
+            var game = TryGetPlayniteGameForAppId(appId);
+            var excludedLocalPaths = GetExcludedLocalPathEntries(game).ToList();
 
-            foreach (var root in GetLocalRootPaths())
+            foreach (var root in GetLocalRootPaths(game))
             {
                 if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                 {
@@ -10420,7 +10552,7 @@ namespace PlayniteAchievements.Providers.Local
                         foreach (var relativePath in InstallSchemaRelativePaths)
                         {
                             var candidate = Path.Combine(directory, relativePath);
-                            if (File.Exists(candidate))
+                            if (File.Exists(candidate) && !IsPathExcludedFromLocalScan(candidate, excludedLocalPaths))
                             {
                                 candidates.Add(candidate);
                             }
@@ -10432,14 +10564,14 @@ namespace PlayniteAchievements.Providers.Local
                 }
             }
 
-            var game = TryGetPlayniteGameForAppId(appId);
             var installDirectory = PathExpansion.ExpandGamePath(_api, game, game?.InstallDirectory);
-            if (!string.IsNullOrWhiteSpace(installDirectory) && Directory.Exists(installDirectory))
+            if (!string.IsNullOrWhiteSpace(installDirectory) && Directory.Exists(installDirectory) &&
+                !IsPathExcludedFromLocalScan(installDirectory, excludedLocalPaths))
             {
                 foreach (var relativePath in InstallSchemaRelativePaths)
                 {
                     var candidate = Path.Combine(installDirectory, relativePath);
-                    if (File.Exists(candidate))
+                    if (File.Exists(candidate) && !IsPathExcludedFromLocalScan(candidate, excludedLocalPaths))
                     {
                         candidates.Add(candidate);
                     }
@@ -10449,7 +10581,8 @@ namespace PlayniteAchievements.Providers.Local
                 {
                     foreach (var nestedPath in Directory.EnumerateFiles(installDirectory, "achievements.json", SearchOption.AllDirectories))
                     {
-                        if (nestedPath.IndexOf("steam_settings", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if (nestedPath.IndexOf("steam_settings", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                            !IsPathExcludedFromLocalScan(nestedPath, excludedLocalPaths))
                         {
                             candidates.Add(nestedPath);
                         }
@@ -10723,7 +10856,7 @@ namespace PlayniteAchievements.Providers.Local
             return Math.Max(0d, Math.Min(100d, rawPercent.Value));
         }
 
-        private IEnumerable<string> GetLocalRootPaths()
+        private IEnumerable<string> GetLocalRootPaths(Game game = null)
         {
             var roots = new List<string>();
             var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -10772,22 +10905,23 @@ namespace PlayniteAchievements.Providers.Local
 
             foreach (var extraPath in LocalSettings.SplitExtraLocalPaths(_pluginSettings?.Persisted?.ExtraLocalPaths))
             {
-                var expanded = Environment.ExpandEnvironmentVariables(extraPath);
-                roots.Add(expanded);
+                roots.AddRange(ExpandFolderPaths(_api, game, extraPath));
             }
 
             return roots.Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
-        private IEnumerable<string> GetExcludedLocalPathEntries()
+        private IEnumerable<string> GetExcludedLocalPathEntries(Game game = null)
         {
             foreach (var excludedPath in LocalSettings.SplitExtraLocalPaths(_pluginSettings?.Persisted?.ExcludedLocalPaths))
             {
-                var expanded = Environment.ExpandEnvironmentVariables(excludedPath);
-                var normalized = NormalizeDirectoryPath(expanded);
-                if (!string.IsNullOrWhiteSpace(normalized))
+                foreach (var expanded in ExpandFolderPaths(_api, game, excludedPath))
                 {
-                    yield return normalized;
+                    var normalized = NormalizeDirectoryPath(expanded);
+                    if (!string.IsNullOrWhiteSpace(normalized))
+                    {
+                        yield return normalized;
+                    }
                 }
             }
         }

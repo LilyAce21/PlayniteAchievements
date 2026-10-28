@@ -346,6 +346,19 @@ namespace PlayniteAchievements.Providers.Steam.Models
 
     internal class SchemaAndPercentages
     {
+        // Override rows on a separate container so clearing a game's custom schema
+        // exposes the original cached Steam rows again.
+        public SchemaAndPercentages WithAchievements(List<SchemaAchievement> achievements)
+        {
+            return new SchemaAndPercentages
+            {
+                Achievements = achievements,
+                GlobalPercentages = GlobalPercentages,
+                Groups = Groups,
+                SchemaHash = SchemaHash
+            };
+        }
+
         public List<SchemaAchievement> Achievements { get; set; }
         public Dictionary<string, double> GlobalPercentages { get; set; }
 
