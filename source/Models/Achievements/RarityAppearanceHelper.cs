@@ -708,20 +708,75 @@ namespace PlayniteAchievements.Models.Achievements
             }
         }
 
-        public static ImageSource CreateBadgePreview(RarityTier tier, PersistedSettings settings)
+        public static ImageSource CreateBadgePreview(RarityTier tier, PersistedSettings settings, bool useCustomIcons = false)
         {
+            // A user-supplied rarity image (Display settings) wins over the drawn badge so the
+            // notification toast and frame match the grids and rarity views.
+            var custom = useCustomIcons ? LoadCustomIcon(GetRarityOverridePath(tier, settings)) : null;
+            if (custom != null)
+            {
+                return custom;
+            }
+
             var sourceKey = GetIconKey(tier, settings?.UseUniformRarityBadges ?? false);
             return CreateBadgeImage(tier, GetGeometryKeyForBadge(sourceKey), settings);
         }
 
-        public static ImageSource CreateCompletedBadgePreview(PersistedSettings settings)
+        public static ImageSource CreateCompletedBadgePreview(PersistedSettings settings, bool useCustomIcons = false)
         {
-            return CreateCompletedBadgeImage(settings);
+            return (useCustomIcons ? LoadCustomIcon(settings?.RarityIconOverrides?.Completed) : null)
+                   ?? CreateCompletedBadgeImage(settings);
         }
 
-        public static ImageSource CreateTrophyPreview(string trophyKey, PersistedSettings settings)
+        public static ImageSource CreateTrophyPreview(string trophyKey, PersistedSettings settings, bool useCustomIcons = false)
         {
-            return CreateTrophyImage(trophyKey, settings);
+            return (useCustomIcons ? LoadCustomIcon(GetTrophyOverridePath(trophyKey, settings)) : null)
+                   ?? CreateTrophyImage(trophyKey, settings);
+        }
+
+        /// <summary>
+        /// The Platinum trophy a capstone shows: the Capstone Platinum image, else the Platinum
+        /// trophy image, else the built-in trophy.
+        /// </summary>
+        public static ImageSource CreateCapstonePlatinumPreview(PersistedSettings settings)
+        {
+            return LoadCustomIcon(settings?.RarityIconOverrides?.CapstonePlatinum)
+                   ?? CreateTrophyPreview("TrophyPlatinum", settings, true);
+        }
+
+        private static string GetRarityOverridePath(RarityTier tier, PersistedSettings settings)
+        {
+            var overrides = settings?.RarityIconOverrides;
+            if (overrides == null)
+            {
+                return null;
+            }
+
+            switch (tier)
+            {
+                case RarityTier.UltraRare: return overrides.UltraRare;
+                case RarityTier.Rare: return overrides.Rare;
+                case RarityTier.Uncommon: return overrides.Uncommon;
+                default: return overrides.Common;
+            }
+        }
+
+        private static string GetTrophyOverridePath(string trophyKey, PersistedSettings settings)
+        {
+            var overrides = settings?.RarityIconOverrides;
+            if (overrides == null || string.IsNullOrWhiteSpace(trophyKey))
+            {
+                return null;
+            }
+
+            switch (trophyKey.Trim())
+            {
+                case "TrophyBronze": return overrides.TrophyBronze;
+                case "TrophySilver": return overrides.TrophySilver;
+                case "TrophyGold": return overrides.TrophyGold;
+                case "TrophyPlatinum": return overrides.TrophyPlatinum;
+                default: return null;
+            }
         }
 
         public static bool IsAppearanceSettingPropertyName(string propertyName)

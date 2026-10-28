@@ -835,7 +835,7 @@ namespace PlayniteAchievements.ViewModels
         /// selections rather than a rarity tier, because the completion notification carries no rarity.
         /// </summary>
         private bool HasSoftCompletionGlow => _settings.RarityGlowSoftTiers.IncludesCompleted();
-        public ImageSource CompletedBadgeImage => RarityAppearanceHelper.CreateCompletedBadgePreview(_settings);
+        public ImageSource CompletedBadgeImage => RarityAppearanceHelper.CreateCompletedBadgePreview(_settings, true);
         public Brush RarityBrush => RarityAppearanceHelper.GetBrush(_rarity, _settings);
 
         // Capstone color takes precedence over rarity, matching the grid's RarityNameBrush.
@@ -1022,18 +1022,25 @@ namespace PlayniteAchievements.ViewModels
 
         private ImageSource CreateBadge(bool completed)
         {
-            if (completed && !IsPlatinumCapstone)
+            // Capstones show the Platinum trophy (the Capstone Platinum image when set) when the
+            // capstone is a platinum or the "capstones use Platinum rarity" setting is on.
+            if (completed && (IsPlatinumCapstone || _settings?.CapstonesUsePlatinumRarity == true))
             {
-                return RarityAppearanceHelper.CreateCompletedBadgePreview(_settings);
+                return RarityAppearanceHelper.CreateCapstonePlatinumPreview(_settings);
+            }
+
+            if (completed)
+            {
+                return RarityAppearanceHelper.CreateCompletedBadgePreview(_settings, true);
             }
 
             if (HasTrophy)
             {
-                return RarityAppearanceHelper.CreateTrophyPreview(MapTrophyKey(_args.TrophyType), _settings);
+                return RarityAppearanceHelper.CreateTrophyPreview(MapTrophyKey(_args.TrophyType), _settings, true);
             }
 
             return HasRarityData
-                ? RarityAppearanceHelper.CreateBadgePreview(_rarity, _settings)
+                ? RarityAppearanceHelper.CreateBadgePreview(_rarity, _settings, true)
                 : null;
         }
 

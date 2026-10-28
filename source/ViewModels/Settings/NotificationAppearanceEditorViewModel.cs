@@ -1537,8 +1537,8 @@ namespace PlayniteAchievements.ViewModels.Settings
             {
                 var persisted = _settings.Persisted;
                 return tier.HasValue
-                    ? Models.Achievements.RarityAppearanceHelper.CreateBadgePreview(tier.Value, persisted)
-                    : Models.Achievements.RarityAppearanceHelper.CreateCompletedBadgePreview(persisted);
+                    ? Models.Achievements.RarityAppearanceHelper.CreateBadgePreview(tier.Value, persisted, true)
+                    : Models.Achievements.RarityAppearanceHelper.CreateCompletedBadgePreview(persisted, true);
             }
             catch (Exception ex)
             {
