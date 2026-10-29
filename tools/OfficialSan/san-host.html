@@ -739,6 +739,44 @@
         setBadge(payload, customisation, percent);
       }
 
+      /* Optional element overrides from the addon's own notification settings. They only change
+         what the theme's text/icon elements show and how large they are; the preset's layout,
+         animation and styling are left alone. */
+      function applyUpstreamElements(up) {
+        if (!up) return;
+        const hide = (id) => { const el = document.getElementById(id); if (el) el.style.display = "none"; };
+        const scaleFont = (id, factor) => {
+          const el = document.getElementById(id);
+          if (!el || !factor || Math.abs(factor - 1) < 0.01) return;
+          const size = parseFloat(getComputedStyle(el).fontSize);
+          if (size > 0) el.style.fontSize = (size * factor) + "px";
+        };
+        if (up.showHeader === false) hide("unlockmsg");
+        if (up.showName === false) hide("title");
+        if (up.showDescription === false) hide("desc");
+        if (up.showIcon === false) { hide("achiconwrapper"); hide("rightachicon"); }
+        if (up.showRarityPercent === false) {
+          document.querySelectorAll("[id*='percent'], [class*='percent']").forEach((el) => { el.style.display = "none"; });
+        }
+        scaleFont("unlockmsg", up.headerScale);
+        scaleFont("title", up.titleScale);
+        scaleFont("desc", up.bodyScale);
+        if (up.fontFamily) {
+          ["unlockmsg", "title", "desc"].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.style.fontFamily = '"' + up.fontFamily + '", ' + (getComputedStyle(el).fontFamily || "sans-serif");
+          });
+        }
+        if (up.rarityColor && up.rarityColoredName) {
+          const title = document.getElementById("title");
+          if (title) title.style.color = up.rarityColor;
+        }
+        if (up.rarityColor && up.glow) {
+          const target = document.getElementById("outerwrapper") || document.body;
+          target.style.filter = "drop-shadow(0 0 10px " + up.rarityColor + ") drop-shadow(0 0 18px " + up.rarityColor + ")";
+        }
+      }
+
       function notifyReady() {
         setVar("--bodyopacity", "1");
         setTimeout(() => {
@@ -767,6 +805,7 @@
           setBodyAttributes(payload, customisation);
           applyCustomFont(customisation);
           applySanVariables(payload, customisation);
+          try { applyUpstreamElements(payload.upstream); } catch (e) {}
           notifyReady();
         });
       });

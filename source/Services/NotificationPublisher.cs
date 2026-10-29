@@ -292,6 +292,12 @@ namespace PlayniteAchievements.Services
             bool isSettingsPreview = false)
         {
             var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
+            if ((overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>())?.UseOfficialSanTemplate == true &&
+                forcedStyle == null)
+            {
+                // The official SAN template plays its own per-rarity sound.
+                customSoundPath = null;
+            }
             if (!isSettingsPreview && progressContext?.IsPreview != true)
             {
                 var gameId = game?.Id ?? progressContext?.PlayniteGameId ?? Guid.Empty;
@@ -9188,6 +9194,8 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgress
         public bool IsCapstone { get; set; }
 
         public bool IsHidden { get; set; }
+
+        public bool IsCompletion { get; set; }
 
         public string RarityTier { get; set; }
 

@@ -328,7 +328,7 @@ namespace PlayniteAchievements.Services.Local
 
             var localSettings = ProviderRegistry.Settings<LocalSettings>();
             if (localSettings?.IsEnabled != true ||
-                !localSettings.EnableActiveGameMonitoring ||
+                !localSettings.AnyLiveDetectionActive ||
                 !_providerRegistry.IsProviderEnabled("Local"))
             {
                 return false;
@@ -352,8 +352,7 @@ namespace PlayniteAchievements.Services.Local
         private TimeSpan GetPollInterval()
         {
             var localSettings = ProviderRegistry.Settings<LocalSettings>();
-            var seconds = localSettings?.ActiveGameMonitoringIntervalSeconds ?? 5;
-            seconds = Math.Max(LocalSettings.MinActiveGameMonitoringIntervalSeconds, Math.Min(LocalSettings.MaxActiveGameMonitoringIntervalSeconds, seconds));
+            var seconds = localSettings?.EffectiveLiveDetectionIntervalSeconds ?? 5;
             return TimeSpan.FromSeconds(seconds);
         }
 

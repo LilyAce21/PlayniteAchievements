@@ -13,6 +13,8 @@ using Microsoft.Web.WebView2.Wpf;
 using Newtonsoft.Json.Linq;
 using Playnite.SDK.Models;
 using PlayniteAchievements.Models.Achievements;
+using PlayniteAchievements.Models.Settings;
+using PlayniteAchievements.Services.UI;
 using PlayniteAchievements.Providers.Local;
 using PlayniteAchievements.Services.Notifications;
 
@@ -96,30 +98,195 @@ namespace PlayniteAchievements.Services
             }
         }
 
-        private static string ChooseOfficialSanThemePath(LocalSettings settings, AchievementUnlockNotificationItem context, RarityTier tier)
+        private static readonly Random SanRandom = new Random();
+        private static readonly List<System.Windows.Media.MediaPlayer> ActiveSanPlayers = new List<System.Windows.Media.MediaPlayer>();
+
+        private static string OfficialSanProfileKey(AchievementUnlockNotificationItem context, RarityTier tier)
         {
-            string perRarity;
+            if (context != null && context.IsCompletion)
+            {
+                return "completion";
+            }
+
             if (context != null && context.IsCapstone)
             {
-                perRarity = settings.OfficialSanCapstoneThemePath;
+                return "capstone";
             }
-            else
+
+            switch (tier)
             {
-                switch (tier)
+                case RarityTier.UltraRare: return "ultrarare";
+                case RarityTier.Rare: return "rare";
+                case RarityTier.Uncommon: return "uncommon";
+                default: return "common";
+            }
+        }
+
+        private static bool ThemeFileUsable(OfficialSanSlot slot)
+        {
+            return slot != null && !string.IsNullOrWhiteSpace(slot.ThemePath) && File.Exists(slot.ThemePath);
+        }
+
+        /// <summary>
+        /// Picks the slot for one unlock: the profile's primary slot, or its second slot with a
+        /// 50/50 chance when that is enabled. A profile without a usable theme uses the Default profile.
+        /// </summary>
+        private static OfficialSanSlot PickOfficialSanSlot(LocalSettings settings, string profileKey, bool? forceAlt, out bool usedAlt)
+        {
+            usedAlt = false;
+            var profiles = settings.OfficialSanProfiles ?? new OfficialSanProfiles();
+            var profile = profiles.Get(profileKey);
+
+            var altUsable = ThemeFileUsable(profile.Alt) && (profile.AltEnabled || forceAlt == true);
+            if (altUsable)
+            {
+                bool takeAlt;
+                if (forceAlt.HasValue)
                 {
-                    case RarityTier.UltraRare: perRarity = settings.OfficialSanUltraRareThemePath; break;
-                    case RarityTier.Rare: perRarity = settings.OfficialSanRareThemePath; break;
-                    case RarityTier.Uncommon: perRarity = settings.OfficialSanUncommonThemePath; break;
-                    default: perRarity = settings.OfficialSanCommonThemePath; break;
+                    takeAlt = forceAlt.Value;
+                }
+                else
+                {
+                    lock (SanRandom)
+                    {
+                        takeAlt = SanRandom.Next(2) == 1;
+                    }
+                }
+
+                if (takeAlt)
+                {
+                    usedAlt = true;
+                    return profile.Alt;
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(perRarity) && File.Exists(perRarity))
+            if (ThemeFileUsable(profile.Primary))
             {
-                return perRarity;
+                return profile.Primary;
             }
 
-            return settings.OfficialSanThemePath;
+            var fallback = profiles.Default;
+            return ThemeFileUsable(fallback.Primary) ? fallback.Primary : null;
+        }
+
+        private void PlayOfficialSanSound(string path, int volumePercent)
+        {
+            if (string.IsNullOrWhiteSpace(path) || volumePercent <= 0)
+            {
+                return;
+            }
+
+            try
+            {
+                var resolved = ResolveSoundPath(path);
+                if (!File.Exists(resolved))
+                {
+                    ForkLog.Wrap(_logger)?.Warn($"[OfficialSan] Sound file not found: {resolved}");
+                    return;
+                }
+
+                var player = new System.Windows.Media.MediaPlayer();
+                lock (ActiveSanPlayers)
+                {
+                    ActiveSanPlayers.Add(player);
+                }
+
+                void Done()
+                {
+                    try { player.Stop(); player.Close(); } catch { }
+                    lock (ActiveSanPlayers)
+                    {
+                        ActiveSanPlayers.Remove(player);
+                    }
+                }
+
+                player.MediaEnded += (_, __) => Done();
+                player.MediaFailed += (_, __) => Done();
+                player.Volume = Math.Max(0.0, Math.Min(1.0, volumePercent / 100.0));
+                player.Open(new Uri(resolved));
+                player.Play();
+
+                var safety = new DispatcherTimer { Interval = TimeSpan.FromSeconds(45) };
+                safety.Tick += (_, __) => { safety.Stop(); Done(); };
+                safety.Start();
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Failed to play the notification sound.");
+            }
+        }
+
+        private JObject BuildUpstreamElementsPayload(string providerKey, RarityTier tier, bool capstone)
+        {
+            try
+            {
+                var persisted = _settings?.Persisted;
+                var toast = NotificationStyleResolver.Resolve(persisted, providerKey)?.Toast;
+                if (toast == null)
+                {
+                    return null;
+                }
+
+                var color = RarityAppearanceHelper.GetBaseColor(tier, persisted);
+                var colorText = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+                return new JObject
+                {
+                    ["showHeader"] = toast.ShowHeader,
+                    ["showName"] = toast.ShowName,
+                    ["showDescription"] = toast.ShowDescription,
+                    ["showIcon"] = toast.ShowIcon,
+                    ["showRarityPercent"] = toast.ShowRarityPercent,
+                    ["headerScale"] = toast.HeaderFontSize.HasValue ? toast.HeaderFontSize.Value / 11.0 : 1.0,
+                    ["titleScale"] = toast.TitleFontSize.HasValue ? toast.TitleFontSize.Value / 16.0 : 1.0,
+                    ["bodyScale"] = toast.BodyFontSize.HasValue ? toast.BodyFontSize.Value / 11.0 : 1.0,
+                    ["fontFamily"] = toast.FontFamily ?? string.Empty,
+                    ["rarityColor"] = colorText,
+                    ["rarityColoredName"] = toast.RarityColoredName,
+                    ["glow"] = toast.ShowRarityGlow || toast.NotificationBorderGlow
+                };
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Could not read the upstream element settings.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Sends a test notification through the official SAN template for one profile (and,
+        /// optionally, its second slot).
+        /// </summary>
+        public bool ShowOfficialSanTest(
+            LocalSettings settings,
+            string profileKey,
+            bool useAlt,
+            string gameName,
+            string achievementName,
+            string description,
+            string iconPath,
+            Game game)
+        {
+            var key = (profileKey ?? "common").Trim().ToLowerInvariant();
+            var context = new AchievementUnlockNotificationItem(achievementName, iconPath, description, 25, null, null)
+            {
+                IsCapstone = key == "capstone",
+                IsCompletion = key == "completion",
+                RarityTier = key == "ultrarare" ? "UltraRare" : key == "rare" ? "Rare" : key == "uncommon" ? "Uncommon" : "Common",
+                GlobalPercent = key == "ultrarare" ? 1.8 : key == "rare" ? 9.5 : key == "uncommon" ? 27.0 : key == "common" ? 64.0 : 3.0
+            };
+            RememberOfficialSanContext(gameName, context);
+            return TryShowOfficialSanNotification(
+                gameName,
+                achievementName,
+                iconPath,
+                "Local",
+                settings,
+                game,
+                description,
+                null,
+                null,
+                key,
+                useAlt);
         }
 
         private static string ToSanTier(RarityTier tier, bool capstone)
@@ -155,7 +322,7 @@ namespace PlayniteAchievements.Services
         /// theme's per-tier icon slots, so the theme keeps its layout but shows the user's artwork.
         /// Slots without a custom image keep the theme's own icon.
         /// </summary>
-        private void ApplyCustomRarityIconsToTheme(OfficialSanTheme theme)
+        private void ApplyCustomRarityIconsToTheme(OfficialSanTheme theme, bool completion)
         {
             var overrides = _settings?.Persisted?.RarityIconOverrides;
             if (overrides == null)
@@ -212,6 +379,11 @@ namespace PlayniteAchievements.Services
             Set(3, overrides.UltraRare, "percentbadgeimgsapphire");
             var capstoneImage = IsUsableImage(overrides.CapstonePlatinum) ? overrides.CapstonePlatinum : overrides.TrophyPlatinum;
             Set(4, capstoneImage, "percentbadgeimgplatinum");
+            if (completion && IsUsableImage(overrides.TrophyPlatinum))
+            {
+                presetIcons["plat"] = overrides.TrophyPlatinum;
+                changed = true;
+            }
 
             if (!changed)
             {
@@ -275,7 +447,9 @@ namespace PlayniteAchievements.Services
             Game game,
             string achievementDescription,
             string achievementRarity,
-            string achievementTrophy)
+            string achievementTrophy,
+            string forcedProfileKey = null,
+            bool? forcedAlt = null)
         {
             if (settings == null || !settings.UseOfficialSanTemplate)
             {
@@ -299,29 +473,35 @@ namespace PlayniteAchievements.Services
                 }
 
                 var capstone = context?.IsCapstone == true;
-                var themePath = ChooseOfficialSanThemePath(settings, context, tier);
-                if (string.IsNullOrWhiteSpace(themePath) || !File.Exists(themePath))
+                var completion = context?.IsCompletion == true;
+                var profileKey = string.IsNullOrWhiteSpace(forcedProfileKey)
+                    ? OfficialSanProfileKey(context, tier)
+                    : forcedProfileKey;
+                var slot = PickOfficialSanSlot(settings, profileKey, forcedAlt, out var usedAlt);
+                if (slot == null)
                 {
-                    ForkLog.Wrap(_logger)?.Warn("[OfficialSan] No .san theme is selected; using the regular renderer.");
+                    ForkLog.Wrap(_logger)?.Warn($"[OfficialSan] No .san theme is set for '{profileKey}' (or the Default profile); using the regular renderer.");
                     return false;
                 }
+
+                var themePath = slot.ThemePath;
 
                 var theme = OfficialSanThemeService.Load(themePath, runtimeRoot, OfficialSanCacheRoot());
                 if (settings.OfficialSanUseCustomRarityIcons)
                 {
-                    ApplyCustomRarityIconsToTheme(theme);
+                    ApplyCustomRarityIconsToTheme(theme, completion);
                 }
 
                 var scale = theme.ThemeScale * (settings.OfficialSanScalePercent / 100.0);
                 theme.Customisation["scale"] = scale * 100.0;
 
-                var displaySeconds = settings.OfficialSanDurationSeconds > 0
-                    ? settings.OfficialSanDurationSeconds
+                var displaySeconds = slot.DurationSeconds > 0
+                    ? slot.DurationSeconds
                     : theme.ThemeDisplayTimeSeconds;
 
-                var position = settings.OfficialSanUseThemePosition
+                var position = slot.UseThemePosition
                     ? SanToPosition(OfficialSanThemeService.PositionName(theme.Customisation))
-                    : settings.OfficialSanPosition;
+                    : slot.Position;
 
                 var percent = context?.GlobalPercent ?? ParsePercent(achievementRarity);
                 var hasPercent = !double.IsNaN(percent) && percent >= 0;
@@ -342,11 +522,11 @@ namespace PlayniteAchievements.Services
                     ["gameIconPath"] = gameIcon,
                     ["headerPath"] = header,
                     ["rarityPct"] = hasPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
-                    ["rarityTier"] = ToSanTier(tier, capstone),
+                    ["rarityTier"] = ToSanTier(tier, capstone && !completion),
                     ["trophyType"] = trophy,
-                    ["isRare"] = capstone || tier == RarityTier.Rare || tier == RarityTier.UltraRare,
-                    ["isPlatinum"] = false,
-                    ["isPsnPlatinum"] = capstone,
+                    ["isRare"] = capstone || completion || tier == RarityTier.Rare || tier == RarityTier.UltraRare,
+                    ["isPlatinum"] = completion,
+                    ["isPsnPlatinum"] = capstone && !completion,
                     ["hidden"] = settings.OfficialSanShowHiddenAsLocked && context?.IsHidden == true,
                     ["position"] = PositionToSan(position),
                     ["durationMs"] = (int)Math.Round(displaySeconds * 1000.0),
@@ -373,6 +553,15 @@ namespace PlayniteAchievements.Services
                         ["customisation"] = theme.Customisation
                     }
                 };
+
+                if (settings.OfficialSanApplyUpstreamElements)
+                {
+                    var upstream = BuildUpstreamElementsPayload(providerKey, tier, capstone || completion);
+                    if (upstream != null)
+                    {
+                        payload["upstream"] = upstream;
+                    }
+                }
 
                 var hostPath = Path.Combine(GetPluginAssemblyDirectory(), "Resources", "Tools", "OfficialSan", "san-host.html");
                 if (!File.Exists(hostPath))
@@ -468,7 +657,12 @@ namespace PlayniteAchievements.Services
 
                 closeTimer.Start();
                 window.Show();
-                ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Showing '{achievementName}' with theme '{theme.Label}' (preset '{theme.Preset}').");
+
+                var soundFile = slot.SoundMode == OfficialSanSoundMode.Theme
+                    ? OfficialSanThemeService.FindThemeSound(theme)
+                    : slot.SoundMode == OfficialSanSoundMode.File ? slot.SoundPath : string.Empty;
+                PlayOfficialSanSound(soundFile, slot.SoundVolume);
+                ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Showing '{achievementName}' ({profileKey}{(usedAlt ? ", second theme" : string.Empty)}) with theme '{theme.Label}' (preset '{theme.Preset}').");
                 return true;
             }
             catch (Exception ex)

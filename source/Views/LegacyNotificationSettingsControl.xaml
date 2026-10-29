@@ -2787,72 +2787,643 @@
                                 <CheckBox Content="Use official Steam Achievement Notifier (.san) template"
                                           IsChecked="{Binding UseOfficialSanTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                           Margin="0,0,0,4"/>
-                                <TextBlock Text="Draws an imported .san theme exactly as Steam Achievement Notifier does (its own layout, animation and styling), filled with this addon's achievement data. Replaces the Santodan-fork template; mutually exclusive with the upstream template."
-                                           Style="{StaticResource MutedTextStyle}"
-                                           Margin="18,0,0,8"
-                                           TextWrapping="Wrap"/>
-                                <StackPanel Margin="18,0,0,12"
-                                            Visibility="{Binding UseOfficialSanTemplate, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="Default .san theme" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
-                                    <DockPanel LastChildFill="True">
-                                        <Button Content="Clear" Tag="" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <Button Content="Browse..." Tag="" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <TextBox Text="{Binding OfficialSanThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanThemePath}"/>
+                                <TextBlock Text="Draws an imported .san theme exactly as Steam Achievement Notifier does (its own layout, animation and styling), filled with this addon's achievement data. Replaces the Santodan-fork template; mutually exclusive with the upstream template. Every setting below belongs to this template only."
+                                           Style="{StaticResource MutedTextStyle}" Margin="18,0,0,8" TextWrapping="Wrap"/>
+                                <StackPanel Margin="18,0,0,12" Visibility="{Binding UseOfficialSanTemplate, Converter={StaticResource BoolToVis}}">
+                                    <CheckBox Content="Live unlock detection (watch running games for new unlocks)"
+                                              IsChecked="{Binding OfficialSanLiveDetectionEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"/>
+                                    <DockPanel Margin="0,0,0,2" LastChildFill="False">
+                                        <TextBlock Text="Check for unlocks every (seconds, 1-60):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBox Text="{Binding OfficialSanPollingIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
                                     </DockPanel>
-                                    <TextBlock Text="Common unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
-                                    <DockPanel LastChildFill="True">
-                                        <Button Content="Clear" Tag="Common" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <Button Content="Browse..." Tag="Common" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <TextBox Text="{Binding OfficialSanCommonThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanCommonThemePath}"/>
-                                    </DockPanel>
-                                    <TextBlock Text="Uncommon unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
-                                    <DockPanel LastChildFill="True">
-                                        <Button Content="Clear" Tag="Uncommon" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <Button Content="Browse..." Tag="Uncommon" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <TextBox Text="{Binding OfficialSanUncommonThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanUncommonThemePath}"/>
-                                    </DockPanel>
-                                    <TextBlock Text="Rare unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
-                                    <DockPanel LastChildFill="True">
-                                        <Button Content="Clear" Tag="Rare" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <Button Content="Browse..." Tag="Rare" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <TextBox Text="{Binding OfficialSanRareThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanRareThemePath}"/>
-                                    </DockPanel>
-                                    <TextBlock Text="Ultra Rare unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
-                                    <DockPanel LastChildFill="True">
-                                        <Button Content="Clear" Tag="UltraRare" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <Button Content="Browse..." Tag="UltraRare" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <TextBox Text="{Binding OfficialSanUltraRareThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanUltraRareThemePath}"/>
-                                    </DockPanel>
-                                    <TextBlock Text="Capstone / completion unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
-                                    <DockPanel LastChildFill="True">
-                                        <Button Content="Clear" Tag="Capstone" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <Button Content="Browse..." Tag="Capstone" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
-                                        <TextBox Text="{Binding OfficialSanCapstoneThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanCapstoneThemePath}"/>
-                                    </DockPanel>
-                                    <TextBlock Text="Rarity themes left empty use the default theme. Each .san theme is a file exported from Steam Achievement Notifier's customiser."
-                                               Style="{StaticResource MutedTextStyle}" Margin="0,6,0,10" TextWrapping="Wrap"/>
-                                    <CheckBox Content="Use the screen position stored in the theme"
-                                              IsChecked="{Binding OfficialSanUseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
-                                    <DockPanel Margin="0,0,0,8" LastChildFill="False">
-                                        <TextBlock Text="Position:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
-                                        <ComboBox SelectedValue="{Binding OfficialSanPosition, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="180">
-                                            <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
-                                            <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
-                                            <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
-                                            <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
-                                            <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
-                                            <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
-                                        </ComboBox>
-                                    </DockPanel>
+                                    <TextBlock Text="Independent of the Santodan-fork monitoring switch, so this does not turn on the Santodan notifications. Lower values notice unlocks sooner but check more often."
+                                               Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                    <TabControl Margin="0,0,0,10">
+                                    <TabItem Header="Default">
+                                        <StackPanel Margin="8,8,8,4">
+                                        <TextBlock Text="Used by any rarity, capstone or completion tab that has no theme of its own." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button Content="Clear" Tag="Default.Primary" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <Button Content="Browse..." Tag="Default.Primary" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Default.Primary.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Default.Primary.ThemePath}"/>
+                                        </DockPanel>
+                                        <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Default.Primary.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.Primary.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.Primary.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                            <Button Content="Browse..." Tag="Default.Primary" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Default.Primary.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Default.Primary.SoundPath}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                    Value="{Binding OfficialSanProfiles.Default.Primary.SoundVolume, Mode=TwoWay}"/>
+                                            <TextBlock Text="{Binding OfficialSanProfiles.Default.Primary.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Default.Primary.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                        </DockPanel>
+                                        <Button Content="Test this theme" Tag="Default|Primary" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="12,3"/>
+                                        </StackPanel>
+                                    </TabItem>
+                                    <TabItem Header="Common">
+                                        <StackPanel Margin="8,8,8,4">
+                                        <TextBlock Text="Common unlocks." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button Content="Clear" Tag="Common.Primary" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <Button Content="Browse..." Tag="Common.Primary" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Common.Primary.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Common.Primary.ThemePath}"/>
+                                        </DockPanel>
+                                        <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Common.Primary.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.Primary.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.Primary.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                            <Button Content="Browse..." Tag="Common.Primary" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Common.Primary.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Common.Primary.SoundPath}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                    Value="{Binding OfficialSanProfiles.Common.Primary.SoundVolume, Mode=TwoWay}"/>
+                                            <TextBlock Text="{Binding OfficialSanProfiles.Common.Primary.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Common.Primary.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                        </DockPanel>
+                                        <Button Content="Test this theme" Tag="Common|Primary" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="12,3"/>
+                                        <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Common.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <StackPanel Visibility="{Binding OfficialSanProfiles.Common.AltEnabled, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Second theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel LastChildFill="True">
+                                                <Button Content="Clear" Tag="Common.Alt" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <Button Content="Browse..." Tag="Common.Alt" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Common.Alt.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Common.Alt.ThemePath}"/>
+                                            </DockPanel>
+                                            <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                      IsChecked="{Binding OfficialSanProfiles.Common.Alt.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.Alt.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                    <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                    <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                    <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                    <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                    <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.Alt.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                    <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                    <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                                <Button Content="Browse..." Tag="Common.Alt" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Common.Alt.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Common.Alt.SoundPath}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                        Value="{Binding OfficialSanProfiles.Common.Alt.SoundVolume, Mode=TwoWay}"/>
+                                                <TextBlock Text="{Binding OfficialSanProfiles.Common.Alt.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Common.Alt.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                            </DockPanel>
+                                            <Button Content="Test second theme" Tag="Common|Alt" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,4" Padding="12,3"/>
+                                        </StackPanel>
+                                        </StackPanel>
+                                    </TabItem>
+                                    <TabItem Header="Uncommon">
+                                        <StackPanel Margin="8,8,8,4">
+                                        <TextBlock Text="Uncommon unlocks." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button Content="Clear" Tag="Uncommon.Primary" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <Button Content="Browse..." Tag="Uncommon.Primary" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Uncommon.Primary.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Uncommon.Primary.ThemePath}"/>
+                                        </DockPanel>
+                                        <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Uncommon.Primary.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.Primary.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.Primary.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                            <Button Content="Browse..." Tag="Uncommon.Primary" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Uncommon.Primary.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Uncommon.Primary.SoundPath}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                    Value="{Binding OfficialSanProfiles.Uncommon.Primary.SoundVolume, Mode=TwoWay}"/>
+                                            <TextBlock Text="{Binding OfficialSanProfiles.Uncommon.Primary.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Uncommon.Primary.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                        </DockPanel>
+                                        <Button Content="Test this theme" Tag="Uncommon|Primary" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="12,3"/>
+                                        <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Uncommon.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <StackPanel Visibility="{Binding OfficialSanProfiles.Uncommon.AltEnabled, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Second theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel LastChildFill="True">
+                                                <Button Content="Clear" Tag="Uncommon.Alt" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <Button Content="Browse..." Tag="Uncommon.Alt" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Uncommon.Alt.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Uncommon.Alt.ThemePath}"/>
+                                            </DockPanel>
+                                            <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                      IsChecked="{Binding OfficialSanProfiles.Uncommon.Alt.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.Alt.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                    <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                    <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                    <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                    <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                    <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.Alt.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                    <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                    <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                                <Button Content="Browse..." Tag="Uncommon.Alt" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Uncommon.Alt.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Uncommon.Alt.SoundPath}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                        Value="{Binding OfficialSanProfiles.Uncommon.Alt.SoundVolume, Mode=TwoWay}"/>
+                                                <TextBlock Text="{Binding OfficialSanProfiles.Uncommon.Alt.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Uncommon.Alt.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                            </DockPanel>
+                                            <Button Content="Test second theme" Tag="Uncommon|Alt" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,4" Padding="12,3"/>
+                                        </StackPanel>
+                                        </StackPanel>
+                                    </TabItem>
+                                    <TabItem Header="Rare">
+                                        <StackPanel Margin="8,8,8,4">
+                                        <TextBlock Text="Rare unlocks." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button Content="Clear" Tag="Rare.Primary" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <Button Content="Browse..." Tag="Rare.Primary" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Rare.Primary.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Rare.Primary.ThemePath}"/>
+                                        </DockPanel>
+                                        <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Rare.Primary.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.Primary.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.Primary.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                            <Button Content="Browse..." Tag="Rare.Primary" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Rare.Primary.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Rare.Primary.SoundPath}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                    Value="{Binding OfficialSanProfiles.Rare.Primary.SoundVolume, Mode=TwoWay}"/>
+                                            <TextBlock Text="{Binding OfficialSanProfiles.Rare.Primary.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Rare.Primary.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                        </DockPanel>
+                                        <Button Content="Test this theme" Tag="Rare|Primary" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="12,3"/>
+                                        <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Rare.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <StackPanel Visibility="{Binding OfficialSanProfiles.Rare.AltEnabled, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Second theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel LastChildFill="True">
+                                                <Button Content="Clear" Tag="Rare.Alt" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <Button Content="Browse..." Tag="Rare.Alt" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Rare.Alt.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Rare.Alt.ThemePath}"/>
+                                            </DockPanel>
+                                            <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                      IsChecked="{Binding OfficialSanProfiles.Rare.Alt.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.Alt.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                    <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                    <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                    <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                    <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                    <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.Alt.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                    <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                    <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                                <Button Content="Browse..." Tag="Rare.Alt" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Rare.Alt.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Rare.Alt.SoundPath}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                        Value="{Binding OfficialSanProfiles.Rare.Alt.SoundVolume, Mode=TwoWay}"/>
+                                                <TextBlock Text="{Binding OfficialSanProfiles.Rare.Alt.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Rare.Alt.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                            </DockPanel>
+                                            <Button Content="Test second theme" Tag="Rare|Alt" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,4" Padding="12,3"/>
+                                        </StackPanel>
+                                        </StackPanel>
+                                    </TabItem>
+                                    <TabItem Header="Ultra Rare">
+                                        <StackPanel Margin="8,8,8,4">
+                                        <TextBlock Text="Ultra Rare unlocks." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button Content="Clear" Tag="UltraRare.Primary" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <Button Content="Browse..." Tag="UltraRare.Primary" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.UltraRare.Primary.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.UltraRare.Primary.ThemePath}"/>
+                                        </DockPanel>
+                                        <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.UltraRare.Primary.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.Primary.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.Primary.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                            <Button Content="Browse..." Tag="UltraRare.Primary" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.UltraRare.Primary.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.UltraRare.Primary.SoundPath}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                    Value="{Binding OfficialSanProfiles.UltraRare.Primary.SoundVolume, Mode=TwoWay}"/>
+                                            <TextBlock Text="{Binding OfficialSanProfiles.UltraRare.Primary.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.UltraRare.Primary.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                        </DockPanel>
+                                        <Button Content="Test this theme" Tag="UltraRare|Primary" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="12,3"/>
+                                        <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.UltraRare.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <StackPanel Visibility="{Binding OfficialSanProfiles.UltraRare.AltEnabled, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Second theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel LastChildFill="True">
+                                                <Button Content="Clear" Tag="UltraRare.Alt" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <Button Content="Browse..." Tag="UltraRare.Alt" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.UltraRare.Alt.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.UltraRare.Alt.ThemePath}"/>
+                                            </DockPanel>
+                                            <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                      IsChecked="{Binding OfficialSanProfiles.UltraRare.Alt.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.Alt.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                    <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                    <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                    <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                    <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                    <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.Alt.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                    <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                    <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                                <Button Content="Browse..." Tag="UltraRare.Alt" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.UltraRare.Alt.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.UltraRare.Alt.SoundPath}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                        Value="{Binding OfficialSanProfiles.UltraRare.Alt.SoundVolume, Mode=TwoWay}"/>
+                                                <TextBlock Text="{Binding OfficialSanProfiles.UltraRare.Alt.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.UltraRare.Alt.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                            </DockPanel>
+                                            <Button Content="Test second theme" Tag="UltraRare|Alt" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,4" Padding="12,3"/>
+                                        </StackPanel>
+                                        </StackPanel>
+                                    </TabItem>
+                                    <TabItem Header="Capstone">
+                                        <StackPanel Margin="8,8,8,4">
+                                        <TextBlock Text="Capstone achievements (the game's final, completion-grade achievement). Kept separate from the 100% completion notification." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button Content="Clear" Tag="Capstone.Primary" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <Button Content="Browse..." Tag="Capstone.Primary" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Capstone.Primary.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Capstone.Primary.ThemePath}"/>
+                                        </DockPanel>
+                                        <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Capstone.Primary.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.Primary.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.Primary.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                            <Button Content="Browse..." Tag="Capstone.Primary" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Capstone.Primary.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Capstone.Primary.SoundPath}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                    Value="{Binding OfficialSanProfiles.Capstone.Primary.SoundVolume, Mode=TwoWay}"/>
+                                            <TextBlock Text="{Binding OfficialSanProfiles.Capstone.Primary.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Capstone.Primary.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                        </DockPanel>
+                                        <Button Content="Test this theme" Tag="Capstone|Primary" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="12,3"/>
+                                        <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Capstone.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <StackPanel Visibility="{Binding OfficialSanProfiles.Capstone.AltEnabled, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Second theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel LastChildFill="True">
+                                                <Button Content="Clear" Tag="Capstone.Alt" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <Button Content="Browse..." Tag="Capstone.Alt" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Capstone.Alt.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Capstone.Alt.ThemePath}"/>
+                                            </DockPanel>
+                                            <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                      IsChecked="{Binding OfficialSanProfiles.Capstone.Alt.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.Alt.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                    <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                    <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                    <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                    <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                    <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.Alt.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                    <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                    <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                                <Button Content="Browse..." Tag="Capstone.Alt" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Capstone.Alt.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Capstone.Alt.SoundPath}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                        Value="{Binding OfficialSanProfiles.Capstone.Alt.SoundVolume, Mode=TwoWay}"/>
+                                                <TextBlock Text="{Binding OfficialSanProfiles.Capstone.Alt.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Capstone.Alt.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                            </DockPanel>
+                                            <Button Content="Test second theme" Tag="Capstone|Alt" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,4" Padding="12,3"/>
+                                        </StackPanel>
+                                        </StackPanel>
+                                    </TabItem>
+                                    <TabItem Header="100% Completion">
+                                        <StackPanel Margin="8,8,8,4">
+                                        <TextBlock Text="The notification shown when every achievement of a game is unlocked." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                        <TextBlock Text="Theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel LastChildFill="True">
+                                            <Button Content="Clear" Tag="Completion.Primary" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <Button Content="Browse..." Tag="Completion.Primary" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Completion.Primary.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Completion.Primary.ThemePath}"/>
+                                        </DockPanel>
+                                        <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Completion.Primary.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.Primary.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.Primary.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                            <Button Content="Browse..." Tag="Completion.Primary" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Completion.Primary.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Completion.Primary.SoundPath}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                    Value="{Binding OfficialSanProfiles.Completion.Primary.SoundVolume, Mode=TwoWay}"/>
+                                            <TextBlock Text="{Binding OfficialSanProfiles.Completion.Primary.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                            <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBox Text="{Binding OfficialSanProfiles.Completion.Primary.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                        </DockPanel>
+                                        <Button Content="Test this theme" Tag="Completion|Primary" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,8" Padding="12,3"/>
+                                        <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
+                                                  IsChecked="{Binding OfficialSanProfiles.Completion.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <StackPanel Visibility="{Binding OfficialSanProfiles.Completion.AltEnabled, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="Second theme" FontWeight="SemiBold" Margin="0,4,0,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text=".san theme" Margin="0,6,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel LastChildFill="True">
+                                                <Button Content="Clear" Tag="Completion.Alt" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <Button Content="Browse..." Tag="Completion.Alt" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Completion.Alt.ThemePath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Completion.Alt.ThemePath}"/>
+                                            </DockPanel>
+                                            <CheckBox Content="Use the screen position stored in the theme" Margin="0,8,0,4"
+                                                      IsChecked="{Binding OfficialSanProfiles.Completion.Alt.UseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Position (when the box above is off):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.Alt.Position, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                                    <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                                    <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                                    <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                                    <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                                    <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.Alt.SoundMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="150">
+                                                    <ComboBoxItem Content="Silent" Tag="{x:Static settings:OfficialSanSoundMode.Silent}"/>
+                                                    <ComboBoxItem Content="The theme's own sound" Tag="{x:Static settings:OfficialSanSoundMode.Theme}"/>
+                                                    <ComboBoxItem Content="A sound file" Tag="{x:Static settings:OfficialSanSoundMode.File}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel LastChildFill="True" Margin="0,0,0,6">
+                                                <Button Content="Browse..." Tag="Completion.Alt" Click="OfficialSanSoundBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Completion.Alt.SoundPath, Mode=OneWay}" IsReadOnly="True" ToolTip="{Binding OfficialSanProfiles.Completion.Alt.SoundPath}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Sound volume:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                                        Value="{Binding OfficialSanProfiles.Completion.Alt.SoundVolume, Mode=TwoWay}"/>
+                                                <TextBlock Text="{Binding OfficialSanProfiles.Completion.Alt.SoundVolume, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                                <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBox Text="{Binding OfficialSanProfiles.Completion.Alt.DurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
+                                            </DockPanel>
+                                            <Button Content="Test second theme" Tag="Completion|Alt" Click="OfficialSanTest_Click" HorizontalAlignment="Left" Margin="0,4,0,4" Padding="12,3"/>
+                                        </StackPanel>
+                                        </StackPanel>
+                                    </TabItem>
+                                    </TabControl>
+                                    <TextBlock Text="General" FontWeight="SemiBold" Margin="0,4,0,6" Foreground="{DynamicResource TextBrush}"/>
                                     <CheckBox Content="Show on the active game's monitor"
                                               IsChecked="{Binding OfficialSanShowOnActiveGameMonitor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
                                     <DockPanel Margin="0,0,0,8" LastChildFill="False">
-                                        <TextBlock Text="Scale (% of theme):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBlock Text="Scale (% of theme, all notifications):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                         <TextBox Text="{Binding OfficialSanScalePercent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="70"/>
-                                    </DockPanel>
-                                    <DockPanel Margin="0,0,0,8" LastChildFill="False">
-                                        <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
-                                        <TextBox Text="{Binding OfficialSanDurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="70"/>
                                     </DockPanel>
                                     <DockPanel Margin="0,0,0,8" LastChildFill="False">
                                         <TextBlock Text="Rarity percentage:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
@@ -2865,7 +3436,9 @@
                                     <CheckBox Content="Use my custom rarity / trophy / capstone Platinum icons (Display settings)"
                                               IsChecked="{Binding OfficialSanUseCustomRarityIcons, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
                                     <CheckBox Content="Show the theme's hidden-achievement icon for hidden achievements"
-                                              IsChecked="{Binding OfficialSanShowHiddenAsLocked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,0"/>
+                                              IsChecked="{Binding OfficialSanShowHiddenAsLocked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <CheckBox Content="Apply the upstream notification element settings (shown lines, text sizes, font, rarity-coloured name, rarity glow) on top of the theme"
+                                              IsChecked="{Binding OfficialSanApplyUpstreamElements, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,0"/>
                                 </StackPanel>
 
                                     </StackPanel>

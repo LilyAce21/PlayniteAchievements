@@ -668,13 +668,25 @@ namespace PlayniteAchievements
 
         private bool UsesCustomAchievementNotification(AchievementUnlockedEventArgs args)
         {
-            if (args == null || args.IsPreview || args.IsFriendUnlock || args.IsGameCompleted)
+            if (args == null || args.IsPreview || args.IsFriendUnlock)
             {
                 return false;
             }
 
             var localSettings = ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-            if (localSettings?.EnableActiveGameMonitoring != true || localSettings.UseUpstreamNotificationTemplate)
+            var officialSan = localSettings?.UseOfficialSanTemplate == true &&
+                              localSettings.UseUpstreamNotificationTemplate != true;
+
+            // The 100% completion notification is only drawn by the official SAN template; the
+            // Santodan-fork template leaves it to the standard toast.
+            if (args.IsGameCompleted && !officialSan)
+            {
+                return false;
+            }
+
+            var santodanLive = localSettings?.EnableActiveGameMonitoring == true &&
+                               localSettings.UseUpstreamNotificationTemplate != true;
+            if (!officialSan && !santodanLive)
             {
                 return false;
             }
@@ -703,14 +715,21 @@ namespace PlayniteAchievements
                         new[]
                         {
                             new AchievementUnlockNotificationItem(
-                                args.DisplayName ?? args.ApiName,
+                                string.IsNullOrWhiteSpace(args.DisplayName ?? args.ApiName) && args.IsGameCompleted
+                                    ? "100% Completed"
+                                    : args.DisplayName ?? args.ApiName,
                                 args.IconPath,
-                                args.Description,
+                                string.IsNullOrWhiteSpace(args.Description) && args.IsGameCompleted
+                                    ? (args.TotalCount > 0
+                                        ? $"{args.UnlockedCount} / {args.TotalCount} achievements unlocked"
+                                        : "All achievements unlocked")
+                                    : args.Description,
                                 args.Points ?? args.ScaledPoints,
                                 notificationRarity,
                                 args.TrophyType)
                             {
                                 IsCapstone = args.IsCapstone,
+                                IsCompletion = args.IsGameCompleted,
                                 IsHidden = args.IsHidden,
                                 RarityTier = args.RarityTier,
                                 GlobalPercent = args.GlobalPercent,

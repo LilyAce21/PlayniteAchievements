@@ -706,20 +706,15 @@ namespace PlayniteAchievements.Providers.Local
         // Every option below belongs to this template only; it does not read the upstream or the
         // Santodan template settings.
         private bool _useOfficialSanTemplate;
-        private string _officialSanThemePath = string.Empty;
-        private string _officialSanCommonThemePath = string.Empty;
-        private string _officialSanUncommonThemePath = string.Empty;
-        private string _officialSanRareThemePath = string.Empty;
-        private string _officialSanUltraRareThemePath = string.Empty;
-        private string _officialSanCapstoneThemePath = string.Empty;
-        private bool _officialSanUseThemePosition = true;
-        private LocalUnlockOverlayPosition _officialSanPosition = LocalUnlockOverlayPosition.BottomCenter;
+        private Models.Settings.OfficialSanProfiles _officialSanProfiles = new Models.Settings.OfficialSanProfiles();
         private bool _officialSanShowOnActiveGameMonitor;
         private int _officialSanScalePercent = 100;
-        private int _officialSanDurationSeconds;
         private OfficialSanPercentMode _officialSanPercentMode = OfficialSanPercentMode.Theme;
         private bool _officialSanUseCustomRarityIcons = true;
         private bool _officialSanShowHiddenAsLocked = true;
+        private bool _officialSanApplyUpstreamElements;
+        private bool _officialSanLiveDetectionEnabled = true;
+        private int _officialSanPollingIntervalSeconds = 2;
 
         public bool UseOfficialSanTemplate
         {
@@ -733,19 +728,13 @@ namespace PlayniteAchievements.Providers.Local
             }
         }
 
-        /// <summary>The .san theme used when no per-rarity theme below applies.</summary>
-        public string OfficialSanThemePath { get => _officialSanThemePath; set => SetValue(ref _officialSanThemePath, value ?? string.Empty); }
-        public string OfficialSanCommonThemePath { get => _officialSanCommonThemePath; set => SetValue(ref _officialSanCommonThemePath, value ?? string.Empty); }
-        public string OfficialSanUncommonThemePath { get => _officialSanUncommonThemePath; set => SetValue(ref _officialSanUncommonThemePath, value ?? string.Empty); }
-        public string OfficialSanRareThemePath { get => _officialSanRareThemePath; set => SetValue(ref _officialSanRareThemePath, value ?? string.Empty); }
-        public string OfficialSanUltraRareThemePath { get => _officialSanUltraRareThemePath; set => SetValue(ref _officialSanUltraRareThemePath, value ?? string.Empty); }
+        /// <summary>Per-rarity, capstone and completion notification setups (theme, position, sound, volume, time, second theme).</summary>
+        public Models.Settings.OfficialSanProfiles OfficialSanProfiles
+        {
+            get => _officialSanProfiles;
+            set => SetValue(ref _officialSanProfiles, value ?? new Models.Settings.OfficialSanProfiles());
+        }
 
-        /// <summary>Theme for capstone / completion-grade unlocks (the Platinum-style notification).</summary>
-        public string OfficialSanCapstoneThemePath { get => _officialSanCapstoneThemePath; set => SetValue(ref _officialSanCapstoneThemePath, value ?? string.Empty); }
-
-        /// <summary>True keeps the screen position the .san theme was authored with.</summary>
-        public bool OfficialSanUseThemePosition { get => _officialSanUseThemePosition; set => SetValue(ref _officialSanUseThemePosition, value); }
-        public LocalUnlockOverlayPosition OfficialSanPosition { get => _officialSanPosition; set => SetValue(ref _officialSanPosition, value); }
         public bool OfficialSanShowOnActiveGameMonitor { get => _officialSanShowOnActiveGameMonitor; set => SetValue(ref _officialSanShowOnActiveGameMonitor, value); }
 
         /// <summary>Extra scale on top of the theme's own scale (100 = as authored).</summary>
@@ -755,13 +744,6 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _officialSanScalePercent, Math.Max(25, Math.Min(400, value)));
         }
 
-        /// <summary>Seconds the notification stays up; 0 keeps the theme's own display time.</summary>
-        public int OfficialSanDurationSeconds
-        {
-            get => _officialSanDurationSeconds;
-            set => SetValue(ref _officialSanDurationSeconds, Math.Max(0, Math.Min(60, value)));
-        }
-
         public OfficialSanPercentMode OfficialSanPercentMode { get => _officialSanPercentMode; set => SetValue(ref _officialSanPercentMode, value); }
 
         /// <summary>Feeds the Display-settings custom rarity / trophy / capstone Platinum images into the theme.</summary>
@@ -769,6 +751,46 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Marks hidden achievements so themes with a hidden-icon element show it.</summary>
         public bool OfficialSanShowHiddenAsLocked { get => _officialSanShowHiddenAsLocked; set => SetValue(ref _officialSanShowHiddenAsLocked, value); }
+
+        /// <summary>
+        /// Applies the upstream notification element settings (which lines show, text sizes, fonts,
+        /// rarity-coloured name, rarity glow) on top of the .san theme. The theme's layout and
+        /// animation are not touched.
+        /// </summary>
+        /// <summary>
+        /// Live unlock detection for the official SAN template: games are monitored while they run
+        /// so an unlock is noticed within the interval below. Independent of the Santodan-fork
+        /// "active game monitoring" switch, so turning it on does not enable the Santodan notifications.
+        /// </summary>
+        public bool OfficialSanLiveDetectionEnabled { get => _officialSanLiveDetectionEnabled; set => SetValue(ref _officialSanLiveDetectionEnabled, value); }
+
+        /// <summary>Seconds between unlock checks for the official SAN template (1-60).</summary>
+        public int OfficialSanPollingIntervalSeconds
+        {
+            get => _officialSanPollingIntervalSeconds;
+            set => SetValue(
+                ref _officialSanPollingIntervalSeconds,
+                Math.Max(MinActiveGameMonitoringIntervalSeconds, Math.Min(MaxActiveGameMonitoringIntervalSeconds, value)));
+        }
+
+        /// <summary>True while the official SAN template is in use with its own live detection on.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool OfficialSanLiveDetectionActive =>
+            _useOfficialSanTemplate && _officialSanLiveDetectionEnabled && !_useUpstreamNotificationTemplate;
+
+        /// <summary>True when either the Santodan-fork monitoring or the official SAN live detection is on.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool AnyLiveDetectionActive => _enableActiveGameMonitoring || OfficialSanLiveDetectionActive;
+
+        /// <summary>The unlock-check interval in effect; the official SAN template's own interval wins while it is active.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public int EffectiveLiveDetectionIntervalSeconds => Math.Max(
+            MinActiveGameMonitoringIntervalSeconds,
+            Math.Min(
+                MaxActiveGameMonitoringIntervalSeconds,
+                OfficialSanLiveDetectionActive ? _officialSanPollingIntervalSeconds : _activeGameMonitoringIntervalSeconds));
+
+        public bool OfficialSanApplyUpstreamElements { get => _officialSanApplyUpstreamElements; set => SetValue(ref _officialSanApplyUpstreamElements, value); }
 
         public bool EnableActiveGameMonitoring
         {

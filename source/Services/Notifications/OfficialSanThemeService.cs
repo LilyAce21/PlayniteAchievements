@@ -494,6 +494,32 @@ namespace PlayniteAchievements.Services.Notifications
             return customisation;
         }
 
+        private static readonly HashSet<string> SoundExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".wav", ".mp3", ".ogg", ".aac", ".flac", ".m4a"
+        };
+
+        /// <summary>The first sound file bundled inside the theme, or empty when it has none.</summary>
+        public static string FindThemeSound(OfficialSanTheme theme)
+        {
+            try
+            {
+                if (theme == null || !Directory.Exists(theme.CacheDir))
+                {
+                    return string.Empty;
+                }
+
+                return Directory.EnumerateFiles(theme.CacheDir, "*.*", SearchOption.AllDirectories)
+                           .Where(file => SoundExtensions.Contains(Path.GetExtension(file)))
+                           .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
+                           .FirstOrDefault() ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
         /// <summary>The 10-by-10 grid of SAN screen positions the theme can be authored for.</summary>
         public static string PositionName(JObject customisation)
         {

@@ -2881,37 +2881,64 @@ namespace PlayniteAchievements.Views
             NotificationsUnlockSoundStatusTextBlock.Text = "Custom background image cleared.";
         }
 
-        private static void SetOfficialSanThemePath(Providers.Local.LocalSettings settings, string slot, string value)
+        private static Models.Settings.OfficialSanSlot ResolveOfficialSanSlot(Providers.Local.LocalSettings settings, string tag)
         {
-            switch (slot)
+            var parts = (tag ?? string.Empty).Split('.', '|');
+            var profile = settings?.OfficialSanProfiles?.Get(parts.Length > 0 ? parts[0] : null);
+            if (profile == null)
             {
-                case "Common": settings.OfficialSanCommonThemePath = value; break;
-                case "Uncommon": settings.OfficialSanUncommonThemePath = value; break;
-                case "Rare": settings.OfficialSanRareThemePath = value; break;
-                case "UltraRare": settings.OfficialSanUltraRareThemePath = value; break;
-                case "Capstone": settings.OfficialSanCapstoneThemePath = value; break;
-                default: settings.OfficialSanThemePath = value; break;
+                return null;
             }
+
+            return parts.Length > 1 && string.Equals(parts[1], "Alt", StringComparison.OrdinalIgnoreCase)
+                ? profile.Alt
+                : profile.Primary;
         }
 
         private void OfficialSanThemeBrowse_Click(object sender, RoutedEventArgs e)
         {
             var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
-            if (localSettings == null)
+            var slot = ResolveOfficialSanSlot(localSettings, (sender as FrameworkElement)?.Tag as string);
+            if (slot == null)
             {
                 return;
             }
 
             var selectedPath = _plugin?.PlayniteApi?.Dialogs?.SelectFile("Steam Achievement Notifier themes|*.san|All files|*.*");
-            if (string.IsNullOrWhiteSpace(selectedPath))
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                slot.ThemePath = selectedPath;
+            }
+        }
+
+        private void OfficialSanThemeClear_Click(object sender, RoutedEventArgs e)
+        {
+            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            var slot = ResolveOfficialSanSlot(localSettings, (sender as FrameworkElement)?.Tag as string);
+            if (slot != null)
+            {
+                slot.ThemePath = string.Empty;
+            }
+        }
+
+        private void OfficialSanSoundBrowse_Click(object sender, RoutedEventArgs e)
+        {
+            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            var slot = ResolveOfficialSanSlot(localSettings, (sender as FrameworkElement)?.Tag as string);
+            if (slot == null)
             {
                 return;
             }
 
-            SetOfficialSanThemePath(localSettings, (sender as FrameworkElement)?.Tag as string, selectedPath);
+            var selectedPath = _plugin?.PlayniteApi?.Dialogs?.SelectFile("Sound files|*.wav;*.mp3;*.ogg;*.flac;*.m4a;*.aac|All files|*.*");
+            if (!string.IsNullOrWhiteSpace(selectedPath))
+            {
+                slot.SoundPath = selectedPath;
+                slot.SoundMode = Models.Settings.OfficialSanSoundMode.File;
+            }
         }
 
-        private void OfficialSanThemeClear_Click(object sender, RoutedEventArgs e)
+        private void OfficialSanTest_Click(object sender, RoutedEventArgs e)
         {
             var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
             if (localSettings == null)
@@ -2919,7 +2946,39 @@ namespace PlayniteAchievements.Views
                 return;
             }
 
-            SetOfficialSanThemePath(localSettings, (sender as FrameworkElement)?.Tag as string, string.Empty);
+            var parts = (((sender as FrameworkElement)?.Tag as string) ?? "Common|Primary").Split('|');
+            var profileKey = parts[0];
+            var useAlt = parts.Length > 1 && string.Equals(parts[1], "Alt", StringComparison.OrdinalIgnoreCase);
+
+            if (!localSettings.UseOfficialSanTemplate)
+            {
+                NotificationsUnlockSoundStatusTextBlock.Text = "Turn on the official SAN template first.";
+                return;
+            }
+
+            try
+            {
+                var previewGame = GetSelectedNotificationPreviewGame();
+                var previewGameName = string.IsNullOrWhiteSpace(previewGame?.Name) ? "Current Game" : previewGame.Name;
+                var previewAchievement = GetSelectedNotificationPreviewAchievement();
+                var publisher = new NotificationPublisher(_plugin?.PlayniteApi, _settingsViewModel?.Settings, _logger);
+                var shown = publisher.ShowOfficialSanTest(
+                    localSettings,
+                    profileKey,
+                    useAlt,
+                    previewGameName,
+                    previewAchievement?.DisplayName ?? "Test Achievement",
+                    previewAchievement?.Description ?? "Test description for preview.",
+                    previewAchievement?.UnlockedIconPath,
+                    previewGame);
+                NotificationsUnlockSoundStatusTextBlock.Text = shown
+                    ? $"Test sent for {profileKey}{(useAlt ? " (second theme)" : string.Empty)}."
+                    : $"No .san theme is set for {profileKey} (or the Default tab).";
+            }
+            catch (Exception ex)
+            {
+                NotificationsUnlockSoundStatusTextBlock.Text = $"Failed to send test notification: {ex.Message}";
+            }
         }
 
         private void NotificationsCustomCoverImageBrowse_Click(object sender, RoutedEventArgs e)

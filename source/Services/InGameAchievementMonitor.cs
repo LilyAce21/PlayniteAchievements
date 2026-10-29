@@ -1884,7 +1884,7 @@ namespace PlayniteAchievements.Services
         {
             var persisted = _settings?.Persisted;
             var customNotificationsEnabled =
-                ProviderRegistry.Settings<LocalSettings>()?.EnableActiveGameMonitoring == true;
+                ProviderRegistry.Settings<LocalSettings>()?.AnyLiveDetectionActive == true;
             if (persisted?.EnableInGamePolling != true && !customNotificationsEnabled)
             {
                 if (logReason) _logger?.Debug("[InGameMonitor] Disabled in settings.");
@@ -1918,14 +1918,9 @@ namespace PlayniteAchievements.Services
         private TimeSpan GetPollInterval()
         {
             var customSettings = ProviderRegistry.Settings<LocalSettings>();
-            if (customSettings?.EnableActiveGameMonitoring == true)
+            if (customSettings?.AnyLiveDetectionActive == true)
             {
-                var seconds = Math.Max(
-                    LocalSettings.MinActiveGameMonitoringIntervalSeconds,
-                    Math.Min(
-                        LocalSettings.MaxActiveGameMonitoringIntervalSeconds,
-                        customSettings.ActiveGameMonitoringIntervalSeconds));
-                return TimeSpan.FromSeconds(seconds);
+                return TimeSpan.FromSeconds(customSettings.EffectiveLiveDetectionIntervalSeconds);
             }
 
             return TimeSpan.FromSeconds(Math.Max(10, _settings?.Persisted?.InGamePollIntervalSeconds ?? 15));
