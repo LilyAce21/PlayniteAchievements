@@ -2784,6 +2784,89 @@
                                            Style="{StaticResource MutedTextStyle}"
                                            Margin="18,0,0,12"
                                            TextWrapping="Wrap"/>
+                                <CheckBox Content="Use official Steam Achievement Notifier (.san) template"
+                                          IsChecked="{Binding UseOfficialSanTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          Margin="0,0,0,4"/>
+                                <TextBlock Text="Draws an imported .san theme exactly as Steam Achievement Notifier does (its own layout, animation and styling), filled with this addon's achievement data. Replaces the Santodan-fork template; mutually exclusive with the upstream template."
+                                           Style="{StaticResource MutedTextStyle}"
+                                           Margin="18,0,0,8"
+                                           TextWrapping="Wrap"/>
+                                <StackPanel Margin="18,0,0,12"
+                                            Visibility="{Binding UseOfficialSanTemplate, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="Default .san theme" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                    <DockPanel LastChildFill="True">
+                                        <Button Content="Clear" Tag="" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <Button Content="Browse..." Tag="" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <TextBox Text="{Binding OfficialSanThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanThemePath}"/>
+                                    </DockPanel>
+                                    <TextBlock Text="Common unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                    <DockPanel LastChildFill="True">
+                                        <Button Content="Clear" Tag="Common" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <Button Content="Browse..." Tag="Common" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <TextBox Text="{Binding OfficialSanCommonThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanCommonThemePath}"/>
+                                    </DockPanel>
+                                    <TextBlock Text="Uncommon unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                    <DockPanel LastChildFill="True">
+                                        <Button Content="Clear" Tag="Uncommon" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <Button Content="Browse..." Tag="Uncommon" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <TextBox Text="{Binding OfficialSanUncommonThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanUncommonThemePath}"/>
+                                    </DockPanel>
+                                    <TextBlock Text="Rare unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                    <DockPanel LastChildFill="True">
+                                        <Button Content="Clear" Tag="Rare" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <Button Content="Browse..." Tag="Rare" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <TextBox Text="{Binding OfficialSanRareThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanRareThemePath}"/>
+                                    </DockPanel>
+                                    <TextBlock Text="Ultra Rare unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                    <DockPanel LastChildFill="True">
+                                        <Button Content="Clear" Tag="UltraRare" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <Button Content="Browse..." Tag="UltraRare" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <TextBox Text="{Binding OfficialSanUltraRareThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanUltraRareThemePath}"/>
+                                    </DockPanel>
+                                    <TextBlock Text="Capstone / completion unlocks (optional)" Margin="0,8,0,2" Foreground="{DynamicResource TextBrush}"/>
+                                    <DockPanel LastChildFill="True">
+                                        <Button Content="Clear" Tag="Capstone" Click="OfficialSanThemeClear_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <Button Content="Browse..." Tag="Capstone" Click="OfficialSanThemeBrowse_Click" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,2"/>
+                                        <TextBox Text="{Binding OfficialSanCapstoneThemePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" ToolTip="{Binding OfficialSanCapstoneThemePath}"/>
+                                    </DockPanel>
+                                    <TextBlock Text="Rarity themes left empty use the default theme. Each .san theme is a file exported from Steam Achievement Notifier's customiser."
+                                               Style="{StaticResource MutedTextStyle}" Margin="0,6,0,10" TextWrapping="Wrap"/>
+                                    <CheckBox Content="Use the screen position stored in the theme"
+                                              IsChecked="{Binding OfficialSanUseThemePosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <DockPanel Margin="0,0,0,8" LastChildFill="False">
+                                        <TextBlock Text="Position:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <ComboBox SelectedValue="{Binding OfficialSanPosition, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="180">
+                                            <ComboBoxItem Content="Top right" Tag="{x:Static local:LocalUnlockOverlayPosition.TopRight}"/>
+                                            <ComboBoxItem Content="Top left" Tag="{x:Static local:LocalUnlockOverlayPosition.TopLeft}"/>
+                                            <ComboBoxItem Content="Top center" Tag="{x:Static local:LocalUnlockOverlayPosition.TopCenter}"/>
+                                            <ComboBoxItem Content="Bottom right" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomRight}"/>
+                                            <ComboBoxItem Content="Bottom left" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomLeft}"/>
+                                            <ComboBoxItem Content="Bottom center" Tag="{x:Static local:LocalUnlockOverlayPosition.BottomCenter}"/>
+                                        </ComboBox>
+                                    </DockPanel>
+                                    <CheckBox Content="Show on the active game's monitor"
+                                              IsChecked="{Binding OfficialSanShowOnActiveGameMonitor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                                    <DockPanel Margin="0,0,0,8" LastChildFill="False">
+                                        <TextBlock Text="Scale (% of theme):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBox Text="{Binding OfficialSanScalePercent, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="70"/>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,8" LastChildFill="False">
+                                        <TextBlock Text="Display time in seconds (0 = theme's own):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <TextBox Text="{Binding OfficialSanDurationSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="70"/>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,8" LastChildFill="False">
+                                        <TextBlock Text="Rarity percentage:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <ComboBox SelectedValue="{Binding OfficialSanPercentMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="200">
+                                            <ComboBoxItem Content="As the theme decides" Tag="{x:Static local:OfficialSanPercentMode.Theme}"/>
+                                            <ComboBoxItem Content="Always show" Tag="{x:Static local:OfficialSanPercentMode.Always}"/>
+                                            <ComboBoxItem Content="Never show" Tag="{x:Static local:OfficialSanPercentMode.Never}"/>
+                                        </ComboBox>
+                                    </DockPanel>
+                                    <CheckBox Content="Use my custom rarity / trophy / capstone Platinum icons (Display settings)"
+                                              IsChecked="{Binding OfficialSanUseCustomRarityIcons, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <CheckBox Content="Show the theme's hidden-achievement icon for hidden achievements"
+                                              IsChecked="{Binding OfficialSanShowHiddenAsLocked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,0"/>
+                                </StackPanel>
 
                                     </StackPanel>
                                 </Border>

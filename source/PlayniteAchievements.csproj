@@ -269,6 +269,14 @@
       <Link>Resources\Tools\notification-template-builder.html</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\tools\OfficialSan\san-host.html">
+      <Link>Resources\Tools\OfficialSan\san-host.html</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\tools\OfficialSan\runtime\**\*.*">
+      <Link>Resources\Tools\OfficialSan\runtime\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="..\tools\SAN-source\notify\**\*.*">
       <Link>Resources\Tools\SAN-source\notify\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

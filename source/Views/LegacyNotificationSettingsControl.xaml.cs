@@ -2881,6 +2881,47 @@ namespace PlayniteAchievements.Views
             NotificationsUnlockSoundStatusTextBlock.Text = "Custom background image cleared.";
         }
 
+        private static void SetOfficialSanThemePath(Providers.Local.LocalSettings settings, string slot, string value)
+        {
+            switch (slot)
+            {
+                case "Common": settings.OfficialSanCommonThemePath = value; break;
+                case "Uncommon": settings.OfficialSanUncommonThemePath = value; break;
+                case "Rare": settings.OfficialSanRareThemePath = value; break;
+                case "UltraRare": settings.OfficialSanUltraRareThemePath = value; break;
+                case "Capstone": settings.OfficialSanCapstoneThemePath = value; break;
+                default: settings.OfficialSanThemePath = value; break;
+            }
+        }
+
+        private void OfficialSanThemeBrowse_Click(object sender, RoutedEventArgs e)
+        {
+            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (localSettings == null)
+            {
+                return;
+            }
+
+            var selectedPath = _plugin?.PlayniteApi?.Dialogs?.SelectFile("Steam Achievement Notifier themes|*.san|All files|*.*");
+            if (string.IsNullOrWhiteSpace(selectedPath))
+            {
+                return;
+            }
+
+            SetOfficialSanThemePath(localSettings, (sender as FrameworkElement)?.Tag as string, selectedPath);
+        }
+
+        private void OfficialSanThemeClear_Click(object sender, RoutedEventArgs e)
+        {
+            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (localSettings == null)
+            {
+                return;
+            }
+
+            SetOfficialSanThemePath(localSettings, (sender as FrameworkElement)?.Tag as string, string.Empty);
+        }
+
         private void NotificationsCustomCoverImageBrowse_Click(object sender, RoutedEventArgs e)
         {
             var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;

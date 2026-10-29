@@ -78,6 +78,14 @@ namespace PlayniteAchievements.Providers.Local
         BottomCenter = 5
     }
 
+    /// <summary>How the official SAN template decides whether to show the rarity percentage.</summary>
+    public enum OfficialSanPercentMode
+    {
+        Theme = 0,
+        Always = 1,
+        Never = 2
+    }
+
     public enum LocalOverlayCoverPosition
     {
         None = 0,
@@ -682,8 +690,85 @@ namespace PlayniteAchievements.Providers.Local
         public bool UseUpstreamNotificationTemplate
         {
             get => _useUpstreamNotificationTemplate;
-            set => SetValue(ref _useUpstreamNotificationTemplate, value);
+            set
+            {
+                if (SetValueAndReturn(ref _useUpstreamNotificationTemplate, value) && value && _useOfficialSanTemplate)
+                {
+                    UseOfficialSanTemplate = false;
+                }
+            }
         }
+
+        // ---- Official Steam Achievement Notifier (.san) template -------------------------------
+        // A third notification template next to the Santodan-fork template and the upstream one.
+        // It renders an imported .san theme exactly as Steam Achievement Notifier does, filled with
+        // Playnite Achievements' own data (rarity tiers, custom trophy icons, hidden state ...).
+        // Every option below belongs to this template only; it does not read the upstream or the
+        // Santodan template settings.
+        private bool _useOfficialSanTemplate;
+        private string _officialSanThemePath = string.Empty;
+        private string _officialSanCommonThemePath = string.Empty;
+        private string _officialSanUncommonThemePath = string.Empty;
+        private string _officialSanRareThemePath = string.Empty;
+        private string _officialSanUltraRareThemePath = string.Empty;
+        private string _officialSanCapstoneThemePath = string.Empty;
+        private bool _officialSanUseThemePosition = true;
+        private LocalUnlockOverlayPosition _officialSanPosition = LocalUnlockOverlayPosition.BottomCenter;
+        private bool _officialSanShowOnActiveGameMonitor;
+        private int _officialSanScalePercent = 100;
+        private int _officialSanDurationSeconds;
+        private OfficialSanPercentMode _officialSanPercentMode = OfficialSanPercentMode.Theme;
+        private bool _officialSanUseCustomRarityIcons = true;
+        private bool _officialSanShowHiddenAsLocked = true;
+
+        public bool UseOfficialSanTemplate
+        {
+            get => _useOfficialSanTemplate;
+            set
+            {
+                if (SetValueAndReturn(ref _useOfficialSanTemplate, value) && value && _useUpstreamNotificationTemplate)
+                {
+                    UseUpstreamNotificationTemplate = false;
+                }
+            }
+        }
+
+        /// <summary>The .san theme used when no per-rarity theme below applies.</summary>
+        public string OfficialSanThemePath { get => _officialSanThemePath; set => SetValue(ref _officialSanThemePath, value ?? string.Empty); }
+        public string OfficialSanCommonThemePath { get => _officialSanCommonThemePath; set => SetValue(ref _officialSanCommonThemePath, value ?? string.Empty); }
+        public string OfficialSanUncommonThemePath { get => _officialSanUncommonThemePath; set => SetValue(ref _officialSanUncommonThemePath, value ?? string.Empty); }
+        public string OfficialSanRareThemePath { get => _officialSanRareThemePath; set => SetValue(ref _officialSanRareThemePath, value ?? string.Empty); }
+        public string OfficialSanUltraRareThemePath { get => _officialSanUltraRareThemePath; set => SetValue(ref _officialSanUltraRareThemePath, value ?? string.Empty); }
+
+        /// <summary>Theme for capstone / completion-grade unlocks (the Platinum-style notification).</summary>
+        public string OfficialSanCapstoneThemePath { get => _officialSanCapstoneThemePath; set => SetValue(ref _officialSanCapstoneThemePath, value ?? string.Empty); }
+
+        /// <summary>True keeps the screen position the .san theme was authored with.</summary>
+        public bool OfficialSanUseThemePosition { get => _officialSanUseThemePosition; set => SetValue(ref _officialSanUseThemePosition, value); }
+        public LocalUnlockOverlayPosition OfficialSanPosition { get => _officialSanPosition; set => SetValue(ref _officialSanPosition, value); }
+        public bool OfficialSanShowOnActiveGameMonitor { get => _officialSanShowOnActiveGameMonitor; set => SetValue(ref _officialSanShowOnActiveGameMonitor, value); }
+
+        /// <summary>Extra scale on top of the theme's own scale (100 = as authored).</summary>
+        public int OfficialSanScalePercent
+        {
+            get => _officialSanScalePercent;
+            set => SetValue(ref _officialSanScalePercent, Math.Max(25, Math.Min(400, value)));
+        }
+
+        /// <summary>Seconds the notification stays up; 0 keeps the theme's own display time.</summary>
+        public int OfficialSanDurationSeconds
+        {
+            get => _officialSanDurationSeconds;
+            set => SetValue(ref _officialSanDurationSeconds, Math.Max(0, Math.Min(60, value)));
+        }
+
+        public OfficialSanPercentMode OfficialSanPercentMode { get => _officialSanPercentMode; set => SetValue(ref _officialSanPercentMode, value); }
+
+        /// <summary>Feeds the Display-settings custom rarity / trophy / capstone Platinum images into the theme.</summary>
+        public bool OfficialSanUseCustomRarityIcons { get => _officialSanUseCustomRarityIcons; set => SetValue(ref _officialSanUseCustomRarityIcons, value); }
+
+        /// <summary>Marks hidden achievements so themes with a hidden-icon element show it.</summary>
+        public bool OfficialSanShowHiddenAsLocked { get => _officialSanShowHiddenAsLocked; set => SetValue(ref _officialSanShowHiddenAsLocked, value); }
 
         public bool EnableActiveGameMonitoring
         {

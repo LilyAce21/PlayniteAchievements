@@ -709,6 +709,14 @@ namespace PlayniteAchievements
                                 args.Points ?? args.ScaledPoints,
                                 notificationRarity,
                                 args.TrophyType)
+                            {
+                                IsCapstone = args.IsCapstone,
+                                IsHidden = args.IsHidden,
+                                RarityTier = args.RarityTier,
+                                GlobalPercent = args.GlobalPercent,
+                                GameIconPath = args.GameIconPath,
+                                GameCoverPath = args.GameCoverPath
+                            }
                         },
                         localSettings?.UnlockSoundPath,
                         notificationProviderKey: args.ProviderKey,

@@ -35,7 +35,7 @@ using PlayniteAchievements.Services.UI;
 
 namespace PlayniteAchievements.Services
 {
-    public class NotificationPublisher
+    public partial class NotificationPublisher
     {
         private static readonly Regex OverlayTemplateTokenPattern = new Regex("<([a-zA-Z0-9]+)>", RegexOptions.Compiled);
         private static readonly object NotificationScoreCacheLock = new object();
@@ -407,6 +407,7 @@ namespace PlayniteAchievements.Services
                 {
                     foreach (var achievement in achievements)
                     {
+                        RememberOfficialSanContext(safeGameName, achievement);
                         SendUnlockPopup(
                             safeGameName,
                             achievement.Name,
@@ -1550,6 +1551,23 @@ steamImage +
                                 $"Renderer selection style='{style}', custom='{isCustomStyle}', sanSelected='{(localSettings != null && (IsSanTransitionStyle(localSettings.UnlockOverlayTransitionStyle) || !string.IsNullOrWhiteSpace(localSettings.OverlayCustomSanElementPresetId)))}', " +
                                 $"sizeDip='{width:0.###}x{height:0.###}', autoResize='{autoResizeCustom}', opacity='{overlayOpacity:0.###}', " +
                                 $"durationMs='{durationMs}', fadeInMs='{fadeInMs}', fadeOutMs='{fadeOutMs}'.");
+                        }
+
+                        if (isCustomStyle &&
+                            localSettings != null &&
+                            localSettings.UseOfficialSanTemplate &&
+                            TryShowOfficialSanNotification(
+                                safeGameName,
+                                safeAchievement,
+                                achievementIconPath,
+                                providerKey,
+                                localSettings,
+                                game,
+                                achievementDescription,
+                                achievementRarity,
+                                achievementTrophy))
+                        {
+                            return;
                         }
 
                         if (isCustomStyle &&
@@ -2705,7 +2723,7 @@ steamImage +
                 if (_sanWebViewEnvironmentTask == null)
                 {
                     ConfigureWebView2LoaderDirectory();
-                    _sanWebViewEnvironmentTask = CoreWebView2Environment.CreateAsync();
+                    _sanWebViewEnvironmentTask = CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions("--allow-file-access-from-files"));
                 }
 
                 return _sanWebViewEnvironmentTask;
@@ -9165,5 +9183,18 @@ if ({JsBool(settings?.OverlayCustomAutoResizeToContent == true)} && !sanProgress
         public string Rarity { get; }
 
         public string Trophy { get; }
+
+        // Extra unlock details used by the official SAN template. Optional.
+        public bool IsCapstone { get; set; }
+
+        public bool IsHidden { get; set; }
+
+        public string RarityTier { get; set; }
+
+        public double? GlobalPercent { get; set; }
+
+        public string GameIconPath { get; set; }
+
+        public string GameCoverPath { get; set; }
     }
 }
