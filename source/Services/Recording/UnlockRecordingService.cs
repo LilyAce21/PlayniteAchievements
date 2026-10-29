@@ -2894,7 +2894,7 @@ namespace PlayniteAchievements.Services.Recording
         {
             usesCustomSettings = false;
             var custom = ProviderRegistry.Settings<LocalSettings>();
-            if (custom?.EnableUnlockRecordings == true)
+            if (custom?.EnableUnlockRecordings == true && !custom.UpstreamCaptureOverridesMemories)
             {
                 // Memories is a complete, independent recorder configuration. When explicitly
                 // enabled it owns the session even if the main feature is also enabled.

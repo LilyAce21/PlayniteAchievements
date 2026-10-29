@@ -714,6 +714,7 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanShowHiddenAsLocked = true;
         private bool _officialSanApplyUpstreamElements;
         private bool _officialSanLiveDetectionEnabled = true;
+        private bool _officialSanUseUpstreamCaptureSettings = true;
         private int _officialSanPollingIntervalSeconds = 2;
 
         public bool UseOfficialSanTemplate
@@ -763,6 +764,18 @@ namespace PlayniteAchievements.Providers.Local
         /// "active game monitoring" switch, so turning it on does not enable the Santodan notifications.
         /// </summary>
         public bool OfficialSanLiveDetectionEnabled { get => _officialSanLiveDetectionEnabled; set => SetValue(ref _officialSanLiveDetectionEnabled, value); }
+
+        /// <summary>
+        /// While the official SAN template is in use, screenshots and recordings follow the regular
+        /// (upstream) capture settings and screenshot frame instead of the Santodan "Memories"
+        /// capture settings. Only the notification itself comes from the SAN template.
+        /// </summary>
+        public bool OfficialSanUseUpstreamCaptureSettings { get => _officialSanUseUpstreamCaptureSettings; set => SetValue(ref _officialSanUseUpstreamCaptureSettings, value); }
+
+        /// <summary>True when capture (screenshots, recordings) should ignore the Memories settings.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool UpstreamCaptureOverridesMemories =>
+            _useOfficialSanTemplate && _officialSanUseUpstreamCaptureSettings && !_useUpstreamNotificationTemplate;
 
         /// <summary>Seconds between unlock checks for the official SAN template (1-60).</summary>
         public int OfficialSanPollingIntervalSeconds

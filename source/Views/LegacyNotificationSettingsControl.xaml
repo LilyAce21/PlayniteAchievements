@@ -3428,7 +3428,7 @@
                                     <DockPanel Margin="0,0,0,8" LastChildFill="False">
                                         <TextBlock Text="Rarity percentage:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                         <ComboBox SelectedValue="{Binding OfficialSanPercentMode, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="200">
-                                            <ComboBoxItem Content="As the theme decides" Tag="{x:Static local:OfficialSanPercentMode.Theme}"/>
+                                            <ComboBoxItem Content="Default (pill under the achievement icon)" Tag="{x:Static local:OfficialSanPercentMode.Theme}"/>
                                             <ComboBoxItem Content="Always show" Tag="{x:Static local:OfficialSanPercentMode.Always}"/>
                                             <ComboBoxItem Content="Never show" Tag="{x:Static local:OfficialSanPercentMode.Never}"/>
                                         </ComboBox>
@@ -3438,7 +3438,9 @@
                                     <CheckBox Content="Show the theme's hidden-achievement icon for hidden achievements"
                                               IsChecked="{Binding OfficialSanShowHiddenAsLocked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
                                     <CheckBox Content="Apply the upstream notification element settings (shown lines, text sizes, font, rarity-coloured name, rarity glow) on top of the theme"
-                                              IsChecked="{Binding OfficialSanApplyUpstreamElements, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,0"/>
+                                              IsChecked="{Binding OfficialSanApplyUpstreamElements, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <CheckBox Content="Use the upstream screenshot, screenshot frame and recording settings (ignore the Memories capture settings)"
+                                              IsChecked="{Binding OfficialSanUseUpstreamCaptureSettings, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,0"/>
                                 </StackPanel>
 
                                     </StackPanel>

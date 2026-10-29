@@ -48,6 +48,12 @@ namespace PlayniteAchievements.Services.Local
                 return;
             }
 
+            // With the official SAN template the regular (upstream) screenshot pipeline owns capture.
+            if (settings.UpstreamCaptureOverridesMemories)
+            {
+                return;
+            }
+
             try
             {
                 var delay = settings.ScreenshotDelayMilliseconds;

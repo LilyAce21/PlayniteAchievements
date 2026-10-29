@@ -289,7 +289,7 @@ namespace PlayniteAchievements.Services
                 useAlt);
         }
 
-        private static string ToSanTier(RarityTier tier, bool capstone)
+        private static string ToSanTier(RarityTier tier, bool capstone, double percent = double.NaN)
         {
             if (capstone)
             {
@@ -298,7 +298,7 @@ namespace PlayniteAchievements.Services
 
             switch (tier)
             {
-                case RarityTier.UltraRare: return "sapphire";
+                case RarityTier.UltraRare: return !double.IsNaN(percent) && percent <= 1.0 ? "diamond" : "sapphire";
                 case RarityTier.Rare: return "gold";
                 case RarityTier.Uncommon: return "silver";
                 default: return "bronze";
@@ -499,6 +499,10 @@ namespace PlayniteAchievements.Services
                     ? slot.DurationSeconds
                     : theme.ThemeDisplayTimeSeconds;
 
+                // SAN themes time their own animations from the theme's display time (the Xbox presets
+                // hold, swap and close on it), so the chosen duration has to go into the theme itself.
+                theme.Customisation["displaytime"] = displaySeconds;
+
                 var position = slot.UseThemePosition
                     ? SanToPosition(OfficialSanThemeService.PositionName(theme.Customisation))
                     : slot.Position;
@@ -514,15 +518,26 @@ namespace PlayniteAchievements.Services
                 if (settings.OfficialSanPercentMode == OfficialSanPercentMode.Never) showPercent = false;
 
                 var trophy = (achievementTrophy ?? string.Empty).Trim().ToLowerInvariant();
+                // The rarity pill (under the achievement icon) is drawn by the host page. It is never
+                // shown for the 100% completion unlock, and "Never show" hides every percentage.
+                var pillShow = hasPercent && !completion && !(capstone && !completion) &&
+                               settings.OfficialSanPercentMode != OfficialSanPercentMode.Never;
+                var pillTier = ToSanTier(tier, false, hasPercent ? percent : double.NaN);
                 var payload = new JObject
                 {
+                    ["paPill"] = new JObject
+                    {
+                        ["show"] = pillShow,
+                        ["percent"] = hasPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
+                        ["tier"] = pillTier
+                    },
                     ["displayName"] = achievementName ?? string.Empty,
                     ["description"] = achievementDescription ?? string.Empty,
                     ["iconPath"] = iconPath,
                     ["gameIconPath"] = gameIcon,
                     ["headerPath"] = header,
                     ["rarityPct"] = hasPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
-                    ["rarityTier"] = ToSanTier(tier, capstone && !completion),
+                    ["rarityTier"] = ToSanTier(tier, capstone && !completion, hasPercent ? percent : double.NaN),
                     ["trophyType"] = trophy,
                     ["isRare"] = capstone || completion || tier == RarityTier.Rare || tier == RarityTier.UltraRare,
                     ["isPlatinum"] = completion,
@@ -571,39 +586,50 @@ namespace PlayniteAchievements.Services
                 }
 
                 var json = payload.ToString(Newtonsoft.Json.Formatting.None).Replace("</", "<\\/");
-                var html = File.ReadAllText(hostPath, Encoding.UTF8)
-                    .Replace("<!--PA_PAYLOAD-->", "<script>window.__SAN_PAYLOAD__ = " + json + ";</script>");
-                var htmlPath = WriteSanWebViewDocumentToTempFile(html);
-
                 var windowWidth = Math.Max(260, Math.Ceiling((theme.BaseWidth + theme.Offset * 2) * scale));
                 var windowHeight = Math.Max(90, Math.Ceiling((theme.BaseHeight + theme.Offset * 2) * scale));
                 var debug = settings.EnableOverlayDebugLogging;
                 var followMonitor = settings.OfficialSanShowOnActiveGameMonitor;
 
-                var webView = new WebView2
-                {
-                    DefaultBackgroundColor = System.Drawing.Color.Transparent
-                };
+                var soundFile = slot.SoundMode == OfficialSanSoundMode.Theme
+                    ? OfficialSanThemeService.FindThemeSound(theme)
+                    : slot.SoundMode == OfficialSanSoundMode.File ? slot.SoundPath : string.Empty;
+                var soundVolume = slot.SoundVolume;
 
-                var window = new Window
+                // A warm host is a WebView2 window that already loaded the host page, so the unlock only
+                // has to hand it the payload. Without one (first notification after start-up) a fresh
+                // window is created, which takes noticeably longer.
+                var warm = TakeWarmSanHost();
+                var window = warm?.Window;
+                var webView = warm?.View;
+                var htmlPath = warm?.HtmlPath;
+                if (warm == null)
                 {
-                    Content = webView,
-                    Width = windowWidth,
-                    Height = windowHeight,
-                    WindowStyle = WindowStyle.None,
-                    ResizeMode = ResizeMode.NoResize,
-                    AllowsTransparency = true,
-                    Background = Brushes.Transparent,
-                    Topmost = true,
-                    ShowInTaskbar = false,
-                    ShowActivated = false,
-                    IsHitTestVisible = false,
-                    Focusable = false
-                };
+                    var html = File.ReadAllText(hostPath, Encoding.UTF8)
+                        .Replace("<!--PA_PAYLOAD-->", "<script>window.__SAN_PAYLOAD__ = " + json + ";</script>");
+                    htmlPath = WriteSanWebViewDocumentToTempFile(html);
+                    webView = new WebView2 { DefaultBackgroundColor = System.Drawing.Color.Transparent };
+                    window = CreateSanOverlayWindow(webView, windowWidth, windowHeight);
+                }
+                else
+                {
+                    window.Width = windowWidth;
+                    window.Height = windowHeight;
+                }
 
                 AttachOverlayTopmostGuard(window, debug);
                 var overlayState = RegisterOverlayWindow(window, position);
-                PositionOverlayWindow(window, position, GetOverlayStackIndex(overlayState), followMonitor, debug);
+                if (overlayState != null)
+                {
+                    overlayState.Renderer = "OfficialSAN";
+                    overlayState.SanInset = theme.Offset * scale;
+                    overlayState.SanCardHeight = theme.BaseHeight * scale;
+                    PositionOfficialSanWindow(overlayState, GetOverlayStackIndex(overlayState), followMonitor);
+                }
+                else
+                {
+                    PositionOverlayWindow(window, position, 0, followMonitor, debug);
+                }
 
                 window.Closed += (_, __) =>
                 {
@@ -616,6 +642,198 @@ namespace PlayniteAchievements.Services
                     TryDeleteSanWebViewDocument(htmlPath);
                 };
 
+                // The sound and the display timer start when the page reports that it drew the
+                // notification, so the sound is never heard before the card is on screen. SAN animates
+                // itself out at the end of its display time; the window only has to outlive that, with
+                // a little slack for the exit animation.
+                var started = false;
+                var showStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                DispatcherTimer readyFallback = null;
+                void StartPlayback()
+                {
+                    if (started)
+                    {
+                        return;
+                    }
+
+                    started = true;
+                    ForkLog.Wrap(_logger)?.Info($"[OfficialSan] '{achievementName}' on screen {showStopwatch.ElapsedMilliseconds} ms after the unlock reached the notifier ({(warm != null ? "warm" : "cold")}).");
+                    try { readyFallback?.Stop(); } catch { }
+                    var closeTimer = new DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(Math.Max(1500, displaySeconds * 1000.0) + 1500)
+                    };
+                    closeTimer.Tick += (_, __) =>
+                    {
+                        closeTimer.Stop();
+                        if (overlayState != null)
+                        {
+                            overlayState.IsClosing = true;
+                        }
+
+                        try { window.Close(); } catch { }
+                    };
+                    if (overlayState != null)
+                    {
+                        overlayState.CloseTimer = closeTimer;
+                    }
+
+                    closeTimer.Start();
+                    PlayOfficialSanSound(soundFile, soundVolume);
+                }
+
+                // If the page never reports back (a broken theme), still play and still close.
+                readyFallback = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+                readyFallback.Tick += (_, __) => StartPlayback();
+                readyFallback.Start();
+
+                void Hook(Microsoft.Web.WebView2.Core.CoreWebView2 core)
+                {
+                    core.WebMessageReceived += (_, e) =>
+                    {
+                        string message = null;
+                        try { message = e.TryGetWebMessageAsString(); } catch { }
+                        if (string.Equals(message, "san-ready", StringComparison.Ordinal))
+                        {
+                            window.Dispatcher.BeginInvoke(new Action(StartPlayback));
+                        }
+                    };
+                }
+
+                if (warm != null)
+                {
+                    Hook(webView.CoreWebView2);
+                    webView.CoreWebView2.ExecuteScriptAsync("window.__sanCb(" + json + ");");
+                }
+                else
+                {
+                    window.Loaded += async (_, __) =>
+                    {
+                        try
+                        {
+                            var environment = await GetSanWebView2EnvironmentAsync();
+                            await webView.EnsureCoreWebView2Async(environment);
+                            webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                            webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                            Hook(webView.CoreWebView2);
+                            webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
+                        }
+                        catch (Exception ex)
+                        {
+                            ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Failed to initialize the SAN WebView2 overlay.");
+                            try { window.Close(); } catch { }
+                        }
+                    };
+
+                    window.Show();
+                }
+
+                ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Showing '{achievementName}' ({profileKey}{(usedAlt ? ", second theme" : string.Empty)}) with theme '{theme.Label}' (preset '{theme.Preset}', {(warm != null ? "warm host" : "cold start")}).");
+
+                // Get the next warm host ready while this one is on screen.
+                try
+                {
+                    Application.Current?.Dispatcher.BeginInvoke(
+                        new Action(PrewarmOfficialSan),
+                        DispatcherPriority.ApplicationIdle);
+                }
+                catch
+                {
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Failed to render the official SAN notification; using the regular renderer.");
+                return false;
+            }
+        }
+
+        // ---- Warm WebView2 host + window helpers -----------------------------------------------
+
+        private sealed class SanWarmHost
+        {
+            public Window Window;
+            public WebView2 View;
+            public string HtmlPath;
+            public bool Ready;
+        }
+
+        private static SanWarmHost _sanWarmHost;
+        private static bool _sanWarmBuilding;
+
+        private static Window CreateSanOverlayWindow(WebView2 webView, double width, double height, bool offscreen = false)
+        {
+            var window = new Window
+            {
+                Content = webView,
+                Width = width,
+                Height = height,
+                WindowStyle = WindowStyle.None,
+                ResizeMode = ResizeMode.NoResize,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Topmost = true,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                IsHitTestVisible = false,
+                Focusable = false
+            };
+
+            if (offscreen)
+            {
+                window.WindowStartupLocation = WindowStartupLocation.Manual;
+                window.Left = -20000;
+                window.Top = -20000;
+            }
+
+            return window;
+        }
+
+        private SanWarmHost TakeWarmSanHost()
+        {
+            var host = _sanWarmHost;
+            if (host == null || !host.Ready)
+            {
+                return null;
+            }
+
+            _sanWarmHost = null;
+            return host;
+        }
+
+        /// <summary>
+        /// Loads the SAN host page into a hidden WebView2 window ahead of time (and again after every
+        /// notification), so an unlock appears without waiting for the browser to start and the page to
+        /// load. Safe to call repeatedly; does nothing when the official SAN template is off.
+        /// </summary>
+        public void PrewarmOfficialSan()
+        {
+            try
+            {
+                if (_sanWarmHost != null || _sanWarmBuilding)
+                {
+                    return;
+                }
+
+                var settings = Providers.ProviderRegistry.Settings<LocalSettings>();
+                if (settings == null || !settings.UseOfficialSanTemplate)
+                {
+                    return;
+                }
+
+                var hostPath = Path.Combine(GetPluginAssemblyDirectory(), "Resources", "Tools", "OfficialSan", "san-host.html");
+                if (!File.Exists(hostPath))
+                {
+                    return;
+                }
+
+                _sanWarmBuilding = true;
+                var webView = new WebView2 { DefaultBackgroundColor = System.Drawing.Color.Transparent };
+                var window = CreateSanOverlayWindow(webView, 900, 320, offscreen: true);
+                var host = new SanWarmHost { Window = window, View = webView };
+
                 window.Loaded += async (_, __) =>
                 {
                     try
@@ -624,51 +842,86 @@ namespace PlayniteAchievements.Services
                         await webView.EnsureCoreWebView2Async(environment);
                         webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                         webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
-                        webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
+                        var html = File.ReadAllText(hostPath, Encoding.UTF8).Replace("<!--PA_PAYLOAD-->", string.Empty);
+                        host.HtmlPath = WriteSanWebViewDocumentToTempFile(html);
+                        webView.CoreWebView2.NavigationCompleted += (s, e) =>
+                        {
+                            host.Ready = e.IsSuccess;
+                            _sanWarmBuilding = false;
+                        };
+                        webView.CoreWebView2.Navigate(new Uri(host.HtmlPath).AbsoluteUri);
                     }
                     catch (Exception ex)
                     {
-                        ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Failed to initialize the SAN WebView2 overlay.");
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Could not warm up the SAN WebView2 host.");
+                        _sanWarmBuilding = false;
+                        if (ReferenceEquals(_sanWarmHost, host))
+                        {
+                            _sanWarmHost = null;
+                        }
+
                         try { window.Close(); } catch { }
                     }
                 };
 
-                // SAN animates itself out at the end of its display time; the window only has to
-                // outlive that, with a little slack for the exit animation.
-                var closeTimer = new DispatcherTimer
-                {
-                    Interval = TimeSpan.FromMilliseconds(Math.Max(1500, displaySeconds * 1000.0) + 1500)
-                };
-                closeTimer.Tick += (_, __) =>
-                {
-                    closeTimer.Stop();
-                    if (overlayState != null)
-                    {
-                        overlayState.IsClosing = true;
-                    }
-
-                    try { window.Close(); } catch { }
-                };
-                if (overlayState != null)
-                {
-                    overlayState.Renderer = "OfficialSAN";
-                    overlayState.CloseTimer = closeTimer;
-                }
-
-                closeTimer.Start();
+                _sanWarmHost = host;
                 window.Show();
-
-                var soundFile = slot.SoundMode == OfficialSanSoundMode.Theme
-                    ? OfficialSanThemeService.FindThemeSound(theme)
-                    : slot.SoundMode == OfficialSanSoundMode.File ? slot.SoundPath : string.Empty;
-                PlayOfficialSanSound(soundFile, slot.SoundVolume);
-                ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Showing '{achievementName}' ({profileKey}{(usedAlt ? ", second theme" : string.Empty)}) with theme '{theme.Label}' (preset '{theme.Preset}').");
-                return true;
             }
             catch (Exception ex)
             {
-                ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Failed to render the official SAN notification; using the regular renderer.");
-                return false;
+                _sanWarmBuilding = false;
+                ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Warm-up failed.");
+            }
+        }
+
+        /// <summary>
+        /// Places an official-SAN window flush against its screen corner, the way the Achievements app
+        /// does: the theme already carries a transparent margin round its card, so no extra margin is
+        /// added. Stacked cards are spaced by their visible edges (margins overlap).
+        /// </summary>
+        private void PositionOfficialSanWindow(OverlayWindowState state, int stackIndex, bool followActiveGameMonitor)
+        {
+            var window = state?.Window;
+            if (window == null)
+            {
+                return;
+            }
+
+            var workArea = followActiveGameMonitor
+                ? GetForegroundMonitorWorkArea(out _)
+                : SystemParameters.WorkArea;
+            var height = GetOverlayWindowHeight(window);
+            var inset = Math.Max(0, state.SanInset);
+            var card = state.SanCardHeight > 0 ? state.SanCardHeight : Math.Max(1, height - inset * 2);
+            var visibleGap = Math.Max(1.0, Math.Round((inset * 2 + 8) * 0.15));
+            var stackOffset = Math.Max(0, stackIndex) * (card + visibleGap);
+
+            switch (state.Position)
+            {
+                case LocalUnlockOverlayPosition.TopLeft:
+                    window.Left = workArea.Left;
+                    window.Top = workArea.Top + stackOffset;
+                    break;
+                case LocalUnlockOverlayPosition.TopCenter:
+                    window.Left = workArea.Left + ((workArea.Width - window.Width) / 2);
+                    window.Top = workArea.Top + stackOffset;
+                    break;
+                case LocalUnlockOverlayPosition.BottomLeft:
+                    window.Left = workArea.Left;
+                    window.Top = workArea.Bottom - height - stackOffset;
+                    break;
+                case LocalUnlockOverlayPosition.BottomCenter:
+                    window.Left = workArea.Left + ((workArea.Width - window.Width) / 2);
+                    window.Top = workArea.Bottom - height - stackOffset;
+                    break;
+                case LocalUnlockOverlayPosition.BottomRight:
+                    window.Left = workArea.Right - window.Width;
+                    window.Top = workArea.Bottom - height - stackOffset;
+                    break;
+                default:
+                    window.Left = workArea.Right - window.Width;
+                    window.Top = workArea.Top + stackOffset;
+                    break;
             }
         }
     }

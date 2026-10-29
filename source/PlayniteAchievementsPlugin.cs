@@ -1867,6 +1867,18 @@ namespace PlayniteAchievements
 
                 LogStartupBanner();
 
+                // Load the official SAN notification page into a hidden WebView2 now, so the first
+                // unlock does not pay for browser start-up.
+                try
+                {
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                        new Action(() => _notifications?.PrewarmOfficialSan()),
+                        System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                }
+                catch
+                {
+                }
+
                 // Launch and preload the sound host off the UI thread so the first unlock plays with
                 // no device-open or decode cost; a settings save re-applies the same step.
                 System.Threading.Tasks.Task.Run(() => OnSettingsSavedForUnlockSounds(this, EventArgs.Empty));

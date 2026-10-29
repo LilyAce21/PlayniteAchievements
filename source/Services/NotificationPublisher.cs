@@ -1922,6 +1922,12 @@ steamImage +
             for (var i = 0; i < overlays.Count; i++)
             {
                 var settings = ProviderRegistry.Settings<LocalSettings>();
+                if (overlays[i].Renderer == "OfficialSAN")
+                {
+                    PositionOfficialSanWindow(overlays[i], i, settings?.ShowOverlayOnActiveGameMonitor == true);
+                    continue;
+                }
+
                 PositionOverlayWindow(
                     overlays[i].Window,
                     position,
@@ -1943,6 +1949,10 @@ steamImage +
             public LocalUnlockOverlayPosition Position { get; }
             public bool IsClosing { get; set; }
             public string Renderer { get; set; }
+            /// <summary>Transparent margin (DIP) between an official-SAN window edge and its card.</summary>
+            public double SanInset { get; set; }
+            /// <summary>Height (DIP) of an official-SAN card without its margin.</summary>
+            public double SanCardHeight { get; set; }
             public DispatcherTimer CloseTimer { get; set; }
             public Action<string> UpdateHtml { get; set; }
         }

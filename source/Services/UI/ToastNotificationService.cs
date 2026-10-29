@@ -464,7 +464,7 @@ namespace PlayniteAchievements.Services.UI
         private PersistedSettings ResolveEffectiveScreenshotSettings()
         {
             var custom = Providers.ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-            if (custom?.EnableUnlockScreenshots != true)
+            if (custom?.EnableUnlockScreenshots != true || custom.UpstreamCaptureOverridesMemories)
             {
                 return _settings?.Persisted;
             }
