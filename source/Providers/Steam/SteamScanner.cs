@@ -538,11 +538,18 @@ namespace PlayniteAchievements.Providers.Steam
             }
 
             var steamSettings = ProviderRegistry.Settings<SteamSettings>();
-            var steamPath = SteamInstallLocator.ResolveSteamPath(
-                steamSettings?.SteamInstallPathOverride,
-                _logger);
-            var statsPath = SteamInstallLocator.BuildUserGameStatsPath(steamPath, accountId3, appId);
-            var schemaPath = SteamInstallLocator.BuildSchemaPath(steamPath, appId);
+            if (!SteamInstallLocator.TryResolveStatsFiles(
+                    steamSettings?.SteamInstallPathOverride,
+                    game.InstallDirectory,
+                    accountId3,
+                    appId,
+                    out var statsPath,
+                    out var schemaPath,
+                    _logger))
+            {
+                return null;
+            }
+
             if (!System.IO.File.Exists(statsPath) || !System.IO.File.Exists(schemaPath))
             {
                 return null;

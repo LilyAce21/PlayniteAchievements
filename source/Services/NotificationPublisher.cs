@@ -2739,7 +2739,7 @@ steamImage +
                 if (_sanWebViewEnvironmentTask == null)
                 {
                     ConfigureWebView2LoaderDirectory();
-                    _sanWebViewEnvironmentTask = CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions("--allow-file-access-from-files"));
+                    _sanWebViewEnvironmentTask = CoreWebView2Environment.CreateAsync(null, null, new CoreWebView2EnvironmentOptions("--allow-file-access-from-files --disable-features=CalculateNativeWinOcclusion --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"));
                 }
 
                 return _sanWebViewEnvironmentTask;

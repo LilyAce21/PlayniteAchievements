@@ -703,7 +703,17 @@ namespace PlayniteAchievements.Services
                 if (warm != null)
                 {
                     Hook(webView.CoreWebView2);
-                    webView.CoreWebView2.ExecuteScriptAsync("window.__sanCb(" + json + ");");
+                    // The window has only just been moved from its parking spot to the screen. Give the
+                    // browser a couple of frames to start painting there before the notification starts
+                    // animating; otherwise the first frames are drawn half transparent / out of step.
+                    var kick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(90) };
+                    kick.Tick += (_, __) =>
+                    {
+                        kick.Stop();
+                        try { webView.CoreWebView2.ExecuteScriptAsync("window.__sanCb(" + json + ");"); }
+                        catch (Exception ex) { ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Could not hand the unlock to the warm SAN host."); }
+                    };
+                    kick.Start();
                 }
                 else
                 {

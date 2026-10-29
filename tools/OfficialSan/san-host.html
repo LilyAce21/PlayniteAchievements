@@ -865,12 +865,11 @@
           ...(theme.customisation || {}),
         };
         customisation.preset = String(customisation.preset || theme.preset || "default").toLowerCase();
-        // Mythic Xbox themes enlarge the animated emblem so far that the laurel behind it is
-        // completely covered. Give the laurel enough size to show around the emblem.
+        // Mythic Xbox themes enlarge the animated emblem, which then completely covers the laurel
+        // behind it. The Achievements app draws that laurel in front of the emblem, so do the same.
         if (customisation.preset === "xboxone" && customisation.showiconborder &&
             /mythic/i.test(`${theme.label || ""} ${String(theme.cacheDir || "").split(/[\\/]/).pop()}`)) {
-          const wanted = 120 * (Number(customisation.iconscale) || 100) / 130;
-          if (!(Number(customisation.iconborderscale) >= wanted)) customisation.iconborderscale = wanted;
+          customisation.iconborderpos = "front";
         }
 
         Promise.all([

@@ -246,7 +246,9 @@ namespace PlayniteAchievements.Services.Local
                         continue;
                     }
 
+                    var refreshWatch = System.Diagnostics.Stopwatch.StartNew();
                     var currentSnapshot = await RefreshLocalGameAsync(game, cancellationToken).ConfigureAwait(false);
+                    ForkLog.Wrap(_logger)?.Info($"[LocalMonitor] Source change detected for '{game.Name}'; refresh took {refreshWatch.ElapsedMilliseconds} ms.");
                     if (TryGetLocalSourceFingerprint(game, out sourceFingerprint))
                     {
                         _lastKnownSourceFingerprint = sourceFingerprint;

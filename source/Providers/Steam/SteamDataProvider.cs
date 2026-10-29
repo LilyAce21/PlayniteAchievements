@@ -345,17 +345,16 @@ namespace PlayniteAchievements.Providers.Steam
                 return null;
             }
 
-            var steamPath = SteamInstallLocator.ResolveSteamPath(
-                ProviderSettings?.SteamInstallPathOverride);
-            var statsPath = SteamInstallLocator.BuildUserGameStatsPath(steamPath, accountId3, appId);
-            var schemaPath = SteamInstallLocator.BuildSchemaPath(steamPath, appId);
-            var statsDirectory = string.IsNullOrWhiteSpace(statsPath)
-                ? null
-                : Path.GetDirectoryName(statsPath);
-            var localUsable =
-                !string.IsNullOrWhiteSpace(statsDirectory) &&
-                Directory.Exists(statsDirectory) &&
-                File.Exists(schemaPath);
+            string statsPath;
+            string schemaPath;
+            var localUsable = SteamInstallLocator.TryResolveStatsFiles(
+                ProviderSettings?.SteamInstallPathOverride,
+                game.InstallDirectory,
+                accountId3,
+                appId,
+                out statsPath,
+                out schemaPath,
+                _logger);
 
             if (!localUsable)
             {
@@ -365,7 +364,7 @@ namespace PlayniteAchievements.Providers.Steam
                 // exactly the remote read a registration here would have duplicated.
                 _logger?.Info(
                     $"[SteamAch] No in-game fast source for '{game.Name}'; the provider refresh prong " +
-                    $"covers it (no local stats at '{statsPath}' / schema at '{schemaPath}').");
+                    $"covers it (no stats file for app {appId} / account {accountId3} in any Steam install on this PC).");
                 return null;
             }
 

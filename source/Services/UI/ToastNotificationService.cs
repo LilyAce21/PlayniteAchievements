@@ -469,6 +469,8 @@ namespace PlayniteAchievements.Services.UI
                 return _settings?.Persisted;
             }
 
+            _logger?.Info("[Capture] Screenshots are using the Memories settings (the upstream capture option is off or the SAN template is not active).");
+
             var effective = _settings?.Persisted?.Clone() ?? new PersistedSettings();
             effective.EnableUnlockScreenshots = true;
             effective.UnlockScreenshotDirectory = ResolveCustomScreenshotRoot(custom.EffectiveScreenshotSaveFolder);
