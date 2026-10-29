@@ -692,7 +692,7 @@ namespace PlayniteAchievements.Providers.Local
             get => _useUpstreamNotificationTemplate;
             set
             {
-                if (SetValueAndReturn(ref _useUpstreamNotificationTemplate, value) && value && _useOfficialSanTemplate)
+                if (SetValue(ref _useUpstreamNotificationTemplate, value) && value && _useOfficialSanTemplate)
                 {
                     UseOfficialSanTemplate = false;
                 }
@@ -726,7 +726,7 @@ namespace PlayniteAchievements.Providers.Local
             get => _useOfficialSanTemplate;
             set
             {
-                if (SetValueAndReturn(ref _useOfficialSanTemplate, value) && value && _useUpstreamNotificationTemplate)
+                if (SetValue(ref _useOfficialSanTemplate, value) && value && _useUpstreamNotificationTemplate)
                 {
                     UseUpstreamNotificationTemplate = false;
                 }
