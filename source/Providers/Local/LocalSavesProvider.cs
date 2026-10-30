@@ -921,7 +921,7 @@ namespace PlayniteAchievements.Providers.Local
                 return null;
             }
 
-            var paths = CollectActiveMonitorSourcePaths(game);
+            var paths = GetLiveProgressPaths(game);
             if (paths.Count == 0)
             {
                 return null;
@@ -941,6 +941,43 @@ namespace PlayniteAchievements.Providers.Local
             };
         }
 
+        private readonly Dictionary<Guid, KeyValuePair<string, InGameProgressQueryResult>> _liveProgressCache =
+            new Dictionary<Guid, KeyValuePair<string, InGameProgressQueryResult>>();
+
+        /// <summary>The files that actually carry unlock state (not schemas or library caches).</summary>
+        private List<string> GetLiveProgressPaths(Game game)
+        {
+            return CollectActiveMonitorSourcePaths(game)
+                .Where(path =>
+                    !string.IsNullOrWhiteSpace(path) &&
+                    path.IndexOf("librarycache", StringComparison.OrdinalIgnoreCase) < 0 &&
+                    path.IndexOf("UserGameStatsSchema", StringComparison.OrdinalIgnoreCase) < 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static string BuildLiveProgressFingerprint(IEnumerable<string> paths)
+        {
+            var builder = new StringBuilder();
+            foreach (var path in paths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var info = new FileInfo(path);
+                    if (info.Exists)
+                    {
+                        builder.Append(path).Append('|').Append(info.Length).Append('|')
+                            .Append(info.LastWriteTimeUtc.Ticks).Append(';');
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return builder.ToString();
+        }
+
         async Task<IReadOnlyList<InGameProgressQueryResult>> IInGameProgressSource.QueryAsync(
             IReadOnlyList<InGameTrackingContext> games,
             CancellationToken cancellationToken)
@@ -952,6 +989,22 @@ namespace PlayniteAchievements.Providers.Local
                 var gameId = context?.Game?.Id ?? Guid.Empty;
                 try
                 {
+                    // The monitor re-queries on a short safety cadence. Reading and correlating the whole
+                    // achievement set takes about a second, so only do it when a progress file changed.
+                    var fingerprint = BuildLiveProgressFingerprint(GetLiveProgressPaths(context.Game));
+                    KeyValuePair<string, InGameProgressQueryResult> cached;
+                    bool haveCached;
+                    lock (_liveProgressCache)
+                    {
+                        haveCached = _liveProgressCache.TryGetValue(gameId, out cached);
+                    }
+
+                    if (haveCached && fingerprint.Length > 0 && string.Equals(cached.Key, fingerprint, StringComparison.Ordinal))
+                    {
+                        results.Add(cached.Value);
+                        continue;
+                    }
+
                     var data = await GetAchievementsAsync(context.Game, new RefreshRequest()).ConfigureAwait(false);
                     if (data?.Achievements == null)
                     {
@@ -968,7 +1021,13 @@ namespace PlayniteAchievements.Providers.Local
                             UnlockTimeUtc = item.UnlockTimeUtc
                         })
                         .ToList();
-                    results.Add(InGameProgressQueryResult.Succeeded(gameId, observations));
+                    var succeeded = InGameProgressQueryResult.Succeeded(gameId, observations);
+                    lock (_liveProgressCache)
+                    {
+                        _liveProgressCache[gameId] = new KeyValuePair<string, InGameProgressQueryResult>(fingerprint, succeeded);
+                    }
+
+                    results.Add(succeeded);
                 }
                 catch (OperationCanceledException)
                 {

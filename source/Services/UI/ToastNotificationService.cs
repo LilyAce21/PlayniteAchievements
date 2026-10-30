@@ -617,10 +617,9 @@ namespace PlayniteAchievements.Services.UI
                     (UnlockClipVariantPolicy.Resolve(args, _settings?.Persisted, gameData) & ScreenshotVariants.Framed) != 0,
                 NotifyReadyAtUtc = notifyReadyAtUtc,
             };
-            if (args.SuppressStandardToast)
-            {
-                vm.CustomCaptureContent = _createCustomCaptureContent?.Invoke(args);
-            }
+            // A suppressed toast is only a hidden surface that the screenshot/recording pipeline
+            // samples. It uses the regular (upstream) toast template; the Santodan-fork overlay content
+            // is no longer rendered anywhere.
 
             if (merged != null)
             {

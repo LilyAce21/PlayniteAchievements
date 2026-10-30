@@ -859,7 +859,7 @@
       function notifyReady() {
         const urls = window.__paPreload || [];
         window.__paPreload = null;
-        paDecodeImages(urls, 1500).then(() => paShow());
+        paDecodeImages(urls, 350).then(() => paShow());
       }
 
       function paShow() {

@@ -819,7 +819,7 @@ namespace PlayniteAchievements.Services
                     // The window has only just been moved from its parking spot to the screen. Give the
                     // browser a couple of frames to start painting there before the notification starts
                     // animating; otherwise the first frames are drawn half transparent / out of step.
-                    var kick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(90) };
+                    var kick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(70) };
                     kick.Tick += (_, __) =>
                     {
                         kick.Stop();
@@ -886,7 +886,7 @@ namespace PlayniteAchievements.Services
         private static SanWarmHost _sanWarmHost;
         private static bool _sanWarmBuilding;
 
-        private static Window CreateSanOverlayWindow(WebView2 webView, double width, double height, bool offscreen = false)
+        private static Window CreateSanOverlayWindow(WebView2 webView, double width, double height, bool parked = false)
         {
             var window = new Window
             {
@@ -904,11 +904,16 @@ namespace PlayniteAchievements.Services
                 Focusable = false
             };
 
-            if (offscreen)
+            if (parked)
             {
+                // Windows decides a window's DPI from the monitor it is created on. A window parked far
+                // off-screen gets 100%, so WebView2 renders at half size on a 200% display and the
+                // notification ends up small and off-centre. Park it in the real work area instead, at a
+                // size too small to matter.
+                var work = SystemParameters.WorkArea;
                 window.WindowStartupLocation = WindowStartupLocation.Manual;
-                window.Left = -20000;
-                window.Top = -20000;
+                window.Left = work.Right - width;
+                window.Top = work.Top;
             }
 
             return window;
@@ -954,7 +959,7 @@ namespace PlayniteAchievements.Services
 
                 _sanWarmBuilding = true;
                 var webView = new WebView2 { DefaultBackgroundColor = System.Drawing.Color.Transparent };
-                var window = CreateSanOverlayWindow(webView, 900, 320, offscreen: true);
+                var window = CreateSanOverlayWindow(webView, 6, 6, parked: true);
                 var host = new SanWarmHost { Window = window, View = webView };
 
                 window.Loaded += async (_, __) =>
