@@ -289,6 +289,58 @@ namespace PlayniteAchievements.Services
                 useAlt);
         }
 
+        /// <summary>
+        /// The only unlock notification renderer: the official SAN template. It is deliberately
+        /// independent of the plugin's notification switches, the per-provider toast flags and every
+        /// legacy Santodan overlay setting.
+        /// </summary>
+        private void ShowOfficialSanUnlocks(
+            string gameName,
+            IReadOnlyList<AchievementUnlockNotificationItem> items,
+            string providerKey,
+            Game game,
+            LocalSettings settings)
+        {
+            if (settings == null || !settings.UseOfficialSanTemplate || items == null)
+            {
+                return;
+            }
+
+            var safeGameName = string.IsNullOrWhiteSpace(gameName) ? "Current Game" : gameName.Trim();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in items)
+            {
+                var name = item?.Name?.Trim();
+                if (string.IsNullOrWhiteSpace(name) || !seen.Add(name))
+                {
+                    continue;
+                }
+
+                var current = item;
+                RememberOfficialSanContext(safeGameName, current);
+                RunOnUiThread(() =>
+                {
+                    try
+                    {
+                        TryShowOfficialSanNotification(
+                            safeGameName,
+                            name,
+                            current.IconPath,
+                            providerKey,
+                            settings,
+                            game,
+                            current.Description,
+                            current.Rarity,
+                            current.Trophy);
+                    }
+                    catch (Exception ex)
+                    {
+                        ForkLog.Wrap(_logger)?.Warn(ex, "[OfficialSan] Failed to show an unlock notification.");
+                    }
+                });
+            }
+        }
+
         private static string ToSanTier(RarityTier tier, bool capstone, double percent = double.NaN)
         {
             if (capstone)
@@ -402,6 +454,66 @@ namespace PlayniteAchievements.Services
             presetIcons["decoration"] = new JArray(slots.Cast<object>());
         }
 
+        /// <summary>
+        /// Game backgrounds are often multi-megabyte 4K images. Decoding one inside the notification
+        /// page takes about a second, which is the delay between the unlock and the card appearing.
+        /// A 1280 px copy (cached on disk) decodes in a few milliseconds and looks the same at
+        /// notification size.
+        /// </summary>
+        private static string DownscaleForNotification(string fullPath)
+        {
+            if (string.IsNullOrWhiteSpace(fullPath))
+            {
+                return fullPath;
+            }
+
+            try
+            {
+                var info = new FileInfo(fullPath);
+                if (!info.Exists || info.Length < 300 * 1024)
+                {
+                    return fullPath;
+                }
+
+                var directory = Path.Combine(Path.GetTempPath(), "PlayniteAchievements", "san-img");
+                Directory.CreateDirectory(directory);
+                string key;
+                using (var md5 = System.Security.Cryptography.MD5.Create())
+                {
+                    key = BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(
+                        fullPath + "|" + info.Length + "|" + info.LastWriteTimeUtc.Ticks))).Replace("-", string.Empty);
+                }
+
+                var target = Path.Combine(directory, key + ".jpg");
+                if (File.Exists(target))
+                {
+                    return target;
+                }
+
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bitmap.DecodePixelWidth = 1280;
+                bitmap.UriSource = new Uri(fullPath);
+                bitmap.EndInit();
+                bitmap.Freeze();
+                var encoder = new System.Windows.Media.Imaging.JpegBitmapEncoder { QualityLevel = 88 };
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                var temp = target + ".tmp";
+                using (var stream = File.Create(temp))
+                {
+                    encoder.Save(stream);
+                }
+
+                File.Move(temp, target);
+                return target;
+            }
+            catch
+            {
+                return fullPath;
+            }
+        }
+
         private string ResolveGameImagePath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -511,7 +623,7 @@ namespace PlayniteAchievements.Services
                 var hasPercent = !double.IsNaN(percent) && percent >= 0;
                 var iconPath = IsUsableImage(achievementIconPath) ? achievementIconPath : string.Empty;
                 var gameIcon = ResolveGameImagePath(context?.GameIconPath ?? game?.Icon);
-                var header = ResolveGameImagePath(context?.GameCoverPath ?? game?.BackgroundImage ?? game?.CoverImage);
+                var header = DownscaleForNotification(ResolveGameImagePath(context?.GameCoverPath ?? game?.BackgroundImage ?? game?.CoverImage));
 
                 bool? showPercent = null;
                 if (settings.OfficialSanPercentMode == OfficialSanPercentMode.Always) showPercent = true;
@@ -585,9 +697,10 @@ namespace PlayniteAchievements.Services
                     return false;
                 }
 
-                var json = payload.ToString(Newtonsoft.Json.Formatting.None).Replace("</", "<\\/");
                 var windowWidth = Math.Max(260, Math.Ceiling((theme.BaseWidth + theme.Offset * 2) * scale));
                 var windowHeight = Math.Max(90, Math.Ceiling((theme.BaseHeight + theme.Offset * 2) * scale));
+                payload["windowDip"] = new JObject { ["width"] = windowWidth, ["height"] = windowHeight };
+                var json = payload.ToString(Newtonsoft.Json.Formatting.None).Replace("</", "<\\/");
                 var debug = settings.EnableOverlayDebugLogging;
                 var followMonitor = settings.OfficialSanShowOnActiveGameMonitor;
 

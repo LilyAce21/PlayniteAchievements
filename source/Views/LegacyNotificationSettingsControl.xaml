@@ -2662,7 +2662,7 @@
                                                VerticalAlignment="Center"/>
                                 </Grid>
                             </ListBoxItem>
-                            <ListBoxItem x:Name="AchievementNotificationsStyleNavigationItem"
+                            <ListBoxItem x:Name="AchievementNotificationsStyleNavigationItem" Visibility="Collapsed"
                                          Style="{StaticResource ProviderNavigationItemContainerStyle}">
                                 <Grid Margin="8,3" MinHeight="32">
                                     <Grid.ColumnDefinitions>
@@ -2680,7 +2680,7 @@
                                                VerticalAlignment="Center"/>
                                 </Grid>
                             </ListBoxItem>
-                            <ListBoxItem x:Name="AchievementNotificationsMemoriesNavigationItem"
+                            <ListBoxItem x:Name="AchievementNotificationsMemoriesNavigationItem" Visibility="Collapsed"
                                          Style="{StaticResource ProviderNavigationItemContainerStyle}">
                                 <Grid Margin="8,3" MinHeight="32">
                                     <Grid.ColumnDefinitions>
@@ -3439,8 +3439,6 @@
                                               IsChecked="{Binding OfficialSanShowHiddenAsLocked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
                                     <CheckBox Content="Apply the upstream notification element settings (shown lines, text sizes, font, rarity-coloured name, rarity glow) on top of the theme"
                                               IsChecked="{Binding OfficialSanApplyUpstreamElements, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
-                                    <CheckBox Content="Use the upstream screenshot, screenshot frame and recording settings (ignore the Memories capture settings)"
-                                              IsChecked="{Binding OfficialSanUseUpstreamCaptureSettings, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,0"/>
                                 </StackPanel>
 
                                     </StackPanel>

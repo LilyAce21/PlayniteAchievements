@@ -677,16 +677,8 @@ namespace PlayniteAchievements
             var officialSan = localSettings?.UseOfficialSanTemplate == true &&
                               localSettings.UseUpstreamNotificationTemplate != true;
 
-            // The 100% completion notification is only drawn by the official SAN template; the
-            // Santodan-fork template leaves it to the standard toast.
-            if (args.IsGameCompleted && !officialSan)
-            {
-                return false;
-            }
-
-            var santodanLive = localSettings?.EnableActiveGameMonitoring == true &&
-                               localSettings.UseUpstreamNotificationTemplate != true;
-            if (!officialSan && !santodanLive)
+            // The official SAN template is the only custom notification renderer.
+            if (!officialSan)
             {
                 return false;
             }

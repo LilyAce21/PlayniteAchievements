@@ -34,7 +34,7 @@ using PlayniteAchievements.Providers.Overrides;
 
 namespace PlayniteAchievements.Providers.Local
 {
-    public class LocalSavesProvider : IDataProvider, IProviderOverride
+    public class LocalSavesProvider : IDataProvider, IProviderOverride, IInGameProgressSource
     {
         private static readonly HashSet<Guid> ReportedAmbiguousFolderGames = new HashSet<Guid>();
         private static readonly Regex GenericAchievementNamePattern = new Regex(
@@ -909,14 +909,84 @@ namespace PlayniteAchievements.Providers.Local
             return new RebuildPayload();
         }
 
-        internal bool TryGetActiveMonitorSourceFingerprint(Game game, out string fingerprint)
+        // ---- Live progress (file watching) ----------------------------------------------------
+
+        InGameProgressRegistration IInGameProgressSource.TryRegister(Game game, GameAchievementData cachedSchema)
         {
-            fingerprint = null;
-            if (game == null || game.Id == Guid.Empty)
+            if (game == null ||
+                cachedSchema?.Achievements == null ||
+                cachedSchema.Achievements.Count == 0 ||
+                !string.Equals(cachedSchema.ProviderKey, ProviderKey, StringComparison.OrdinalIgnoreCase))
             {
-                return false;
+                return null;
             }
 
+            var paths = CollectActiveMonitorSourcePaths(game);
+            if (paths.Count == 0)
+            {
+                return null;
+            }
+
+            // Every file that can carry an unlock (Goldberg/emulator achievement files, Steam's local
+            // stats bins) is watched, so the in-game monitor reads the moment one changes instead of
+            // waiting for its next refresh.
+            return new InGameProgressRegistration
+            {
+                ProviderKey = ProviderKey,
+                WatchTargets = paths
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                PollInterval = InGameProgressRegistration.FileWatchSafetyPollInterval,
+                State = game.Id
+            };
+        }
+
+        async Task<IReadOnlyList<InGameProgressQueryResult>> IInGameProgressSource.QueryAsync(
+            IReadOnlyList<InGameTrackingContext> games,
+            CancellationToken cancellationToken)
+        {
+            var results = new List<InGameProgressQueryResult>();
+            foreach (var context in games ?? Array.Empty<InGameTrackingContext>())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var gameId = context?.Game?.Id ?? Guid.Empty;
+                try
+                {
+                    var data = await GetAchievementsAsync(context.Game, new RefreshRequest()).ConfigureAwait(false);
+                    if (data?.Achievements == null)
+                    {
+                        results.Add(InGameProgressQueryResult.Failed(gameId, "no_data"));
+                        continue;
+                    }
+
+                    var observations = data.Achievements
+                        .Where(item => item != null && item.Unlocked && !string.IsNullOrWhiteSpace(item.ApiName))
+                        .Select(item => new AchievementProgressObservation
+                        {
+                            ApiName = item.ApiName,
+                            Unlocked = true,
+                            UnlockTimeUtc = item.UnlockTimeUtc
+                        })
+                        .ToList();
+                    results.Add(InGameProgressQueryResult.Succeeded(gameId, observations));
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Log($"IN-GAME PROGRESS READ FAILED: game='{context?.Game?.Name}' msg={ex.Message}");
+                    results.Add(InGameProgressQueryResult.Failed(gameId, "file_unstable"));
+                }
+            }
+
+            return results;
+        }
+
+        /// <summary>Every existing file that can change when this game unlocks something.</summary>
+        private List<string> CollectActiveMonitorSourcePaths(Game game)
+        {
             var paths = new List<string>();
             var appId = GetAppId(game, out _);
             int lumaAppId;
@@ -997,6 +1067,18 @@ namespace PlayniteAchievements.Providers.Local
                 AddExistingPath(paths, steamLocalProgress?.SourcePath);
             }
 
+            return paths;
+        }
+
+        internal bool TryGetActiveMonitorSourceFingerprint(Game game, out string fingerprint)
+        {
+            fingerprint = null;
+            if (game == null || game.Id == Guid.Empty)
+            {
+                return false;
+            }
+
+            var paths = CollectActiveMonitorSourcePaths(game);
             if (paths.Count == 0)
             {
                 return false;
@@ -9140,14 +9222,26 @@ namespace PlayniteAchievements.Providers.Local
                 Directory.Exists(Path.Combine(configuredPath, "appcache", "stats")))
             {
                 roots.Add(configuredPath);
+            }
 
-                var configuredRoots = roots.ToList();
-                lock (_discoveryCacheLock)
+            // A second Steam install (for example on another drive) keeps its own appcache; look at
+            // every fixed drive's root as well, so a configured path does not hide it.
+            try
+            {
+                foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady))
                 {
-                    _steamInstallRootsCache = configuredRoots;
+                    foreach (var folder in new[] { "Steam", "steam", Path.Combine("Program Files (x86)", "Steam") })
+                    {
+                        var candidateRoot = Path.Combine(drive.Name, folder);
+                        if (Directory.Exists(Path.Combine(candidateRoot, "appcache", "stats")))
+                        {
+                            roots.Add(candidateRoot);
+                        }
+                    }
                 }
-
-                return configuredRoots;
+            }
+            catch
+            {
             }
 
             foreach (var candidate in GetSteamInstallCandidates())

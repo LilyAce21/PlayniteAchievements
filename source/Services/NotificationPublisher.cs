@@ -292,6 +292,20 @@ namespace PlayniteAchievements.Services
             bool isSettingsPreview = false)
         {
             var resolvedProviderKey = string.IsNullOrWhiteSpace(notificationProviderKey) ? "Local" : notificationProviderKey.Trim();
+            if (!isSettingsPreview && forcedStyle == null && progressContext?.IsPreview != true)
+            {
+                // The Santodan-fork notification styles no longer exist: an unlock is either drawn by the
+                // official SAN template or not at all. This does not look at the plugin's "enable
+                // notifications" switch, the per-provider toast flags or the in-app notification setting.
+                ShowOfficialSanUnlocks(
+                    gameName,
+                    unlockedAchievements,
+                    resolvedProviderKey,
+                    game,
+                    overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>());
+                return;
+            }
+
             if ((overrideLocalSettings ?? ProviderRegistry.Settings<LocalSettings>())?.UseOfficialSanTemplate == true &&
                 forcedStyle == null)
             {

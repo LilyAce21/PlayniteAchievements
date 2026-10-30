@@ -775,7 +775,7 @@ namespace PlayniteAchievements.Providers.Local
         /// <summary>True when capture (screenshots, recordings) should ignore the Memories settings.</summary>
         [Newtonsoft.Json.JsonIgnore]
         public bool UpstreamCaptureOverridesMemories =>
-            _useOfficialSanTemplate && _officialSanUseUpstreamCaptureSettings && !_useUpstreamNotificationTemplate;
+            true;
 
         /// <summary>Seconds between unlock checks for the official SAN template (1-60).</summary>
         public int OfficialSanPollingIntervalSeconds
@@ -793,7 +793,7 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>True when either the Santodan-fork monitoring or the official SAN live detection is on.</summary>
         [Newtonsoft.Json.JsonIgnore]
-        public bool AnyLiveDetectionActive => _enableActiveGameMonitoring || OfficialSanLiveDetectionActive;
+        public bool AnyLiveDetectionActive => OfficialSanLiveDetectionActive;
 
         /// <summary>The unlock-check interval in effect; the official SAN template's own interval wins while it is active.</summary>
         [Newtonsoft.Json.JsonIgnore]
@@ -801,7 +801,7 @@ namespace PlayniteAchievements.Providers.Local
             MinActiveGameMonitoringIntervalSeconds,
             Math.Min(
                 MaxActiveGameMonitoringIntervalSeconds,
-                OfficialSanLiveDetectionActive ? _officialSanPollingIntervalSeconds : _activeGameMonitoringIntervalSeconds));
+                _officialSanPollingIntervalSeconds));
 
         public bool OfficialSanApplyUpstreamElements { get => _officialSanApplyUpstreamElements; set => SetValue(ref _officialSanApplyUpstreamElements, value); }
 

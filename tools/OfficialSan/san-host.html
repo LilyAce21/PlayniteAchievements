@@ -846,7 +846,23 @@
         tick();
       }
 
+      function paDecodeImages(urls, timeoutMs) {
+        const jobs = (urls || []).filter(Boolean).map((url) => new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => (img.decode ? img.decode().then(resolve, resolve) : resolve());
+          img.onerror = () => resolve();
+          img.src = url;
+        }));
+        return Promise.race([Promise.all(jobs), new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
+      }
+
       function notifyReady() {
+        const urls = window.__paPreload || [];
+        window.__paPreload = null;
+        paDecodeImages(urls, 1500).then(() => paShow());
+      }
+
+      function paShow() {
         setVar("--bodyopacity", "1");
         setTimeout(() => {
           requestAnimationFrame(() => {
@@ -872,6 +888,16 @@
           customisation.iconborderpos = "front";
         }
 
+        // The presets size all text from the root font size, which SAN's CSS derives from the browser
+        // viewport (3vmax). Pin it to the notification window the host created so a viewport that is
+        // not the window size (warm host, DPI) can no longer inflate every font.
+        if (payload && payload.windowDip) {
+          const longest = Math.max(Number(payload.windowDip.width) || 0, Number(payload.windowDip.height) || 0);
+          if (longest > 0) {
+            document.documentElement.style.setProperty("font-size", (0.03 * longest + 0.8).toFixed(3) + "px", "important");
+          }
+        }
+
         Promise.all([
           loadCss("san-global-css", theme.runtime?.globalCssUrl),
           loadCss("san-base-css", theme.runtime?.baseCssUrl),
@@ -884,6 +910,8 @@
           applySanVariables(payload, customisation);
           try { applyUpstreamElements(payload.upstream); } catch (e) {}
           try { paSetupPill(payload); } catch (e) {}
+          window.__paPreload = [payload.headerPath, payload.gameIconPath, payload.iconPath]
+            .filter(Boolean).map((p) => fileUrl(p));
           notifyReady();
         });
       });
