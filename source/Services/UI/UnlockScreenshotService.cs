@@ -241,7 +241,7 @@ namespace PlayniteAchievements.Services.UI
             bool isTestFire)
         {
             var timestamp = DateTime.Now;
-            var directory = LocalAchievementScreenshotService.ReplaceTokens(
+            var directory = CaptureFileNaming.ReplaceTokens(
                 settings.EffectiveScreenshotSaveFolder,
                 game,
                 achievementName,
@@ -255,7 +255,7 @@ namespace PlayniteAchievements.Services.UI
                 directory = Path.Combine(directory, TestFolderName);
             }
 
-            var filename = LocalAchievementScreenshotService.ReplaceTokens(
+            var filename = CaptureFileNaming.ReplaceTokens(
                 settings.ScreenshotFilenameTemplate,
                 game,
                 achievementName,
@@ -264,10 +264,10 @@ namespace PlayniteAchievements.Services.UI
                 Math.Max(1, total),
                 sanitizeValues: false,
                 providerName: providerKey);
-            filename = LocalAchievementScreenshotService.SanitizeFileName(filename);
+            filename = CaptureFileNaming.SanitizeFileName(filename);
             if (!string.IsNullOrWhiteSpace(variantSuffix))
             {
-                var suffix = LocalAchievementScreenshotService.SanitizeFileName(variantSuffix);
+                var suffix = CaptureFileNaming.SanitizeFileName(variantSuffix);
                 if (!string.IsNullOrWhiteSpace(suffix))
                 {
                     filename += "_" + suffix;
@@ -275,7 +275,7 @@ namespace PlayniteAchievements.Services.UI
             }
 
             Directory.CreateDirectory(directory);
-            return LocalAchievementScreenshotService.BuildUniquePath(directory, filename, ".png");
+            return CaptureFileNaming.BuildUniquePath(directory, filename, ".png");
         }
 
         /// <summary>

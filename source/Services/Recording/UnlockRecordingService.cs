@@ -2511,7 +2511,7 @@ namespace PlayniteAchievements.Services.Recording
                     var directoryTemplate = string.IsNullOrWhiteSpace(custom.RecordingSaveFolder)
                         ? custom.EffectiveScreenshotSaveFolder
                         : custom.RecordingSaveFolder;
-                    var customBaseDir = LocalAchievementScreenshotService.ReplaceTokens(
+                    var customBaseDir = PlayniteAchievements.Services.UI.CaptureFileNaming.ReplaceTokens(
                         directoryTemplate,
                         game,
                         request.AchievementName,
@@ -2525,7 +2525,7 @@ namespace PlayniteAchievements.Services.Recording
                         return null;
                     }
 
-                    var filename = LocalAchievementScreenshotService.ReplaceTokens(
+                    var filename = PlayniteAchievements.Services.UI.CaptureFileNaming.ReplaceTokens(
                         custom.RecordingFilenameTemplate,
                         game,
                         request.AchievementName,
@@ -2534,9 +2534,9 @@ namespace PlayniteAchievements.Services.Recording
                         Math.Max(1, request.TotalCount),
                         sanitizeValues: false,
                         providerName: request.ProviderKey);
-                    filename = LocalAchievementScreenshotService.SanitizeFileName(filename);
+                    filename = PlayniteAchievements.Services.UI.CaptureFileNaming.SanitizeFileName(filename);
                     Directory.CreateDirectory(customBaseDir);
-                    return LocalAchievementScreenshotService.BuildUniquePath(customBaseDir, filename, ".mp4");
+                    return PlayniteAchievements.Services.UI.CaptureFileNaming.BuildUniquePath(customBaseDir, filename, ".mp4");
                 }
 
                 var baseDir = ResolveOutputDirectory(persisted);
