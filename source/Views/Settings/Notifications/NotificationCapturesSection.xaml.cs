@@ -74,6 +74,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             ContentPanel.Margin = new Thickness(0);
             GameCustomizeCheckBox.Visibility = Visibility.Visible;
             GameFolderPanel.Visibility = Visibility.Visible;
+            CapturePositionGlobalRow.Visibility = Visibility.Collapsed;
             ScreenshotGlobalPanel.Visibility = Visibility.Collapsed;
             RecordingGlobalPanel.Visibility = Visibility.Collapsed;
             AudioGlobalPanel.Visibility = Visibility.Collapsed;

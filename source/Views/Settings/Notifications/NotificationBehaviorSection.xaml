@@ -101,20 +101,6 @@
                                 <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_TopLeft}" Tag="{x:Static settings:ToastScreenCorner.TopLeft}"/>
                             </ComboBox>
                         </controls:SettingRow>
-                        <controls:SettingRow x:Name="CapturePositionGlobalRow"
-                                             Label="{DynamicResource LOCPlayAch_Settings_CaptureNotificationPosition}"
-                                             Hint="{DynamicResource LOCPlayAch_Settings_CaptureNotificationPosition_Hint}">
-                            <ComboBox SelectedValue="{Binding Persisted.CaptureNotificationPosition, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      SelectedValuePath="Tag"
-                                      MinWidth="140">
-                                <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_BottomRight}" Tag="{x:Static settings:ToastScreenCorner.BottomRight}"/>
-                                <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_BottomLeft}" Tag="{x:Static settings:ToastScreenCorner.BottomLeft}"/>
-                                <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_BottomCenter}" Tag="{x:Static settings:ToastScreenCorner.BottomCenter}"/>
-                                <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_TopRight}" Tag="{x:Static settings:ToastScreenCorner.TopRight}"/>
-                                <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_TopLeft}" Tag="{x:Static settings:ToastScreenCorner.TopLeft}"/>
-                                <ComboBoxItem Content="{DynamicResource LOCPlayAch_Settings_ToastPosition_TopCenter}" Tag="{x:Static settings:ToastScreenCorner.TopCenter}"/>
-                            </ComboBox>
-                        </controls:SettingRow>
                         <controls:SettingRow x:Name="RenderModeGlobalRow"
                                              Label="{DynamicResource LOCPlayAch_Settings_NotificationRenderMode}"
                                              Hint="{DynamicResource LOCPlayAch_Settings_NotificationRenderMode_Hint}">
