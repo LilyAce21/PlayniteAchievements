@@ -1594,25 +1594,61 @@ namespace PlayniteAchievements.Views
                 NotificationsUnlockSoundStatusTextBlock.Text = $"Failed to send test notification: {ex.Message}";
             }
         }
+    }
 
+    /// <summary>
+    /// Represents a provider item in the settings Providers overview navigation.
+    /// </summary>
+    public sealed class LegacyProviderNavigationItem : PlayniteAchievements.Common.ObservableObject
+    {
+        private readonly IProviderSettings _settings;
 
+        public LegacyProviderNavigationItem(
+            string providerKey,
+            string displayName,
+            string groupName,
+            string providerIconKey,
+            string providerColorHex,
+            IProviderSettings settings,
+            ProviderSettingsViewBase settingsView,
+            string redirectProviderKey = null,
+            string subtitle = null)
+        {
+            ProviderKey = providerKey;
+            DisplayName = displayName;
+            GroupName = groupName;
+            ProviderIconKey = providerIconKey;
+            ProviderColorHex = providerColorHex;
+            SettingsView = settingsView;
+            RedirectProviderKey = redirectProviderKey;
+            Subtitle = subtitle;
+            _settings = settings;
 
+            if (_settings != null)
+            {
+                _settings.PropertyChanged += Settings_PropertyChanged;
+            }
+        }
 
+        public string ProviderKey { get; }
+        public string DisplayName { get; }
+        public string GroupName { get; }
+        public string ProviderIconKey { get; }
+        public string ProviderColorHex { get; }
+        public string RedirectProviderKey { get; }
+        public string Subtitle { get; }
+        public bool HasSubtitle => !string.IsNullOrWhiteSpace(Subtitle);
+        public bool IsRedirect => !string.IsNullOrWhiteSpace(RedirectProviderKey);
+        public bool IsEnabled => _settings?.IsEnabled ?? true;
+        public ProviderSettingsViewBase SettingsView { get; }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        private void Settings_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(e.PropertyName) ||
+                string.Equals(e.PropertyName, nameof(IProviderSettings.IsEnabled), StringComparison.Ordinal))
+            {
+                OnPropertyChanged(nameof(IsEnabled));
+            }
+        }
+    }
+}
