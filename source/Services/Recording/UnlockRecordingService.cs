@@ -17,7 +17,6 @@ using PlayniteAchievements.Services.GameCustomData;
 using PlayniteAchievements.Services.UI;
 using PlayniteAchievements.Providers;
 using PlayniteAchievements.Providers.Local;
-using PlayniteAchievements.Services.Local;
 
 namespace PlayniteAchievements.Services.Recording
 {

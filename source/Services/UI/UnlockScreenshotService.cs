@@ -13,7 +13,6 @@ using PlayniteAchievements.Common;
 using PlayniteAchievements.Services.Capture;
 using PlayniteAchievements.Services.Images;
 using PlayniteAchievements.Providers.Local;
-using PlayniteAchievements.Services.Local;
 using Playnite.SDK.Models;
 
 namespace PlayniteAchievements.Services.UI
