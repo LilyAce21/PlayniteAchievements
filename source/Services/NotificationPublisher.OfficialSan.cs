@@ -806,8 +806,9 @@ namespace PlayniteAchievements.Services
                     {
                         string message = null;
                         try { message = e.TryGetWebMessageAsString(); } catch { }
-                        if (string.Equals(message, "san-ready", StringComparison.Ordinal))
+                        if (message != null && message.StartsWith("san-ready", StringComparison.Ordinal))
                         {
+                            ForkLog.Wrap(_logger)?.Debug($"[OfficialSan] Page timings ({message}); {showStopwatch.ElapsedMilliseconds} ms since hand-off.");
                             window.Dispatcher.BeginInvoke(new Action(StartPlayback));
                         }
                     };
@@ -819,7 +820,7 @@ namespace PlayniteAchievements.Services
                     // The window has only just been moved from its parking spot to the screen. Give the
                     // browser a couple of frames to start painting there before the notification starts
                     // animating; otherwise the first frames are drawn half transparent / out of step.
-                    var kick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(70) };
+                    var kick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(25) };
                     kick.Tick += (_, __) =>
                     {
                         kick.Stop();

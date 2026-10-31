@@ -82,7 +82,12 @@
       window.api = {
         onNotification(cb) { window.__sanCb = cb; },
         notificationRenderReady() {
-          try { window.chrome.webview.postMessage("san-ready"); } catch (e) {}
+          const t = window.__paTimings || {};
+          const now = performance.now();
+          const msg = "san-ready|css=" + Math.round((t.css || now) - (t.start || 0)) +
+            "|decode=" + Math.round((t.decode || now) - (t.css || now)) +
+            "|total=" + Math.round(now - (t.start || 0));
+          try { window.chrome.webview.postMessage(msg); } catch (e) {}
         },
       };
     </script>
@@ -859,21 +864,22 @@
       function notifyReady() {
         const urls = window.__paPreload || [];
         window.__paPreload = null;
-        paDecodeImages(urls, 350).then(() => paShow());
+        // Images are local, pre-sized files; anything that is not decoded within a frame or two simply
+        // paints in a moment later rather than holding the whole notification back.
+        paDecodeImages(urls, 120).then(() => { (window.__paTimings = window.__paTimings || {}).decode = performance.now(); paShow(); });
       }
 
       function paShow() {
         setVar("--bodyopacity", "1");
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              window.api?.notificationRenderReady?.();
-            });
+            window.api?.notificationRenderReady?.();
           });
-        }, 120);
+        });
       }
 
       window.api?.onNotification?.((payload) => {
+        window.__paTimings = { start: performance.now() };
         // The pill replaces whatever percentage the theme would draw itself.
         if (payload && payload.paPill) payload.showRarityPercentage = false;
         const theme = payload?.sanTheme || {};
@@ -904,6 +910,7 @@
           loadCss("san-baseanim-css", theme.runtime?.baseAnimCssUrl),
           loadCss("san-preset-css", theme.runtime?.presetCssUrl),
         ]).then(() => {
+          window.__paTimings.css = performance.now();
           document.body.insertAdjacentHTML("beforeend", theme.presetHtml || "");
           setBodyAttributes(payload, customisation);
           applyCustomFont(customisation);

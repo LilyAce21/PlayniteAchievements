@@ -1,5 +1,7 @@
 using ForkLog = PlayniteAchievements.Services.Logging.ForkLogger;
 using System;
+using System.IO;
+using System.Text;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -29,7 +31,11 @@ namespace PlayniteAchievements.Services
     {
         private const int StartupDelaySeconds = 20;
         private static readonly TimeSpan SchedulerResolution = TimeSpan.FromMilliseconds(100);
-        private static readonly TimeSpan FileDebounce = TimeSpan.FromMilliseconds(150);
+        private static readonly TimeSpan FileDebounce = TimeSpan.FromMilliseconds(40);
+        /// <summary>How often the watched progress files are stat-checked for a change the OS watcher missed.</summary>
+        private static readonly TimeSpan StatProbeInterval = TimeSpan.FromMilliseconds(150);
+        /// <summary>A watcher event newer than this means the stat probe leaves detection to the watcher.</summary>
+        private static readonly TimeSpan StatProbeWatcherGrace = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan ConfiguredLogInterval = TimeSpan.FromMinutes(5);
         private static readonly int[] StableReadRetryMilliseconds = { 100, 250, 500, 1000 };
         /// <summary>
@@ -88,6 +94,8 @@ namespace PlayniteAchievements.Services
             public InGameProgressRegistration Registration;
             public GameAchievementData CachedSchema;
             public bool QueryInFlight;
+            public DateTime NextStatProbeUtc;
+            public string StatFingerprint;
             /// <summary>
             /// Set when the fast source first exhausts its retries this session, so the drop to the
             /// slow cadence is logged at Info once rather than on every degraded read.
@@ -560,8 +568,98 @@ namespace PlayniteAchievements.Services
             _logger?.Info("[InGameMonitor] Scheduler exited.");
         }
 
+
+        /// <summary>
+        /// Cheap change detection for every watched progress file: a handful of stat calls, no reads.
+        /// A changed timestamp or size queues the same trailing-debounce read a watcher event does, so
+        /// an atomic rename, a coalesced event or a synced folder cannot delay an unlock, and the full
+        /// provider read only ever runs when something actually changed.
+        /// </summary>
+        private void ProbeWatchedFiles()
+        {
+            List<KeyValuePair<GamePollState, IReadOnlyList<string>>> due = null;
+            lock (_stateLock)
+            {
+                var now = CaptureTimelineClock.UtcNow;
+                foreach (var state in _games.Values)
+                {
+                    if (state.ProgressSource == null ||
+                        state.Registration == null ||
+                        state.Registration.IsRemote ||
+                        state.Registration.WatchTargets == null ||
+                        state.Registration.WatchTargets.Count == 0 ||
+                        state.NextStatProbeUtc > now)
+                    {
+                        continue;
+                    }
+
+                    state.NextStatProbeUtc = now.Add(StatProbeInterval);
+                    due = due ?? new List<KeyValuePair<GamePollState, IReadOnlyList<string>>>();
+                    due.Add(new KeyValuePair<GamePollState, IReadOnlyList<string>>(state, state.Registration.WatchTargets));
+                }
+            }
+
+            if (due == null)
+            {
+                return;
+            }
+
+            foreach (var pair in due)
+            {
+                var fingerprint = BuildStatFingerprint(pair.Value);
+                lock (_stateLock)
+                {
+                    var state = pair.Key;
+                    if (!_games.TryGetValue(state.Game.Id, out var tracked) || !ReferenceEquals(state, tracked))
+                    {
+                        continue;
+                    }
+
+                    var previous = state.StatFingerprint;
+                    state.StatFingerprint = fingerprint;
+                    if (previous == null || string.Equals(previous, fingerprint, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    var now = CaptureTimelineClock.UtcNow;
+                    if (state.Schedule.LastFileEventUtc != default &&
+                        now - state.Schedule.LastFileEventUtc < StatProbeWatcherGrace)
+                    {
+                        continue;
+                    }
+
+                    state.Schedule.SignalFile(now, false, FileDebounce);
+                    _logger?.Debug($"[InGameMonitor] Stat probe saw a change for {state.Game.Name}; read queued.");
+                }
+            }
+        }
+
+        private static string BuildStatFingerprint(IReadOnlyList<string> paths)
+        {
+            var builder = new StringBuilder();
+            foreach (var path in paths)
+            {
+                try
+                {
+                    var info = new FileInfo(path);
+                    if (info.Exists)
+                    {
+                        builder.Append(path).Append('|').Append(info.Length).Append('|')
+                            .Append(info.LastWriteTimeUtc.Ticks).Append(';');
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return builder.ToString();
+        }
+
         private Task RunTickAsync(CancellationToken token)
         {
+            ProbeWatchedFiles();
             List<IGrouping<IInGameProgressSource, GamePollState>> sourceGroups;
             List<GamePollState> fallbackStates;
             List<GamePollState> friendStates;

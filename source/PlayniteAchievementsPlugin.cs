@@ -1849,6 +1849,16 @@ namespace PlayniteAchievements
             using (PerfScope.StartStartup(_logger, "OnApplicationStarted", thresholdMs: 50))
             {
                 _applicationStarted = true;
+                try
+                {
+                    var asm = typeof(PlayniteAchievementsPlugin).Assembly;
+                    ForkLog.Wrap(_logger)?.Info(
+                        $"[Build] Running {asm.GetName().Version} from '{asm.Location}' (built {File.GetLastWriteTimeUtc(asm.Location):yyyy-MM-dd HH:mm:ss} UTC).");
+                }
+                catch
+                {
+                }
+
                 Services.ThemeMigration.Ps5TrophyProgressBridge.SetAchievementDataResolver(id => _achievementDataService?.GetGameAchievementData(id));
                 Services.ThemeMigration.Ps5TrophyProgressBridge.Start(PlayniteApi, _logger);
 

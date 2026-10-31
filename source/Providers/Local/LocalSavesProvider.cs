@@ -936,7 +936,9 @@ namespace PlayniteAchievements.Providers.Local
                 WatchTargets = paths
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
-                PollInterval = InGameProgressRegistration.FileWatchSafetyPollInterval,
+                // The file watcher plus the monitor's stat probe detect a change within ~150 ms; this long
+                // backstop only exists to recover from a watcher that died silently.
+                PollInterval = TimeSpan.FromSeconds(30),
                 State = game.Id
             };
         }
@@ -991,7 +993,11 @@ namespace PlayniteAchievements.Providers.Local
                 {
                     // The monitor re-queries on a short safety cadence. Reading and correlating the whole
                     // achievement set takes about a second, so only do it when a progress file changed.
-                    var fingerprint = BuildLiveProgressFingerprint(GetLiveProgressPaths(context.Game));
+                    var registeredTargets = context.Registration?.WatchTargets;
+                    var fingerprint = BuildLiveProgressFingerprint(
+                        registeredTargets != null && registeredTargets.Count > 0
+                            ? (IEnumerable<string>)registeredTargets
+                            : GetLiveProgressPaths(context.Game));
                     KeyValuePair<string, InGameProgressQueryResult> cached;
                     bool haveCached;
                     lock (_liveProgressCache)
