@@ -333,6 +333,8 @@ namespace PlayniteAchievements.Providers.Local
 
         public async Task<GameAchievementData> GetAchievementsAsync(Game game, RefreshRequest request)
         {
+            var readClock = System.Diagnostics.Stopwatch.StartNew();
+            long tResolved = -1, tSchema = -1, tSteamCaches = -1, tLoaded = -1;
             if (TryResolveNemirtingasPaths(game, out var epicSchemaPath, out var epicSavePath))
             {
                 var epicData = await LoadNemirtingasAchievementsAsync(game, epicSchemaPath, epicSavePath).ConfigureAwait(false);
@@ -428,6 +430,7 @@ namespace PlayniteAchievements.Providers.Local
 
             string localFolderPath = null;
             var hasResolvedLocalFolder = TryResolveLocalFolder(game, appId, out localFolderPath, out _, out _, out _);
+            tResolved = readClock.ElapsedMilliseconds;
 
             string jsonPath = null;
             if (hasResolvedLocalFolder && !string.IsNullOrWhiteSpace(localFolderPath))
@@ -505,6 +508,7 @@ namespace PlayniteAchievements.Providers.Local
                 }
 
                 steamSchema = await TryGetSteamSchemaAsync(steamSchemaAppIdInt).ConfigureAwait(false);
+                tSchema = readClock.ElapsedMilliseconds;
                 steamSchemaSource = _steamSchemaSourceCache.TryGetValue(steamSchemaAppIdInt, out var resolvedSource)
                     ? resolvedSource
                     : null;
@@ -580,6 +584,7 @@ namespace PlayniteAchievements.Providers.Local
             if (appIdInt > 0)
             {
                 steamLibraryCacheEntries = TryGetSteamLibraryCacheEntries(appIdInt, game);
+                tSteamCaches = readClock.ElapsedMilliseconds;
             }
 
             var hasSchemaAchievements = steamSchema?.Achievements != null && steamSchema.Achievements.Count > 0;
@@ -619,6 +624,7 @@ namespace PlayniteAchievements.Providers.Local
                     // This preserves custom local icon paths (for example img/*.png) even when
                     // achievements.ini exists.
                     raw = await LoadLocalEntriesAsync(jsonPath, iniPaths).ConfigureAwait(false);
+                    tLoaded = readClock.ElapsedMilliseconds;
                 }
 
                 if ((raw == null || raw.Count == 0) && hasLumaRegistryEntries)
@@ -629,6 +635,11 @@ namespace PlayniteAchievements.Providers.Local
 
                 if (raw != null && raw.Count > 0)
                 {
+                    if (readClock.ElapsedMilliseconds >= 150)
+                    {
+                        Log($"READ TIMING: game={game?.Name} folderResolved={tResolved}ms schema={tSchema}ms steamCaches={tSteamCaches}ms loaded={tLoaded}ms total={readClock.ElapsedMilliseconds}ms (cumulative)");
+                    }
+
                     Log($"LOCAL SOURCE: game={game?.Name} folder={localFolderPath ?? "none"} json={jsonPath ?? "none"} ini={(iniPaths.Count > 0 ? string.Join("|", iniPaths) : "none")} rawEntries={raw.Count} schemaEntries={(steamSchema?.Achievements?.Count ?? 0)} source={rawSource}");
 
                     if (steamSchema?.Achievements != null && steamSchema.Achievements.Count > 0)
