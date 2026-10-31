@@ -106,6 +106,13 @@ namespace PlayniteAchievements.Models.Settings
         private double _notificationDelaySeconds = 0;
         private double _captureDelaySeconds = 0;
         private int _maxConcurrentToasts = 3;
+        private bool _sanStackCommon = true;
+        private bool _sanStackUncommon = true;
+        private bool _sanStackRare = false;
+        private bool _sanStackUltraRare = false;
+        private bool _sanStackCapstone = false;
+        private bool _sanStackCompletion = false;
+        private bool _sanSkipCompletionWithCapstone = false;
         private bool _singleCustomNotification;
         private bool _enableControllerVibration = false;
         private int _controllerVibrationStrengthPercent = 50;
@@ -1375,6 +1382,53 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _singleCustomNotification;
             set => SetValue(ref _singleCustomNotification, value);
+        }
+
+
+        /// <summary>
+        /// Whether a SAN notification of this rarity tier may start while another one is still on
+        /// screen. Capstone and 100% notifications always wait for the achievement that triggered them.
+        /// </summary>
+        public bool SanStackCommon
+        {
+            get => _sanStackCommon;
+            set => SetValue(ref _sanStackCommon, value);
+        }
+
+        public bool SanStackUncommon
+        {
+            get => _sanStackUncommon;
+            set => SetValue(ref _sanStackUncommon, value);
+        }
+
+        public bool SanStackRare
+        {
+            get => _sanStackRare;
+            set => SetValue(ref _sanStackRare, value);
+        }
+
+        public bool SanStackUltraRare
+        {
+            get => _sanStackUltraRare;
+            set => SetValue(ref _sanStackUltraRare, value);
+        }
+
+        public bool SanStackCapstone
+        {
+            get => _sanStackCapstone;
+            set => SetValue(ref _sanStackCapstone, value);
+        }
+
+        public bool SanStackCompletion
+        {
+            get => _sanStackCompletion;
+            set => SetValue(ref _sanStackCompletion, value);
+        }
+
+        public bool SanSkipCompletionWithCapstone
+        {
+            get => _sanSkipCompletionWithCapstone;
+            set => SetValue(ref _sanSkipCompletionWithCapstone, value);
         }
 
         public int MaxConcurrentToasts
@@ -3488,6 +3542,13 @@ namespace PlayniteAchievements.Models.Settings
                 NotificationDelaySeconds = this.NotificationDelaySeconds,
                 CaptureDelaySeconds = this.CaptureDelaySeconds,
                 MaxConcurrentToasts = this.MaxConcurrentToasts,
+                SanStackCommon = this.SanStackCommon,
+                SanStackUncommon = this.SanStackUncommon,
+                SanStackRare = this.SanStackRare,
+                SanStackUltraRare = this.SanStackUltraRare,
+                SanStackCapstone = this.SanStackCapstone,
+                SanStackCompletion = this.SanStackCompletion,
+                SanSkipCompletionWithCapstone = this.SanSkipCompletionWithCapstone,
                 SingleCustomNotification = this.SingleCustomNotification,
                 ToastPosition = this.ToastPosition,
                 CaptureNotificationPosition = this.CaptureNotificationPosition,

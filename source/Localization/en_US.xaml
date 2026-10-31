@@ -646,6 +646,15 @@ Reclaimed {1}.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ToastPosition_BottomCenter">Bottom center</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ToastPosition_TopRight">Top right</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ToastPosition_TopLeft">Top left</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackingHeader">Notification stacking</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackingHint">Which notifications may appear while another one is still on screen. The maximum stack size is the “Max concurrent” setting. A notification that may not stack waits until the screen is clear. A capstone or 100% notification always appears after the achievement that triggered it.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackCommon">Common may stack</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackUncommon">Uncommon may stack</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackRare">Rare may stack</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackUltraRare">Ultra rare may stack</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackCapstone">Capstone may stack</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanStackCompletion">100% completion may stack</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_SanSkipCompletionWithCapstone">Skip the 100% notification when the capstone unlocks with it</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ToastPosition_TopCenter">Top center</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CaptureNotificationPosition">Position in captures</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CaptureNotificationPosition_Hint">Where the notification card is drawn in unlock screenshots and clips while a custom notification (SAN) is what you see on screen.</sys:String>

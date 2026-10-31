@@ -60,6 +60,42 @@
                     </StackPanel>
                 </Border>
 
+                <!-- SAN stacking rules (app-wide) -->
+                <Border x:Name="StackingGlobalSection" Style="{StaticResource SectionBorderStyle}">
+                    <StackPanel IsEnabled="{Binding Persisted.EnableNotifications}"
+                                Grid.IsSharedSizeScope="True">
+                        <TextBlock Text="{DynamicResource LOCPlayAch_Settings_SanStackingHeader}"
+                                   Style="{StaticResource SectionHeaderStyle}"
+                                   Margin="{StaticResource PlayAch.Thickness.Bottom.Md}"/>
+                        <Border Style="{StaticResource SectionAccentRuleStyle}"/>
+                        <TextBlock Text="{DynamicResource LOCPlayAch_Settings_SanStackingHint}"
+                                   TextWrapping="Wrap"
+                                   Opacity="0.75"
+                                   Margin="{StaticResource PlayAch.Thickness.Bottom.Md}"/>
+                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SanStackCommon}">
+                            <CheckBox IsChecked="{Binding Persisted.SanStackCommon}"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SanStackUncommon}">
+                            <CheckBox IsChecked="{Binding Persisted.SanStackUncommon}"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SanStackRare}">
+                            <CheckBox IsChecked="{Binding Persisted.SanStackRare}"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SanStackUltraRare}">
+                            <CheckBox IsChecked="{Binding Persisted.SanStackUltraRare}"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SanStackCapstone}">
+                            <CheckBox IsChecked="{Binding Persisted.SanStackCapstone}"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SanStackCompletion}">
+                            <CheckBox IsChecked="{Binding Persisted.SanStackCompletion}"/>
+                        </controls:SettingRow>
+                        <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SanSkipCompletionWithCapstone}">
+                            <CheckBox IsChecked="{Binding Persisted.SanSkipCompletionWithCapstone}"/>
+                        </controls:SettingRow>
+                    </StackPanel>
+                </Border>
+
                 <!-- How it fires -->
                 <Border Style="{StaticResource SectionBorderStyle}">
                     <StackPanel IsEnabled="{Binding Persisted.EnableNotifications}"

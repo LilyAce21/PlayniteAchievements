@@ -123,6 +123,13 @@ namespace PlayniteAchievements.Models.Settings
             target.NotificationDelaySeconds = source.NotificationDelaySeconds;
             target.CaptureDelaySeconds = source.CaptureDelaySeconds;
             target.MaxConcurrentToasts = source.MaxConcurrentToasts;
+            target.SanStackCommon = source.SanStackCommon;
+            target.SanStackUncommon = source.SanStackUncommon;
+            target.SanStackRare = source.SanStackRare;
+            target.SanStackUltraRare = source.SanStackUltraRare;
+            target.SanStackCapstone = source.SanStackCapstone;
+            target.SanStackCompletion = source.SanStackCompletion;
+            target.SanSkipCompletionWithCapstone = source.SanSkipCompletionWithCapstone;
             target.SingleCustomNotification = source.SingleCustomNotification;
             target.ToastPosition = source.ToastPosition;
             target.CaptureNotificationPosition = source.CaptureNotificationPosition;

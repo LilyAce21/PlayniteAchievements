@@ -98,6 +98,27 @@ namespace PlayniteAchievements.Services
             }
         }
 
+        /// <summary>Time SAN needs to animate a card out after its display time ends.</summary>
+        private const double SanExitAnimationMs = 700;
+
+        private static readonly SanNotificationScheduler SanScheduler = new SanNotificationScheduler();
+
+        private SanNotificationScheduler.Policy ReadSanStackPolicy()
+        {
+            var persisted = _settings?.Persisted;
+            return new SanNotificationScheduler.Policy
+            {
+                MaxStacked = persisted?.MaxConcurrentToasts ?? 3,
+                StackCommon = persisted?.SanStackCommon ?? true,
+                StackUncommon = persisted?.SanStackUncommon ?? true,
+                StackRare = persisted?.SanStackRare ?? false,
+                StackUltraRare = persisted?.SanStackUltraRare ?? false,
+                StackCapstone = persisted?.SanStackCapstone ?? false,
+                StackCompletion = persisted?.SanStackCompletion ?? false,
+                SkipCompletionWithCapstone = persisted?.SanSkipCompletionWithCapstone ?? false
+            };
+        }
+
         private static readonly Random SanRandom = new Random();
         private static readonly List<System.Windows.Media.MediaPlayer> ActiveSanPlayers = new List<System.Windows.Media.MediaPlayer>();
 
@@ -318,20 +339,43 @@ namespace PlayniteAchievements.Services
 
                 var current = item;
                 RememberOfficialSanContext(safeGameName, current);
+                var tier = RarityTier.Common;
+                if (!string.IsNullOrWhiteSpace(current.RarityTier))
+                {
+                    RarityTierExtensions.TryParse(current.RarityTier, out tier);
+                }
+
+                var ticket = new SanNotificationScheduler.Ticket
+                {
+                    Game = safeGameName,
+                    Label = name,
+                    ProfileKey = OfficialSanProfileKey(current, tier),
+                    Kind = current.IsCompletion
+                        ? SanNotificationScheduler.TicketKind.Completion
+                        : current.IsCapstone
+                            ? SanNotificationScheduler.TicketKind.Capstone
+                            : SanNotificationScheduler.TicketKind.Normal,
+                    Start = release => TryShowOfficialSanNotification(
+                        safeGameName,
+                        name,
+                        current.IconPath,
+                        providerKey,
+                        settings,
+                        game,
+                        current.Description,
+                        current.Rarity,
+                        current.Trophy,
+                        onSlotReleased: release)
+                };
+
                 RunOnUiThread(() =>
                 {
                     try
                     {
-                        TryShowOfficialSanNotification(
-                            safeGameName,
-                            name,
-                            current.IconPath,
-                            providerKey,
-                            settings,
-                            game,
-                            current.Description,
-                            current.Rarity,
-                            current.Trophy);
+                        SanScheduler.Enqueue(
+                            ticket,
+                            ReadSanStackPolicy,
+                            message => ForkLog.Wrap(_logger)?.Info("[OfficialSan] " + message));
                     }
                     catch (Exception ex)
                     {
@@ -561,7 +605,8 @@ namespace PlayniteAchievements.Services
             string achievementRarity,
             string achievementTrophy,
             string forcedProfileKey = null,
-            bool? forcedAlt = null)
+            bool? forcedAlt = null,
+            Action onSlotReleased = null)
         {
             if (settings == null || !settings.UseOfficialSanTemplate)
             {
@@ -753,6 +798,7 @@ namespace PlayniteAchievements.Services
 
                     try { webView.Dispose(); } catch { }
                     TryDeleteSanWebViewDocument(htmlPath);
+                    try { onSlotReleased?.Invoke(); } catch { }
                 };
 
                 // The sound and the display timer start when the page reports that it drew the
@@ -792,6 +838,24 @@ namespace PlayniteAchievements.Services
                     }
 
                     closeTimer.Start();
+
+                    // The screen slot frees as soon as the notification has played and animated out,
+                    // not when its (invisible) window is finally closed, so a queued capstone or
+                    // 100% notification follows straight after.
+                    if (onSlotReleased != null)
+                    {
+                        var slotTimer = new DispatcherTimer
+                        {
+                            Interval = TimeSpan.FromMilliseconds(Math.Max(1500, displaySeconds * 1000.0) + SanExitAnimationMs)
+                        };
+                        slotTimer.Tick += (_, __) =>
+                        {
+                            slotTimer.Stop();
+                            try { onSlotReleased(); } catch { }
+                        };
+                        slotTimer.Start();
+                    }
+
                     PlayOfficialSanSound(soundFile, soundVolume);
                 }
 

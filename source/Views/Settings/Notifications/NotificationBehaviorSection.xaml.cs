@@ -70,7 +70,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
             GameCustomizeCheckBox.Visibility = Visibility.Visible;
             foreach (var globalOnly in new FrameworkElement[]
             {
-                DurationGlobalRow, MaxConcurrentGlobalRow, PositionGlobalRow, RenderModeGlobalRow, VibrationGlobalRow, VibrationGlobalPanel
+                DurationGlobalRow, MaxConcurrentGlobalRow, PositionGlobalRow, RenderModeGlobalRow, VibrationGlobalRow, VibrationGlobalPanel, StackingGlobalSection
             })
             {
                 globalOnly.Visibility = Visibility.Collapsed;
