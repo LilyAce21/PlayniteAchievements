@@ -631,14 +631,14 @@ namespace PlayniteAchievements.Views
         }
 
         private readonly ObservableCollection<NotificationSoundOption> _notificationSoundOptions = new ObservableCollection<NotificationSoundOption>();
-        private readonly DispatcherTimer _notificationAutoPopupPreviewTimer;
-        private readonly DispatcherTimer _notificationInlinePreviewLoopTimer;
-        private readonly DispatcherTimer _sanViewPreviewLoopTimer;
-        private readonly DispatcherTimer _sanViewPreviewCloseTimer;
-        private int? _activeSanPreviewView;
+        private Window _settingsHostWindow;
         private Providers.Local.LocalSettings _notificationPreviewSettings;
         private bool _isRefreshingNotificationSoundSelection;
         private bool _achievementNotificationDebugSettingReady;
+        private ICollectionView _providerNavigationView;
+        private bool _providerNavigationBuilt;
+        private bool _themeMigrationLoaded;
+        private HotkeyCaptureTarget? _capturingHotkey;
         private const string DefaultSteamSoundPath = @"Resources\Sounds\Steam.wav";
 
         private sealed class NotificationSoundOption
@@ -650,41 +650,17 @@ namespace PlayniteAchievements.Views
             public bool IsDefault { get; set; }
         }
 
-        private sealed class NotificationStyleOption
+
+
+
+
+
+        private enum HotkeyCaptureTarget
         {
-            public string DisplayName { get; set; }
-
-            public string StyleKey { get; set; }
+            ViewAchievements,
+            ManageAchievements,
+            Overview
         }
-
-        private sealed class NotificationProviderOption
-        {
-            public string DisplayName { get; set; }
-
-            public string ProviderKey { get; set; }
-        }
-
-        private sealed class NotificationPreviewGameOption
-        {
-            public string DisplayName { get; set; }
-
-            public Game Game { get; set; }
-        }
-
-        private sealed class NotificationPreviewAchievementOption
-        {
-            public string DisplayName { get; set; }
-
-            public AchievementDetail Achievement { get; set; }
-        }
-
-        private sealed class CustomStyleSlotOption
-        {
-            public string DisplayName { get; set; }
-
-            public int SlotNumber { get; set; }
-        }
-
 
         public static readonly DependencyProperty LegacyProviderNavigationItemsProperty =
             DependencyProperty.Register(
@@ -756,19 +732,6 @@ namespace PlayniteAchievements.Views
                 });
             _startPageCompatibility = new StartPageCompatibilityService(_logger, _plugin, plugin.PlayniteApi);
 
-            _notificationAutoPopupPreviewTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(250)
-            };
-            _notificationAutoPopupPreviewTimer.Tick += NotificationAutoPopupPreviewTimer_Tick;
-            _notificationInlinePreviewLoopTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(2600)
-            };
-            _sanViewPreviewLoopTimer = new DispatcherTimer();
-            _sanViewPreviewLoopTimer.Tick += SanViewPreviewLoopTimer_Tick;
-            _sanViewPreviewCloseTimer = new DispatcherTimer();
-            _sanViewPreviewCloseTimer.Tick += SanViewPreviewCloseTimer_Tick;
             Unloaded += LegacyNotificationSettingsControl_Unloaded;
 
             InitializeComponent();
@@ -828,14 +791,38 @@ namespace PlayniteAchievements.Views
 
         private void LegacyNotificationSettingsControl_Unloaded(object sender, RoutedEventArgs e)
         {
-            _notificationAutoPopupPreviewTimer?.Stop();
-            _sanViewPreviewLoopTimer?.Stop();
-            _sanViewPreviewCloseTimer?.Stop();
-            _activeSanPreviewView = null;
             NotificationPublisher.ClosePersistentSettingsPreview();
         }
 
+        private void NotificationSettingsContent_Loaded(object sender, RoutedEventArgs e)
+        {
+            var hostWindow = Window.GetWindow(sender as DependencyObject);
+            if (ReferenceEquals(_settingsHostWindow, hostWindow))
+            {
+                return;
+            }
 
+            if (_settingsHostWindow != null)
+            {
+                _settingsHostWindow.Closed -= SettingsHostWindow_Closed;
+            }
+
+            _settingsHostWindow = hostWindow;
+            if (_settingsHostWindow != null)
+            {
+                _settingsHostWindow.Closed += SettingsHostWindow_Closed;
+            }
+        }
+
+        private void SettingsHostWindow_Closed(object sender, EventArgs e)
+        {
+            StopSanViewPreview(closeOverlay: true);
+            if (_settingsHostWindow != null)
+            {
+                _settingsHostWindow.Closed -= SettingsHostWindow_Closed;
+                _settingsHostWindow = null;
+            }
+        }
 
 
 
@@ -964,70 +951,16 @@ namespace PlayniteAchievements.Views
             }
 
 
-            RefreshCustomStyleSlotControls(localSettings);
             RefreshNotificationCustomIconOptions(localSettings);
-            RefreshSanCompatibilityControls(localSettings);
-            UpdateCustomStyleInlinePreview(localSettings);
         }
 
 
 
 
 
-        private void NotificationAutoPopupPreviewTimer_Tick(object sender, EventArgs e)
-        {
-            _notificationAutoPopupPreviewTimer.Stop();
-            if (_activeSanPreviewView.HasValue)
-            {
-                ShowCustomPopupPreview(forceStatusMessage: true, forcedSanView: _activeSanPreviewView.Value);
-                ScheduleSanViewPreviewLoop();
-                return;
-            }
 
-            ShowCustomPopupPreview(forceStatusMessage: false);
-        }
 
-        private void SanViewPreviewLoopTimer_Tick(object sender, EventArgs e)
-        {
-            _sanViewPreviewLoopTimer.Stop();
-            if (!_activeSanPreviewView.HasValue)
-            {
-                return;
-            }
 
-            ShowCustomPopupPreview(forceStatusMessage: true, forcedSanView: _activeSanPreviewView.Value);
-            ScheduleSanViewPreviewLoop();
-        }
-
-        private void SanViewPreviewCloseTimer_Tick(object sender, EventArgs e)
-        {
-            _sanViewPreviewCloseTimer.Stop();
-            if (_activeSanPreviewView.HasValue)
-            {
-                NotificationPublisher.ClosePersistentSettingsPreview();
-            }
-        }
-
-        private void ScheduleSanViewPreviewLoop()
-        {
-            if (!_activeSanPreviewView.HasValue)
-            {
-                _sanViewPreviewLoopTimer.Stop();
-                _sanViewPreviewCloseTimer.Stop();
-                return;
-            }
-
-            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
-            var duration = _activeSanPreviewView.Value == 2
-                ? localSettings?.OverlayCustomSanView2DurationMilliseconds ?? 5000
-                : localSettings?.OverlayCustomSanView1DurationMilliseconds ?? 5000;
-            _sanViewPreviewLoopTimer.Stop();
-            _sanViewPreviewCloseTimer.Stop();
-            _sanViewPreviewCloseTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(500, duration));
-            _sanViewPreviewCloseTimer.Start();
-            _sanViewPreviewLoopTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(500, duration) + 2000);
-            _sanViewPreviewLoopTimer.Start();
-        }
 
 
 
@@ -1257,82 +1190,13 @@ namespace PlayniteAchievements.Views
 
 
 
-        private void NotificationsTestUnlockSoundButton_Click(object sender, RoutedEventArgs e)
+                private void NotificationsTestUnlockSoundButton_Click(object sender, RoutedEventArgs e)
         {
-            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
-            if (localSettings == null)
-                return;
-
-            var soundPath = localSettings.UnlockSoundPath?.Trim();
-            if (!string.IsNullOrWhiteSpace(soundPath))
-            {
-                soundPath = Services.NotificationPublisher.ResolveSoundPath(soundPath);
-            }
-
-            try
-            {
-                NotificationsTestUnlockSoundButton.IsEnabled = false;
-                NotificationsUnlockSoundStatusTextBlock.Text = "Sending test notification...";
-
-                var previewGameName = string.IsNullOrWhiteSpace(previewGame?.Name) ? "Current Game" : previewGame.Name;
-                if (localSettings.UseUpstreamNotificationTemplate)
-                {
-                    PlayniteAchievementsPlugin.NotifyAchievementUnlocked(new Models.AchievementUnlockedEventArgs
-                    {
-                        PlayniteGameId = previewGame?.Id ?? Guid.Empty,
-                        GameName = previewGameName,
-                        ProviderKey = previewProviderKey,
-                        DisplayName = previewAchievement?.DisplayName ?? "Test Achievement",
-                        IconPath = previewAchievement?.UnlockedIconPath,
-                        Description = previewAchievement?.Description ?? "Test description for preview.",
-                        Points = previewAchievement?.Points ?? 25,
-                        TrophyType = previewAchievement?.TrophyType ?? "Gold",
-                        IsPreview = true
-                    });
-                    NotificationsUnlockSoundStatusTextBlock.Text = "Test upstream notification sent.";
-                    NotificationsTestUnlockSoundButton.IsEnabled = true;
-                    return;
-                }
-                var requiresCustomOverlay = IsSanTransitionStyle(localSettings.UnlockOverlayTransitionStyle) ||
-                    !string.IsNullOrWhiteSpace(localSettings.OverlayCustomSanElementPresetId);
-                if (requiresCustomOverlay && string.IsNullOrWhiteSpace(soundPath))
-                {
-                    soundPath = NotificationPublisher.ResolveSanDefaultSoundPath(localSettings);
-                }
-
-                var forcedDeliveryMode = requiresCustomOverlay
-                    ? (LocalUnlockNotificationDeliveryMode?)LocalUnlockNotificationDeliveryMode.Overlay
-                    : null;
-                var publisher = new NotificationPublisher(_plugin?.PlayniteApi, _settingsViewModel?.Settings, _logger);
-                publisher.ShowLocalAchievementUnlocked(
-                    previewGameName,
-                    new[] { previewAchievement?.DisplayName ?? "Test Achievement" },
-                    soundPath,
-                    unlockedAchievementIconPath: previewAchievement?.UnlockedIconPath,
-                    game: previewGame,
-                    achievementDescription: previewAchievement?.Description ?? "Test description for preview.",
-                    achievementPoints: previewAchievement?.Points ?? 25,
-                    achievementRarity: FormatPreviewAchievementRarity(previewAchievement, "52.4%"),
-                    achievementTrophy: previewAchievement?.TrophyType ?? "Gold",
-                    forcedStyle: NotificationPublisher.NotificationStyleCustom,
-                    forcedDeliveryMode: forcedDeliveryMode,
-                    overrideLocalSettings: localSettings,
-                    notificationProviderKey: previewProviderKey,
-                    isSettingsPreview: true);
-
-                NotificationsUnlockSoundStatusTextBlock.Text = requiresCustomOverlay
-                    ? $"Test custom overlay sent using transition '{localSettings.UnlockOverlayTransitionStyle}'."
-                    : $"Test notification sent for {ProviderRegistry.GetLocalizedName(previewProviderKey)} using {localSettings.UnlockNotificationDeliveryMode}.";
-                if (NotificationsTestUnlockSoundButton != null)
-                    NotificationsTestUnlockSoundButton.IsEnabled = true;
-            }
-            catch (Exception ex)
-            {
-                NotificationsUnlockSoundStatusTextBlock.Text = $"Failed to send test notification: {ex.Message}";
-                if (NotificationsTestUnlockSoundButton != null)
-                    NotificationsTestUnlockSoundButton.IsEnabled = true;
-            }
+            // The only notification renderer is the official SAN template, so the general test button
+            // sends the Default tab's test notification.
+            OfficialSanTest_Click(sender, e);
         }
+
 
 
 
@@ -1469,12 +1333,6 @@ namespace PlayniteAchievements.Views
 
 
 
-        private static string FormatPreviewAchievementRarity(AchievementDetail achievement, string fallback)
-        {
-            return achievement?.GlobalPercentUnlocked.HasValue == true
-                ? achievement.GlobalPercentUnlocked.Value.ToString("0.#", CultureInfo.InvariantCulture) + "%"
-                : fallback;
-        }
 
 
 
@@ -1574,7 +1432,9 @@ namespace PlayniteAchievements.Views
 
             try
             {
+                var previewGame = GetSelectedNotificationPreviewGame();
                 var previewGameName = string.IsNullOrWhiteSpace(previewGame?.Name) ? "Current Game" : previewGame.Name;
+                var previewAchievement = GetSelectedNotificationPreviewAchievement();
                 var publisher = new NotificationPublisher(_plugin?.PlayniteApi, _settingsViewModel?.Settings, _logger);
                 var shown = publisher.ShowOfficialSanTest(
                     localSettings,
@@ -1594,6 +1454,2468 @@ namespace PlayniteAchievements.Views
                 NotificationsUnlockSoundStatusTextBlock.Text = $"Failed to send test notification: {ex.Message}";
             }
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        private void RefreshNotificationCustomIconOptions(Providers.Local.LocalSettings localSettings)
+        {
+            _notificationCustomIconOptions.Clear();
+            if (localSettings == null)
+            {
+                return;
+            }
+
+            foreach (var path in localSettings.GetOverlayCustomIconLibraryPathEntries())
+            {
+                _notificationCustomIconOptions.Add(new NotificationCustomIconOption
+                {
+                    DisplayName = System.IO.Path.GetFileNameWithoutExtension(path),
+                    Path = path,
+                    SourcePath = ResolveNotificationCustomIconSourcePath(path),
+                    PreviewSource = TryCreateNotificationCustomIconPreview(path),
+                    SlotUsage = ResolveNotificationCustomIconSlotUsage(localSettings, path)
+                });
+            }
+        }
+
+        private string ResolveNotificationCustomIconSourcePath(string managedPath)
+        {
+            if (string.IsNullOrWhiteSpace(managedPath))
+            {
+                return string.Empty;
+            }
+
+            var sources = LoadNotificationCustomIconSourcePaths();
+            return sources.TryGetValue(managedPath, out var sourcePath) && !string.IsNullOrWhiteSpace(sourcePath)
+                ? sourcePath
+                : managedPath;
+        }
+
+        private string GetNotificationCustomIconSourceMapPath()
+        {
+            var directory = _plugin?.GetPluginUserDataPath();
+            return string.IsNullOrWhiteSpace(directory)
+                ? string.Empty
+                : Path.Combine(directory, "notification_custom_icons_sources.json");
+        }
+
+        private Dictionary<string, string> LoadNotificationCustomIconSourcePaths()
+        {
+            try
+            {
+                var path = GetNotificationCustomIconSourceMapPath();
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                }
+
+                return JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(path))
+                    ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+
+
+
+
+        private static string ResolveNotificationCustomIconSlotUsage(Providers.Local.LocalSettings localSettings, string path)
+        {
+            var usages = new List<string>();
+            if (string.Equals(localSettings?.OverlayCustomIconPath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                usages.Add("Primary");
+            }
+
+            if (string.Equals(localSettings?.OverlayCustomSecondaryIconPath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                usages.Add("Secondary");
+            }
+
+            return usages.Count == 0 ? string.Empty : string.Join(" + ", usages);
+        }
+
+        private static ImageSource TryCreateNotificationCustomIconPreview(string path)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    return null;
+                }
+
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(path, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze();
+                return bitmap;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+
+
+
+
+
+        private void StopSanViewPreview(bool closeOverlay)
+        {
+            if (closeOverlay)
+            {
+                NotificationPublisher.ClosePersistentSettingsPreview();
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // -----
+
+        // Theme migration
+        // -----
+
+        private void LoadThemes()
+        {
+            // Ensure we're on the UI thread before accessing DependencyProperties
+            if (Dispatcher.CheckAccess())
+            {
+                LoadThemesInternal();
+            }
+            else
+            {
+                Dispatcher.BeginInvoke(new Action(LoadThemesInternal));
+            }
+        }
+
+        private void LoadThemesInternal()
+        {
+            try
+            {
+                AvailableThemes.Clear();
+                RevertableThemes.Clear();
+
+                var cache = _settingsViewModel?.Settings?.Persisted?.ThemeMigrationVersionCache;
+                var themes = _themeDiscovery
+                    .DiscoverDefaultThemes(cache)
+                    .Where(theme => !IsExcludedTheme(theme))
+                    .ToList();
+                if (themes.Count == 0)
+                {
+                    ForkLog.Wrap(_logger).Info("No themes path found for theme migration.");
+                    UpdateThemeMigrationState();
+                    return;
+                }
+
+                // Show all discovered themes in both dropdowns so users can
+                // re-run migration/revert on any theme without hunting in separate lists.
+                foreach (var theme in themes)
+                {
+                    AvailableThemes.Add(theme);
+                }
+
+                foreach (var theme in themes)
+                {
+                    RevertableThemes.Add(theme);
+                }
+
+                if (!string.IsNullOrWhiteSpace(SelectedThemePath) &&
+                    !AvailableThemes.Any(t => string.Equals(t.Path, SelectedThemePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    SelectedThemePath = string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(SelectedThemePath))
+                {
+                    SelectedThemePath = AvailableThemes.FirstOrDefault()?.Path ?? string.Empty;
+                }
+
+                if (!string.IsNullOrWhiteSpace(SelectedRevertThemePath) &&
+                    !RevertableThemes.Any(t => string.Equals(t.Path, SelectedRevertThemePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    SelectedRevertThemePath = string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(SelectedRevertThemePath))
+                {
+                    SelectedRevertThemePath = RevertableThemes.FirstOrDefault()?.Path ?? string.Empty;
+                }
+
+                UpdateThemeMigrationState();
+
+                ForkLog.Wrap(_logger).Info($"Loaded {AvailableThemes.Count} themes to migrate, {RevertableThemes.Count} themes to revert.");
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to load themes for migration.");
+            }
+        }
+
+        private void UpdateThemeMigrationState()
+        {
+            var hasThemes = AvailableThemes.Count > 0;
+            var hasRevertable = RevertableThemes.Any(theme => theme?.HasBackup == true);
+
+            HasThemesToMigrate = hasThemes;
+            HasRevertableThemes = hasRevertable;
+            ShowNoThemesMessage = !hasThemes;
+            ShowNoRevertableThemesMessage = !hasRevertable;
+            UpdateThemeMigrationModeButtonState();
+            RefreshStartPageCompatibilityState();
+        }
+
+        private void RefreshStartPageCompatibilityState()
+        {
+            try
+            {
+                HasStartPageInstalled = _startPageCompatibility?.IsStartPageInstalled() == true;
+                ShowStartPageNotInstalledMessage = !HasStartPageInstalled;
+                HasStartPageBackup = _startPageCompatibility?.HasBackup() == true;
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Warn(ex, "Failed to detect StartPage installation state.");
+                HasStartPageInstalled = false;
+                ShowStartPageNotInstalledMessage = true;
+                HasStartPageBackup = false;
+            }
+        }
+
+        private async void MigrateThemeLimited_Click(object sender, RoutedEventArgs e)
+        {
+            CommitThemeMigrationControls();
+            _settingsViewModel.Settings.Persisted.ThemeMigrationMode = MigrationMode.Limited;
+            await ExecuteThemeMigrationAsync(MigrationMode.Limited);
+        }
+
+        private async void MigrateThemeFull_Click(object sender, RoutedEventArgs e)
+        {
+            CommitThemeMigrationControls();
+            _settingsViewModel.Settings.Persisted.ThemeMigrationMode = MigrationMode.Full;
+            await ExecuteThemeMigrationAsync(MigrationMode.Full, BuildFullMigrationSelection());
+        }
+
+        private async void MigrateThemeCustom_Click(object sender, RoutedEventArgs e)
+        {
+            CommitThemeMigrationControls();
+            _settingsViewModel.Settings.Persisted.ThemeMigrationMode = MigrationMode.Custom;
+            await ExecuteThemeMigrationAsync(MigrationMode.Custom, BuildCustomMigrationSelection());
+        }
+
+        private void LegacyThemeMigrationThemeComboBox_SelectionChanged(
+            object sender,
+            SelectionChangedEventArgs e)
+        {
+            CommitThemeMigrationControls();
+        }
+
+        private void CommitThemeMigrationControls()
+        {
+            if (LegacyThemeMigrationThemeComboBox?.SelectedItem is
+                ThemeDiscoveryService.ThemeInfo selectedTheme)
+            {
+                SelectedThemePath = selectedTheme.Path;
+            }
+
+            if (LegacyUseScrollableAchievementsCheckBox?.IsChecked is bool useScrollable)
+            {
+                UseScrollableAchievementsForThemeMigration = useScrollable;
+            }
+
+            if (LegacyHighlightLatestAchievementCheckBox?.IsChecked is bool highlightLatest)
+            {
+                HighlightLatestAchievementForThemeMigration = highlightLatest;
+            }
+        }
+
+        private void AchievementNotificationDebugLogging_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!_achievementNotificationDebugSettingReady)
+            {
+                return;
+            }
+
+            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            if (localSettings == null)
+            {
+                return;
+            }
+
+            try
+            {
+                Services.Logging.AchievementNotificationDebugLog.Initialize(_plugin.GetPluginUserDataPath());
+                var recreate = false;
+                if (Services.Logging.AchievementNotificationDebugLog.FileExists())
+                {
+                    var result = _plugin.PlayniteApi.Dialogs.ShowMessage(
+                        "AchNotifDebug.log already exists.\n\nSelect Yes to delete it and create a new log, or No to continue adding to the existing log.",
+                        "Achievement Notification Debug Log",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+                    recreate = result == MessageBoxResult.Yes;
+                }
+
+                Services.Logging.AchievementNotificationDebugLog.SetEnabled(true, recreate);
+                Services.Logging.AchievementNotificationDebugLog.Info(
+                    $"Debug logging enabled from settings; fileMode='{(recreate ? "recreated" : "append")}'.");
+                Services.Logging.AchievementNotificationDebugLog.LogSettingsSnapshot(
+                    localSettings,
+                    _settingsViewModel.Settings?.Persisted,
+                    "debug-enabled-from-settings",
+                    force: true);
+            }
+            catch (Exception ex)
+            {
+                Services.Logging.AchievementNotificationDebugLog.SetEnabled(false);
+                localSettings.EnableOverlayDebugLogging = false;
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to enable the Achievement Notification debug log.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    $"AchNotifDebug.log could not be created.\n\n{ex.Message}",
+                    "Achievement Notification Debug Log",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void AchievementNotificationDebugLogging_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (!_achievementNotificationDebugSettingReady)
+            {
+                return;
+            }
+
+            Services.Logging.AchievementNotificationDebugLog.Info("Debug logging disabled from settings.");
+            Services.Logging.AchievementNotificationDebugLog.SetEnabled(false);
+        }
+
+        private void ThemeMigrationCustomExpander_Expanded(object sender, RoutedEventArgs e)
+        {
+            UpdateThemeMigrationModeButtonState();
+        }
+
+        private void ThemeMigrationCustomExpander_Collapsed(object sender, RoutedEventArgs e)
+        {
+            UpdateThemeMigrationModeButtonState();
+        }
+
+        private void ThemeMigrationSetAllLegacy_Click(object sender, RoutedEventArgs e)
+        {
+            SetAllThemeMigrationCustomOptions(false);
+        }
+
+        private void ThemeMigrationSetAllModern_Click(object sender, RoutedEventArgs e)
+        {
+            SetAllThemeMigrationCustomOptions(true);
+        }
+
+        private async Task ExecuteThemeMigrationAsync(MigrationMode mode, CustomMigrationSelection customSelection = null)
+        {
+            var selectedThemePath = SelectedThemePath;
+            if (string.IsNullOrWhiteSpace(selectedThemePath))
+            {
+                ForkLog.Wrap(_logger).Warn("Migrate clicked but no theme selected.");
+                return;
+            }
+
+            var highlightLatest = customSelection?.HighlightLatestUnlockedAchievement;
+            var useScrollable = customSelection?.ModernizeCompactAchievementLists;
+            ForkLog.Wrap(_logger).Info(
+                $"User requested {mode} theme migration for: {selectedThemePath}; " +
+                $"useScrollableAchievements={useScrollable?.ToString() ?? "not-applicable"}; " +
+                $"highlightLatestUnlockedAchievement={highlightLatest?.ToString() ?? "not-applicable"}");
+
+            try
+            {
+                var selectedThemeHasBackup = _themeMigration.HasBackup(selectedThemePath);
+                if (selectedThemeHasBackup)
+                {
+                    ForkLog.Wrap(_logger).Info($"Selected theme already has backup. Reverting before migration: {selectedThemePath}");
+
+                    var revertResult = await _themeMigration.RevertThemeAsync(selectedThemePath);
+                    if (!revertResult.Success)
+                    {
+                        ForkLog.Wrap(_logger).Warn($"Pre-migration revert failed: {revertResult.Message}");
+                        _plugin.PlayniteApi.Dialogs.ShowMessage(
+                            revertResult.Message,
+                            L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                        return;
+                    }
+                }
+
+                var result = await _themeMigration.MigrateThemeAsync(
+                    selectedThemePath,
+                    mode,
+                    customSelection);
+
+                if (result.Success)
+                {
+                    ForkLog.Wrap(_logger).Info($"Theme migration ({mode}) successful: {selectedThemePath}");
+
+                    // Show restart notice whenever files were modified.
+                    if (result.FilesProcessed > 0)
+                    {
+                        _plugin.PlayniteApi.Dialogs.ShowMessage(
+                            $"{result.Message}{Environment.NewLine}{Environment.NewLine}{L("LOCPlayAch_ThemeMigration_RestartRequired", "Please restart Playnite to apply the theme changes.")}",
+                            L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        // No changes were made, just show info message
+                        _plugin.PlayniteApi.Dialogs.ShowMessage(
+                            result.Message,
+                            L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+
+                    // Reload themes to update the lists
+                    LoadThemes();
+                }
+                else
+                {
+                    ForkLog.Wrap(_logger).Warn($"Theme migration failed: {result.Message}");
+                    _plugin.PlayniteApi.Dialogs.ShowMessage(
+                        result.Message,
+                        L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to execute theme migration.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    L("LOCPlayAch_ThemeMigration_Title", "Theme Migration"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private async void RevertTheme_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(SelectedRevertThemePath))
+            {
+                ForkLog.Wrap(_logger).Warn("Revert clicked but no theme selected.");
+                return;
+            }
+
+            if (!_themeMigration.HasBackup(SelectedRevertThemePath))
+            {
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    L("LOCPlayAch_ThemeMigration_NoRevertableThemes", "No themes with backups to revert."),
+                    L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            ForkLog.Wrap(_logger).Info($"User requested theme revert for: {SelectedRevertThemePath}");
+
+            try
+            {
+                var result = await _themeMigration.RevertThemeAsync(SelectedRevertThemePath);
+
+                if (result.Success)
+                {
+                    ForkLog.Wrap(_logger).Info($"Theme revert successful: {SelectedRevertThemePath}");
+                    _plugin.PlayniteApi.Dialogs.ShowMessage(
+                        result.Message,
+                        L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    // Reload themes to update the lists
+                    LoadThemes();
+                }
+                else
+                {
+                    ForkLog.Wrap(_logger).Warn($"Theme revert failed: {result.Message}");
+                    _plugin.PlayniteApi.Dialogs.ShowMessage(
+                        result.Message,
+                        L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to execute theme revert.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    L("LOCPlayAch_ThemeMigration_Revert", "Revert Theme"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private async void ApplyStartPageCompatibility_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                RefreshStartPageCompatibilityState();
+                if (!HasStartPageInstalled)
+                {
+                    _plugin.PlayniteApi.Dialogs.ShowMessage(
+                        L("LOCPlayAch_ThemeMigration_StartPageCompatibility_NotInstalled", "StartPage is not installed in this Playnite environment."),
+                        L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
+                // Applying this migration is an explicit action. Persist its companion
+                // options now because the migration's Restart button exits Playnite
+                // without going through the settings dialog's normal Save command.
+                _plugin.PersistSettingsForUi();
+
+                var result = await _startPageCompatibility.ApplyAsync();
+                if (result.Success)
+                {
+                    var restartText = L("LOCPlayAch_ThemeMigration_RestartRequired", "Please restart Playnite to apply the theme changes.");
+                    var details = string.IsNullOrWhiteSpace(result.BackupPath)
+                        ? result.Message
+                        : $"{result.Message}{Environment.NewLine}{Environment.NewLine}Backup: {result.BackupPath}";
+
+                    _plugin.PlayniteApi.Dialogs.ShowMessage(
+                        $"{details}{Environment.NewLine}{Environment.NewLine}{restartText}",
+                        L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    _plugin.PlayniteApi.Dialogs.ShowMessage(
+                        result.Message,
+                        L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+
+                RefreshStartPageCompatibilityState();
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to apply StartPage compatibility migration from settings.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private async void RevertStartPageCompatibility_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var confirm = _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    L("LOCPlayAch_ThemeMigration_StartPageCompatibility_RevertConfirm",
+                        "Restore the achievement cache from the last backup? This will undo the compatibility migration."),
+                    L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (confirm != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                var result = await _startPageCompatibility.RevertAsync();
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    result.Message,
+                    L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                    MessageBoxButton.OK,
+                    result.Success ? MessageBoxImage.Information : MessageBoxImage.Error);
+
+                RefreshStartPageCompatibilityState();
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to revert StartPage compatibility migration from settings.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void RestartPlaynite_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _plugin.PersistSettingsForUi();
+                var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrWhiteSpace(exePath))
+                {
+                    // Launch cmd.exe to wait for this process to exit, then relaunch Playnite.
+                    // This avoids the "another instance is running" startup error.
+                    var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+
+                    // If a StartPage DLL update is pending, apply it after Playnite has exited
+                    // (the DLL is locked while loaded; taskkill releases it before the copy).
+                    var hasPendingDll = _startPageCompatibility?.HasPendingDllUpdate() == true;
+                    var pendingDll = hasPendingDll ? _startPageCompatibility.GetPendingDllPath() : null;
+                    var installedDll = hasPendingDll ? _startPageCompatibility.GetInstalledDllPath() : null;
+
+                    var dllChain = (hasPendingDll && !string.IsNullOrWhiteSpace(installedDll))
+                        ? $" & copy /Y \"{pendingDll}\" \"{installedDll}\" >nul 2>&1 & del \"{pendingDll}\" >nul 2>&1"
+                        : string.Empty;
+
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/c taskkill /pid {pid} /f >nul 2>&1 & timeout /t 2 /nobreak >nul{dllChain} & start \"\" \"{exePath}\"",
+                        WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    });
+                }
+                else
+                {
+                    System.Windows.Application.Current.Shutdown();
+                }
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to restart Playnite.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    L("LOCPlayAch_ThemeMigration_StartPageCompatibility_Title", "StartPage Compatibility"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void InitializeThemeMigrationCustomOptions()
+        {
+            ThemeMigrationCustomOptions.Clear();
+
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginButton",
+                "LOCPlayAch_Settings_ButtonPreview",
+                "Button"));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginChart",
+                "LOCPlayAch_Settings_BarChartPreview",
+                "Bar Chart"));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginCompactList",
+                "LOCPlayAch_Settings_CompactListPreview",
+                "Compact List",
+                isModern: UseScrollableAchievementsForThemeMigration));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginCompactLocked",
+                "LOCPlayAch_Settings_CompactLockedListPreview",
+                "Compact Locked List",
+                isModern: UseScrollableAchievementsForThemeMigration));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginCompactUnlocked",
+                "LOCPlayAch_Settings_CompactUnlockedListPreview",
+                "Compact Unlocked List",
+                isModern: UseScrollableAchievementsForThemeMigration));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginList",
+                "LOCPlayAch_Settings_AchievementDataGridPreview",
+                "Achievement DataGrid"));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginProgressBar",
+                "LOCPlayAch_Settings_ProgressBarPreview",
+                "Progress Bar"));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginUserStats",
+                "LOCPlayAch_Settings_StatsPreview",
+                "Stats"));
+            ThemeMigrationCustomOptions.Add(CreateThemeMigrationControlOption(
+                "PluginViewItem",
+                "LOCPlayAch_Settings_ViewItemPreview",
+                "View Item"));
+        }
+
+        private ThemeMigrationElementOption CreateThemeMigrationControlOption(
+            string key,
+            string resourceKey,
+            string fallback,
+            bool isModern = true)
+        {
+            var persisted = _settingsViewModel.Settings.Persisted;
+            var option = new ThemeMigrationElementOption(
+                key,
+                L(resourceKey, fallback),
+                isBindingOption: false,
+                isModern: persisted.ThemeMigrationControlOptions.TryGetValue(key, out var saved) ? saved : isModern);
+            option.PropertyChanged += (sender, args) =>
+            {
+                var settings = _settingsViewModel.Settings.Persisted;
+                var options = new Dictionary<string, bool>(settings.ThemeMigrationControlOptions);
+                options[key] = option.IsModern;
+                settings.ThemeMigrationControlOptions = options;
+                settings.ThemeMigrationMode = MigrationMode.Custom;
+            };
+            return option;
+        }
+
+        private static void OnUseScrollableAchievementsForThemeMigrationChanged(
+            DependencyObject d,
+            DependencyPropertyChangedEventArgs e)
+        {
+            if (d is LegacyNotificationSettingsControl control)
+            {
+                if (control._settingsViewModel != null)
+                {
+                    control._settingsViewModel.Settings.Persisted.ThemeMigrationUseScrollableAchievements = (bool)e.NewValue;
+                }
+                control.SetCompactAchievementMigrationOptions((bool)e.NewValue);
+            }
+        }
+
+        private static void OnHighlightLatestAchievementForThemeMigrationChanged(
+            DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is LegacyNotificationSettingsControl control && control._settingsViewModel != null)
+            {
+                control._settingsViewModel.Settings.Persisted.ThemeMigrationHighlightLatestAchievement = (bool)e.NewValue;
+            }
+        }
+
+        private static void OnSelectedThemePathChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is LegacyNotificationSettingsControl control)
+            {
+                control.UpdateThemeMigrationModeButtonState();
+            }
+        }
+
+        private void UpdateThemeMigrationModeButtonState()
+        {
+            var isCustomExpanded = ThemeMigrationCustomExpander?.IsExpanded == true;
+            var isFullscreenTheme = ThemeMigrationService.IsFullscreenThemePath(SelectedThemePath);
+
+            if (isFullscreenTheme && isCustomExpanded)
+            {
+                ThemeMigrationCustomExpander.IsExpanded = false;
+                isCustomExpanded = false;
+            }
+
+            if (ThemeMigrationPresetButtons != null)
+            {
+                ThemeMigrationPresetButtons.IsEnabled = HasThemesToMigrate && !isCustomExpanded;
+            }
+
+            if (ThemeMigrationFullButton != null)
+            {
+                ThemeMigrationFullButton.IsEnabled = HasThemesToMigrate && !isCustomExpanded && !isFullscreenTheme;
+            }
+
+            if (ThemeMigrationCustomContainer != null)
+            {
+                ThemeMigrationCustomContainer.IsEnabled = HasThemesToMigrate && !isFullscreenTheme;
+            }
+        }
+
+        private CustomMigrationSelection BuildCustomMigrationSelection()
+        {
+            var modernControlNames = ThemeMigrationCustomOptions
+                .Where(option => option.IsModern)
+                .Select(option => option.Key)
+                .ToList();
+
+            return new CustomMigrationSelection(modernControlNames, modernizeBindings: true)
+            {
+                ModernizeCompactAchievementLists = UseScrollableAchievementsForThemeMigration,
+                HighlightLatestUnlockedAchievement =
+                    HighlightLatestAchievementForThemeMigration
+            };
+        }
+
+        private CustomMigrationSelection BuildFullMigrationSelection()
+        {
+            return new CustomMigrationSelection(
+                ControlMappings.LegacyToModernControlNames.Keys,
+                modernizeBindings: true)
+            {
+                ModernizeCompactAchievementLists = UseScrollableAchievementsForThemeMigration,
+                HighlightLatestUnlockedAchievement =
+                    HighlightLatestAchievementForThemeMigration
+            };
+        }
+
+        private void ThemeMigrationRowSetLegacy_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { CommandParameter: ThemeMigrationElementOption option })
+            {
+                option.IsModern = false;
+            }
+        }
+
+        private void ThemeMigrationRowSetModern_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { CommandParameter: ThemeMigrationElementOption option })
+            {
+                option.IsModern = true;
+            }
+        }
+
+        private void SetAllThemeMigrationCustomOptions(bool isModern)
+        {
+            foreach (var option in ThemeMigrationCustomOptions)
+            {
+                option.IsModern = isModern;
+            }
+        }
+
+        private void SetCompactAchievementMigrationOptions(bool isModern)
+        {
+            foreach (var option in ThemeMigrationCustomOptions)
+            {
+                if (ControlMappings.CompactAchievementListControlNames.Contains(option.Key))
+                {
+                    option.IsModern = isModern;
+                }
+            }
+        }
+
+        // -----------------------------
+        // Cache actions
+        // -----------------------------
+
+        private void WipeCache_Click(object sender, RoutedEventArgs e)
+        {
+            string message = null;
+            var image = MessageBoxImage.Information;
+            Exception operationError = null;
+            var progressText = L(
+                "LOCPlayAch_Settings_Cache_ProgressClearing",
+                "Clearing cached achievement data...");
+
+            RunMaintenanceProgress(
+                progressText,
+                isIndeterminate: true,
+                operation: progress =>
+                {
+                    try
+                    {
+                        _plugin.RefreshRuntime.Cache.ClearCache();
+                        message = L("LOCPlayAch_Status_Succeeded", "Success!");
+                        image = MessageBoxImage.Information;
+                    }
+                    catch (Exception ex)
+                    {
+                        operationError = ex;
+                    }
+                });
+
+            if (operationError != null)
+            {
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", operationError.Message),
+                    L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            _plugin.PlayniteApi.Dialogs.ShowMessage(
+                message ?? L("LOCPlayAch_Status_Succeeded", "Success!"),
+                ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                MessageBoxButton.OK,
+                image);
+        }
+
+        private void ClearAllIconCache_Click(object sender, RoutedEventArgs e) =>
+            ClearIconCache(IconCacheClearScope.All);
+
+        private void ClearCompressedIconCache_Click(object sender, RoutedEventArgs e) =>
+            ClearIconCache(IconCacheClearScope.CompressedOnly);
+
+        private void ClearFullResolutionIconCache_Click(object sender, RoutedEventArgs e) =>
+            ClearIconCache(IconCacheClearScope.FullResolutionOnly);
+
+        private void ClearLockedIconCache_Click(object sender, RoutedEventArgs e) =>
+            ClearIconCache(IconCacheClearScope.LockedOnly);
+
+        private void ClearIconCache(IconCacheClearScope scope)
+        {
+            var fileLabel = ResourceProvider.GetString(GetIconCacheFileLabelResourceKey(scope));
+            var scanningText = LF(
+                "LOCPlayAch_Settings_IconCache_ProgressScanning",
+                "Scanning cached {0} files...",
+                fileLabel);
+            var deletingTextFormat = L(
+                "LOCPlayAch_Settings_IconCache_ProgressDeletingCount",
+                "Deleting cached {0} files... ({1}/{2})");
+            var deletedCount = 0;
+            Exception operationError = null;
+
+            RunMaintenanceProgress(
+                scanningText,
+                isIndeterminate: false,
+                operation: progress =>
+                {
+                    try
+                    {
+                        UpdateMaintenanceProgress(progress, current: 0, max: 1);
+
+                        IEnumerable<string> additionalPaths = null;
+                        if (scope == IconCacheClearScope.LockedOnly)
+                        {
+                            additionalPaths = GetExplicitLockedIconCachePaths(progress);
+                        }
+
+                        _plugin.ImageService?.Clear();
+                        deletedCount = _plugin.ImageService?.ClearDiskCache(
+                            scope,
+                            additionalPaths,
+                            (processed, total) =>
+                            {
+                                var safeTotal = Math.Max(1, total);
+                                var safeProcessed = total <= 0
+                                    ? 1
+                                    : Math.Max(0, Math.Min(total, processed));
+
+                                var progressText = total <= 0
+                                    ? LF(
+                                        "LOCPlayAch_Settings_IconCache_ProgressNoFiles",
+                                        "No cached {0} files were found.",
+                                        fileLabel)
+                                    : string.Format(
+                                        deletingTextFormat,
+                                        fileLabel,
+                                        safeProcessed,
+                                        total);
+
+                                UpdateMaintenanceProgress(
+                                    progress,
+                                    text: progressText,
+                                    current: safeProcessed,
+                                    max: safeTotal);
+                            }) ?? 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        operationError = ex;
+                    }
+                });
+
+            if (operationError != null)
+            {
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", operationError.Message),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+
+            var message = L("LOCPlayAch_Status_Succeeded", "Success!");
+
+            _plugin.PlayniteApi.Dialogs.ShowMessage(
+                message,
+                ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        private string GetIconCacheFileLabelResourceKey(IconCacheClearScope scope)
+        {
+            switch (scope)
+            {
+                case IconCacheClearScope.CompressedOnly:
+                    return "LOCPlayAch_Settings_IconCache_FileLabel_Compressed";
+                case IconCacheClearScope.FullResolutionOnly:
+                    return "LOCPlayAch_Settings_IconCache_FileLabel_FullResolution";
+                case IconCacheClearScope.LockedOnly:
+                    return "LOCPlayAch_Settings_IconCache_FileLabel_Locked";
+                default:
+                    return "LOCPlayAch_Settings_IconCache_FileLabel_All";
+            }
+        }
+
+        private void RunMaintenanceProgress(
+            string initialText,
+            bool isIndeterminate,
+            Action<GlobalProgressActionArgs> operation)
+        {
+            var progressOptions = new GlobalProgressOptions(initialText)
+            {
+                Cancelable = false,
+                IsIndeterminate = isIndeterminate
+            };
+
+            _plugin.PlayniteApi.Dialogs.ActivateGlobalProgress(async progress =>
+            {
+                UpdateMaintenanceProgress(progress, text: initialText, isIndeterminate: isIndeterminate);
+                await Task.Run(() => operation?.Invoke(progress)).ConfigureAwait(false);
+            }, progressOptions);
+        }
+
+        private void UpdateMaintenanceProgress(
+            GlobalProgressActionArgs progress,
+            string text = null,
+            int? current = null,
+            int? max = null,
+            bool? isIndeterminate = null)
+        {
+            if (progress == null)
+            {
+                return;
+            }
+
+            Action update = () =>
+            {
+                if (max.HasValue)
+                {
+                    progress.ProgressMaxValue = max.Value;
+                }
+
+                if (current.HasValue)
+                {
+                    progress.CurrentProgressValue = current.Value;
+                }
+
+                if (isIndeterminate.HasValue)
+                {
+                    progress.IsIndeterminate = isIndeterminate.Value;
+                }
+
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    progress.Text = text;
+                }
+            };
+
+            if (progress.MainDispatcher != null)
+            {
+                progress.MainDispatcher.InvokeIfNeeded(update);
+            }
+            else
+            {
+                update();
+            }
+        }
+
+        private IEnumerable<string> GetExplicitLockedIconCachePaths(GlobalProgressActionArgs progress = null)
+        {
+            var dataService = _plugin?.AchievementDataService;
+            var cachedGameIds = dataService?.GetCachedGameIds();
+            if (cachedGameIds == null || cachedGameIds.Count == 0)
+            {
+                if (progress != null)
+                {
+                    UpdateMaintenanceProgress(
+                        progress,
+                        text: L(
+                            "LOCPlayAch_Settings_IconCache_ProgressNoLockedReferences",
+                            "No cached locked icon references were found."),
+                        current: 1,
+                        max: 1);
+                }
+
+                return Array.Empty<string>();
+            }
+
+            var lockedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (progress != null)
+            {
+                UpdateMaintenanceProgress(progress, current: 0, max: cachedGameIds.Count);
+            }
+
+            for (var i = 0; i < cachedGameIds.Count; i++)
+            {
+                var gameId = cachedGameIds[i];
+                if (progress != null)
+                {
+                    UpdateMaintenanceProgress(
+                        progress,
+                        text: LF(
+                            "LOCPlayAch_Settings_IconCache_ProgressScanningLockedReferences",
+                            "Scanning cached locked icon references... ({0}/{1})",
+                            i + 1,
+                            cachedGameIds.Count),
+                        current: i + 1,
+                        max: cachedGameIds.Count);
+                }
+
+                var gameData = dataService?.GetRawGameAchievementData(gameId);
+                var achievements = gameData?.Achievements;
+                if (achievements == null)
+                {
+                    continue;
+                }
+
+                foreach (var achievement in achievements)
+                {
+                    var lockedPath = achievement?.LockedIconPath;
+                    if (!DiskImageService.IsLocalIconPath(lockedPath))
+                    {
+                        continue;
+                    }
+
+                    var unlockedPath = achievement?.UnlockedIconPath;
+                    if (!string.IsNullOrWhiteSpace(unlockedPath) &&
+                        string.Equals(lockedPath.Trim(), unlockedPath.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    lockedPaths.Add(lockedPath);
+                }
+            }
+
+            return lockedPaths;
+        }
+
+        private void ResetFirstTimeSetup_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ForkLog.Wrap(_logger).Info($"Resetting FirstTimeSetupCompleted. Current value before: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
+
+                _settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted = false;
+
+                ForkLog.Wrap(_logger).Info($"Value after setting to false: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
+
+                _plugin.SavePluginSettings(_settingsViewModel.Settings);
+                NotificationPublisher.ClosePersistentSettingsPreview();
+
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    L("LOCPlayAch_Status_Succeeded", "Success!"),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to reset first-time setup.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void ResetDisplaySettings_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ForkLog.Wrap(_logger).Info("Resetting Display tab settings to defaults.");
+
+                _settingsViewModel.Settings.Persisted.ResetDisplaySettingsToDefaults();
+                PercentRarityHelper.ApplyBadgeApplicationResources(
+                    _settingsViewModel.Settings.Persisted.UseUniformRarityBadges);
+                RefreshMockPreviews();
+                _plugin.SavePluginSettings(_settingsViewModel.Settings);
+
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    L("LOCPlayAch_Status_Succeeded", "Success!"),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to reset Display tab settings.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void ExportDatabase_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var exportBaseDir = _plugin.GetPluginUserDataPath();
+                var exportDir = _plugin.RefreshRuntime.Cache.ExportDatabaseToCsv(exportBaseDir);
+
+                ForkLog.Wrap(_logger).Info($"Database exported to: {exportDir}");
+
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    L("LOCPlayAch_Status_Succeeded", "Success!") + "\n" + exportDir,
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to export database.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dataPath = _plugin.GetPluginUserDataPath();
+
+                if (!Directory.Exists(dataPath))
+                {
+                    Directory.CreateDirectory(dataPath);
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = dataPath,
+                    UseShellExecute = true,
+                    Verb = "open"
+                });
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Error(ex, "Failed to open extension data folder.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+
+        // -----------------------------
+        // Compact list sort direction toggles
+        // -----------------------------
+
+        private void ToggleCompactListSortDescending(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted != null)
+            {
+                persisted.CompactListSortDescending = !persisted.CompactListSortDescending;
+            }
+        }
+
+        private void ToggleCompactUnlockedListSortDescending(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted != null)
+            {
+                persisted.CompactUnlockedListSortDescending = !persisted.CompactUnlockedListSortDescending;
+            }
+        }
+
+        private void ToggleCompactLockedListSortDescending(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted != null)
+            {
+                persisted.CompactLockedListSortDescending = !persisted.CompactLockedListSortDescending;
+            }
+        }
+
+        private void ToggleOverviewGameSummariesGridSortDescending(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted != null)
+            {
+                persisted.OverviewGameSummariesGridSortDescending = !persisted.OverviewGameSummariesGridSortDescending;
+            }
+        }
+
+        private void ToggleStartPageGameSummariesGridSortDescending(object sender, RoutedEventArgs e)
+        {
+            var settings = _settingsViewModel?.Settings?.Persisted?.StartPageGameSummariesGrid;
+            if (settings != null)
+            {
+                settings.SortDescending = !settings.SortDescending;
+            }
+        }
+
+        private void ToggleOverviewSelectedGameGridSortDescending(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted != null)
+            {
+                persisted.OverviewSelectedGameGridSortDescending = !persisted.OverviewSelectedGameGridSortDescending;
+            }
+        }
+
+
+
+
+        private void ToggleSingleGameGridSortDescending(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted != null)
+            {
+                persisted.SingleGameGridSortDescending = !persisted.SingleGameGridSortDescending;
+            }
+        }
+
+        private void ToggleStartPageRecentUnlocksGridSortDescending(object sender, RoutedEventArgs e)
+        {
+            var settings = _settingsViewModel?.Settings?.Persisted?.StartPageRecentUnlocksGrid;
+            if (settings != null)
+            {
+                settings.SortDescending = !settings.SortDescending;
+            }
+        }
+
+        private void ToggleAchievementDataGridSortDescending(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted != null)
+            {
+                persisted.AchievementDataGridSortDescending = !persisted.AchievementDataGridSortDescending;
+            }
+        }
+
+        private void StartPageActivityScopeSelectionButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenStartPageActivityScopeContextMenu(sender as Button);
+        }
+
+        private void StartPageProgressScopeSelectionButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenStartPageProgressScopeContextMenu(sender as Button);
+        }
+
+        private void OpenStartPageActivityScopeContextMenu(Button button)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (button == null || persisted == null)
+            {
+                return;
+            }
+
+            var options = new[]
+            {
+                new { Scope = GameActivityScope.Played, Label = L("LOCPlayAch_Filter_Played", "Played") },
+                new { Scope = GameActivityScope.Unplayed, Label = L("LOCPlayAch_Filter_Unplayed", "Unplayed") }
+            };
+
+            var menu = PrepareStartPageScopeContextMenu(button);
+            if (menu == null)
+            {
+                return;
+            }
+
+            var current = persisted.StartPageActivityScope;
+            foreach (var option in options)
+            {
+                var scope = option.Scope;
+                var item = CreateStartPageScopeMenuItem(
+                    button,
+                    option.Label,
+                    current.HasFlag(scope),
+                    isChecked =>
+                    {
+                        var settings = _settingsViewModel?.Settings?.Persisted;
+                        if (settings == null)
+                        {
+                            return;
+                        }
+
+                        settings.StartPageActivityScope = isChecked
+                            ? settings.StartPageActivityScope | scope
+                            : settings.StartPageActivityScope & ~scope;
+                        UpdateStartPageScopeTexts();
+                    });
+                menu.Items.Add(item);
+            }
+
+            OpenSelectorContextMenu(button, menu);
+        }
+
+        private void OpenStartPageProgressScopeContextMenu(Button button)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (button == null || persisted == null)
+            {
+                return;
+            }
+
+            var options = new[]
+            {
+                new { Scope = GameProgressScope.Completed, Label = L("LOCPlayAch_Filter_Complete", "Complete") },
+                new { Scope = GameProgressScope.InProgress, Label = L("LOCPlayAch_Filter_InProgress", "In Progress") },
+                new { Scope = GameProgressScope.NoProgress, Label = L("LOCPlayAch_Filter_NoProgress", "No Progress") }
+            };
+
+            var menu = PrepareStartPageScopeContextMenu(button);
+            if (menu == null)
+            {
+                return;
+            }
+
+            var current = persisted.StartPageProgressScope;
+            foreach (var option in options)
+            {
+                var scope = option.Scope;
+                var item = CreateStartPageScopeMenuItem(
+                    button,
+                    option.Label,
+                    current.HasFlag(scope),
+                    isChecked =>
+                    {
+                        var settings = _settingsViewModel?.Settings?.Persisted;
+                        if (settings == null)
+                        {
+                            return;
+                        }
+
+                        settings.StartPageProgressScope = isChecked
+                            ? settings.StartPageProgressScope | scope
+                            : settings.StartPageProgressScope & ~scope;
+                        UpdateStartPageScopeTexts();
+                    });
+                menu.Items.Add(item);
+            }
+
+            OpenSelectorContextMenu(button, menu);
+        }
+
+        private static ContextMenu PrepareStartPageScopeContextMenu(Button button)
+        {
+            var menu = button?.ContextMenu;
+            if (menu == null)
+            {
+                return null;
+            }
+
+            menu.Items.Clear();
+            return menu;
+        }
+
+        private static MenuItem CreateStartPageScopeMenuItem(
+            Button button,
+            string header,
+            bool isChecked,
+            Action<bool> setSelection)
+        {
+            var item = new MenuItem
+            {
+                Header = header,
+                IsCheckable = true,
+                StaysOpenOnClick = true,
+                IsChecked = isChecked
+            };
+
+            var itemStyle = button?.TryFindResource("AchievementMultiSelectMenuItemStyle") as Style;
+            if (itemStyle != null)
+            {
+                item.Style = itemStyle;
+            }
+
+            item.Click += (_, __) => setSelection?.Invoke(item.IsChecked);
+            return item;
+        }
+
+        private static void OpenSelectorContextMenu(Button button, ContextMenu menu)
+        {
+            if (button == null || menu == null || menu.Items.Count == 0)
+            {
+                return;
+            }
+
+            RoutedEventHandler onClosed = null;
+            onClosed = (_, __) =>
+            {
+                menu.Closed -= onClosed;
+                button.ReleaseMouseCapture();
+            };
+
+            menu.Closed += onClosed;
+            menu.PlacementTarget = button;
+            menu.Placement = PlacementMode.Bottom;
+            menu.HorizontalOffset = 0;
+            menu.VerticalOffset = 0;
+            menu.IsOpen = true;
+        }
+
+        private void UpdateStartPageScopeTexts()
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            var activityScope = persisted?.StartPageActivityScope ??
+                PersistedSettings.DefaultStartPageActivityScope;
+            var progressScope = persisted?.StartPageProgressScope ??
+                PersistedSettings.DefaultStartPageProgressScope;
+
+            StartPageActivityScopeText = GetActivityScopeText(activityScope);
+            StartPageProgressScopeText = GetProgressScopeText(progressScope);
+        }
+
+        private static string GetActivityScopeText(GameActivityScope scope)
+        {
+            scope = PersistedSettings.NormalizeStartPageActivityScope(scope);
+            if (scope == GameActivityScope.None)
+            {
+                return L("LOCPlayAch_Filter_ActivitySelectorPlaceholder", "Activity");
+            }
+
+            var labels = new List<string>();
+            if (scope.HasFlag(GameActivityScope.Played))
+            {
+                labels.Add(L("LOCPlayAch_Filter_Played", "Played"));
+            }
+
+            if (scope.HasFlag(GameActivityScope.Unplayed))
+            {
+                labels.Add(L("LOCPlayAch_Filter_Unplayed", "Unplayed"));
+            }
+
+            return labels.Count > 0
+                ? string.Join(", ", labels)
+                : L("LOCPlayAch_Filter_ActivitySelectorPlaceholder", "Activity");
+        }
+
+        private static string GetProgressScopeText(GameProgressScope scope)
+        {
+            scope = PersistedSettings.NormalizeStartPageProgressScope(scope);
+            if (scope == GameProgressScope.None)
+            {
+                return L("LOCPlayAch_Progress", "Progress");
+            }
+
+            var labels = new List<string>();
+            if (scope.HasFlag(GameProgressScope.Completed))
+            {
+                labels.Add(L("LOCPlayAch_Filter_Complete", "Complete"));
+            }
+
+            if (scope.HasFlag(GameProgressScope.InProgress))
+            {
+                labels.Add(L("LOCPlayAch_Filter_InProgress", "In Progress"));
+            }
+
+            if (scope.HasFlag(GameProgressScope.NoProgress))
+            {
+                labels.Add(L("LOCPlayAch_Filter_NoProgress", "No Progress"));
+            }
+
+            return labels.Count > 0
+                ? string.Join(", ", labels)
+                : L("LOCPlayAch_Progress", "Progress");
+        }
+
+        // -----------------------------
+        // Tagging Methods
+        // -----------------------------
+
+        /// <summary>
+        /// Commits pending tag name changes from text boxes to the source.
+        /// </summary>
+        private void CommitTagNameBindings()
+        {
+            var textBoxes = new TextBox[]
+            {
+                HasAchievementsTagTextBox,
+                InProgressTagTextBox,
+                CompletedTagTextBox,
+                NoAchievementsTagTextBox,
+                CustomizedTagTextBox,
+                NotCustomizedTagTextBox,
+                ExcludedTagTextBox,
+                ExcludedFromSummariesTagTextBox
+            };
+
+            foreach (var textBox in textBoxes)
+            {
+                var binding = textBox?.GetBindingExpression(TextBox.TextProperty);
+                if (binding != null)
+                {
+                    binding.UpdateSource();
+                }
+            }
+        }
+
+        private void ApplyAndSync_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Commit any pending text box changes
+                CommitTagNameBindings();
+
+                var tagSyncService = _plugin.TagSyncService;
+                if (tagSyncService == null)
+                {
+                    ForkLog.Wrap(_logger)?.Warn("TagSyncService not available");
+                    return;
+                }
+
+                // Sync all tags (handles orphan cleanup and re-tagging with new names)
+                tagSyncService.SyncAllTags();
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to apply and sync tags.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        private void RemoveAllTags_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var result = _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    L("LOCPlayAch_Tagging_RemoveAllConfirm", "Remove all Playnite Achievements tags from all games?"),
+                    L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                var tagSyncService = _plugin.TagSyncService;
+                if (tagSyncService == null)
+                {
+                    ForkLog.Wrap(_logger)?.Warn("TagSyncService not available");
+                    return;
+                }
+
+                tagSyncService.RemoveAllTags();
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger).Error(ex, "Failed to remove tags.");
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    LF("LOCPlayAch_Status_Failed", "Error: {0}", ex.Message),
+                    L("LOCPlayAch_Title_PluginName", "Playnite Achievements"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
+        // -----------------------------
+        // Provider Navigation Overview
+        // -----------------------------
+
+        /// <summary>
+        /// Builds provider navigation items for the overview from registered providers.
+        /// Items are added in the natural discovery order.
+        /// </summary>
+        private void BuildLegacyProviderNavigationItems()
+        {
+            if (_providerNavigationBuilt)
+            {
+                return;
+            }
+
+            LegacyProviderNavigationItems.Clear();
+
+            foreach (var providerKey in _providerRegistry.GetSettingsViewProviderKeys())
+            {
+                var settings = _providerRegistry.GetSettingsForEdit(providerKey);
+                if (settings == null) continue;
+
+                var view = _providerRegistry.CreateSettingsView(providerKey);
+                var displayName = ProviderRegistry.GetLocalizedName(providerKey);
+                var iconKey = $"ProviderIcon{providerKey}";
+                var colorHex = "#FF4084D6";
+                string redirectProviderKey = null;
+                string subtitle = null;
+
+                if (_providerRegistry.TryGetProviderVisuals(providerKey, out var providerIconKey, out var providerColorHex))
+                {
+                    if (!string.IsNullOrWhiteSpace(providerIconKey))
+                    {
+                        iconKey = providerIconKey;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(providerColorHex))
+                    {
+                        colorHex = providerColorHex;
+                    }
+                }
+
+                if (view == null)
+                {
+                    if (!ProviderUiPolicies.TryGetSettingsRedirectProviderKey(providerKey, out redirectProviderKey))
+                    {
+                        continue;
+                    }
+
+                    subtitle = string.Format(
+                        ResourceProvider.GetString("LOCPlayAch_Settings_ProviderServicedByFormat"),
+                        ProviderRegistry.GetLocalizedName(redirectProviderKey));
+                }
+                else
+                {
+                    view.Initialize(settings);
+                }
+
+                LegacyProviderNavigationItems.Add(new LegacyProviderNavigationItem(
+                    providerKey,
+                    displayName,
+                    GetProviderSettingsGroupName(providerKey),
+                    iconKey,
+                    colorHex,
+                    settings,
+                    view,
+                    redirectProviderKey,
+                    subtitle));
+            }
+
+            ConfigureProviderNavigationView();
+
+            if (SelectedLegacyProviderNavigationItem == null && LegacyProviderNavigationItems.Count > 0)
+            {
+                SelectedLegacyProviderNavigationItem = LegacyProviderNavigationItems[0];
+            }
+
+            _providerNavigationBuilt = true;
+            ForkLog.Wrap(_logger)?.Info($"Built {LegacyProviderNavigationItems.Count} platform navigation items");
+        }
+
+        private static string GetProviderSettingsGroupName(string providerKey)
+        {
+            return ResourceProvider.GetString(ProviderUiPolicies.GetSettingsGroupResourceKey(providerKey));
+        }
+
+        private void ConfigureProviderNavigationView()
+        {
+            _providerNavigationView = CollectionViewSource.GetDefaultView(LegacyProviderNavigationItems);
+            if (_providerNavigationView == null)
+            {
+                return;
+            }
+
+            _providerNavigationView.Filter = FilterLegacyProviderNavigationItem;
+            _providerNavigationView.GroupDescriptions.Clear();
+            _providerNavigationView.GroupDescriptions.Add(
+                new PropertyGroupDescription(nameof(LegacyProviderNavigationItem.GroupName)));
+            _providerNavigationView.Refresh();
+        }
+
+        private bool FilterLegacyProviderNavigationItem(object item)
+        {
+            if (!(item is LegacyProviderNavigationItem providerItem))
+            {
+                return false;
+            }
+
+            var searchText = ProviderSearchText;
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return true;
+            }
+
+            return ContainsSearchText(providerItem.DisplayName, searchText) ||
+                ContainsSearchText(providerItem.ProviderKey, searchText) ||
+                ContainsSearchText(providerItem.GroupName, searchText) ||
+                ContainsSearchText(providerItem.Subtitle, searchText);
+        }
+
+        private static bool ContainsSearchText(string value, string searchText)
+            => !string.IsNullOrWhiteSpace(value) &&
+                value.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private static void OnProviderSearchTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is LegacyNotificationSettingsControl control)
+            {
+                control._providerNavigationView?.Refresh();
+                control.SelectFirstVisibleProviderIfNeeded();
+            }
+        }
+
+        private void SelectFirstVisibleProviderIfNeeded()
+        {
+            if (_providerNavigationView == null)
+            {
+                return;
+            }
+
+            if (SelectedLegacyProviderNavigationItem != null &&
+                _providerNavigationView.Contains(SelectedLegacyProviderNavigationItem))
+            {
+                return;
+            }
+
+            SelectedLegacyProviderNavigationItem = _providerNavigationView
+                .Cast<LegacyProviderNavigationItem>()
+                .FirstOrDefault();
+        }
+
+        private static void OnSelectedLegacyProviderNavigationItemChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            if (d is LegacyNotificationSettingsControl control && e.NewValue is LegacyProviderNavigationItem item)
+            {
+                control.OnSelectedLegacyProviderNavigationItemChangedInternal(item);
+            }
+        }
+
+        private async void OnSelectedLegacyProviderNavigationItemChangedInternal(LegacyProviderNavigationItem item)
+        {
+            if (item == null) return;
+
+            if (item.IsRedirect)
+            {
+                var redirectItem = LegacyProviderNavigationItems?.FirstOrDefault(x =>
+                    string.Equals(x.ProviderKey, item.RedirectProviderKey, StringComparison.OrdinalIgnoreCase));
+
+                if (redirectItem != null && !ReferenceEquals(item, redirectItem))
+                {
+                    ProviderSearchText = string.Empty;
+                    SelectedLegacyProviderNavigationItem = redirectItem;
+                    ForkLog.Wrap(_logger)?.Info($"Redirected {item.ProviderKey} settings navigation to {redirectItem.ProviderKey}");
+                }
+                else
+                {
+                    ForkLog.Wrap(_logger)?.Warn($"Provider settings redirect target not found for {item.ProviderKey}: {item.RedirectProviderKey}");
+                }
+
+                return;
+            }
+
+            if (item.SettingsView == null) return;
+
+            // Refresh auth status if the view implements IAuthRefreshable
+            if (item.SettingsView is IAuthRefreshable authRefreshable)
+            {
+                try
+                {
+                    await authRefreshable.RefreshAuthStatusAsync();
+                    ForkLog.Wrap(_logger)?.Info($"Refreshed auth status for {item.ProviderKey}");
+                }
+                catch (Exception ex)
+                {
+                    ForkLog.Wrap(_logger)?.Error(ex, $"Failed to refresh auth status for {item.ProviderKey}");
+                }
+            }
+        }
+
+        private void NavigateToPendingProvider()
+        {
+            var targetKey = PendingNavigationProviderKey;
+            PendingNavigationProviderKey = null;
+
+            if (!string.IsNullOrWhiteSpace(targetKey))
+            {
+                var targetItem = LegacyProviderNavigationItems?.FirstOrDefault(x =>
+                    string.Equals(x.ProviderKey, targetKey, StringComparison.OrdinalIgnoreCase));
+
+                if (targetItem != null && ProvidersTab != null)
+                {
+                    SettingsTabControl.SelectedItem = ProvidersTab;
+                    SelectedLegacyProviderNavigationItem = targetItem;
+                    ForkLog.Wrap(_logger)?.Info($"Navigated to pending provider: {targetKey}");
+                    return;
+                }
+
+                foreach (TabItem tab in SettingsTabControl.Items)
+                {
+                    if (string.Equals(tab.Tag as string, targetKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        SettingsTabControl.SelectedItem = tab;
+                        return;
+                    }
+                }
+            }
+
+            var targetTabName = PendingNavigationTabName;
+            PendingNavigationTabName = null;
+            if (string.IsNullOrWhiteSpace(targetTabName))
+            {
+                return;
+            }
+
+            foreach (TabItem tab in SettingsTabControl.Items)
+            {
+                if (string.Equals(tab.Name, targetTabName, StringComparison.OrdinalIgnoreCase))
+                {
+                    SettingsTabControl.SelectedItem = tab;
+                    return;
+                }
+            }
+        }
+
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!(sender is TabControl)) return;
+
+            // Inspect the newly selected TabItem by name (uses x:Name from XAML)
+            if (e.AddedItems == null || e.AddedItems.Count == 0) return;
+            if (e.AddedItems[0] is not TabItem selected) return;
+
+            var name = selected.Name ?? string.Empty;
+            var tag = selected.Tag as string ?? string.Empty;
+            CurrentSelectedTabName = name;
+            CurrentSelectedProviderKey = string.IsNullOrWhiteSpace(tag) ? null : tag;
+
+            if (string.Equals(name, "ThemeMigrationTab", StringComparison.OrdinalIgnoreCase))
+            {
+                LoadThemes();
+                ForkLog.Wrap(_logger)?.Info("Loaded themes for Theme Migration tab.");
+            }
+        }
+
+        // Quick navigation button handlers from General tab
+        private void JumpToDisplay_Click(object sender, RoutedEventArgs e)
+        {
+            if (DisplayTab != null)
+            {
+                SettingsTabControl.SelectedItem = DisplayTab;
+                DisplayTab.BringIntoView();
+            }
+        }
+
+        private void JumpToProviders_Click(object sender, RoutedEventArgs e)
+        {
+            if (ProvidersTab != null)
+            {
+                SettingsTabControl.SelectedItem = ProvidersTab;
+                ProvidersTab.BringIntoView();
+            }
+        }
+
+        private void JumpToThemeMigration_Click(object sender, RoutedEventArgs e)
+        {
+            if (ThemeMigrationTab != null)
+            {
+                SettingsTabControl.SelectedItem = ThemeMigrationTab;
+                ThemeMigrationTab.BringIntoView();
+            }
+        }
+
+        private void ViewAchievementsHotkeyCapture_Click(object sender, RoutedEventArgs e)
+        {
+            StartHotkeyCapture(HotkeyCaptureTarget.ViewAchievements, ViewAchievementsHotkeyCaptureButton);
+        }
+
+        private void ManageAchievementsHotkeyCapture_Click(object sender, RoutedEventArgs e)
+        {
+            StartHotkeyCapture(HotkeyCaptureTarget.ManageAchievements, ManageAchievementsHotkeyCaptureButton);
+        }
+
+        private void OverviewHotkeyCapture_Click(object sender, RoutedEventArgs e)
+        {
+            StartHotkeyCapture(HotkeyCaptureTarget.Overview, OverviewHotkeyCaptureButton);
+        }
+
+        private void ResetViewAchievementsHotkey_Click(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted == null)
+            {
+                return;
+            }
+
+            persisted.ViewAchievementsHotkey = PersistedSettings.DefaultViewAchievementsHotkey;
+            EndHotkeyCapture();
+        }
+
+        private void ResetManageAchievementsHotkey_Click(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted == null)
+            {
+                return;
+            }
+
+            persisted.ManageAchievementsHotkey = PersistedSettings.DefaultManageAchievementsHotkey;
+            EndHotkeyCapture();
+        }
+
+        private void ResetOverviewHotkey_Click(object sender, RoutedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted == null)
+            {
+                return;
+            }
+
+            persisted.OverviewHotkey = PersistedSettings.DefaultOverviewHotkey;
+            EndHotkeyCapture();
+        }
+
+        private void HotkeyCapture_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!_capturingHotkey.HasValue)
+            {
+                return;
+            }
+
+            var target = _capturingHotkey.Value;
+            if ((target == HotkeyCaptureTarget.ViewAchievements &&
+                 !ReferenceEquals(sender, ViewAchievementsHotkeyCaptureButton)) ||
+                (target == HotkeyCaptureTarget.ManageAchievements &&
+                 !ReferenceEquals(sender, ManageAchievementsHotkeyCaptureButton)) ||
+                (target == HotkeyCaptureTarget.Overview &&
+                 !ReferenceEquals(sender, OverviewHotkeyCaptureButton)))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            var key = GetEffectiveHotkeyCaptureKey(e);
+            if (key == Key.Escape)
+            {
+                EndHotkeyCapture();
+                return;
+            }
+
+            if (key == Key.Back || key == Key.Delete)
+            {
+                SetCapturedHotkey(target, string.Empty);
+                EndHotkeyCapture();
+                return;
+            }
+
+            if (!AchievementHotkeyGesture.TryCreate(key, Keyboard.Modifiers, out var gesture))
+            {
+                HotkeyCaptureStatusText = L(
+                    "LOCPlayAch_Hotkeys_InvalidShortcut",
+                    "Unsupported shortcut. Press a letter, digit, function key, or a modified shortcut.");
+                return;
+            }
+
+            if (IsDuplicateHotkey(target, gesture))
+            {
+                HotkeyCaptureStatusText = L(
+                    "LOCPlayAch_Hotkeys_DuplicateShortcut",
+                    "That shortcut is already assigned.");
+                return;
+            }
+
+            SetCapturedHotkey(target, gesture.ToString());
+            EndHotkeyCapture();
+        }
+
+        private void StartHotkeyCapture(HotkeyCaptureTarget target, Button button)
+        {
+            _capturingHotkey = target;
+            HotkeyCaptureStatusText = L("LOCPlayAch_Hotkeys_CapturePrompt", "Press a shortcut...");
+
+            if (target == HotkeyCaptureTarget.ViewAchievements)
+            {
+                ViewAchievementsHotkeyButtonText = L("LOCPlayAch_Hotkeys_CaptureButton", "Press keys...");
+                ManageAchievementsHotkeyButtonText = FormatHotkeyButtonText(
+                    _settingsViewModel?.Settings?.Persisted?.ManageAchievementsHotkey);
+                OverviewHotkeyButtonText = FormatHotkeyButtonText(
+                    _settingsViewModel?.Settings?.Persisted?.OverviewHotkey);
+            }
+            else if (target == HotkeyCaptureTarget.ManageAchievements)
+            {
+                ManageAchievementsHotkeyButtonText = L("LOCPlayAch_Hotkeys_CaptureButton", "Press keys...");
+                ViewAchievementsHotkeyButtonText = FormatHotkeyButtonText(
+                    _settingsViewModel?.Settings?.Persisted?.ViewAchievementsHotkey);
+                OverviewHotkeyButtonText = FormatHotkeyButtonText(
+                    _settingsViewModel?.Settings?.Persisted?.OverviewHotkey);
+            }
+            else
+            {
+                OverviewHotkeyButtonText = L("LOCPlayAch_Hotkeys_CaptureButton", "Press keys...");
+                ViewAchievementsHotkeyButtonText = FormatHotkeyButtonText(
+                    _settingsViewModel?.Settings?.Persisted?.ViewAchievementsHotkey);
+                ManageAchievementsHotkeyButtonText = FormatHotkeyButtonText(
+                    _settingsViewModel?.Settings?.Persisted?.ManageAchievementsHotkey);
+            }
+
+            button?.Focus();
+            Keyboard.Focus(button);
+        }
+
+        private void EndHotkeyCapture()
+        {
+            _capturingHotkey = null;
+            HotkeyCaptureStatusText = string.Empty;
+            UpdateHotkeyButtonTexts();
+        }
+
+        private void SetCapturedHotkey(HotkeyCaptureTarget target, string hotkey)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted == null)
+            {
+                return;
+            }
+
+            if (target == HotkeyCaptureTarget.ViewAchievements)
+            {
+                persisted.ViewAchievementsHotkey = hotkey;
+            }
+            else if (target == HotkeyCaptureTarget.ManageAchievements)
+            {
+                persisted.ManageAchievementsHotkey = hotkey;
+            }
+            else
+            {
+                persisted.OverviewHotkey = hotkey;
+            }
+        }
+
+        private bool IsDuplicateHotkey(HotkeyCaptureTarget target, AchievementHotkeyGesture gesture)
+        {
+            if (gesture == null || gesture.IsEmpty)
+            {
+                return false;
+            }
+
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            if (persisted == null)
+            {
+                return false;
+            }
+
+            return IsMatchingHotkey(target, HotkeyCaptureTarget.ViewAchievements, persisted.ViewAchievementsHotkey, gesture) ||
+                   IsMatchingHotkey(target, HotkeyCaptureTarget.ManageAchievements, persisted.ManageAchievementsHotkey, gesture) ||
+                   IsMatchingHotkey(target, HotkeyCaptureTarget.Overview, persisted.OverviewHotkey, gesture);
+        }
+
+        private static bool IsMatchingHotkey(
+            HotkeyCaptureTarget currentTarget,
+            HotkeyCaptureTarget comparedTarget,
+            string comparedText,
+            AchievementHotkeyGesture gesture)
+        {
+            if (currentTarget == comparedTarget)
+            {
+                return false;
+            }
+
+            return AchievementHotkeyGesture.TryParse(comparedText, out var otherGesture) &&
+                   otherGesture != null &&
+                   !otherGesture.IsEmpty &&
+                   gesture.Equals(otherGesture);
+        }
+
+        private void UpdateHotkeyButtonTexts()
+        {
+            if (_capturingHotkey.HasValue)
+            {
+                return;
+            }
+
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+            ViewAchievementsHotkeyButtonText = FormatHotkeyButtonText(persisted?.ViewAchievementsHotkey);
+            ManageAchievementsHotkeyButtonText = FormatHotkeyButtonText(persisted?.ManageAchievementsHotkey);
+            OverviewHotkeyButtonText = FormatHotkeyButtonText(persisted?.OverviewHotkey);
+        }
+
+        private string FormatHotkeyButtonText(string hotkey)
+        {
+            return string.IsNullOrWhiteSpace(hotkey)
+                ? L("LOCPlayAch_Hotkeys_None", "None")
+                : hotkey;
+        }
+
+        private static Key GetEffectiveHotkeyCaptureKey(KeyEventArgs e)
+        {
+            if (e == null)
+            {
+                return Key.None;
+            }
+
+            if (e.Key == Key.System)
+            {
+                return e.SystemKey;
+            }
+
+            if (e.Key == Key.ImeProcessed)
+            {
+                return e.ImeProcessedKey;
+            }
+
+            return e.Key;
+        }
+
+        // -----------------------------
+        // Settings property change handling for mock preview refresh
+        // -----------------------------
+
+        private void OnSettingsPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            var persisted = _settingsViewModel?.Settings?.Persisted;
+
+            if (persisted != null &&
+                e.PropertyName == nameof(Models.Settings.PersistedSettings.DefaultAchievementSortMode) &&
+                persisted.DefaultAchievementSortMode == Models.Settings.CompactListSortMode.DisplayOrder &&
+                persisted.DefaultAchievementSortDescending)
+            {
+                // RetroAchievements progression order should default to the API sequence (ascending DisplayOrder).
+                persisted.DefaultAchievementSortDescending = false;
+            }
+
+            // Refresh mock previews when display-affecting settings change
+            var refreshProperties = new[]
+            {
+                nameof(Models.Settings.PersistedSettings.ShowCompactListRarityBar),
+                nameof(Models.Settings.PersistedSettings.ShowRarityGlow),
+                nameof(Models.Settings.PersistedSettings.ShowHiddenIcon),
+                nameof(Models.Settings.PersistedSettings.ShowHiddenTitle),
+                nameof(Models.Settings.PersistedSettings.ShowHiddenDescription),
+                nameof(Models.Settings.PersistedSettings.ShowHiddenSuffix),
+                nameof(Models.Settings.PersistedSettings.ShowLockedIcon),
+                nameof(Models.Settings.PersistedSettings.UseSeparateLockedIconsWhenAvailable),
+                nameof(Models.Settings.PersistedSettings.UseUniformRarityBadges)
+            };
+
+            if (e.PropertyName == nameof(Models.Settings.PersistedSettings.UseUniformRarityBadges))
+            {
+                PercentRarityHelper.ApplyBadgeApplicationResources(
+                    _settingsViewModel?.Settings?.Persisted?.UseUniformRarityBadges ?? false);
+            }
+
+            if (e.PropertyName == nameof(Models.Settings.PersistedSettings.StartPageActivityScope) ||
+                e.PropertyName == nameof(Models.Settings.PersistedSettings.StartPageProgressScope))
+            {
+                UpdateStartPageScopeTexts();
+            }
+
+            if (e.PropertyName == nameof(Models.Settings.PersistedSettings.ViewAchievementsHotkey) ||
+                e.PropertyName == nameof(Models.Settings.PersistedSettings.ManageAchievementsHotkey) ||
+                e.PropertyName == nameof(Models.Settings.PersistedSettings.OverviewHotkey))
+            {
+                UpdateHotkeyButtonTexts();
+            }
+
+            if (refreshProperties.Contains(e.PropertyName))
+            {
+                RefreshMockPreviews();
+            }
+        }
+
+        // -----------------------------
+        // IDisposable implementation
+        // -----------------------------
+
+        public object DetachAchievementNotificationsContent()
+        {
+            // This compatibility control itself is never added to the visual tree, so its
+            // Loaded handler will not run. Initialize the notification tab explicitly before
+            // moving its content into the v3 settings shell.
+            InitializeAchievementNotificationsTab();
+
+            var content = AchievementNotificationsTab?.Content;
+            if (content is FrameworkElement contentElement &&
+                AchievementNotificationsTab?.DataContext != null)
+            {
+                // The original tab binds notification controls directly to LocalSettings.
+                // Preserve that inherited context when the content is hosted by the v3 shell.
+                contentElement.DataContext = AchievementNotificationsTab.DataContext;
+                contentElement.Loaded -= NotificationSettingsContent_Loaded;
+                contentElement.Loaded += NotificationSettingsContent_Loaded;
+            }
+
+            if (AchievementNotificationsTab != null)
+            {
+                AchievementNotificationsTab.Content = null;
+            }
+
+            return content;
+        }
+
+        public object DetachThemeMigrationContent()
+        {
+            if (!_themeMigrationLoaded)
+            {
+                RefreshThemeMigrationContent();
+            }
+
+            var content = ThemeMigrationTab?.Content;
+            if (ThemeMigrationTab != null)
+            {
+                ThemeMigrationTab.Content = null;
+            }
+
+            if (content is FrameworkElement contentElement)
+            {
+                // This page moves into SettingsControl, outside this control's name scope.
+                // Keep its ElementName bindings connected to the instance that owns both
+                // the selected theme paths and the click handlers.
+                var scope = new NameScope();
+                scope.RegisterName(nameof(LegacyNotificationSettingsControlRoot), this);
+                NameScope.SetNameScope(contentElement, scope);
+            }
+
+            return content;
+        }
+
+        public void RefreshThemeMigrationContent()
+        {
+            LoadThemes();
+            RefreshStartPageCompatibilityState();
+            _themeMigrationLoaded = true;
+        }
+
+        public void Dispose()
+        {
+            if (_settingsHostWindow != null)
+            {
+                _settingsHostWindow.Closed -= SettingsHostWindow_Closed;
+                _settingsHostWindow = null;
+            }
+            NotificationPublisher.ClosePersistentSettingsPreview();
+            if (_notificationPreviewSettings != null)
+            {
+                _notificationPreviewSettings = null;
+            }
+
+            if (_settingsViewModel?.Settings?.Persisted != null)
+            {
+                _settingsViewModel.Settings.Persisted.PropertyChanged -= OnSettingsPropertyChanged;
+            }
+        }
+
+        private static string L(string key, string fallback)
+        {
+            var value = ResourceProvider.GetString(key);
+            return string.IsNullOrWhiteSpace(value) ? fallback : value;
+        }
+
+        private static string LF(string key, string fallbackFormat, params object[] args)
+        {
+            return string.Format(L(key, fallbackFormat), args);
+        }
+
+        private static bool IsExcludedTheme(ThemeDiscoveryService.ThemeInfo theme)
+        {
+            if (theme == null)
+            {
+                return true;
+            }
+
+            if (string.Equals(theme.DisplayName, "Default", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(theme.Name, "Default", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(theme.Name) &&
+                (theme.Name.EndsWith("/Default", StringComparison.OrdinalIgnoreCase) ||
+                 theme.Name.EndsWith("\\Default", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private Game GetSelectedNotificationPreviewGame()
+        {
+            return _plugin?.PlayniteApi?.MainView?.SelectedGames?.FirstOrDefault();
+        }
+
+        private AchievementDetail GetSelectedNotificationPreviewAchievement()
+        {
+            return null;
+        }
+
+
+
     }
 
     /// <summary>
@@ -1686,3 +4008,7 @@ namespace PlayniteAchievements.Views
         public event PropertyChangedEventHandler PropertyChanged;
     }
 }
+
+
+
+
