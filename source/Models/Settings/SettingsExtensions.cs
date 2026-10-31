@@ -125,6 +125,7 @@ namespace PlayniteAchievements.Models.Settings
             target.MaxConcurrentToasts = source.MaxConcurrentToasts;
             target.SingleCustomNotification = source.SingleCustomNotification;
             target.ToastPosition = source.ToastPosition;
+            target.CaptureNotificationPosition = source.CaptureNotificationPosition;
             target.NotificationRenderMode = source.NotificationRenderMode;
             target.EnableControllerVibration = source.EnableControllerVibration;
             target.ControllerVibrationStrengthPercent = source.ControllerVibrationStrengthPercent;

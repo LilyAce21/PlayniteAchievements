@@ -5760,17 +5760,10 @@ namespace PlayniteAchievements.Services.UI
         {
             if (_activeUsesCustomCapture)
             {
-                var localPosition = Providers.ProviderRegistry.Settings<Providers.Local.LocalSettings>()?
-                    .UnlockOverlayPosition ?? Providers.Local.LocalUnlockOverlayPosition.TopRight;
-                switch (localPosition)
-                {
-                    case Providers.Local.LocalUnlockOverlayPosition.TopLeft: return ToastScreenCorner.TopLeft;
-                    case Providers.Local.LocalUnlockOverlayPosition.TopCenter: return ToastScreenCorner.TopCenter;
-                    case Providers.Local.LocalUnlockOverlayPosition.BottomLeft: return ToastScreenCorner.BottomLeft;
-                    case Providers.Local.LocalUnlockOverlayPosition.BottomCenter: return ToastScreenCorner.BottomCenter;
-                    case Providers.Local.LocalUnlockOverlayPosition.BottomRight: return ToastScreenCorner.BottomRight;
-                    default: return ToastScreenCorner.TopRight;
-                }
+                // A custom (SAN) notification is what the player sees; this toast only exists so the
+                // screenshot and clip pipelines have a card to capture, so its corner is the official
+                // capture-position setting.
+                return _settings?.Persisted?.CaptureNotificationPosition ?? ToastScreenCorner.BottomRight;
             }
 
             var styled = scopeToast?.Position;

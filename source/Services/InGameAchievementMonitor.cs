@@ -33,6 +33,7 @@ namespace PlayniteAchievements.Services
         private static readonly TimeSpan SchedulerResolution = TimeSpan.FromMilliseconds(100);
         private static readonly TimeSpan FileDebounce = TimeSpan.FromMilliseconds(40);
         /// <summary>How often the watched progress files are stat-checked for a change the OS watcher missed.</summary>
+        private static readonly TimeSpan HealthyFileSourceFallbackInterval = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan StatProbeInterval = TimeSpan.FromMilliseconds(150);
         /// <summary>A watcher event newer than this means the stat probe leaves detection to the watcher.</summary>
         private static readonly TimeSpan StatProbeWatcherGrace = TimeSpan.FromMilliseconds(500);
@@ -677,6 +678,9 @@ namespace PlayniteAchievements.Services
                 {
                     state.QueryInFlight = true;
                     state.Schedule.BeginRead(now);
+                    // The read about to run covers whatever changed so far; let the stat probe re-baseline
+                    // instead of queueing a second, redundant read for the same change.
+                    state.StatFingerprint = null;
                 }
 
                 sourceGroups = dueSources
@@ -2026,9 +2030,26 @@ namespace PlayniteAchievements.Services
 
         private TimeSpan GetFallbackInterval(GamePollState state)
         {
-            return state?.WaitingForLocalAchievementFile == true
+            var interval = state?.WaitingForLocalAchievementFile == true
                 ? GetMissingAchievementFilePollInterval()
                 : GetPollInterval();
+
+            // A healthy file-watched source already reads the moment a progress file changes. The full
+            // provider refresh is then only a slow floor: running it every few seconds just made the
+            // fast read queue behind it (the 1.5 s unlock reads in the log all overlapped one).
+            if (state != null &&
+                state.ProgressSource != null &&
+                state.Registration != null &&
+                !state.Registration.IsRemote &&
+                state.Schedule.Primed &&
+                !state.Schedule.Degraded &&
+                state.WaitingForLocalAchievementFile != true &&
+                interval < HealthyFileSourceFallbackInterval)
+            {
+                return HealthyFileSourceFallbackInterval;
+            }
+
+            return interval;
         }
 
         private static TimeSpan GetMissingAchievementFilePollInterval()

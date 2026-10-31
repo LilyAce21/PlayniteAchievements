@@ -156,6 +156,7 @@ namespace PlayniteAchievements.Models.Settings
         private Dictionary<string, ProviderNotificationOverride> _providerNotificationOverrides =
             new Dictionary<string, ProviderNotificationOverride>(StringComparer.OrdinalIgnoreCase);
         private ToastScreenCorner _toastPosition = ToastScreenCorner.BottomRight;
+        private ToastScreenCorner _captureNotificationPosition = ToastScreenCorner.BottomRight;
         private NotificationRenderMode _notificationRenderMode = NotificationRenderMode.Performance;
         private int _recentRefreshGamesCount = 10;
         private RefreshModeType _defaultOverviewRefreshMode = RefreshModeType.Installed;
@@ -1386,6 +1387,17 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _toastPosition;
             set => SetValue(ref _toastPosition, value);
+        }
+
+        /// <summary>
+        /// Where the notification card is drawn in unlock screenshots and clips when a custom (SAN)
+        /// notification is what the player sees on screen. The on-screen position belongs to the
+        /// notification itself; this is only the captured card's position.
+        /// </summary>
+        public ToastScreenCorner CaptureNotificationPosition
+        {
+            get => _captureNotificationPosition;
+            set => SetValue(ref _captureNotificationPosition, value);
         }
 
         /// <summary>
@@ -3478,6 +3490,7 @@ namespace PlayniteAchievements.Models.Settings
                 MaxConcurrentToasts = this.MaxConcurrentToasts,
                 SingleCustomNotification = this.SingleCustomNotification,
                 ToastPosition = this.ToastPosition,
+                CaptureNotificationPosition = this.CaptureNotificationPosition,
                 NotificationRenderMode = this.NotificationRenderMode,
                 EnableControllerVibration = this.EnableControllerVibration,
                 ControllerVibrationStrengthPercent = this.ControllerVibrationStrengthPercent,
