@@ -33,7 +33,7 @@ namespace PlayniteAchievements.Services
         private static readonly TimeSpan SchedulerResolution = TimeSpan.FromMilliseconds(100);
         private static readonly TimeSpan FileDebounce = TimeSpan.FromMilliseconds(40);
         /// <summary>How often the watched progress files are stat-checked for a change the OS watcher missed.</summary>
-        private static readonly TimeSpan HealthyFileSourceFallbackInterval = TimeSpan.FromSeconds(30);
+        private static readonly TimeSpan HealthyLocalFileSourceFallbackInterval = TimeSpan.FromHours(6);
         private static readonly TimeSpan StatProbeInterval = TimeSpan.FromMilliseconds(150);
         /// <summary>A watcher event newer than this means the stat probe leaves detection to the watcher.</summary>
         private static readonly TimeSpan StatProbeWatcherGrace = TimeSpan.FromMilliseconds(500);
@@ -1985,9 +1985,7 @@ namespace PlayniteAchievements.Services
         private bool ShouldPollGame(Game game, bool logReason)
         {
             var persisted = _settings?.Persisted;
-            var customNotificationsEnabled =
-                ProviderRegistry.Settings<LocalSettings>()?.AnyLiveDetectionActive == true;
-            if (persisted?.EnableInGamePolling != true && !customNotificationsEnabled)
+            if (persisted?.EnableInGamePolling != true)
             {
                 if (logReason) _logger?.Debug("[InGameMonitor] Disabled in settings.");
                 return false;
@@ -2019,12 +2017,7 @@ namespace PlayniteAchievements.Services
 
         private TimeSpan GetPollInterval()
         {
-            var customSettings = ProviderRegistry.Settings<LocalSettings>();
-            if (customSettings?.AnyLiveDetectionActive == true)
-            {
-                return TimeSpan.FromSeconds(customSettings.EffectiveLiveDetectionIntervalSeconds);
-            }
-
+            // One interval for every game: the "Fallback Interval" in the main monitoring settings.
             return TimeSpan.FromSeconds(Math.Max(10, _settings?.Persisted?.InGamePollIntervalSeconds ?? 15));
         }
 
@@ -2034,22 +2027,27 @@ namespace PlayniteAchievements.Services
                 ? GetMissingAchievementFilePollInterval()
                 : GetPollInterval();
 
-            // A healthy file-watched source already reads the moment a progress file changes. The full
-            // provider refresh is then only a slow floor: running it every few seconds just made the
-            // fast read queue behind it (the 1.5 s unlock reads in the log all overlapped one).
-            if (state != null &&
-                state.ProgressSource != null &&
-                state.Registration != null &&
-                !state.Registration.IsRemote &&
-                state.Schedule.Primed &&
-                !state.Schedule.Degraded &&
-                state.WaitingForLocalAchievementFile != true &&
-                interval < HealthyFileSourceFallbackInterval)
+            // A Local game whose progress file is being tracked reads that file the moment it changes
+            // (file watcher plus a 150 ms stat check). The full provider refresh adds nothing for it, so
+            // it only runs again if the file source stops working or the file has not appeared yet.
+            if (IsHealthyLocalFileSource(state))
             {
-                return HealthyFileSourceFallbackInterval;
+                return HealthyLocalFileSourceFallbackInterval;
             }
 
             return interval;
+        }
+
+        private static bool IsHealthyLocalFileSource(GamePollState state)
+        {
+            return state != null &&
+                   state.ProgressSource != null &&
+                   state.Registration != null &&
+                   !state.Registration.IsRemote &&
+                   string.Equals(state.Registration.ProviderKey, "Local", StringComparison.OrdinalIgnoreCase) &&
+                   state.Schedule.Primed &&
+                   !state.Schedule.Degraded &&
+                   state.WaitingForLocalAchievementFile != true;
         }
 
         private static TimeSpan GetMissingAchievementFilePollInterval()

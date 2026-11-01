@@ -713,9 +713,7 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanUseCustomRarityIcons = true;
         private bool _officialSanShowHiddenAsLocked = true;
         private bool _officialSanApplyUpstreamElements;
-        private bool _officialSanLiveDetectionEnabled = true;
         private bool _officialSanUseUpstreamCaptureSettings = true;
-        private int _officialSanPollingIntervalSeconds = 2;
 
         public bool UseOfficialSanTemplate
         {
@@ -753,17 +751,6 @@ namespace PlayniteAchievements.Providers.Local
         /// <summary>Marks hidden achievements so themes with a hidden-icon element show it.</summary>
         public bool OfficialSanShowHiddenAsLocked { get => _officialSanShowHiddenAsLocked; set => SetValue(ref _officialSanShowHiddenAsLocked, value); }
 
-        /// <summary>
-        /// Applies the upstream notification element settings (which lines show, text sizes, fonts,
-        /// rarity-coloured name, rarity glow) on top of the .san theme. The theme's layout and
-        /// animation are not touched.
-        /// </summary>
-        /// <summary>
-        /// Live unlock detection for the official SAN template: games are monitored while they run
-        /// so an unlock is noticed within the interval below. Independent of the Santodan-fork
-        /// "active game monitoring" switch, so turning it on does not enable the Santodan notifications.
-        /// </summary>
-        public bool OfficialSanLiveDetectionEnabled { get => _officialSanLiveDetectionEnabled; set => SetValue(ref _officialSanLiveDetectionEnabled, value); }
 
         /// <summary>
         /// While the official SAN template is in use, screenshots and recordings follow the regular
@@ -777,31 +764,9 @@ namespace PlayniteAchievements.Providers.Local
         public bool UpstreamCaptureOverridesMemories =>
             true;
 
-        /// <summary>Seconds between unlock checks for the official SAN template (1-60).</summary>
-        public int OfficialSanPollingIntervalSeconds
-        {
-            get => _officialSanPollingIntervalSeconds;
-            set => SetValue(
-                ref _officialSanPollingIntervalSeconds,
-                Math.Max(MinActiveGameMonitoringIntervalSeconds, Math.Min(MaxActiveGameMonitoringIntervalSeconds, value)));
-        }
 
-        /// <summary>True while the official SAN template is in use with its own live detection on.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public bool OfficialSanLiveDetectionActive =>
-            _useOfficialSanTemplate && _officialSanLiveDetectionEnabled && !_useUpstreamNotificationTemplate;
 
-        /// <summary>True when either the Santodan-fork monitoring or the official SAN live detection is on.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public bool AnyLiveDetectionActive => OfficialSanLiveDetectionActive;
 
-        /// <summary>The unlock-check interval in effect; the official SAN template's own interval wins while it is active.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public int EffectiveLiveDetectionIntervalSeconds => Math.Max(
-            MinActiveGameMonitoringIntervalSeconds,
-            Math.Min(
-                MaxActiveGameMonitoringIntervalSeconds,
-                _officialSanPollingIntervalSeconds));
 
         public bool OfficialSanApplyUpstreamElements { get => _officialSanApplyUpstreamElements; set => SetValue(ref _officialSanApplyUpstreamElements, value); }
 

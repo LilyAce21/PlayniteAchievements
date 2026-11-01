@@ -2711,13 +2711,7 @@
                                 <TextBlock Text="Draws an imported .san theme exactly as Steam Achievement Notifier does (its own layout, animation and styling), filled with this addon's achievement data. Replaces the Santodan-fork template; mutually exclusive with the upstream template. Every setting below belongs to this template only."
                                            Style="{StaticResource MutedTextStyle}" Margin="18,0,0,8" TextWrapping="Wrap"/>
                                 <StackPanel Margin="18,0,0,12" Visibility="{Binding UseOfficialSanTemplate, Converter={StaticResource BoolToVis}}">
-                                    <CheckBox Content="Live unlock detection (watch running games for new unlocks)"
-                                              IsChecked="{Binding OfficialSanLiveDetectionEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4"/>
-                                    <DockPanel Margin="0,0,0,2" LastChildFill="False">
-                                        <TextBlock Text="Check for unlocks every (seconds, 1-60):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
-                                        <TextBox Text="{Binding OfficialSanPollingIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="60"/>
-                                    </DockPanel>
-                                    <TextBlock Text="Independent of the Santodan-fork monitoring switch, so this does not turn on the Santodan notifications. Lower values notice unlocks sooner but check more often."
+                                    <TextBlock Text="Unlock detection follows &quot;Monitor Achievements While a Game Is Running&quot; and its fallback interval in the main settings."
                                                Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,10"/>
                                     <TabControl Margin="0,0,0,10">
                                     <TabItem Header="Default">
