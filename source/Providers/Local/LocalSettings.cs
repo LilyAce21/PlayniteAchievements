@@ -390,8 +390,6 @@ namespace PlayniteAchievements.Providers.Local
         public const int MaxActiveGameMonitoringIntervalSeconds = 60;
         public const int MinMissingAchievementFilePollingIntervalSeconds = 1;
         public const int MaxMissingAchievementFilePollingIntervalSeconds = 300;
-        public const int MinScreenshotDelayMilliseconds = 0;
-        public const int MaxScreenshotDelayMilliseconds = 10000;
         public const double MinCustomOverlayHeight = 45;
         public const int ProviderIconMaxPixelSize = 64;
         public const string DefaultBundledUnlockSoundPath = @"Resources\Sounds\Steam.wav";
@@ -413,18 +411,12 @@ namespace PlayniteAchievements.Providers.Local
         private string _steamUserdataPath = string.Empty;
         private bool _useSteamHuntersForCategories = true;
         private bool _enableActiveGameMonitoring;
-        private bool _refreshAchievementsOnRealtimeUnlock;
         private bool _refreshAchievementsOnGameClose;
         private int _activeGameMonitoringIntervalSeconds = 5;
         private int _missingAchievementFilePollingIntervalSeconds = 5;
         private bool _enableUnlockScreenshots;
         private string _screenshotSaveFolder = string.Empty;
         private string _screenshotFilenameTemplate = DefaultScreenshotFilenameTemplate;
-        private int _screenshotDelayMilliseconds = 750;
-        private LocalUnlockScreenshotCaptureMode _screenshotCaptureMode = LocalUnlockScreenshotCaptureMode.FullDesktop;
-        private LocalUnlockScreenshotImageFormat _screenshotImageFormat = LocalUnlockScreenshotImageFormat.Png;
-        private RaritySelection _screenshotRarities = RaritySelection.All;
-        private bool _screenshotAlwaysCaptureCompletion = true;
         private bool _screenshotClean;
         private bool _screenshotWithNotification = true;
         private bool _screenshotFramed;
@@ -432,7 +424,6 @@ namespace PlayniteAchievements.Providers.Local
         private string _screenshotSuffixWithNotification = "notification";
         private string _screenshotSuffixFramed = "framed";
         private SanScreenshotView _sanScreenshotView = SanScreenshotView.Automatic;
-        private int _sanScreenshotMillisecondsBeforeEnd = 500;
         private RaritySelection _screenshotCleanRarities = RaritySelection.All;
         private bool _screenshotCleanAlwaysCaptureCompletion = true;
         private RaritySelection _screenshotWithNotificationRarities = RaritySelection.All;
@@ -451,65 +442,12 @@ namespace PlayniteAchievements.Providers.Local
         private RaritySelection _recordingRarities = RaritySelection.All;
         private bool _recordingAlwaysCaptureCompletion = true;
         private LocalUnlockNotificationDeliveryMode _unlockNotificationDeliveryMode = LocalUnlockNotificationDeliveryMode.Hybrid;
-        private LocalUnlockOverlayPosition _unlockOverlayPosition = LocalUnlockOverlayPosition.TopRight;
         private bool _showOverlayOnActiveGameMonitor = false;
         private bool _enableOverlayDebugLogging;
-        private int _unlockOverlayDurationMilliseconds = 3400;
         private int _unlockOverlayFadeInMilliseconds = 180;
         private int _unlockOverlayFadeOutMilliseconds = 280;
         private LocalUnlockOverlayTransitionStyle _unlockOverlayTransitionStyle = LocalUnlockOverlayTransitionStyle.Fade;
-        private int _unlockOverlaySlideDistance = 72;
         private int _unlockSoundLeadMilliseconds;
-        private double _overlaySteamOpacity = 0.96;
-        private double _overlayPlayStationOpacity = 0.96;
-        private double _overlayXboxOpacity = 0.96;
-        private double _overlayMinimalOpacity = 0.96;
-        private double _overlaySteamScale = 1.00;
-        private double _overlayPlayStationScale = 1.05;
-        private double _overlayXboxScale = 1.00;
-        private double _overlayMinimalScale = 0.92;
-        private double _overlayCustomOpacity = 0.98;
-        private double _overlayCustomScale = 1.00;
-        private double _overlayCustomIconSize = 58;
-        private double _overlayCustomSecondaryIconSize = 58;
-        private double _overlayCustomIconCornerRadius = 10;
-        private double _overlayCustomSecondaryIconCornerRadius = 10;
-        private bool _overlayCustomShowIconBackground = true;
-        private bool _overlayCustomShowSecondaryIconBackground = true;
-        private string _overlayCustomIconBackgroundColor = "#24FFFFFF";
-        private string _overlayCustomSecondaryIconBackgroundColor = "#18FFFFFF";
-        private bool _overlayCustomShowCoverBackground = true;
-        private string _overlayCustomCoverBackgroundColor = "#1CFFFFFF";
-        private double _overlayCustomWidth = 460;
-        private double _overlayCustomHeight = 128;
-        private double _overlayCustomCornerRadius = 18;
-        private double _overlayCustomTitleFontSize = 17;
-        private double _overlayCustomDetailFontSize = 13;
-        private double _overlayCustomMetaFontSize = 11;
-        private double _overlayCustomLine4FontSize = 11;
-        private double _overlayCustomLine5FontSize = 11;
-        private double _overlayCustomLine6FontSize = 11;
-        private string _overlayCustomLine1FontFamily = "Default";
-        private string _overlayCustomLine2FontFamily = "Default";
-        private string _overlayCustomLine3FontFamily = "Default";
-        private string _overlayCustomLine4FontFamily = "Default";
-        private string _overlayCustomLine5FontFamily = "Default";
-        private string _overlayCustomLine6FontFamily = "Default";
-        private LocalOverlayTextFormattingMode _overlayCustomTextFormattingMode = LocalOverlayTextFormattingMode.Auto;
-        private bool _overlayCustomAutoResizeToContent;
-        private bool _overlayCustomWrapAllText;
-        private bool _overlayCustomShowLine1 = true;
-        private bool _overlayCustomShowBorder = true;
-        private double _overlayCustomBorderWidth = 1.5;
-        private bool _overlayCustomShowGameName;
-        private bool _overlayCustomShowMeta;
-        private string _overlayCustomBackgroundColor = "#1E2430";
-        private string _overlayCustomBorderColor = "#6FA3D8";
-        private string _overlayCustomAccentColor = "#A7E0FF";
-        private string _overlayCustomTitleColor = "#FFFFFF";
-        private string _overlayCustomDetailColor = "#E7EEF7";
-        private string _overlayCustomMetaColor = "#BCD0E5";
-        private string _overlayCustomBackgroundImagePath = string.Empty;
         private string _overlayCustomTitleTemplate = "Achievement unlocked";
         private string _overlayCustomGameNameTemplate = "<gameName>";
         private string _overlayCustomAchievementTemplate = "Unlocked: <achievementName>";
@@ -517,133 +455,12 @@ namespace PlayniteAchievements.Providers.Local
         private string _overlayCustomLine4Template = string.Empty;
         private string _overlayCustomLine5Template = string.Empty;
         private string _overlayCustomLine6Template = string.Empty;
-        private bool _overlayCustomShowLine4;
-        private bool _overlayCustomShowLine5;
-        private bool _overlayCustomShowProgressBar = false;
-        private double _overlayCustomProgressBarWidth = 0;
-        private double _overlayCustomProgressBarHeight = 6;
-        private double _overlayCustomProgressBarCornerRadius = 3;
-        private double _overlayCustomProgressBarSpacing = 6;
-        private string _overlayCustomProgressBarFillColor = "#A7E0FF";
-        private string _overlayCustomProgressBarTrackColor = "#30FFFFFF";
-        private bool _overlayCustomProgressBarShowLabel = false;
-        private string _overlayCustomProgressBarLabelColor = "#FFFFFF";
-        private double _overlayCustomProgressBarLabelFontSize = 11;
-        private double _overlayCustomProgressBarOffsetX = 0;
-        private double _overlayCustomProgressBarOffsetY = 0;
-        private bool _overlayCustomShowLine6;
-        private string _overlayCustomLine4Color = "#BCD0E5";
-        private string _overlayCustomLine5Color = "#BCD0E5";
-        private string _overlayCustomLine6Color = "#BCD0E5";
-        private string _overlayCustomLine1OutlineColor = "transparent";
-        private string _overlayCustomLine2OutlineColor = "transparent";
-        private string _overlayCustomLine3OutlineColor = "transparent";
-        private string _overlayCustomLine4OutlineColor = "transparent";
-        private string _overlayCustomLine5OutlineColor = "transparent";
-        private string _overlayCustomLine6OutlineColor = "transparent";
-        private string _overlayCustomLine1ShadowColor = "transparent";
-        private string _overlayCustomLine2ShadowColor = "transparent";
-        private string _overlayCustomLine3ShadowColor = "transparent";
-        private string _overlayCustomLine4ShadowColor = "transparent";
-        private string _overlayCustomLine5ShadowColor = "transparent";
-        private string _overlayCustomLine6ShadowColor = "transparent";
-        private double _overlayCustomOutlineSize = 0.6;
-        private double _overlayCustomShadowSize = 2;
-        private double _overlayCustomLine1OutlineSize = 0.6;
-        private double _overlayCustomLine2OutlineSize = 0.6;
-        private double _overlayCustomLine3OutlineSize = 0.6;
-        private double _overlayCustomLine4OutlineSize = 0.6;
-        private double _overlayCustomLine5OutlineSize = 0.6;
-        private double _overlayCustomLine6OutlineSize = 0.6;
-        private double _overlayCustomLine1ShadowSize = 2;
-        private double _overlayCustomLine2ShadowSize = 2;
-        private double _overlayCustomLine3ShadowSize = 2;
-        private double _overlayCustomLine4ShadowSize = 2;
-        private double _overlayCustomLine5ShadowSize = 2;
-        private double _overlayCustomLine6ShadowSize = 2;
-        private bool _overlayCustomLine1OutlineEnabled;
-        private bool _overlayCustomLine2OutlineEnabled;
-        private bool _overlayCustomLine3OutlineEnabled;
-        private bool _overlayCustomLine4OutlineEnabled;
-        private bool _overlayCustomLine5OutlineEnabled;
-        private bool _overlayCustomLine6OutlineEnabled;
-        private bool _overlayCustomLine1ShadowEnabled;
-        private bool _overlayCustomLine2ShadowEnabled;
-        private bool _overlayCustomLine3ShadowEnabled;
-        private bool _overlayCustomLine4ShadowEnabled;
-        private bool _overlayCustomLine5ShadowEnabled;
-        private bool _overlayCustomLine6ShadowEnabled;
-        private double _overlayCustomLineSpacing = 3;
-        private double _overlayCustomLine1Spacing = 3;
-        private double _overlayCustomLine2Spacing = 3;
-        private double _overlayCustomLine3Spacing = 3;
-        private double _overlayCustomLine4Spacing = 3;
-        private double _overlayCustomLine5Spacing = 3;
-        private double _overlayCustomLine6Spacing = 3;
-        private LocalSanTextViewTarget _overlayCustomLine1View = LocalSanTextViewTarget.View1;
-        private LocalSanTextViewTarget _overlayCustomLine2View = LocalSanTextViewTarget.View2;
-        private LocalSanTextViewTarget _overlayCustomLine3View = LocalSanTextViewTarget.View2;
-        private LocalSanTextViewTarget _overlayCustomLine4View = LocalSanTextViewTarget.View2;
-        private LocalSanTextViewTarget _overlayCustomLine5View = LocalSanTextViewTarget.View2;
-        private LocalSanTextViewTarget _overlayCustomLine6View = LocalSanTextViewTarget.View2;
-        private int _overlayCustomLine1Order = 1;
-        private int _overlayCustomLine2Order = 2;
-        private int _overlayCustomLine3Order = 3;
-        private int _overlayCustomLine4Order = 3;
-        private int _overlayCustomLine5Order = 4;
-        private int _overlayCustomLine6Order = 5;
-        private LocalCustomOverlayLayoutStyle _overlayCustomLayoutStyle = LocalCustomOverlayLayoutStyle.Standard;
-        private LocalCustomOverlayAnimationStyle _overlayCustomAnimationStyle = LocalCustomOverlayAnimationStyle.Standard;
-        private LocalOverlayIconSource _overlayCustomSecondaryIconSource = LocalOverlayIconSource.None;
-        private bool _overlayCustomShowSecondaryIcon;
-                private bool _overlayCustomSecondaryIconNextToPrimary;
         private string _overlayCustomSanElementPresetId = string.Empty;
-        private LocalSanElementPosition _overlayCustomSanElementPosition = LocalSanElementPosition.Left;
-        private LocalSanProviderLogoSource _overlayCustomSanProviderLogoSource = LocalSanProviderLogoSource.ExtensionIcon;
-        private string _overlayCustomSanPresetId = string.Empty;
-        private string _overlayCustomSanPresetHtml = string.Empty;
-        private string _overlayCustomSanPresetCss = string.Empty;
-        private string _overlayCustomSanBaseCss = string.Empty;
-        private string _overlayCustomSanBaseAnimCss = string.Empty;
-        private string _overlayCustomSanAssetRootPath = string.Empty;
-        private string _overlayCustomSanThemeJson = string.Empty;
-        private string _overlayCustomSanThemeDirectory = string.Empty;
-        private string _overlayCustomManualElementCss = string.Empty;
-        private string _overlayCustomElementAnchorsJson = string.Empty;
         private int _overlayCustomSanView1DurationMilliseconds = 5000;
         private int _overlayCustomSanView2DurationMilliseconds = 5000;
-        private bool _overlayCustomTitleBold = true;
-        private bool _overlayCustomTitleItalic;
-        private bool _overlayCustomTitleUnderline;
-        private bool _overlayCustomTitleStrikethrough;
-        private bool _overlayCustomDetailBold;
-        private bool _overlayCustomDetailItalic;
-        private bool _overlayCustomDetailUnderline;
-        private bool _overlayCustomDetailStrikethrough;
-        private bool _overlayCustomMetaBold = true;
-        private bool _overlayCustomMetaItalic;
-        private bool _overlayCustomMetaUnderline;
-        private bool _overlayCustomMetaStrikethrough;
-        private bool _overlayCustomLine4Bold;
-        private bool _overlayCustomLine4Italic;
-        private bool _overlayCustomLine4Underline;
-        private bool _overlayCustomLine4Strikethrough;
-        private bool _overlayCustomLine5Bold;
-        private bool _overlayCustomLine5Italic;
-        private bool _overlayCustomLine5Underline;
-        private bool _overlayCustomLine5Strikethrough;
-        private bool _overlayCustomLine6Bold;
-        private bool _overlayCustomLine6Italic;
-        private bool _overlayCustomLine6Underline;
-        private bool _overlayCustomLine6Strikethrough;
-        private LocalOverlayIconSource _overlayCustomIconSource = LocalOverlayIconSource.AchievementIcon;
         private string _overlayCustomIconPath = string.Empty;
         private string _overlayCustomSecondaryIconPath = string.Empty;
         private string _overlayCustomIconLibraryPaths = string.Empty;
-        private bool _overlayCustomShowIconRarityGlow;
-        private bool _overlayCustomShowSecondaryIconRarityGlow;
-        private string _overlayCustomCoverImagePath = string.Empty;
-        private string _overlayCustomBannerImagePath = string.Empty;
         private int _selectedCustomStyleSlot = 1;
         private List<LocalCustomOverlayStyleSlot> _customOverlayStyleSlots = CreateDefaultCustomOverlayStyleSlots();
         private bool _enableInAppUnlockNotifications = true;
@@ -713,7 +530,6 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanUseCustomRarityIcons = true;
         private bool _officialSanShowHiddenAsLocked = true;
         private bool _officialSanApplyUpstreamElements;
-        private bool _officialSanUseUpstreamCaptureSettings = true;
 
         public bool UseOfficialSanTemplate
         {
@@ -752,12 +568,6 @@ namespace PlayniteAchievements.Providers.Local
         public bool OfficialSanShowHiddenAsLocked { get => _officialSanShowHiddenAsLocked; set => SetValue(ref _officialSanShowHiddenAsLocked, value); }
 
 
-        /// <summary>
-        /// While the official SAN template is in use, screenshots and recordings follow the regular
-        /// (upstream) capture settings and screenshot frame instead of the Santodan "Memories"
-        /// capture settings. Only the notification itself comes from the SAN template.
-        /// </summary>
-        public bool OfficialSanUseUpstreamCaptureSettings { get => _officialSanUseUpstreamCaptureSettings; set => SetValue(ref _officialSanUseUpstreamCaptureSettings, value); }
 
         /// <summary>True when capture (screenshots, recordings) should ignore the Memories settings.</summary>
         [Newtonsoft.Json.JsonIgnore]
@@ -776,11 +586,6 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _enableActiveGameMonitoring, value);
         }
 
-        public bool RefreshAchievementsOnRealtimeUnlock
-        {
-            get => _refreshAchievementsOnRealtimeUnlock;
-            set => SetValue(ref _refreshAchievementsOnRealtimeUnlock, value);
-        }
 
         public int ActiveGameMonitoringIntervalSeconds
         {
@@ -829,46 +634,10 @@ namespace PlayniteAchievements.Providers.Local
                 string.IsNullOrWhiteSpace(value) ? DefaultScreenshotFilenameTemplate : value);
         }
 
-        public int ScreenshotDelayMilliseconds
-        {
-            get => _screenshotDelayMilliseconds;
-            set => SetValue(
-                ref _screenshotDelayMilliseconds,
-                Math.Max(MinScreenshotDelayMilliseconds, Math.Min(MaxScreenshotDelayMilliseconds, value)));
-        }
 
-        public LocalUnlockScreenshotCaptureMode ScreenshotCaptureMode
-        {
-            get => _screenshotCaptureMode;
-            set => SetValue(ref _screenshotCaptureMode, value);
-        }
 
-        public LocalUnlockScreenshotImageFormat ScreenshotImageFormat
-        {
-            get => _screenshotImageFormat;
-            set => SetValue(ref _screenshotImageFormat, value);
-        }
 
-        public RaritySelection ScreenshotRarities
-        {
-            get => _screenshotRarities;
-            set
-            {
-                if (SetValue(ref _screenshotRarities, value))
-                {
-                    OnPropertyChanged(nameof(ScreenshotCaptureCommon));
-                    OnPropertyChanged(nameof(ScreenshotCaptureUncommon));
-                    OnPropertyChanged(nameof(ScreenshotCaptureRare));
-                    OnPropertyChanged(nameof(ScreenshotCaptureUltraRare));
-                }
-            }
-        }
 
-        public bool ScreenshotAlwaysCaptureCompletion
-        {
-            get => _screenshotAlwaysCaptureCompletion;
-            set => SetValue(ref _screenshotAlwaysCaptureCompletion, value);
-        }
 
         public bool ScreenshotClean { get => _screenshotClean; set => SetValue(ref _screenshotClean, value); }
         public bool ScreenshotWithNotification { get => _screenshotWithNotification; set => SetValue(ref _screenshotWithNotification, value); }
@@ -877,11 +646,6 @@ namespace PlayniteAchievements.Providers.Local
         public string ScreenshotSuffixWithNotification { get => _screenshotSuffixWithNotification; set => SetValue(ref _screenshotSuffixWithNotification, value ?? string.Empty); }
         public string ScreenshotSuffixFramed { get => _screenshotSuffixFramed; set => SetValue(ref _screenshotSuffixFramed, value ?? string.Empty); }
         public SanScreenshotView SanScreenshotView { get => _sanScreenshotView; set => SetValue(ref _sanScreenshotView, value); }
-        public int SanScreenshotMillisecondsBeforeEnd
-        {
-            get => _sanScreenshotMillisecondsBeforeEnd;
-            set => SetValue(ref _sanScreenshotMillisecondsBeforeEnd, Math.Max(0, Math.Min(30000, value)));
-        }
         public RaritySelection ScreenshotCleanRarities { get => _screenshotCleanRarities; set => SetValue(ref _screenshotCleanRarities, value); }
         public bool ScreenshotCleanAlwaysCaptureCompletion { get => _screenshotCleanAlwaysCaptureCompletion; set => SetValue(ref _screenshotCleanAlwaysCaptureCompletion, value); }
         public RaritySelection ScreenshotWithNotificationRarities { get => _screenshotWithNotificationRarities; set => SetValue(ref _screenshotWithNotificationRarities, value); }
@@ -889,14 +653,6 @@ namespace PlayniteAchievements.Providers.Local
         public RaritySelection ScreenshotFramedRarities { get => _screenshotFramedRarities; set => SetValue(ref _screenshotFramedRarities, value); }
         public bool ScreenshotFramedAlwaysCaptureCompletion { get => _screenshotFramedAlwaysCaptureCompletion; set => SetValue(ref _screenshotFramedAlwaysCaptureCompletion, value); }
 
-        [JsonIgnore]
-        public bool ScreenshotCaptureCommon { get => ScreenshotRarities.Contains(RarityTier.Common); set => SetScreenshotRarity(RaritySelection.Common, value); }
-        [JsonIgnore]
-        public bool ScreenshotCaptureUncommon { get => ScreenshotRarities.Contains(RarityTier.Uncommon); set => SetScreenshotRarity(RaritySelection.Uncommon, value); }
-        [JsonIgnore]
-        public bool ScreenshotCaptureRare { get => ScreenshotRarities.Contains(RarityTier.Rare); set => SetScreenshotRarity(RaritySelection.Rare, value); }
-        [JsonIgnore]
-        public bool ScreenshotCaptureUltraRare { get => ScreenshotRarities.Contains(RarityTier.UltraRare); set => SetScreenshotRarity(RaritySelection.UltraRare, value); }
 
         public LocalUnlockNotificationDeliveryMode UnlockNotificationDeliveryMode
         {
@@ -904,11 +660,6 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _unlockNotificationDeliveryMode, value);
         }
 
-        public LocalUnlockOverlayPosition UnlockOverlayPosition
-        {
-            get => _unlockOverlayPosition;
-            set => SetValue(ref _unlockOverlayPosition, value);
-        }
 
         public bool EnableUnlockRecordings
         {
@@ -996,10 +747,6 @@ namespace PlayniteAchievements.Providers.Local
         [JsonIgnore]
         public bool RecordingCaptureUltraRare { get => RecordingRarities.Contains(RarityTier.UltraRare); set => SetRecordingRarity(RaritySelection.UltraRare, value); }
 
-        private void SetScreenshotRarity(RaritySelection rarity, bool enabled)
-        {
-            ScreenshotRarities = enabled ? ScreenshotRarities | rarity : ScreenshotRarities & ~rarity;
-        }
 
         private void SetRecordingRarity(RaritySelection rarity, bool enabled)
         {
@@ -1018,11 +765,6 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _enableOverlayDebugLogging, value);
         }
 
-        public int UnlockOverlayDurationMilliseconds
-        {
-            get => _unlockOverlayDurationMilliseconds;
-            set => SetValue(ref _unlockOverlayDurationMilliseconds, Math.Max(1000, Math.Min(15000, value)));
-        }
 
         public int UnlockOverlayFadeInMilliseconds
         {
@@ -1048,11 +790,6 @@ namespace PlayniteAchievements.Providers.Local
             }
         }
 
-        public int UnlockOverlaySlideDistance
-        {
-            get => _unlockOverlaySlideDistance;
-            set => SetValue(ref _unlockOverlaySlideDistance, Math.Max(0, Math.Min(450, value)));
-        }
 
         public int UnlockSoundLeadMilliseconds
         {
@@ -1060,257 +797,47 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _unlockSoundLeadMilliseconds, value);
         }
 
-        public double OverlaySteamOpacity
-        {
-            get => _overlaySteamOpacity;
-            set => SetValue(ref _overlaySteamOpacity, Math.Max(0.35, Math.Min(1.0, value)));
-        }
 
-        public double OverlayPlayStationOpacity
-        {
-            get => _overlayPlayStationOpacity;
-            set => SetValue(ref _overlayPlayStationOpacity, Math.Max(0.35, Math.Min(1.0, value)));
-        }
 
-        public double OverlayXboxOpacity
-        {
-            get => _overlayXboxOpacity;
-            set => SetValue(ref _overlayXboxOpacity, Math.Max(0.35, Math.Min(1.0, value)));
-        }
 
-        public double OverlayMinimalOpacity
-        {
-            get => _overlayMinimalOpacity;
-            set => SetValue(ref _overlayMinimalOpacity, Math.Max(0.35, Math.Min(1.0, value)));
-        }
 
-        public double OverlaySteamScale
-        {
-            get => _overlaySteamScale;
-            set => SetValue(ref _overlaySteamScale, Math.Max(0.70, Math.Min(1.60, value)));
-        }
 
-        public double OverlayPlayStationScale
-        {
-            get => _overlayPlayStationScale;
-            set => SetValue(ref _overlayPlayStationScale, Math.Max(0.70, Math.Min(1.60, value)));
-        }
 
-        public double OverlayXboxScale
-        {
-            get => _overlayXboxScale;
-            set => SetValue(ref _overlayXboxScale, Math.Max(0.70, Math.Min(1.60, value)));
-        }
 
-        public double OverlayMinimalScale
-        {
-            get => _overlayMinimalScale;
-            set => SetValue(ref _overlayMinimalScale, Math.Max(0.70, Math.Min(1.60, value)));
-        }
 
-        public double OverlayCustomOpacity
-        {
-            get => _overlayCustomOpacity;
-            set => SetValue(ref _overlayCustomOpacity, Math.Max(0.35, Math.Min(1.0, value)));
-        }
 
-        public double OverlayCustomScale
-        {
-            get => _overlayCustomScale;
-            set => SetValue(ref _overlayCustomScale, Math.Max(0.70, Math.Min(1.60, value)));
-        }
 
-        public double OverlayCustomIconSize
-        {
-            get => _overlayCustomIconSize;
-            set => SetValue(ref _overlayCustomIconSize, Math.Max(24, Math.Min(220, value)));
-        }
 
-        public double OverlayCustomSecondaryIconSize
-        {
-            get => _overlayCustomSecondaryIconSize;
-            set => SetValue(ref _overlayCustomSecondaryIconSize, Math.Max(24, Math.Min(220, value)));
-        }
 
-        public double OverlayCustomWidth
-        {
-            get => _overlayCustomWidth;
-            set => SetValue(ref _overlayCustomWidth, Math.Max(280, Math.Min(900, value)));
-        }
 
-        public double OverlayCustomHeight
-        {
-            get => _overlayCustomHeight;
-            set => SetValue(ref _overlayCustomHeight, Math.Max(MinCustomOverlayHeight, Math.Min(320, value)));
-        }
 
-        public double OverlayCustomCornerRadius
-        {
-            get => _overlayCustomCornerRadius;
-            set => SetValue(ref _overlayCustomCornerRadius, Math.Max(0, Math.Min(60, value)));
-        }
 
-        public double OverlayCustomTitleFontSize
-        {
-            get => _overlayCustomTitleFontSize;
-            set => SetValue(ref _overlayCustomTitleFontSize, Math.Max(8, Math.Min(56, value)));
-        }
 
-        public double OverlayCustomDetailFontSize
-        {
-            get => _overlayCustomDetailFontSize;
-            set => SetValue(ref _overlayCustomDetailFontSize, Math.Max(8, Math.Min(56, value)));
-        }
 
-        public double OverlayCustomMetaFontSize
-        {
-            get => _overlayCustomMetaFontSize;
-            set => SetValue(ref _overlayCustomMetaFontSize, Math.Max(8, Math.Min(56, value)));
-        }
 
-        public double OverlayCustomLine4FontSize
-        {
-            get => _overlayCustomLine4FontSize;
-            set => SetValue(ref _overlayCustomLine4FontSize, Math.Max(8, Math.Min(56, value)));
-        }
 
-        public double OverlayCustomLine5FontSize
-        {
-            get => _overlayCustomLine5FontSize;
-            set => SetValue(ref _overlayCustomLine5FontSize, Math.Max(8, Math.Min(56, value)));
-        }
 
-        public double OverlayCustomLine6FontSize
-        {
-            get => _overlayCustomLine6FontSize;
-            set => SetValue(ref _overlayCustomLine6FontSize, Math.Max(8, Math.Min(56, value)));
-        }
 
-        public string OverlayCustomLine1FontFamily
-        {
-            get => _overlayCustomLine1FontFamily;
-            set => SetValue(ref _overlayCustomLine1FontFamily, NormalizeFontFamilySetting(value));
-        }
 
-        public string OverlayCustomLine2FontFamily
-        {
-            get => _overlayCustomLine2FontFamily;
-            set => SetValue(ref _overlayCustomLine2FontFamily, NormalizeFontFamilySetting(value));
-        }
 
-        public string OverlayCustomLine3FontFamily
-        {
-            get => _overlayCustomLine3FontFamily;
-            set => SetValue(ref _overlayCustomLine3FontFamily, NormalizeFontFamilySetting(value));
-        }
 
-        public string OverlayCustomLine4FontFamily
-        {
-            get => _overlayCustomLine4FontFamily;
-            set => SetValue(ref _overlayCustomLine4FontFamily, NormalizeFontFamilySetting(value));
-        }
 
-        public string OverlayCustomLine5FontFamily
-        {
-            get => _overlayCustomLine5FontFamily;
-            set => SetValue(ref _overlayCustomLine5FontFamily, NormalizeFontFamilySetting(value));
-        }
 
-        public string OverlayCustomLine6FontFamily
-        {
-            get => _overlayCustomLine6FontFamily;
-            set => SetValue(ref _overlayCustomLine6FontFamily, NormalizeFontFamilySetting(value));
-        }
 
-        public LocalOverlayTextFormattingMode OverlayCustomTextFormattingMode
-        {
-            get => _overlayCustomTextFormattingMode;
-            set => SetValue(ref _overlayCustomTextFormattingMode, value);
-        }
 
-        public bool OverlayCustomAutoResizeToContent
-        {
-            get => _overlayCustomAutoResizeToContent;
-            set => SetValue(ref _overlayCustomAutoResizeToContent, value);
-        }
 
-        public bool OverlayCustomWrapAllText
-        {
-            get => _overlayCustomWrapAllText;
-            set => SetValue(ref _overlayCustomWrapAllText, value);
-        }
 
-        public bool OverlayCustomShowLine1
-        {
-            get => _overlayCustomShowLine1;
-            set => SetValue(ref _overlayCustomShowLine1, value);
-        }
 
-        public bool OverlayCustomShowBorder
-        {
-            get => _overlayCustomShowBorder;
-            set => SetValue(ref _overlayCustomShowBorder, value);
-        }
 
-        public double OverlayCustomBorderWidth
-        {
-            get => _overlayCustomBorderWidth;
-            set => SetValue(ref _overlayCustomBorderWidth, Math.Max(0.5, Math.Min(12, value)));
-        }
 
-        public bool OverlayCustomShowGameName
-        {
-            get => _overlayCustomShowGameName;
-            set => SetValue(ref _overlayCustomShowGameName, value);
-        }
 
-        public bool OverlayCustomShowMeta
-        {
-            get => _overlayCustomShowMeta;
-            set => SetValue(ref _overlayCustomShowMeta, value);
-        }
 
-        public string OverlayCustomBackgroundColor
-        {
-            get => _overlayCustomBackgroundColor;
-            set => SetValue(ref _overlayCustomBackgroundColor, NormalizeColorSetting(value, "#1E2430"));
-        }
 
-        public string OverlayCustomBorderColor
-        {
-            get => _overlayCustomBorderColor;
-            set => SetValue(ref _overlayCustomBorderColor, NormalizeColorSetting(value, "#6FA3D8"));
-        }
 
-        public string OverlayCustomAccentColor
-        {
-            get => _overlayCustomAccentColor;
-            set => SetValue(ref _overlayCustomAccentColor, NormalizeColorSetting(value, "#A7E0FF"));
-        }
 
-        public string OverlayCustomTitleColor
-        {
-            get => _overlayCustomTitleColor;
-            set => SetValue(ref _overlayCustomTitleColor, NormalizeColorSetting(value, "#FFFFFF"));
-        }
 
-        public string OverlayCustomDetailColor
-        {
-            get => _overlayCustomDetailColor;
-            set => SetValue(ref _overlayCustomDetailColor, NormalizeColorSetting(value, "#E7EEF7"));
-        }
 
-        public string OverlayCustomMetaColor
-        {
-            get => _overlayCustomMetaColor;
-            set => SetValue(ref _overlayCustomMetaColor, NormalizeColorSetting(value, "#BCD0E5"));
-        }
 
-        public string OverlayCustomBackgroundImagePath
-        {
-            get => _overlayCustomBackgroundImagePath;
-            set => SetValue(ref _overlayCustomBackgroundImagePath, value ?? string.Empty);
-        }
 
         public string OverlayCustomTitleTemplate
         {
@@ -1354,183 +881,28 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _overlayCustomLine6Template, value ?? string.Empty);
         }
 
-        public bool OverlayCustomShowLine4
-        {
-            get => _overlayCustomShowLine4;
-            set => SetValue(ref _overlayCustomShowLine4, value);
-        }
 
-        public bool OverlayCustomShowLine5
-        {
-            get => _overlayCustomShowLine5;
-            set => SetValue(ref _overlayCustomShowLine5, value);
-        }
 
-        private ObservableCollection<NotificationProgressBarDefinition> _progressBars;
-        private readonly HashSet<NotificationProgressBarDefinition> subscribedProgressBars = new HashSet<NotificationProgressBarDefinition>();
         public static ObservableCollection<NotificationProgressBarDefinition> CloneProgressBars(IEnumerable<NotificationProgressBarDefinition> bars)
         {
             var copy=new ObservableCollection<NotificationProgressBarDefinition>((bars ?? Enumerable.Empty<NotificationProgressBarDefinition>()).Where(bar=>bar!=null).Select(bar=>bar.Clone()));
             NotificationBarLayout.Migrate(copy);
             return copy;
         }
-        public ObservableCollection<NotificationProgressBarDefinition> OverlayCustomProgressBars
-        {
-            get
-            {
-                if (_progressBars == null) { _progressBars = new ObservableCollection<NotificationProgressBarDefinition>(); _progressBars.CollectionChanged += ProgressBarsChanged; }
-                return _progressBars;
-            }
-            set
-            {
-                if (_progressBars != null)
-                {
-                    _progressBars.CollectionChanged -= ProgressBarsChanged;
-                    foreach (var bar in subscribedProgressBars) bar.PropertyChanged -= ProgressBarChanged;
-                    subscribedProgressBars.Clear();
-                }
-                _progressBars = CloneProgressBars(value);
-                _progressBars.CollectionChanged += ProgressBarsChanged;
-                foreach (var bar in _progressBars) { bar.PropertyChanged += ProgressBarChanged; subscribedProgressBars.Add(bar); }
-                RefreshProgressBarLinks();
-                OnPropertyChanged(nameof(OverlayCustomProgressBars));
-            }
-        }
-        private void ProgressBarsChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            foreach (var bar in subscribedProgressBars) bar.PropertyChanged -= ProgressBarChanged;
-            subscribedProgressBars.Clear();
-            foreach (var bar in OverlayCustomProgressBars) { bar.PropertyChanged += ProgressBarChanged; subscribedProgressBars.Add(bar); }
-            RefreshProgressBarLinks();
-            OnPropertyChanged(nameof(OverlayCustomProgressBars));
-        }
-        private readonly ObservableCollection<NotificationBarRowEditor> progressBarRows=new ObservableCollection<NotificationBarRowEditor>();
-        [JsonIgnore] public ObservableCollection<NotificationBarRowEditor> OverlayCustomProgressBarRows => progressBarRows;
-        private void RefreshProgressBarRows()
-        {
-            var groups=NotificationBarLayout.Groups(OverlayCustomProgressBars).OrderBy(row=>NotificationBarLayout.Root(OverlayCustomProgressBars,row[0]).Placement).ToList();
-            var next=new List<NotificationBarRowEditor>();
-            for(var i=0;i<groups.Count;i++)
-            {
-                var root=NotificationBarLayout.Root(OverlayCustomProgressBars,groups[i][0]);
-                var editor=progressBarRows.FirstOrDefault(item=>ReferenceEquals(item.Root,root)) ?? new NotificationBarRowEditor(root);
-                editor.Update(i+1,groups[i]);next.Add(editor);
-            }
-            foreach(var old in progressBarRows.Where(item=>!next.Contains(item)).ToList()) { old.Dispose();progressBarRows.Remove(old); }
-            for(var i=0;i<next.Count;i++) { var index=progressBarRows.IndexOf(next[i]);if(index<0)progressBarRows.Insert(i,next[i]);else if(index!=i)progressBarRows.Move(index,i); }
-        }
-        private bool refreshingProgressBarLinks;
-        private void RefreshProgressBarLinks(NotificationProgressBarDefinition changed=null,string property=null)
-        {
-            if(refreshingProgressBarLinks)return;
-            refreshingProgressBarLinks=true;
-            try
-            {
-                var bars=OverlayCustomProgressBars;
-                NotificationBarLayout.Migrate(bars);
-                if(changed!=null && bars.Contains(changed) && (property==nameof(changed.Placement) || property==nameof(changed.RowAnchorId)))
-                {
-                    if(property==nameof(changed.RowAnchorId) && string.IsNullOrEmpty(changed.RowAnchorId))
-                    {
-                        var previous=progressBarRows.FirstOrDefault(row=>row.Bars.Contains(changed));
-                        if(previous!=null && previous.Root!=changed)changed.RowStyle=Newtonsoft.Json.JsonConvert.DeserializeObject<NotificationBarRowStyle>(Newtonsoft.Json.JsonConvert.SerializeObject(previous.Style));
-                    }
-                    var root=NotificationBarLayout.Root(bars,changed);
-                    var placement=property==nameof(changed.Placement)?changed.Placement:root.Placement;
-                    foreach(var bar in bars.Where(bar=>NotificationBarLayout.Root(bars,bar)==root).ToList())bar.Placement=placement;
-                    if(property==nameof(changed.RowAnchorId) && !string.IsNullOrEmpty(changed.RowAnchorId))
-                    {
-                        var last=bars.Where(bar=>bar!=changed && NotificationBarLayout.Root(bars,bar)==root).Select(bar=>bars.IndexOf(bar)).DefaultIfEmpty(-1).Max();
-                        var old=bars.IndexOf(changed);var next=old<last?last:last+1;
-                        if(last>=0 && old!=next)bars.Move(old,next);
-                    }
-                }
-                foreach(var group in bars.GroupBy(bar=>NotificationBarLayout.Root(bars,bar)).ToList())foreach(var bar in group)bar.Placement=group.Key.Placement;
-                foreach(var bar in bars) { bar.RowPeers=bars;bar.RefreshRowEditor(); }
-                RefreshProgressBarRows();
-            }
-            finally { refreshingProgressBarLinks=false; }
-        }
-        private void ProgressBarChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if(refreshingProgressBarLinks)return;
-            if(e.PropertyName==nameof(NotificationProgressBarDefinition.Placement) || e.PropertyName==nameof(NotificationProgressBarDefinition.RowAnchorId) || e.PropertyName==nameof(NotificationProgressBarDefinition.Title) || e.PropertyName==nameof(NotificationProgressBarDefinition.Source) || e.PropertyName==nameof(NotificationProgressBarDefinition.SameRowAsPrevious))RefreshProgressBarLinks(sender as NotificationProgressBarDefinition,e.PropertyName);
-            OnPropertyChanged(nameof(OverlayCustomProgressBars));
-        }
         [JsonIgnore]
         internal Dictionary<NotificationBarSource, NotificationBarCounter> NotificationBarCounters { get; set; }
 
-        public bool OverlayCustomShowProgressBar
-        {
-            get => _overlayCustomShowProgressBar;
-            set => SetValue(ref _overlayCustomShowProgressBar, value);
-        }
 
-        public double OverlayCustomProgressBarWidth
-        {
-            get => _overlayCustomProgressBarWidth;
-            set => SetValue(ref _overlayCustomProgressBarWidth, Math.Max(0, Math.Min(1200, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value)));
-        }
 
-        public double OverlayCustomProgressBarHeight
-        {
-            get => _overlayCustomProgressBarHeight;
-            set => SetValue(ref _overlayCustomProgressBarHeight, Math.Max(1, Math.Min(64, double.IsNaN(value) || double.IsInfinity(value) ? 6 : value)));
-        }
 
-        public double OverlayCustomProgressBarCornerRadius
-        {
-            get => _overlayCustomProgressBarCornerRadius;
-            set => SetValue(ref _overlayCustomProgressBarCornerRadius, Math.Max(0, Math.Min(64, double.IsNaN(value) || double.IsInfinity(value) ? 3 : value)));
-        }
 
-        public double OverlayCustomProgressBarSpacing
-        {
-            get => _overlayCustomProgressBarSpacing;
-            set => SetValue(ref _overlayCustomProgressBarSpacing, Math.Max(0, Math.Min(100, double.IsNaN(value) || double.IsInfinity(value) ? 6 : value)));
-        }
 
-        public string OverlayCustomProgressBarFillColor
-        {
-            get => _overlayCustomProgressBarFillColor;
-            set => SetValue(ref _overlayCustomProgressBarFillColor, value ?? string.Empty);
-        }
 
-        public string OverlayCustomProgressBarTrackColor
-        {
-            get => _overlayCustomProgressBarTrackColor;
-            set => SetValue(ref _overlayCustomProgressBarTrackColor, value ?? string.Empty);
-        }
 
-        public bool OverlayCustomProgressBarShowLabel
-        {
-            get => _overlayCustomProgressBarShowLabel;
-            set => SetValue(ref _overlayCustomProgressBarShowLabel, value);
-        }
 
-        public string OverlayCustomProgressBarLabelColor
-        {
-            get => _overlayCustomProgressBarLabelColor;
-            set => SetValue(ref _overlayCustomProgressBarLabelColor, value ?? string.Empty);
-        }
 
-        public double OverlayCustomProgressBarLabelFontSize
-        {
-            get => _overlayCustomProgressBarLabelFontSize;
-            set => SetValue(ref _overlayCustomProgressBarLabelFontSize, Math.Max(6, Math.Min(48, double.IsNaN(value) || double.IsInfinity(value) ? 11 : value)));
-        }
 
-        public double OverlayCustomProgressBarOffsetX
-        {
-            get => _overlayCustomProgressBarOffsetX;
-            set => SetValue(ref _overlayCustomProgressBarOffsetX, Math.Max(-1200, Math.Min(1200, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value)));
-        }
 
-        public double OverlayCustomProgressBarOffsetY
-        {
-            get => _overlayCustomProgressBarOffsetY;
-            set => SetValue(ref _overlayCustomProgressBarOffsetY, Math.Max(-600, Math.Min(600, double.IsNaN(value) || double.IsInfinity(value) ? 0 : value)));
-        }
 
         [JsonIgnore]
         public bool OverlayCustomPreviewShowProgress { get => _previewShowProgress; set => SetValue(ref _previewShowProgress, value); }
@@ -1541,373 +913,60 @@ namespace PlayniteAchievements.Providers.Local
         [JsonIgnore]
         internal int? AchievementProgressMaximum { get; set; }
 
-        public bool OverlayCustomShowLine6
-        {
-            get => _overlayCustomShowLine6;
-            set => SetValue(ref _overlayCustomShowLine6, value);
-        }
 
-        public string OverlayCustomLine4Color
-        {
-            get => _overlayCustomLine4Color;
-            set => SetValue(ref _overlayCustomLine4Color, NormalizeColorSetting(value, "#BCD0E5"));
-        }
 
-        public string OverlayCustomLine5Color
-        {
-            get => _overlayCustomLine5Color;
-            set => SetValue(ref _overlayCustomLine5Color, NormalizeColorSetting(value, "#BCD0E5"));
-        }
 
-        public string OverlayCustomLine6Color
-        {
-            get => _overlayCustomLine6Color;
-            set => SetValue(ref _overlayCustomLine6Color, NormalizeColorSetting(value, "#BCD0E5"));
-        }
 
-        public string OverlayCustomLine1OutlineColor
-        {
-            get => _overlayCustomLine1OutlineColor;
-            set => SetValue(ref _overlayCustomLine1OutlineColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine2OutlineColor
-        {
-            get => _overlayCustomLine2OutlineColor;
-            set => SetValue(ref _overlayCustomLine2OutlineColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine3OutlineColor
-        {
-            get => _overlayCustomLine3OutlineColor;
-            set => SetValue(ref _overlayCustomLine3OutlineColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine4OutlineColor
-        {
-            get => _overlayCustomLine4OutlineColor;
-            set => SetValue(ref _overlayCustomLine4OutlineColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine5OutlineColor
-        {
-            get => _overlayCustomLine5OutlineColor;
-            set => SetValue(ref _overlayCustomLine5OutlineColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine6OutlineColor
-        {
-            get => _overlayCustomLine6OutlineColor;
-            set => SetValue(ref _overlayCustomLine6OutlineColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine1ShadowColor
-        {
-            get => _overlayCustomLine1ShadowColor;
-            set => SetValue(ref _overlayCustomLine1ShadowColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine2ShadowColor
-        {
-            get => _overlayCustomLine2ShadowColor;
-            set => SetValue(ref _overlayCustomLine2ShadowColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine3ShadowColor
-        {
-            get => _overlayCustomLine3ShadowColor;
-            set => SetValue(ref _overlayCustomLine3ShadowColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine4ShadowColor
-        {
-            get => _overlayCustomLine4ShadowColor;
-            set => SetValue(ref _overlayCustomLine4ShadowColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine5ShadowColor
-        {
-            get => _overlayCustomLine5ShadowColor;
-            set => SetValue(ref _overlayCustomLine5ShadowColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public string OverlayCustomLine6ShadowColor
-        {
-            get => _overlayCustomLine6ShadowColor;
-            set => SetValue(ref _overlayCustomLine6ShadowColor, NormalizeColorSetting(value, "transparent"));
-        }
 
-        public bool OverlayCustomLine1OutlineEnabled
-        {
-            get => _overlayCustomLine1OutlineEnabled;
-            set => SetValue(ref _overlayCustomLine1OutlineEnabled, value);
-        }
 
-        public double OverlayCustomOutlineSize
-        {
-            get => _overlayCustomOutlineSize;
-            set => SetValue(ref _overlayCustomOutlineSize, Math.Max(0, Math.Min(8, value)));
-        }
 
-        public double OverlayCustomShadowSize
-        {
-            get => _overlayCustomShadowSize;
-            set => SetValue(ref _overlayCustomShadowSize, Math.Max(0, Math.Min(24, value)));
-        }
 
-        public double OverlayCustomLine1OutlineSize { get => _overlayCustomLine1OutlineSize; set => SetValue(ref _overlayCustomLine1OutlineSize, Math.Max(0, Math.Min(8, value))); }
-        public double OverlayCustomLine2OutlineSize { get => _overlayCustomLine2OutlineSize; set => SetValue(ref _overlayCustomLine2OutlineSize, Math.Max(0, Math.Min(8, value))); }
-        public double OverlayCustomLine3OutlineSize { get => _overlayCustomLine3OutlineSize; set => SetValue(ref _overlayCustomLine3OutlineSize, Math.Max(0, Math.Min(8, value))); }
-        public double OverlayCustomLine4OutlineSize { get => _overlayCustomLine4OutlineSize; set => SetValue(ref _overlayCustomLine4OutlineSize, Math.Max(0, Math.Min(8, value))); }
-        public double OverlayCustomLine5OutlineSize { get => _overlayCustomLine5OutlineSize; set => SetValue(ref _overlayCustomLine5OutlineSize, Math.Max(0, Math.Min(8, value))); }
-        public double OverlayCustomLine6OutlineSize { get => _overlayCustomLine6OutlineSize; set => SetValue(ref _overlayCustomLine6OutlineSize, Math.Max(0, Math.Min(8, value))); }
-        public double OverlayCustomLine1ShadowSize { get => _overlayCustomLine1ShadowSize; set => SetValue(ref _overlayCustomLine1ShadowSize, Math.Max(0, Math.Min(24, value))); }
-        public double OverlayCustomLine2ShadowSize { get => _overlayCustomLine2ShadowSize; set => SetValue(ref _overlayCustomLine2ShadowSize, Math.Max(0, Math.Min(24, value))); }
-        public double OverlayCustomLine3ShadowSize { get => _overlayCustomLine3ShadowSize; set => SetValue(ref _overlayCustomLine3ShadowSize, Math.Max(0, Math.Min(24, value))); }
-        public double OverlayCustomLine4ShadowSize { get => _overlayCustomLine4ShadowSize; set => SetValue(ref _overlayCustomLine4ShadowSize, Math.Max(0, Math.Min(24, value))); }
-        public double OverlayCustomLine5ShadowSize { get => _overlayCustomLine5ShadowSize; set => SetValue(ref _overlayCustomLine5ShadowSize, Math.Max(0, Math.Min(24, value))); }
-        public double OverlayCustomLine6ShadowSize { get => _overlayCustomLine6ShadowSize; set => SetValue(ref _overlayCustomLine6ShadowSize, Math.Max(0, Math.Min(24, value))); }
 
-        public bool OverlayCustomLine2OutlineEnabled
-        {
-            get => _overlayCustomLine2OutlineEnabled;
-            set => SetValue(ref _overlayCustomLine2OutlineEnabled, value);
-        }
 
-        public bool OverlayCustomLine3OutlineEnabled
-        {
-            get => _overlayCustomLine3OutlineEnabled;
-            set => SetValue(ref _overlayCustomLine3OutlineEnabled, value);
-        }
 
-        public bool OverlayCustomLine4OutlineEnabled
-        {
-            get => _overlayCustomLine4OutlineEnabled;
-            set => SetValue(ref _overlayCustomLine4OutlineEnabled, value);
-        }
 
-        public bool OverlayCustomLine5OutlineEnabled
-        {
-            get => _overlayCustomLine5OutlineEnabled;
-            set => SetValue(ref _overlayCustomLine5OutlineEnabled, value);
-        }
 
-        public bool OverlayCustomLine6OutlineEnabled
-        {
-            get => _overlayCustomLine6OutlineEnabled;
-            set => SetValue(ref _overlayCustomLine6OutlineEnabled, value);
-        }
 
-        public bool OverlayCustomLine1ShadowEnabled
-        {
-            get => _overlayCustomLine1ShadowEnabled;
-            set => SetValue(ref _overlayCustomLine1ShadowEnabled, value);
-        }
 
-        public bool OverlayCustomLine2ShadowEnabled
-        {
-            get => _overlayCustomLine2ShadowEnabled;
-            set => SetValue(ref _overlayCustomLine2ShadowEnabled, value);
-        }
 
-        public bool OverlayCustomLine3ShadowEnabled
-        {
-            get => _overlayCustomLine3ShadowEnabled;
-            set => SetValue(ref _overlayCustomLine3ShadowEnabled, value);
-        }
 
-        public bool OverlayCustomLine4ShadowEnabled
-        {
-            get => _overlayCustomLine4ShadowEnabled;
-            set => SetValue(ref _overlayCustomLine4ShadowEnabled, value);
-        }
 
-        public bool OverlayCustomLine5ShadowEnabled
-        {
-            get => _overlayCustomLine5ShadowEnabled;
-            set => SetValue(ref _overlayCustomLine5ShadowEnabled, value);
-        }
 
-        public bool OverlayCustomLine6ShadowEnabled
-        {
-            get => _overlayCustomLine6ShadowEnabled;
-            set => SetValue(ref _overlayCustomLine6ShadowEnabled, value);
-        }
 
-        public double OverlayCustomLineSpacing
-        {
-            get => _overlayCustomLineSpacing;
-            set => SetValue(ref _overlayCustomLineSpacing, Math.Max(0, Math.Min(24, value)));
-        }
 
-        public double OverlayCustomLine1Spacing
-        {
-            get => _overlayCustomLine1Spacing;
-            set => SetValue(ref _overlayCustomLine1Spacing, Math.Max(0, Math.Min(48, value)));
-        }
 
-        public double OverlayCustomLine2Spacing
-        {
-            get => _overlayCustomLine2Spacing;
-            set => SetValue(ref _overlayCustomLine2Spacing, Math.Max(0, Math.Min(48, value)));
-        }
 
-        public double OverlayCustomLine3Spacing
-        {
-            get => _overlayCustomLine3Spacing;
-            set => SetValue(ref _overlayCustomLine3Spacing, Math.Max(0, Math.Min(48, value)));
-        }
 
-        public double OverlayCustomLine4Spacing
-        {
-            get => _overlayCustomLine4Spacing;
-            set => SetValue(ref _overlayCustomLine4Spacing, Math.Max(0, Math.Min(48, value)));
-        }
 
-        public double OverlayCustomLine5Spacing
-        {
-            get => _overlayCustomLine5Spacing;
-            set => SetValue(ref _overlayCustomLine5Spacing, Math.Max(0, Math.Min(48, value)));
-        }
 
-        public double OverlayCustomLine6Spacing
-        {
-            get => _overlayCustomLine6Spacing;
-            set => SetValue(ref _overlayCustomLine6Spacing, Math.Max(0, Math.Min(48, value)));
-        }
 
-        public LocalSanTextViewTarget OverlayCustomLine1View
-        {
-            get => _overlayCustomLine1View;
-            set => SetValue(ref _overlayCustomLine1View, value);
-        }
 
-        public LocalSanTextViewTarget OverlayCustomLine2View
-        {
-            get => _overlayCustomLine2View;
-            set => SetValue(ref _overlayCustomLine2View, value);
-        }
 
-        public LocalSanTextViewTarget OverlayCustomLine3View
-        {
-            get => _overlayCustomLine3View;
-            set => SetValue(ref _overlayCustomLine3View, value);
-        }
 
-        public LocalSanTextViewTarget OverlayCustomLine4View
-        {
-            get => _overlayCustomLine4View;
-            set => SetValue(ref _overlayCustomLine4View, value);
-        }
 
-        public LocalSanTextViewTarget OverlayCustomLine5View
-        {
-            get => _overlayCustomLine5View;
-            set => SetValue(ref _overlayCustomLine5View, value);
-        }
 
-        public LocalSanTextViewTarget OverlayCustomLine6View
-        {
-            get => _overlayCustomLine6View;
-            set => SetValue(ref _overlayCustomLine6View, value);
-        }
 
-        public int OverlayCustomLine1Order
-        {
-            get => _overlayCustomLine1Order;
-            set => SetValue(ref _overlayCustomLine1Order, Math.Max(1, Math.Min(6, value)));
-        }
 
-        public int OverlayCustomLine2Order
-        {
-            get => _overlayCustomLine2Order;
-            set => SetValue(ref _overlayCustomLine2Order, Math.Max(1, Math.Min(6, value)));
-        }
 
-        public int OverlayCustomLine3Order
-        {
-            get => _overlayCustomLine3Order;
-            set => SetValue(ref _overlayCustomLine3Order, Math.Max(1, Math.Min(6, value)));
-        }
 
-        public int OverlayCustomLine4Order
-        {
-            get => _overlayCustomLine4Order;
-            set => SetValue(ref _overlayCustomLine4Order, Math.Max(1, Math.Min(6, value)));
-        }
 
-        public int OverlayCustomLine5Order
-        {
-            get => _overlayCustomLine5Order;
-            set => SetValue(ref _overlayCustomLine5Order, Math.Max(1, Math.Min(6, value)));
-        }
 
-        public int OverlayCustomLine6Order
-        {
-            get => _overlayCustomLine6Order;
-            set => SetValue(ref _overlayCustomLine6Order, Math.Max(1, Math.Min(6, value)));
-        }
 
-        public LocalCustomOverlayLayoutStyle OverlayCustomLayoutStyle
-        {
-            get => _overlayCustomLayoutStyle;
-            set => SetValue(ref _overlayCustomLayoutStyle, value);
-        }
 
-        public LocalCustomOverlayAnimationStyle OverlayCustomAnimationStyle
-        {
-            get => _overlayCustomAnimationStyle;
-            set => SetValue(ref _overlayCustomAnimationStyle, value);
-        }
 
-        public LocalOverlayIconSource OverlayCustomSecondaryIconSource
-        {
-            get => _overlayCustomShowSecondaryIcon ? _overlayCustomSecondaryIconSource : LocalOverlayIconSource.None;
-            set
-            {
-                var source = value;
-                if (source == LocalOverlayIconSource.None)
-                {
-                    SetValue(ref _overlayCustomSecondaryIconSource, LocalOverlayIconSource.None);
-                    SetValue(ref _overlayCustomShowSecondaryIcon, false);
-                    OnPropertyChanged(nameof(OverlayCustomShowSecondaryIcon));
-                    return;
-                }
 
-                SetValue(ref _overlayCustomShowSecondaryIcon, true);
-                SetValue(ref _overlayCustomSecondaryIconSource, source);
-                OnPropertyChanged(nameof(OverlayCustomShowSecondaryIcon));
-            }
-        }
 
-        public bool OverlayCustomShowSecondaryIcon
-        {
-            get => _overlayCustomShowSecondaryIcon && _overlayCustomSecondaryIconSource != LocalOverlayIconSource.None;
-            set
-            {
-                if (!value)
-                {
-                    OverlayCustomSecondaryIconSource = LocalOverlayIconSource.None;
-                    return;
-                }
-
-                if (_overlayCustomSecondaryIconSource == LocalOverlayIconSource.None)
-                {
-                    SetValue(ref _overlayCustomSecondaryIconSource, LocalOverlayIconSource.AchievementIcon);
-                }
-
-                if (SetValue(ref _overlayCustomShowSecondaryIcon, true))
-                {
-                    OnPropertyChanged(nameof(OverlayCustomSecondaryIconSource));
-                }
-            }
-        }
-
-        public bool OverlayCustomSecondaryIconNextToPrimary
-        {
-            get => _overlayCustomSecondaryIconNextToPrimary;
-            set => SetValue(ref _overlayCustomSecondaryIconNextToPrimary, value);
-        }
 
         public string OverlayCustomSanElementPresetId
         {
@@ -1926,77 +985,17 @@ namespace PlayniteAchievements.Providers.Local
             UnlockOverlayTransitionStyle.ToString().StartsWith("San", StringComparison.Ordinal) ||
             !string.IsNullOrWhiteSpace(OverlayCustomSanElementPresetId);
 
-        public LocalSanElementPosition OverlayCustomSanElementPosition
-        {
-            get => _overlayCustomSanElementPosition;
-            set => SetValue(ref _overlayCustomSanElementPosition, value);
-        }
 
-        public LocalSanProviderLogoSource OverlayCustomSanProviderLogoSource
-        {
-            get => _overlayCustomSanProviderLogoSource;
-            set => SetValue(ref _overlayCustomSanProviderLogoSource, value);
-        }
 
-        public string OverlayCustomSanPresetId
-        {
-            get => _overlayCustomSanPresetId;
-            set => SetValue(ref _overlayCustomSanPresetId, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSanPresetHtml
-        {
-            get => _overlayCustomSanPresetHtml;
-            set => SetValue(ref _overlayCustomSanPresetHtml, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSanPresetCss
-        {
-            get => _overlayCustomSanPresetCss;
-            set => SetValue(ref _overlayCustomSanPresetCss, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSanBaseCss
-        {
-            get => _overlayCustomSanBaseCss;
-            set => SetValue(ref _overlayCustomSanBaseCss, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSanBaseAnimCss
-        {
-            get => _overlayCustomSanBaseAnimCss;
-            set => SetValue(ref _overlayCustomSanBaseAnimCss, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSanAssetRootPath
-        {
-            get => _overlayCustomSanAssetRootPath;
-            set => SetValue(ref _overlayCustomSanAssetRootPath, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSanThemeJson
-        {
-            get => _overlayCustomSanThemeJson;
-            set => SetValue(ref _overlayCustomSanThemeJson, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSanThemeDirectory
-        {
-            get => _overlayCustomSanThemeDirectory;
-            set => SetValue(ref _overlayCustomSanThemeDirectory, value ?? string.Empty);
-        }
 
-        public string OverlayCustomManualElementCss
-        {
-            get => _overlayCustomManualElementCss;
-            set => SetValue(ref _overlayCustomManualElementCss, value ?? string.Empty);
-        }
 
-        public string OverlayCustomElementAnchorsJson
-        {
-            get => _overlayCustomElementAnchorsJson;
-            set => SetValue(ref _overlayCustomElementAnchorsJson, value ?? string.Empty);
-        }
 
         public int OverlayCustomSanView1DurationMilliseconds
         {
@@ -2010,155 +1009,30 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _overlayCustomSanView2DurationMilliseconds, Math.Max(500, Math.Min(30000, value)));
         }
 
-        public bool OverlayCustomTitleBold
-        {
-            get => _overlayCustomTitleBold;
-            set => SetValue(ref _overlayCustomTitleBold, value);
-        }
 
-        public bool OverlayCustomTitleItalic
-        {
-            get => _overlayCustomTitleItalic;
-            set => SetValue(ref _overlayCustomTitleItalic, value);
-        }
 
-        public bool OverlayCustomTitleUnderline
-        {
-            get => _overlayCustomTitleUnderline;
-            set => SetValue(ref _overlayCustomTitleUnderline, value);
-        }
 
-        public bool OverlayCustomTitleStrikethrough
-        {
-            get => _overlayCustomTitleStrikethrough;
-            set => SetValue(ref _overlayCustomTitleStrikethrough, value);
-        }
 
-        public bool OverlayCustomDetailBold
-        {
-            get => _overlayCustomDetailBold;
-            set => SetValue(ref _overlayCustomDetailBold, value);
-        }
 
-        public bool OverlayCustomDetailItalic
-        {
-            get => _overlayCustomDetailItalic;
-            set => SetValue(ref _overlayCustomDetailItalic, value);
-        }
 
-        public bool OverlayCustomDetailUnderline
-        {
-            get => _overlayCustomDetailUnderline;
-            set => SetValue(ref _overlayCustomDetailUnderline, value);
-        }
 
-        public bool OverlayCustomDetailStrikethrough
-        {
-            get => _overlayCustomDetailStrikethrough;
-            set => SetValue(ref _overlayCustomDetailStrikethrough, value);
-        }
 
-        public bool OverlayCustomMetaBold
-        {
-            get => _overlayCustomMetaBold;
-            set => SetValue(ref _overlayCustomMetaBold, value);
-        }
 
-        public bool OverlayCustomMetaItalic
-        {
-            get => _overlayCustomMetaItalic;
-            set => SetValue(ref _overlayCustomMetaItalic, value);
-        }
 
-        public bool OverlayCustomMetaUnderline
-        {
-            get => _overlayCustomMetaUnderline;
-            set => SetValue(ref _overlayCustomMetaUnderline, value);
-        }
 
-        public bool OverlayCustomMetaStrikethrough
-        {
-            get => _overlayCustomMetaStrikethrough;
-            set => SetValue(ref _overlayCustomMetaStrikethrough, value);
-        }
 
-        public bool OverlayCustomLine4Bold
-        {
-            get => _overlayCustomLine4Bold;
-            set => SetValue(ref _overlayCustomLine4Bold, value);
-        }
 
-        public bool OverlayCustomLine4Italic
-        {
-            get => _overlayCustomLine4Italic;
-            set => SetValue(ref _overlayCustomLine4Italic, value);
-        }
 
-        public bool OverlayCustomLine4Underline
-        {
-            get => _overlayCustomLine4Underline;
-            set => SetValue(ref _overlayCustomLine4Underline, value);
-        }
 
-        public bool OverlayCustomLine4Strikethrough
-        {
-            get => _overlayCustomLine4Strikethrough;
-            set => SetValue(ref _overlayCustomLine4Strikethrough, value);
-        }
 
-        public bool OverlayCustomLine5Bold
-        {
-            get => _overlayCustomLine5Bold;
-            set => SetValue(ref _overlayCustomLine5Bold, value);
-        }
 
-        public bool OverlayCustomLine5Italic
-        {
-            get => _overlayCustomLine5Italic;
-            set => SetValue(ref _overlayCustomLine5Italic, value);
-        }
 
-        public bool OverlayCustomLine5Underline
-        {
-            get => _overlayCustomLine5Underline;
-            set => SetValue(ref _overlayCustomLine5Underline, value);
-        }
 
-        public bool OverlayCustomLine5Strikethrough
-        {
-            get => _overlayCustomLine5Strikethrough;
-            set => SetValue(ref _overlayCustomLine5Strikethrough, value);
-        }
 
-        public bool OverlayCustomLine6Bold
-        {
-            get => _overlayCustomLine6Bold;
-            set => SetValue(ref _overlayCustomLine6Bold, value);
-        }
 
-        public bool OverlayCustomLine6Italic
-        {
-            get => _overlayCustomLine6Italic;
-            set => SetValue(ref _overlayCustomLine6Italic, value);
-        }
 
-        public bool OverlayCustomLine6Underline
-        {
-            get => _overlayCustomLine6Underline;
-            set => SetValue(ref _overlayCustomLine6Underline, value);
-        }
 
-        public bool OverlayCustomLine6Strikethrough
-        {
-            get => _overlayCustomLine6Strikethrough;
-            set => SetValue(ref _overlayCustomLine6Strikethrough, value);
-        }
 
-        public LocalOverlayIconSource OverlayCustomIconSource
-        {
-            get => _overlayCustomIconSource;
-            set => SetValue(ref _overlayCustomIconSource, value);
-        }
 
         public string OverlayCustomIconPath
         {
@@ -2183,34 +1057,10 @@ namespace PlayniteAchievements.Providers.Local
             return SplitCustomIconLibraryPaths(OverlayCustomIconLibraryPaths);
         }
 
-        public void SetOverlayCustomIconLibraryPathEntries(IEnumerable<string> paths)
-        {
-            OverlayCustomIconLibraryPaths = JoinCustomIconLibraryPaths(paths);
-        }
 
-        public bool OverlayCustomShowIconRarityGlow
-        {
-            get => _overlayCustomShowIconRarityGlow;
-            set => SetValue(ref _overlayCustomShowIconRarityGlow, value);
-        }
 
-        public bool OverlayCustomShowSecondaryIconRarityGlow
-        {
-            get => _overlayCustomShowSecondaryIconRarityGlow;
-            set => SetValue(ref _overlayCustomShowSecondaryIconRarityGlow, value);
-        }
 
-        public string OverlayCustomCoverImagePath
-        {
-            get => _overlayCustomCoverImagePath;
-            set => SetValue(ref _overlayCustomCoverImagePath, value ?? string.Empty);
-        }
 
-        public string OverlayCustomBannerImagePath
-        {
-            get => string.IsNullOrWhiteSpace(_overlayCustomBannerImagePath) ? _overlayCustomBackgroundImagePath : _overlayCustomBannerImagePath;
-            set => SetValue(ref _overlayCustomBannerImagePath, value ?? string.Empty);
-        }
 
         public int SelectedCustomStyleSlot
         {
@@ -2242,53 +1092,13 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _extraUnlockSoundPaths, value ?? string.Empty);
         }
 
-        public double OverlayCustomIconCornerRadius
-        {
-            get => _overlayCustomIconCornerRadius;
-            set => SetValue(ref _overlayCustomIconCornerRadius, Math.Max(0, Math.Min(110, value)));
-        }
 
-        public double OverlayCustomSecondaryIconCornerRadius
-        {
-            get => _overlayCustomSecondaryIconCornerRadius;
-            set => SetValue(ref _overlayCustomSecondaryIconCornerRadius, Math.Max(0, Math.Min(110, value)));
-        }
 
-        public bool OverlayCustomShowIconBackground
-        {
-            get => _overlayCustomShowIconBackground;
-            set => SetValue(ref _overlayCustomShowIconBackground, value);
-        }
 
-        public bool OverlayCustomShowSecondaryIconBackground
-        {
-            get => _overlayCustomShowSecondaryIconBackground;
-            set => SetValue(ref _overlayCustomShowSecondaryIconBackground, value);
-        }
 
-        public string OverlayCustomIconBackgroundColor
-        {
-            get => _overlayCustomIconBackgroundColor;
-            set => SetValue(ref _overlayCustomIconBackgroundColor, string.IsNullOrWhiteSpace(value) ? "#24FFFFFF" : value.Trim());
-        }
 
-        public string OverlayCustomSecondaryIconBackgroundColor
-        {
-            get => _overlayCustomSecondaryIconBackgroundColor;
-            set => SetValue(ref _overlayCustomSecondaryIconBackgroundColor, string.IsNullOrWhiteSpace(value) ? "#18FFFFFF" : value.Trim());
-        }
 
-        public bool OverlayCustomShowCoverBackground
-        {
-            get => _overlayCustomShowCoverBackground;
-            set => SetValue(ref _overlayCustomShowCoverBackground, value);
-        }
 
-        public string OverlayCustomCoverBackgroundColor
-        {
-            get => _overlayCustomCoverBackgroundColor;
-            set => SetValue(ref _overlayCustomCoverBackgroundColor, string.IsNullOrWhiteSpace(value) ? "#1CFFFFFF" : value.Trim());
-        }
 
         public ScoreProgressNotificationSettings CollectionProgressNotifications
         {
@@ -2302,40 +1112,7 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _prestigeProgressNotifications, value ?? new ScoreProgressNotificationSettings());
         }
 
-        public LocalSettings CreateProgressNotificationCopy(ScoreProgressNotificationSettings notification)
-        {
-            var copy = (LocalSettings)Clone();
-            var slots = copy.CustomOverlayStyleSlots;
-            if (slots == null || slots.Count == 0)
-            {
-                return copy;
-            }
 
-            var index = Math.Max(0, Math.Min(slots.Count - 1, notification?.CustomStyleSlotIndex ?? 0));
-            ApplyCustomStyleSlot(copy, slots[index]);
-            return copy;
-        }
-
-        public static void ApplyCustomStyleSlot(LocalSettings target, LocalCustomOverlayStyleSlot slot)
-        {
-            if (target == null || slot == null) return;
-            foreach (var sourceProperty in typeof(LocalCustomOverlayStyleSlot).GetProperties())
-            {
-                if (!sourceProperty.CanRead || sourceProperty.Name == nameof(LocalCustomOverlayStyleSlot.Name)) continue;
-                var targetName = "OverlayCustom" + sourceProperty.Name;
-                if (sourceProperty.Name == nameof(LocalCustomOverlayStyleSlot.TransitionStyle)) targetName = nameof(UnlockOverlayTransitionStyle);
-                else if (sourceProperty.Name == nameof(LocalCustomOverlayStyleSlot.CustomIconPath)) targetName = nameof(OverlayCustomIconPath);
-                else if (sourceProperty.Name == nameof(LocalCustomOverlayStyleSlot.SecondaryCustomIconPath)) targetName = nameof(OverlayCustomSecondaryIconPath);
-                else if (sourceProperty.Name == nameof(LocalCustomOverlayStyleSlot.CustomCoverImagePath)) targetName = nameof(OverlayCustomCoverImagePath);
-                else if (sourceProperty.Name == nameof(LocalCustomOverlayStyleSlot.CustomBannerImagePath)) targetName = nameof(OverlayCustomBannerImagePath);
-
-                var targetProperty = typeof(LocalSettings).GetProperty(targetName) ?? typeof(LocalSettings).GetProperty(sourceProperty.Name);
-                if (targetProperty?.CanWrite == true && targetProperty.PropertyType == sourceProperty.PropertyType)
-                {
-                    targetProperty.SetValue(target, sourceProperty.GetValue(slot));
-                }
-            }
-        }
 
         public string BundledUnlockSoundPath
         {
@@ -2372,27 +1149,6 @@ namespace PlayniteAchievements.Providers.Local
         [JsonIgnore]
         public string EffectiveBundledUnlockSoundPath => GetEffectiveBundledUnlockSoundPath();
 
-        [JsonProperty("UnlockSoundPath", NullValueHandling = NullValueHandling.Ignore)]
-        public string LegacyUnlockSoundPath
-        {
-            get => null;
-            set
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    return;
-                }
-
-                if (Path.IsPathRooted(value))
-                {
-                    CustomUnlockSoundPath = value;
-                }
-                else
-                {
-                    BundledUnlockSoundPath = value;
-                }
-            }
-        }
 
         public string SteamUserdataPath
         {
@@ -2732,10 +1488,6 @@ namespace PlayniteAchievements.Providers.Local
             return NormalizeCustomIconLibraryPaths(rawPaths.Split(new[] { ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries));
         }
 
-        public static string JoinCustomIconLibraryPaths(IEnumerable<string> paths)
-        {
-            return string.Join(";", NormalizeCustomIconLibraryPaths(paths));
-        }
 
         public static IEnumerable<string> SplitListSetting(string rawValue)
         {
