@@ -728,7 +728,6 @@ namespace PlayniteAchievements.Views
                 () =>
                 {
                     _plugin.SavePluginSettings(_settingsViewModel.Settings);
-                    NotificationPublisher.ClosePersistentSettingsPreview();
                 });
             _startPageCompatibility = new StartPageCompatibilityService(_logger, _plugin, plugin.PlayniteApi);
 
@@ -791,7 +790,6 @@ namespace PlayniteAchievements.Views
 
         private void LegacyNotificationSettingsControl_Unloaded(object sender, RoutedEventArgs e)
         {
-            NotificationPublisher.ClosePersistentSettingsPreview();
         }
 
         private void NotificationSettingsContent_Loaded(object sender, RoutedEventArgs e)
@@ -1597,7 +1595,6 @@ namespace PlayniteAchievements.Views
         {
             if (closeOverlay)
             {
-                NotificationPublisher.ClosePersistentSettingsPreview();
             }
         }
 
@@ -2680,7 +2677,6 @@ namespace PlayniteAchievements.Views
                 ForkLog.Wrap(_logger).Info($"Value after setting to false: {_settingsViewModel.Settings.Persisted.FirstTimeSetupCompleted}");
 
                 _plugin.SavePluginSettings(_settingsViewModel.Settings);
-                NotificationPublisher.ClosePersistentSettingsPreview();
 
                 _plugin.PlayniteApi.Dialogs.ShowMessage(
                     L("LOCPlayAch_Status_Succeeded", "Success!"),
@@ -3854,7 +3850,6 @@ namespace PlayniteAchievements.Views
                 _settingsHostWindow.Closed -= SettingsHostWindow_Closed;
                 _settingsHostWindow = null;
             }
-            NotificationPublisher.ClosePersistentSettingsPreview();
             if (_notificationPreviewSettings != null)
             {
                 _notificationPreviewSettings = null;

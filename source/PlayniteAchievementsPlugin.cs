@@ -729,10 +729,8 @@ namespace PlayniteAchievements
                                 GameCoverPath = args.GameCoverPath
                             }
                         },
-                        localSettings?.UnlockSoundPath,
                         notificationProviderKey: args.ProviderKey,
-                        game: game,
-                        progressContext: args);
+                        game: game);
                     args.SuppressStandardToast = true;
                     ForkLog.Wrap(_logger)?.Info(
                         $"[AchievementNotification] Upstream poll detection routed to custom notification: game={args.GameName}, provider={args.ProviderKey}, achievement={args.DisplayName ?? args.ApiName}.");
@@ -1345,7 +1343,6 @@ namespace PlayniteAchievements
                         // the field is assigned.
                         e => _unlockRecordings?.WouldRequestClip(e) ?? false,
                         (e, capHeight) => _unlockRecordings?.TryCaptureAnchorFrame(e, capHeight),
-                        e => _notifications?.CreateAchievementCaptureContent(e),
                         _unlockSounds);
                     _unlockRecordings = new Services.Recording.UnlockRecordingService(
                         PlayniteApi,

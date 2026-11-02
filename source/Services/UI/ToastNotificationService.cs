@@ -41,7 +41,6 @@ namespace PlayniteAchievements.Services.UI
         // when the buffer cannot answer). Supplied by the recording service; lets the screenshot
         // depict the true unlock moment instead of the instant the toast fired.
         private readonly Func<AchievementUnlockedEventArgs, int, System.Drawing.Bitmap> _captureAnchorFrame;
-        private readonly Func<AchievementUnlockedEventArgs, FrameworkElement> _createCustomCaptureContent;
         private readonly Services.Sound.UnlockSoundService _unlockSounds;
         private readonly UnlockScreenshotService _screenshotService;
         private readonly ScreenshotFrameCompositor _frameCompositor;
@@ -208,7 +207,6 @@ namespace PlayniteAchievements.Services.UI
             GameCustomDataStore gameCustomDataStore = null,
             Func<AchievementUnlockedEventArgs, bool> needsOverlayTrack = null,
             Func<AchievementUnlockedEventArgs, int, System.Drawing.Bitmap> captureAnchorFrame = null,
-            Func<AchievementUnlockedEventArgs, FrameworkElement> createCustomCaptureContent = null,
             Services.Sound.UnlockSoundService unlockSounds = null)
         {
             _api = api;
@@ -220,7 +218,6 @@ namespace PlayniteAchievements.Services.UI
             _gameCustomDataStore = gameCustomDataStore;
             _needsOverlayTrack = needsOverlayTrack;
             _captureAnchorFrame = captureAnchorFrame;
-            _createCustomCaptureContent = createCustomCaptureContent;
             _unlockSounds = unlockSounds;
             _screenshotService = new UnlockScreenshotService(logger);
             _frameCompositor = new ScreenshotFrameCompositor(logger);
