@@ -81,6 +81,7 @@ namespace PlayniteAchievements.Models.Settings
         private int _friendsPeriodicUpdateHours = 24;
         private bool _enableInGamePolling = true;
         private bool _enableAutoCapstoneGeneration = false;
+        private bool _hideLockedPlayStationAutoCapstones = false;
         private string _autoCapstoneGameNameTemplate;
         private string _autoCapstoneGameDescriptionTemplate;
         private string _autoCapstoneCategoryNameTemplate;
@@ -955,6 +956,17 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _enableAutoCapstoneGeneration;
             set => SetValue(ref _enableAutoCapstoneGeneration, value);
+        }
+
+        /// <summary>
+        /// Hides an auto capstone while it is locked when it stands on a PlayStation metadata
+        /// platinum (the platinum's art, text or matched achievement), so its title and
+        /// description stay a surprise until it unlocks.
+        /// </summary>
+        public bool HideLockedPlayStationAutoCapstones
+        {
+            get => _hideLockedPlayStationAutoCapstones;
+            set => SetValue(ref _hideLockedPlayStationAutoCapstones, value);
         }
 
         /// <summary>
@@ -3503,6 +3515,7 @@ namespace PlayniteAchievements.Models.Settings
                 FriendsPeriodicUpdateHours = this.FriendsPeriodicUpdateHours,
                 EnableInGamePolling = this.EnableInGamePolling,
                 EnableAutoCapstoneGeneration = this.EnableAutoCapstoneGeneration,
+                HideLockedPlayStationAutoCapstones = this.HideLockedPlayStationAutoCapstones,
                 AutoCapstoneGameNameTemplate = this.AutoCapstoneGameNameTemplate,
                 AutoCapstoneGameDescriptionTemplate = this.AutoCapstoneGameDescriptionTemplate,
                 AutoCapstoneCategoryNameTemplate = this.AutoCapstoneCategoryNameTemplate,

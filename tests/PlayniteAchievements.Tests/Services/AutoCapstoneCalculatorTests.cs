@@ -512,6 +512,23 @@ namespace PlayniteAchievements.Tests.Services
             return achievement;
         }
 
+        [TestMethod]
+        public void Derive_EveryAchievementFiltered_YieldsNothingUnlessFilteredAreIncluded()
+        {
+            // The whole-game capstone is a guarantee, so authoring falls back to including them.
+            var filtered = new[]
+            {
+                new AchievementDetail { ApiName = "a", DisplayName = "a", IsFiltered = true },
+                new AchievementDetail { ApiName = "b", DisplayName = "b", IsFiltered = true, Unlocked = true }
+            };
+
+            Assert.IsNull(AutoCapstoneCalculator.Derive(filtered));
+
+            var derived = AutoCapstoneCalculator.Derive(filtered, null, null, includeFiltered: true);
+            Assert.IsNotNull(derived);
+            Assert.IsFalse(derived.Unlocked);
+        }
+
         private static AchievementDetail Achievement(
             string apiName,
             bool unlocked = false,

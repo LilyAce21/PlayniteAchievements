@@ -132,6 +132,21 @@ namespace PlayniteAchievements.Services.Tagging.Tests
         }
 
         [TestMethod]
+        public void GetRelocalizedName_ReplacesMissingStringPlaceholderSavedAsAName()
+        {
+            WriteLocale("en_US.xaml", EnglishXaml);
+
+            var catalog = new DefaultTagNameCatalog(_tempDirectory);
+
+            Assert.AreEqual(
+                "[PA] In Progress",
+                catalog.GetRelocalizedName(TagType.InProgress, "<!LOCPlayAch_Tag_PrefixFormat!>", "[PA] In Progress"));
+            Assert.IsNull(
+                catalog.GetRelocalizedName(TagType.InProgress, "<!LOCPlayAch_Tag_PrefixFormat!>", "<!LOCPlayAch_Tag_PrefixFormat!>"),
+                "a default that is itself missing is left for a later run");
+        }
+
+        [TestMethod]
         public void GetRelocalizedName_HealsKnownDefaultToCurrentDefault()
         {
             WriteLocale("en_US.xaml", EnglishXaml);

@@ -32,6 +32,7 @@ namespace PlayniteAchievements.Services.Achievements
         private readonly Func<AutoCapstoneTemplates> _templates;
         private readonly Func<MetadataLinkStore> _metadataLinks;
         private readonly ILogger _logger;
+        private readonly Func<bool> _hideLockedPlayStation;
 
         /// <param name="templates">The text templates in effect, read at each authoring.</param>
         /// <param name="metadataLinks">Where the art written into each capstone is recorded.</param>
@@ -42,8 +43,10 @@ namespace PlayniteAchievements.Services.Achievements
             Func<ManagedCustomIconService> iconService,
             Func<AutoCapstoneTemplates> templates,
             Func<MetadataLinkStore> metadataLinks,
-            ILogger logger)
+            ILogger logger,
+            Func<bool> hideLockedPlayStation = null)
         {
+            _hideLockedPlayStation = hideLockedPlayStation;
             _store = store;
             _overridesService = overridesService;
             _resolveGameData = resolveGameData;
@@ -376,7 +379,7 @@ namespace PlayniteAchievements.Services.Achievements
         /// <summary>
         /// Nominates a platinum as the game's capstone and marks the game as handled.
         /// </summary>
-        public bool NominatePlatinum(Guid gameId, AchievementDetail platinum)
+        public bool NominatePlatinum(Guid gameId, AchievementDetail platinum, bool fromMetadata = false)
         {
             if (gameId == Guid.Empty || string.IsNullOrWhiteSpace(platinum?.ApiName))
             {
@@ -390,8 +393,28 @@ namespace PlayniteAchievements.Services.Achievements
             }
 
             LabelPlatinum(gameId, platinum);
+            if (fromMetadata)
+            {
+                HideWhileLocked(gameId, platinum.ApiName);
+            }
+
             _overridesService.MarkAutoCapstoneGenerated(gameId);
             return true;
+        }
+
+        /// <summary>
+        /// With the "hide locked PlayStation auto capstones" setting on, hides a nominated
+        /// achievement that is a metadata platinum. Hidden, it reveals itself once it unlocks.
+        /// Does nothing with the setting off, so a capstone the user unhid is not touched.
+        /// </summary>
+        private void HideWhileLocked(Guid gameId, string apiName)
+        {
+            if (_hideLockedPlayStation?.Invoke() != true || string.IsNullOrWhiteSpace(apiName))
+            {
+                return;
+            }
+
+            _overridesService.SetAchievementFieldOverride(gameId, apiName, AchievementEditableField.Hidden, (bool?)true);
         }
 
         /// <summary>
@@ -496,6 +519,7 @@ namespace PlayniteAchievements.Services.Achievements
             }
 
             LabelPlatinum(gameId, match);
+            HideWhileLocked(gameId, match.ApiName);
 
             _overridesService.SetCustomAchievements(
                 gameId,
@@ -676,8 +700,22 @@ namespace PlayniteAchievements.Services.Achievements
                 achievements,
                 normalizedCategory,
                 gameData?.AchievementCategoryOrder);
+
+            // A whole-game capstone is a guarantee, so a game whose achievements are all filtered
+            // (an exclusion rule, a filter preset) still gets one, standing for all of them.
+            if (derived == null && normalizedCategory == null)
+            {
+                derived = AutoCapstoneCalculator.Derive(
+                    achievements,
+                    null,
+                    gameData?.AchievementCategoryOrder,
+                    includeFiltered: true);
+            }
+
             if (derived == null)
             {
+                _logger?.Debug($"[AutoCapstone] gameId={gameId} got no auto capstone: no achievements to stand for" +
+                    (normalizedCategory == null ? "." : $" in category '{normalizedCategory}'."));
                 return null;
             }
 
@@ -704,6 +742,12 @@ namespace PlayniteAchievements.Services.Achievements
             var iconSource = own?.ArtUrl ?? AutoCapstoneTemplate.ResolveIconSource(game, _logger);
             var iconPath = await MaterializeIconAsync(gameId, iconSource, existing, apiName).ConfigureAwait(false);
 
+            // Only the PlayStation source supplies a platinum, so art or text borrowed from a
+            // metadata source is a PlayStation platinum.
+            var fromPlayStation = own != null ||
+                borrowedText.Title != null ||
+                (normalizedCategory == null && !string.IsNullOrWhiteSpace(AutoCapstoneTemplate.MetadataArtAccessor?.Invoke(gameId)));
+
             var definition = new CustomAchievementDefinition
             {
                 Id = id,
@@ -715,7 +759,7 @@ namespace PlayniteAchievements.Services.Achievements
                 CategoryKind = derived.CategoryKind,
                 Tags = derived.Tags,
                 TrophyType = AutoCapstoneTemplate.PlatinumTrophyType,
-                Hidden = false,
+                Hidden = fromPlayStation && _hideLockedPlayStation?.Invoke() == true,
                 Rarity = derived.Rarity ?? "Common",
                 GlobalPercentUnlocked = derived.GlobalPercentUnlocked,
                 IsAutoCapstone = true,

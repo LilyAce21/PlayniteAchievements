@@ -101,12 +101,37 @@ namespace PlayniteAchievements.Services.Localization
                 return null;
             }
 
+            // A default's own text is never missing-string junk, so a stored value that is Playnite's
+            // "<!LOCKey!>" placeholder came from a moment the string was not loaded. It is no
+            // customization: it is put right as any other default is, unless the string is still
+            // missing now (then it is left for a later run).
+            if (IsMissingStringPlaceholder(currentText))
+            {
+                return IsMissingStringPlaceholder(currentDefault) ? null : currentDefault;
+            }
+
+            if (IsMissingStringPlaceholder(currentDefault))
+            {
+                return null;
+            }
+
             if (string.Equals(currentText.Trim(), currentDefault.Trim(), StringComparison.Ordinal))
             {
                 return null;
             }
 
             return IsKnownDefault(definitionId, currentText) ? currentDefault : null;
+        }
+
+        /// <summary>
+        /// True for text holding the placeholder Playnite's <c>ResourceProvider.GetString</c> returns
+        /// for a key it cannot find, such as <c>&lt;!LOCPlayAch_Tag_PrefixFormat!&gt;</c>.
+        /// </summary>
+        public static bool IsMissingStringPlaceholder(string text)
+        {
+            return !string.IsNullOrEmpty(text) &&
+                   text.IndexOf("<!LOC", StringComparison.Ordinal) >= 0 &&
+                   text.IndexOf("!>", StringComparison.Ordinal) >= 0;
         }
 
         private static Dictionary<string, HashSet<string>> BuildKnownDefaults(

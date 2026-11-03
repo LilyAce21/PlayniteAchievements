@@ -1,4 +1,5 @@
 using System;
+using PlayniteAchievements.Services.Localization;
 using System.Collections.Generic;
 using System.Linq;
 using Playnite.SDK;
@@ -200,15 +201,26 @@ namespace PlayniteAchievements.Models.Tagging
                 {
                     TagConfigs[tagType] = new TagConfig
                     {
-                        DisplayName = getDefaultName?.Invoke(tagType) ?? GetDefaultDisplayName(tagType),
+                        DisplayName = ResolveDefaultName(getDefaultName, tagType),
                         IsEnabled = IsEnabledByDefault(tagType)
                     };
                 }
-                else if (string.IsNullOrWhiteSpace(TagConfigs[tagType].DisplayName))
+                else if (string.IsNullOrWhiteSpace(TagConfigs[tagType].DisplayName) ||
+                         LocalizedDefaultStringCatalog.IsMissingStringPlaceholder(TagConfigs[tagType].DisplayName))
                 {
-                    // Fill in missing display names
-                    TagConfigs[tagType].DisplayName = getDefaultName?.Invoke(tagType) ?? GetDefaultDisplayName(tagType);
-                }            }
+                    // Fill in missing display names, and replace the "<!LOCKey!>" text Playnite
+                    // returns for a string that was not loaded when an earlier run saved it.
+                    TagConfigs[tagType].DisplayName = ResolveDefaultName(getDefaultName, tagType);
+                }
+            }
+        }
+
+        private static string ResolveDefaultName(Func<TagType, string> getDefaultName, TagType tagType)
+        {
+            var name = getDefaultName?.Invoke(tagType);
+            return string.IsNullOrWhiteSpace(name) || LocalizedDefaultStringCatalog.IsMissingStringPlaceholder(name)
+                ? GetDefaultDisplayName(tagType)
+                : name;
         }
 
         /// <summary>

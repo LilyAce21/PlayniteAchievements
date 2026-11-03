@@ -178,14 +178,17 @@ namespace PlayniteAchievements.Services.Achievements
         public static AutoCapstoneDerivation Derive(
             IEnumerable<AchievementDetail> achievements,
             string category = null,
-            IReadOnlyList<string> categoryOrder = null)
+            IReadOnlyList<string> categoryOrder = null,
+            bool includeFiltered = false)
         {
             // Filtered achievements are out of the counts completion is read from, so waiting on
             // one would hold the capstone locked on a game the summary already calls finished.
+            // includeFiltered is for a game with nothing else: when every achievement is filtered
+            // the capstone still has to stand for something, or it would never be authored.
             var candidates = (achievements ?? Enumerable.Empty<AchievementDetail>())
                 .Where(achievement => achievement != null &&
-                                      !achievement.IsFiltered &&
-                                      !achievement.IsFilteredFromSummaries)
+                                      (includeFiltered ||
+                                       (!achievement.IsFiltered && !achievement.IsFilteredFromSummaries)))
                 .ToList();
 
             var normalizedCategory = AchievementCategoryHelper.NormalizeCategory(category);

@@ -54,6 +54,11 @@
                         <CheckBox IsChecked="{Binding Persisted.EnableAutoCapstoneGeneration}"/>
                     </controls:SettingRow>
 
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_HideLockedPlayStationAutoCapstones}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_HideLockedPlayStationAutoCapstones_Description}">
+                        <CheckBox IsChecked="{Binding Persisted.HideLockedPlayStationAutoCapstones}"/>
+                    </controls:SettingRow>
+
                     <TextBlock Text="{DynamicResource LOCPlayAch_Settings_AutoCapstoneText_Hint}"
                                Style="{StaticResource MutedTextStyle}"
                                Margin="{StaticResource PlayAch.Thickness.Bottom.Md}"

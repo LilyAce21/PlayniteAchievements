@@ -68,6 +68,7 @@ namespace PlayniteAchievements.Models.Settings
             target.FriendsPeriodicUpdateHours = source.FriendsPeriodicUpdateHours;
             target.EnableInGamePolling = source.EnableInGamePolling;
             target.EnableAutoCapstoneGeneration = source.EnableAutoCapstoneGeneration;
+            target.HideLockedPlayStationAutoCapstones = source.HideLockedPlayStationAutoCapstones;
             target.AutoCapstoneGameNameTemplate = source.AutoCapstoneGameNameTemplate;
             target.AutoCapstoneGameDescriptionTemplate = source.AutoCapstoneGameDescriptionTemplate;
             target.AutoCapstoneCategoryNameTemplate = source.AutoCapstoneCategoryNameTemplate;

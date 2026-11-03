@@ -1291,7 +1291,8 @@ namespace PlayniteAchievements
                         () => _managedCustomIconService,
                         () => AutoCapstoneText.Resolve(_settingsViewModel?.Settings?.Persisted),
                         () => _metadataLinkStore,
-                        _logger);
+                        _logger,
+                        () => _settingsViewModel?.Settings?.Persisted?.HideLockedPlayStationAutoCapstones == true);
                     _autoCapstoneTextService = new AutoCapstoneTextService(
                         _gameCustomDataStore,
                         () => _settingsViewModel?.Settings?.Persisted,

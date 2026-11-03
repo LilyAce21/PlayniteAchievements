@@ -116,22 +116,43 @@ namespace PlayniteAchievements.Services.Tagging
         /// </summary>
         private static string GetLocalizedDefaultName(TagType tagType)
         {
+            string name;
             if (DefaultTagNameCatalog.StatusResourceKeys.TryGetValue(tagType, out var statusResourceKey))
             {
-                return FormatTagName(statusResourceKey);
+                name = FormatTagName(statusResourceKey);
+            }
+            else
+            {
+                var areaKeys = DefaultTagNameCatalog.GetAreaResourceKeys(tagType);
+                if (areaKeys == null)
+                {
+                    return TaggingSettings.GetDefaultDisplayName(tagType);
+                }
+
+                var values = areaKeys.Select(ResourceProvider.GetString).ToList();
+                name = values.Any(LocalizedDefaultStringCatalog.IsMissingStringPlaceholder)
+                    ? null
+                    : DefaultTagNameCatalog.ComposeAreaName(values);
             }
 
-            var areaKeys = DefaultTagNameCatalog.GetAreaResourceKeys(tagType);
-            return areaKeys != null
-                ? DefaultTagNameCatalog.ComposeAreaName(areaKeys.Select(ResourceProvider.GetString).ToList())
-                : TaggingSettings.GetDefaultDisplayName(tagType);
+            // Null when a string was not loaded (rather than "<!LOCKey!>" junk), so the caller
+            // falls back to the built-in name and a later run localizes it properly.
+            return string.IsNullOrWhiteSpace(name) || LocalizedDefaultStringCatalog.IsMissingStringPlaceholder(name)
+                ? null
+                : name;
         }
 
         private static string FormatTagName(string statusResourceKey)
         {
-            return string.Format(
-                ResourceProvider.GetString("LOCPlayAch_Tag_PrefixFormat"),
-                ResourceProvider.GetString(statusResourceKey));
+            var format = ResourceProvider.GetString("LOCPlayAch_Tag_PrefixFormat");
+            var status = ResourceProvider.GetString(statusResourceKey);
+            if (LocalizedDefaultStringCatalog.IsMissingStringPlaceholder(format) ||
+                LocalizedDefaultStringCatalog.IsMissingStringPlaceholder(status))
+            {
+                return null;
+            }
+
+            return string.Format(format, status);
         }
 
         /// <summary>

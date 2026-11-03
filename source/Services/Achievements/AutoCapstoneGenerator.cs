@@ -178,11 +178,27 @@ namespace PlayniteAchievements.Services.Achievements
                     return replaced;
 
                 case AutoCapstoneGenerationAction.NominatePlatinum:
-                    _authoring.NominatePlatinum(gameId, decision.Platinum);
+                    // A platinum nominated only because a metadata source's platinum matched it
+                    // is a PlayStation metadata capstone; the game's own platinum is not.
+                    var fromMetadata = !string.IsNullOrWhiteSpace(matchedCapstone) &&
+                        string.Equals(decision.Platinum?.ApiName, matchedCapstone.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        AutoCapstoneTemplate.SelectPlatinum(
+                            ordered,
+                            achievement => achievement.TrophyType,
+                            achievement => achievement.CategoryKind) == null;
+                    _authoring.NominatePlatinum(gameId, decision.Platinum, fromMetadata);
                     return true;
 
                 case AutoCapstoneGenerationAction.Author:
-                    await _authoring.AuthorAsync(gameId).ConfigureAwait(false);
+                    var authored = await _authoring.AuthorAsync(gameId).ConfigureAwait(false);
+                    if (authored == null)
+                    {
+                        // Nothing was written, so the game is not marked and is looked at again
+                        // after its next refresh; the reason is in AuthorAsync's debug log.
+                        _logger?.Debug($"[AutoCapstone] gameId={gameId}: authoring wrote nothing; will retry on its next refresh.");
+                        return replaced;
+                    }
+
                     return true;
             }
 
