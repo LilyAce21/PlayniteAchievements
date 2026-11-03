@@ -1,5 +1,14 @@
 AddonId: PlayniteAchievementsSantodan
 Packages:
+  - Version: 4.2.1.1
+    RequiredApiVersion: 6.14.0
+    ReleaseDate: 2026-11-03
+    PackageUrl: https://github.com/santodan/PlayniteAchievements/releases/download/v4.2.1.1/PlayniteAchievementsSantodan_4_2_1_1.pext
+    Changelog:
+    - "v4.2.1 merge (upstream metadata system, achievement tags, platinum capstones, blurred notification backgrounds, progress notifications)"
+    - "Removed the PSN capstone feature; upstream's platinum auto capstones replace it"
+    - "Fork-specific Steam accounts, Local provider handling, RetroAchievements subset selection and notification options are kept"
+    - "Custom data schema is now v10 so existing data runs upstream's category/tags migration"
   - Version: 4.1.1.1
     RequiredApiVersion: 6.14.0
     ReleaseDate: 2026-09-09

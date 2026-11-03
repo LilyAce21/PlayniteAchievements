@@ -27,6 +27,7 @@ using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Refresh;
 using PlayniteAchievements.Services.Search;
 using PlayniteAchievements.ViewModels.Items;
+using PlayniteAchievements.ViewModels.Showcase.Widgets;
 using PlayniteAchievements.Views;
 using PlayniteAchievements.Views.Helpers;
 using Playnite.SDK;
@@ -190,6 +191,7 @@ namespace PlayniteAchievements.ViewModels
         private readonly Dictionary<string, HashSet<string>> _persistedProviderFilterSelections
             = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _selectedCompletenessFilters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private bool _completenessFilterEdited;
         private readonly HashSet<string> _selectedPlayStatusFilters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Sort state tracking for quick reverse
@@ -283,6 +285,9 @@ namespace PlayniteAchievements.ViewModels
             CompletenessFilterOptions = new ObservableCollection<string>();
 
             LoadPersistedOverviewFilters();
+            // Upstream shows the "Progress" placeholder until the first edit. A saved selection
+            // is a real pick, so it is listed from the start; only the default stays a placeholder.
+            _completenessFilterEdited = !string.IsNullOrWhiteSpace(_settings?.Persisted?.OverviewCompletenessFilterKeys);
 
             // Initialize refresh mode options from service (exclude LibrarySelected - context menu only)
             RefreshModes = new ObservableCollection<RefreshMode>(
@@ -349,6 +354,10 @@ namespace PlayniteAchievements.ViewModels
             {
                 _gameCustomDataStore.CustomDataChanged += OnCustomDataChanged;
             }
+            if (_achievementDataService != null)
+            {
+                _achievementDataService.TalliesChanged += OnTalliesChanged;
+            }
             if (_settings != null)
             {
                 _settings.PropertyChanged += OnSettingsChanged;
@@ -404,6 +413,10 @@ namespace PlayniteAchievements.ViewModels
                     value => LeftSearchText = value,
                     L("LOCPlayAch_Filter_Games"),
                     ClearLeftSearch)
+                {
+                    Id = ShowcaseControlBarItems.Search,
+                    LabelKey = "LOCPlayAch_Filter_Games"
+                }
             };
             GameSummariesControlBar.Items.Add(new GridProviderPlatformFilter(
                 this,
@@ -412,6 +425,8 @@ namespace PlayniteAchievements.ViewModels
                 () => ProviderFilterGroups,
                 CollapseUnselectedProviderFilters)
             {
+                Id = ShowcaseControlBarItems.Platform,
+                LabelKey = "LOCPlayAch_Common_Platform",
                 Width = 170
             });
             GameSummariesControlBar.Items.Add(new GridMultiSelectFilter(
@@ -422,6 +437,8 @@ namespace PlayniteAchievements.ViewModels
                 IsCompletenessFilterSelected,
                 SetCompletenessFilterSelected)
             {
+                Id = ShowcaseControlBarItems.Progress,
+                LabelKey = "LOCPlayAch_Progress",
                 Width = 170
             });
             GameSummariesControlBar.Items.Add(new GridMultiSelectFilter(
@@ -432,6 +449,8 @@ namespace PlayniteAchievements.ViewModels
                 IsPlayStatusFilterSelected,
                 SetPlayStatusFilterSelected)
             {
+                Id = ShowcaseControlBarItems.Activity,
+                LabelKey = "LOCPlayAch_Filter_ActivitySelectorPlaceholder",
                 Width = 170
             });
 
@@ -444,6 +463,10 @@ namespace PlayniteAchievements.ViewModels
                     value => RightSearchText = value,
                     L("LOCPlayAch_Filter_Achievements"),
                     ClearRightSearch)
+                {
+                    Id = ShowcaseControlBarItems.Search,
+                    LabelKey = "LOCPlayAch_Filter_Achievements"
+                }
             };
             // The unlock date range; a timeline column or calendar day in the mini-showcase sets
             // it too, and the timeline and calendar mark whatever it holds.
@@ -455,6 +478,8 @@ namespace PlayniteAchievements.ViewModels
                 SetUnlockRange,
                 L("LOCPlayAch_Filter_AllTime"))
             {
+                Id = ShowcaseControlBarItems.UnlockDate,
+                LabelKey = "LOCPlayAch_Common_Unlocked",
                 AutoHideWhenUnavailable = false,
                 Width = 190
             });
@@ -468,7 +493,10 @@ namespace PlayniteAchievements.ViewModels
                 IsRarityFilterSelected,
                 SetRarityFilterSelected)
             {
-                Width = 130
+                Id = ShowcaseControlBarItems.Rarity,
+                LabelKey = "LOCPlayAch_Column_Rarity",
+                Width = 130,
+                IconKeyOf = RarityFilterIconKey
             });
             RecentAchievementsControlBar.Items.Add(new GridMultiSelectFilter(
                 this,
@@ -478,7 +506,27 @@ namespace PlayniteAchievements.ViewModels
                 IsTrophyFilterSelected,
                 SetTrophyFilterSelected)
             {
-                Width = 130
+                Id = ShowcaseControlBarItems.Trophy,
+                LabelKey = "LOCPlayAch_Column_Trophy",
+                Width = 130,
+                IconKeyOf = TrophyFilterIconKey
+            });
+            // Achievement tags; a tag pie slice in the mini-showcase toggles them too. The grid
+            // lists every game here, so it offers the global tags; a selected game's grid has its
+            // own Tags filter with that game's tags.
+            RecentAchievementsControlBar.Items.Add(new GridMultiSelectFilter(
+                this,
+                nameof(SelectedTagFilterText),
+                () => SelectedTagFilterText,
+                () => TagFilterOptions,
+                IsTagFilterSelected,
+                SetTagFilterSelected,
+                key => Services.Achievements.AchievementTagRegistry.GetName(key))
+            {
+                Id = ShowcaseControlBarItems.Tag,
+                LabelKey = "LOCPlayAch_Common_Tags",
+                Width = 130,
+                IconKeyOf = key => TagControlBarFilter.IconKey(key, null)
             });
 
             // The selected-game control bar is built and owned by _selectedGameControlBar.
@@ -862,10 +910,12 @@ namespace PlayniteAchievements.ViewModels
             private set => SetValue(ref _completenessFilterOptions, value);
         }
 
-        public string SelectedCompletenessFilterText => GetSelectedFilterText(
-            _selectedCompletenessFilters,
-            CompletenessFilterOptions,
-            L("LOCPlayAch_Progress"));
+        public string SelectedCompletenessFilterText => _completenessFilterEdited
+            ? GetSelectedFilterText(
+                _selectedCompletenessFilters,
+                CompletenessFilterOptions,
+                L("LOCPlayAch_Progress"))
+            : L("LOCPlayAch_Progress");
 
         public bool IsCompletenessFilterSelected(string value)
         {
@@ -880,6 +930,7 @@ namespace PlayniteAchievements.ViewModels
             }
 
             PersistOverviewFilterSelections();
+            _completenessFilterEdited = true;
             OnPropertyChanged(nameof(SelectedCompletenessFilterText));
             // Defer filter application to avoid interfering with menu click handling.
             ScheduleFilterApply();
@@ -961,6 +1012,7 @@ namespace PlayniteAchievements.ViewModels
             }
 
             PersistOverviewFilterSelections();
+            _completenessFilterEdited = true;
             OnPropertyChanged(nameof(SelectedCompletenessFilterText));
             ScheduleFilterApply();
         }
@@ -992,11 +1044,11 @@ namespace PlayniteAchievements.ViewModels
             SelectedRefreshMode,
             RefreshModeType.Custom.GetKey(),
             StringComparison.Ordinal)
-            ? ResourceProvider.GetString("LOCConfigure")
+            ? ResourceProvider.GetString("LOCPlayAch_Common_Configure")
             : ResourceProvider.GetString("LOCPlayAch_Button_Refresh");
 
         public string RefreshOrCancelButtonText => IsRefreshing
-            ? ResourceProvider.GetString("LOCCancelLabel")
+            ? ResourceProvider.GetString("LOCPlayAch_Common_Cancel")
             : RefreshActionButtonText;
 
         public string RefreshOrCancelButtonGlyph => IsRefreshing
@@ -1012,10 +1064,6 @@ namespace PlayniteAchievements.ViewModels
         public bool ShowRarityGlowRecentAchievements => _settings?.Persisted?.OverviewRecentAchievementsShowRarityGlow ?? true;
 
         public bool ShowRarityGlowSelectedGame => _settings?.Persisted?.OverviewSelectedGameShowRarityGlow ?? true;
-
-        public bool ColorNamesByRarityRecentAchievements => _settings?.Persisted?.OverviewRecentAchievementsColorNamesByRarity ?? false;
-
-        public bool ColorNamesByRaritySelectedGame => _settings?.Persisted?.OverviewSelectedGameColorNamesByRarity ?? false;
 
         public bool ColorRarityColumnsByRarityRecentAchievements => _settings?.Persisted?.OverviewRecentAchievementsColorRarityColumnsByRarity ?? false;
 
@@ -1040,6 +1088,14 @@ namespace PlayniteAchievements.ViewModels
 
         /// <summary>The header's second score card; its options follow <see cref="PersistedSettings.OverviewScoreCard2"/>.</summary>
         public ScoreCardViewModel ScoreCard2 { get; } = new ScoreCardViewModel(ScoreCardType.Prestige);
+
+        // The header cards' filters, edited from each card's settings; a change reapplies both.
+        private ScoreCardFilter _scoreCard1Filter;
+        private ScoreCardFilter _scoreCard2Filter;
+
+        private ScoreCardFilter ScoreCard1Filter => _scoreCard1Filter ?? (_scoreCard1Filter = new ScoreCardFilter(ApplyScoreCards));
+
+        private ScoreCardFilter ScoreCard2Filter => _scoreCard2Filter ?? (_scoreCard2Filter = new ScoreCardFilter(ApplyScoreCards));
 
         public bool EnableFriendsFeatures => _settings?.Persisted?.EnableFriendsFeatures ?? true;
 
@@ -1494,7 +1550,9 @@ namespace PlayniteAchievements.ViewModels
         public ICommand RefreshSingleGameCommand { get; }
         public ICommand CloseViewCommand { get; }
         public string CloseViewToolTip =>
-            _launchContext == OverviewLaunchContext.Sidebar ? "Back to Library" : "Close";
+            ResourceProvider.GetString(_launchContext == OverviewLaunchContext.Sidebar
+                ? "LOCPlayAch_Common_BackToLibrary"
+                : "LOCPlayAch_Common_Close");
         public ICommand ClearGameSelectionCommand { get; }
         public ICommand NavigateToGameCommand { get; }
 
@@ -2008,7 +2066,7 @@ namespace PlayniteAchievements.ViewModels
             }
 
             SetRecentAchievementsSource(
-                snapshot.RecentAchievements,
+                WithUndatedUnlocks(snapshot.RecentAchievements, snapshot.Achievements),
                 recentSearchEntries);
 
             UpdateProviderFilterOptions(_allGameSummaries);
@@ -2065,6 +2123,27 @@ namespace PlayniteAchievements.ViewModels
             }
 
             UpdateAchievementFilterOptions();
+        }
+
+        /// <summary>
+        /// The Achievements grid's rows: the dated unlocks, then the unlocks with no time, which
+        /// the snapshot's recent list leaves out but a tag, rarity or trophy filter still matches.
+        /// </summary>
+        private static List<AchievementDisplayItem> WithUndatedUnlocks(
+            List<AchievementDisplayItem> recent,
+            IEnumerable<AchievementDisplayItem> achievements)
+        {
+            var undated = (achievements ?? Enumerable.Empty<AchievementDisplayItem>())
+                .Where(item => item?.Unlocked == true && !item.UnlockTimeUtc.HasValue)
+                .ToList();
+            if (undated.Count == 0)
+            {
+                return recent;
+            }
+
+            var rows = new List<AchievementDisplayItem>(recent ?? new List<AchievementDisplayItem>());
+            rows.AddRange(undated);
+            return rows;
         }
 
         private bool ApplyFragmentDelta(string key, OverviewGameFragment fragment)
@@ -2147,9 +2226,10 @@ namespace PlayniteAchievements.ViewModels
                 _allGameSummaries.Add(fragment.GameSummary);
             }
 
-            if (fragment.RecentAchievements != null && fragment.RecentAchievements.Count > 0)
+            var fragmentRecent = WithUndatedUnlocks(fragment.RecentAchievements, fragment.Achievements);
+            if (fragmentRecent != null && fragmentRecent.Count > 0)
             {
-                _allRecentAchievements.AddRange(fragment.RecentAchievements);
+                _allRecentAchievements.AddRange(fragmentRecent);
             }
 
             // Only the rows just swapped in need stamping: they are freshly built, so their
@@ -2171,10 +2251,10 @@ namespace PlayniteAchievements.ViewModels
                     fragment.Achievements, _captureLibrary);
             }
 
-            if (fragment.RecentAchievements != null && fragment.RecentAchievements.Count > 0)
+            if (fragmentRecent != null && fragmentRecent.Count > 0)
             {
                 Services.Captures.CapturePresenceMarker.MarkAchievements(
-                    fragment.RecentAchievements, _captureLibrary);
+                    fragmentRecent, _captureLibrary);
             }
 
             return true;
@@ -2204,7 +2284,10 @@ namespace PlayniteAchievements.ViewModels
             {
                 Achievements = _allAchievements ?? new List<AchievementDisplayItem>(),
                 GameSummaries = _allGameSummaries ?? new List<GameSummaryItem>(),
-                RecentAchievements = _allRecentAchievements ?? new List<AchievementDisplayItem>(),
+                // The grid's list also holds undated unlocks; the snapshot's recent list never does.
+                RecentAchievements = (_allRecentAchievements ?? new List<AchievementDisplayItem>())
+                    .Where(item => item?.UnlockTimeUtc.HasValue == true)
+                    .ToList(),
                 GlobalUnlockCountsByDate = new Dictionary<DateTime, int>(),
                 UnlockCountsByDateByGame = new Dictionary<Guid, Dictionary<DateTime, int>>(),
                 UnlockedByProvider = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
@@ -2218,6 +2301,7 @@ namespace PlayniteAchievements.ViewModels
                 UnlockNextCandidates = _latestSnapshot?.UnlockNextCandidates
                     ?? new List<AchievementDisplayItem>(),
                 UnlockNextPoolBuilt = _latestSnapshot?.UnlockNextPoolBuilt ?? false,
+                UnlockNextPoolSlice = _latestSnapshot?.UnlockNextPoolSlice ?? 0,
                 // The pinned-locked rows a delta keeps are the last full build's, so the pins it
                 // accounted for are too.
                 AchievementPinKeysAtBuild = _latestSnapshot?.AchievementPinKeysAtBuild
@@ -2361,12 +2445,15 @@ namespace PlayniteAchievements.ViewModels
                 CollectorScore = CollectorScore,
                 PrestigeScore = PrestigeScore
             };
-            ApplyScoreCard(ScoreCard1, _settings?.Persisted?.OverviewScoreCard1, snapshot, useUniformRarityBadges);
-            ApplyScoreCard(ScoreCard2, _settings?.Persisted?.OverviewScoreCard2, snapshot, useUniformRarityBadges);
+            ApplyScoreCard(ScoreCard1, ScoreCard1Filter, _settings?.Persisted?.OverviewScoreCard1, snapshot, useUniformRarityBadges);
+            ApplyScoreCard(ScoreCard2, ScoreCard2Filter, _settings?.Persisted?.OverviewScoreCard2, snapshot, useUniformRarityBadges);
         }
 
+        // As the Scores widget applies its card: a points card narrows to the games its filters
+        // keep, which also give it rarity badges and one game's art when its options ask.
         private static void ApplyScoreCard(
             ScoreCardViewModel card,
+            ScoreCardFilter filter,
             ShowcaseWidgetInstanceSettings options,
             OverviewDataSnapshot snapshot,
             bool useUniformRarityBadges)
@@ -2376,9 +2463,13 @@ namespace PlayniteAchievements.ViewModels
                 return;
             }
 
+            var type = ShowcaseWidgetOptions.GetScoreCardType(options);
+            var narrowed = filter.Apply(snapshot, type, options, out var keptGames, out _);
             card.SetUseCustomColors(ShowcaseWidgetOptions.GetScoreCardUseCustomColors(options));
             card.SetShowTotal(ShowcaseWidgetOptions.GetScoreCardShowTotal(options));
-            card.ApplyFor(ShowcaseWidgetOptions.GetScoreCardType(options), snapshot, useUniformRarityBadges);
+            card.ApplyFor(type, narrowed, useUniformRarityBadges);
+            card.SetRarityBadges(ScoreCardFilter.RarityBadgesFor(options, keptGames));
+            card.SetGameArt(ScoreCardFilter.GameArtFor(options, keptGames));
         }
 
         private void NormalizeScoreSnapshot(OverviewDataSnapshot snapshot)
@@ -2892,8 +2983,6 @@ namespace PlayniteAchievements.ViewModels
                 OnPropertyChanged(nameof(UseCoverImagesRecentAchievements));
                 OnPropertyChanged(nameof(ShowRarityGlowRecentAchievements));
                 OnPropertyChanged(nameof(ShowRarityGlowSelectedGame));
-                OnPropertyChanged(nameof(ColorNamesByRarityRecentAchievements));
-                OnPropertyChanged(nameof(ColorNamesByRaritySelectedGame));
                 OnPropertyChanged(nameof(ColorRarityColumnsByRarityRecentAchievements));
                 OnPropertyChanged(nameof(ColorRarityColumnsByRaritySelectedGame));
                 OnPropertyChanged(nameof(IncludeUnplayedGames));
@@ -2939,14 +3028,6 @@ namespace PlayniteAchievements.ViewModels
             else if (propertyName == nameof(PersistedSettings.OverviewSelectedGameShowRarityGlow))
             {
                 OnPropertyChanged(nameof(ShowRarityGlowSelectedGame));
-            }
-            else if (propertyName == nameof(PersistedSettings.OverviewRecentAchievementsColorNamesByRarity))
-            {
-                OnPropertyChanged(nameof(ColorNamesByRarityRecentAchievements));
-            }
-            else if (propertyName == nameof(PersistedSettings.OverviewSelectedGameColorNamesByRarity))
-            {
-                OnPropertyChanged(nameof(ColorNamesByRaritySelectedGame));
             }
             else if (propertyName == nameof(PersistedSettings.OverviewRecentAchievementsColorRarityColumnsByRarity))
             {
@@ -3226,6 +3307,27 @@ namespace PlayniteAchievements.ViewModels
             }
 
             QueueOverviewDelta(isFullReset: false, key: e.PlayniteGameId.ToString("D"));
+        }
+
+        // A tag edit recounted one game's tallies and nothing else, so the game's rows take
+        // the new totals in place instead of a delta rebuilding the game.
+        private void OnTalliesChanged(object sender, TalliesChangedEventArgs e)
+        {
+            if (e == null || e.PlayniteGameId == Guid.Empty)
+            {
+                return;
+            }
+
+            System.Windows.Application.Current?.Dispatcher?.InvokeIfNeeded(() =>
+            {
+                foreach (var game in _latestSnapshot?.GameSummaries ?? new List<GameSummaryItem>())
+                {
+                    if (game?.PlayniteGameId == e.PlayniteGameId)
+                    {
+                        game.Tallies = e.Tallies;
+                    }
+                }
+            });
         }
 
         private void QueueOverviewDelta(bool isFullReset, string key)
@@ -4149,7 +4251,7 @@ namespace PlayniteAchievements.ViewModels
         {
             return OverviewGameSummaryFilters.BuildProviderFilterText(
                 ProviderFilterGroups,
-                L("LOCPlatformTitle"));
+                L("LOCPlayAch_Common_Platform"));
         }
 
         private void ApplyRightFilters(bool skipDefaultSort = false)
@@ -5187,6 +5289,10 @@ namespace PlayniteAchievements.ViewModels
             if (_gameCustomDataStore != null)
             {
                 _gameCustomDataStore.CustomDataChanged -= OnCustomDataChanged;
+            }
+            if (_achievementDataService != null)
+            {
+                _achievementDataService.TalliesChanged -= OnTalliesChanged;
             }
             if (_settings != null)
             {

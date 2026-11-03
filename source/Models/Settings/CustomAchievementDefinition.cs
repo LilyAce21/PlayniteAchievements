@@ -1,4 +1,5 @@
 ﻿using System;
+using Newtonsoft.Json;
 
 namespace PlayniteAchievements.Models.Settings
 {
@@ -24,7 +25,16 @@ namespace PlayniteAchievements.Models.Settings
 
         public string Category { get; set; }
 
-        public string CategoryType { get; set; }
+        /// <summary>Pipe-joined tag keys. Null for no tags.</summary>
+        public string Tags { get; set; }
+
+        /// <summary>
+        /// This achievement's own kind, standing in for the provider kind a custom achievement does
+        /// not have; the kind stored on its category still wins. Stored under its pre-v9 name, when
+        /// it held kinds and tags together.
+        /// </summary>
+        [JsonProperty("CategoryType")]
+        public string CategoryKind { get; set; }
 
         public string TrophyType { get; set; }
 
@@ -60,14 +70,6 @@ namespace PlayniteAchievements.Models.Settings
         /// </summary>
         public bool IsWholeGameAutoCapstone { get; set; }
 
-        /// <summary>
-        /// True when this capstone was built from a PlayStation Platinum trophy. It is also an
-        /// auto capstone, so its unlock and rarity are kept in step the same way, but its name,
-        /// description and icon belong to PlayStation and the auto capstone text templates leave
-        /// them alone.
-        /// </summary>
-        public bool IsPsnCapstone { get; set; }
-
         public CustomAchievementDefinition Clone()
         {
             return new CustomAchievementDefinition
@@ -82,7 +84,8 @@ namespace PlayniteAchievements.Models.Settings
                 Points = Points,
                 ScaledPoints = ScaledPoints,
                 Category = Category,
-                CategoryType = CategoryType,
+                Tags = Tags,
+                CategoryKind = CategoryKind,
                 TrophyType = TrophyType,
                 Hidden = Hidden,
                 IsCapstone = IsCapstone,
@@ -91,8 +94,7 @@ namespace PlayniteAchievements.Models.Settings
                 ProgressNum = ProgressNum,
                 ProgressDenom = ProgressDenom,
                 IsAutoCapstone = IsAutoCapstone,
-                IsWholeGameAutoCapstone = IsWholeGameAutoCapstone,
-                IsPsnCapstone = IsPsnCapstone
+                IsWholeGameAutoCapstone = IsWholeGameAutoCapstone
             };
         }
     }
