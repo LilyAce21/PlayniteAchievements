@@ -933,7 +933,6 @@
                                                                  CategorySummarySource="{Binding SidebarAllAchievements}"
                                                                  UseCoverImages="{Binding UseCoverImagesRecentAchievements}"
                                                                  ShowRarityGlow="{Binding ShowRarityGlowRecentAchievements}"
-                                                                 ColorNamesByRarity="{Binding ColorNamesByRarityRecentAchievements}"
                                                                  ColorRarityColumnsByRarity="{Binding ColorRarityColumnsByRarityRecentAchievements}"
                                                                  ShowColumnHeaders="{Binding ShowOverviewRecentAchievementsGridColumnHeaders}"
                                                                  FixedRowHeight="{Binding OverviewRecentAchievementsGridRowHeight}"
