@@ -343,6 +343,7 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             {
                 if (SetValueAndReturn(ref _hasProviderOverride, value))
                 {
+                    OnPropertyChanged(nameof(ProviderOverrideStatusText));
                     RaiseCommandStates();
                 }
             }
@@ -353,7 +354,46 @@ namespace PlayniteAchievements.ViewModels.ManageAchievements
             get => _providerOverrideValue;
             private set
             {
-                SetValue(ref _providerOverrideValue, value ?? string.Empty);
+                if (SetValueAndReturn(ref _providerOverrideValue, value ?? string.Empty))
+                {
+                    OnPropertyChanged(nameof(ProviderOverrideStatusText));
+                }
+            }
+        }
+
+        public string ProviderOverrideStatusText
+        {
+            get
+            {
+                if (!HasProviderOverride)
+                {
+                    return L("LOCPlayAch_Common_Status_NoOverrideSet");
+                }
+
+                var providerName = GetProviderOverrideDisplayName(_providerOverrideKey);
+                var descriptor = GetProviderOverrideDescriptor(_providerOverrideKey);
+
+                if (descriptor != null &&
+                    descriptor.ValueKind == ProviderOverrideValueKind.None)
+                {
+                    return string.Format(
+                        L("LOCPlayAch_ManageAchievements_Overrides_ProviderStatusNoValue"),
+                        providerName);
+                }
+
+                if (string.IsNullOrWhiteSpace(ProviderOverrideValue) &&
+                    (descriptor?.ValueOptional ?? false))
+                {
+                    return string.Format(
+                        L("LOCPlayAch_ManageAchievements_Overrides_ProviderStatusAuto"),
+                        providerName);
+                }
+
+                var valueDisplay = descriptor?.GetValueDisplay(ProviderOverrideValue) ?? ProviderOverrideValue;
+                return string.Format(
+                    L("LOCPlayAch_ManageAchievements_Overrides_ProviderStatusValue"),
+                    providerName,
+                    valueDisplay);
             }
         }
 
