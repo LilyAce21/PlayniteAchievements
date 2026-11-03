@@ -13,6 +13,7 @@ using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Achievements;
 using PlayniteAchievements.Services.GameCustomData;
+using PlayniteAchievements.Services.Localization;
 using PlayniteAchievements.Services.Logging;
 using PlayniteAchievements.Services.Rules;
 
