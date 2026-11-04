@@ -1410,6 +1410,51 @@ namespace PlayniteAchievements.Views
             }
         }
 
+        private static readonly string[] OfficialSanProfileKeys =
+            { "Default", "Common", "Uncommon", "Rare", "UltraRare", "Capstone", "Completion" };
+
+        private void OfficialSanStyleEdit_Click(object sender, RoutedEventArgs e)
+        {
+            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
+            var tag = ((sender as FrameworkElement)?.Tag as string) ?? "Common|Primary";
+            var slot = ResolveOfficialSanSlot(localSettings, tag);
+            if (slot == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(slot.ThemePath))
+            {
+                NotificationsUnlockSoundStatusTextBlock.Text = "Choose a .san theme for this slot before editing its style.";
+                return;
+            }
+
+            var parts = tag.Split('|');
+            var second = parts.Length > 1 && string.Equals(parts[1], "Alt", StringComparison.OrdinalIgnoreCase);
+            var title = $"SAN style: {parts[0]}{(second ? " (second theme)" : string.Empty)}";
+
+            _plugin.OpenSanStyleEditor(
+                Window.GetWindow(this),
+                slot,
+                NotificationPublisher.TryLoadSanBaseline(slot.ThemePath),
+                title,
+                () => OfficialSanTest_Click(new Button { Tag = tag }, new RoutedEventArgs()),
+                overrides =>
+                {
+                    foreach (var key in OfficialSanProfileKeys)
+                    {
+                        var profile = localSettings.OfficialSanProfiles?.Get(key);
+                        foreach (var target in new[] { profile?.Primary, profile?.Alt })
+                        {
+                            if (target != null && !string.IsNullOrWhiteSpace(target.ThemePath))
+                            {
+                                target.StyleOverrides = new Dictionary<string, string>(overrides);
+                            }
+                        }
+                    }
+                });
+        }
+
         private void OfficialSanTest_Click(object sender, RoutedEventArgs e)
         {
             var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;

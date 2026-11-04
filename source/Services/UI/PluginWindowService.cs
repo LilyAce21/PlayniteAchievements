@@ -32,6 +32,8 @@ using PlayniteAchievements.Views;
 using PlayniteAchievements.Views.Dialogs;
 using PlayniteAchievements.Views.Helpers;
 using PlayniteAchievements.Views.ManageAchievements;
+using PlayniteAchievements.Views.Settings.Notifications;
+using Newtonsoft.Json.Linq;
 
 namespace PlayniteAchievements.Services.UI
 {
@@ -208,6 +210,64 @@ namespace PlayniteAchievements.Services.UI
 
             window.Loaded += loadedHandler;
             window.ContentRendered += contentRenderedHandler;
+        }
+
+        /// <summary>
+        /// Opens the style editor for one official-SAN notification slot as a dialog. Edits go
+        /// straight into the slot; <paramref name="test"/> shows a test notification with them.
+        /// </summary>
+        public void OpenSanStyleEditor(
+            Window owner,
+            OfficialSanSlot slot,
+            JObject baseline,
+            string title,
+            Action test,
+            Action<System.Collections.Generic.Dictionary<string, string>> copyToAll)
+        {
+            _ensureAchievementResourcesLoaded?.Invoke();
+
+            Window window = null;
+            var view = new SanStyleEditorControl(
+                slot,
+                baseline,
+                title,
+                current =>
+                {
+                    // The picker works in WPF colour text; SAN's is CSS (alpha last).
+                    var picked = PickColor(window ?? owner, current);
+                    return string.IsNullOrWhiteSpace(picked) ? null : picked;
+                },
+                test,
+                copyToAll);
+
+            window = PlayniteUiProvider.CreateExtensionWindow(
+                title,
+                view,
+                new WindowOptions
+                {
+                    ShowMinimizeButton = false,
+                    ShowMaximizeButton = true,
+                    ShowCloseButton = true,
+                    CanBeResizable = true,
+                    Width = 780,
+                    Height = 820
+                });
+
+            window.MinWidth = 620;
+            window.MinHeight = 520;
+
+            try
+            {
+                window.Owner = owner ?? _api?.Dialogs?.GetCurrentAppWindow();
+                window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Debug(ex, "Failed to set owner for the SAN style editor window.");
+            }
+
+            PrepareForegroundActivation(window);
+            window.ShowDialog();
         }
 
         public string PickColor(Window owner, string currentValue)

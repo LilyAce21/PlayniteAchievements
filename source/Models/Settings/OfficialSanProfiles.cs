@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using PlayniteAchievements.Common;
 
 namespace PlayniteAchievements.Models.Settings
@@ -28,7 +29,7 @@ namespace PlayniteAchievements.Models.Settings
         private int _durationSeconds;
         private bool _liveBlurEnabled;
         private int _liveBlurStrength = 50;
-        private int _liveBlurTintOpacity = 60;
+        private Dictionary<string, string> _styleOverrides = new Dictionary<string, string>();
 
         public string ThemePath { get => _themePath; set => SetValue(ref _themePath, value ?? string.Empty); }
 
@@ -70,13 +71,15 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
-        /// How opaque a solid or gradient theme background stays over the live blur, 0-100. Lower
-        /// shows more of the blur; 100 leaves the theme's background exactly as authored.
+        /// Style settings this slot overrides over the .san theme's own values, keyed by SAN
+        /// <c>customisation</c> key (see <see cref="SanStyleCatalog"/>). Only keys that are present
+        /// are applied; everything else keeps the theme's value. Values are stored as text: numbers
+        /// in invariant culture, booleans as true/false, colours in SAN's #RRGGBB or #RRGGBBAA.
         /// </summary>
-        public int LiveBlurTintOpacity
+        public Dictionary<string, string> StyleOverrides
         {
-            get => _liveBlurTintOpacity;
-            set => SetValue(ref _liveBlurTintOpacity, System.Math.Max(0, System.Math.Min(100, value)));
+            get => _styleOverrides;
+            set => SetValue(ref _styleOverrides, value ?? new Dictionary<string, string>());
         }
     }
 

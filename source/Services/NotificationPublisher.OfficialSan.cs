@@ -64,6 +64,63 @@ namespace PlayniteAchievements.Services
             return null;
         }
 
+        /// <summary>
+        /// Writes the slot's style overrides over the theme's customisation and returns the ones the
+        /// host page implements itself (not SAN keys). Unknown keys and unparseable values are skipped.
+        /// </summary>
+        private static JObject ApplySanStyleOverrides(JObject customisation, OfficialSanSlot slot)
+        {
+            var extras = new JObject();
+            var overrides = slot?.StyleOverrides;
+            if (customisation == null || overrides == null || overrides.Count == 0)
+            {
+                return extras;
+            }
+
+            foreach (var pair in overrides)
+            {
+                var option = SanStyleCatalog.Find(pair.Key);
+                var token = option?.ToToken(pair.Value);
+                if (token == null)
+                {
+                    continue;
+                }
+
+                if (option.IsPluginExtra)
+                {
+                    extras[option.Key] = token;
+                }
+                else
+                {
+                    customisation[option.Key] = token;
+                }
+            }
+
+            return extras;
+        }
+
+        /// <summary>
+        /// The theme's own customisation values (with SAN's defaults filled in), for the style
+        /// editor to show beside each override. Null when the theme cannot be read.
+        /// </summary>
+        internal static JObject TryLoadSanBaseline(string themePath)
+        {
+            try
+            {
+                var runtimeRoot = OfficialSanThemeService.FindRuntimeRoot(GetPluginAssemblyDirectory());
+                if (string.IsNullOrWhiteSpace(runtimeRoot) || string.IsNullOrWhiteSpace(themePath))
+                {
+                    return null;
+                }
+
+                return OfficialSanThemeService.Load(themePath, runtimeRoot, OfficialSanCacheRoot()).Customisation;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static string OfficialSanCacheRoot()
         {
             return Path.Combine(Path.GetTempPath(), "PlayniteAchievements", "SANcache");
@@ -660,6 +717,10 @@ namespace PlayniteAchievements.Services
                 // hold, swap and close on it), so the chosen duration has to go into the theme itself.
                 theme.Customisation["displaytime"] = displaySeconds;
 
+                // The profile's own style settings win over the theme's values. Scale, display time
+                // and position are not in the catalog: the plugin has its own settings for those.
+                var paStyle = ApplySanStyleOverrides(theme.Customisation, slot);
+
                 var position = slot.UseThemePosition
                     ? SanToPosition(OfficialSanThemeService.PositionName(theme.Customisation))
                     : slot.Position;
@@ -688,13 +749,14 @@ namespace PlayniteAchievements.Services
                         ["percent"] = hasPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
                         ["tier"] = pillTier
                     },
-                    // The host page reports its card's rect to the live blur backdrop (a window under
-                    // this one) and keeps only this share of a solid/gradient theme background.
+                    // The host page reports its card's rect to the live blur backdrop, a window under this
+                    // one, while the live blur is on.
                     ["paBlur"] = new JObject
                     {
-                        ["on"] = slot.LiveBlurEnabled,
-                        ["tint"] = slot.LiveBlurTintOpacity
+                        ["on"] = slot.LiveBlurEnabled
                     },
+                    // Style settings that are not SAN keys (the tint layer); the page implements them.
+                    ["paStyle"] = paStyle,
                     ["displayName"] = achievementName ?? string.Empty,
                     ["description"] = achievementDescription ?? string.Empty,
                     ["iconPath"] = iconPath,

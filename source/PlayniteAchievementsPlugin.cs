@@ -1616,6 +1616,17 @@ namespace PlayniteAchievements
         /// Resolves the started process id for a specific running game, or for the most recently
         /// started still-running game when <paramref name="gameId"/> is null or empty.
         /// </summary>
+        internal void OpenSanStyleEditor(
+            System.Windows.Window owner,
+            Models.Settings.OfficialSanSlot slot,
+            Newtonsoft.Json.Linq.JObject baseline,
+            string title,
+            Action test,
+            Action<System.Collections.Generic.Dictionary<string, string>> copyToAll)
+        {
+            _windowService?.OpenSanStyleEditor(owner, slot, baseline, title, test, copyToAll);
+        }
+
         private int? GetProcessIdForGame(Guid? gameId)
         {
             if (gameId.HasValue && gameId.Value != Guid.Empty)

@@ -868,18 +868,30 @@
         return { left: l, top: t, width: Math.max(0, r - l), height: Math.max(0, b - t) };
       }
 
-      /* A solid or gradient theme background is usually opaque, which would hide the blur
-         entirely. The tint setting keeps only that share of the theme's own colour. */
-      function paApplyBlurTint(tint) {
-        const pct = Math.max(0, Math.min(100, Number(tint)));
-        if (!Number.isFinite(pct) || pct >= 100 || document.getElementById("pa-blur-tint")) return;
-        const mix = (v) => "color-mix(in srgb, var(" + v + ") " + pct + "%, transparent)";
+      /* Style settings SAN itself does not have. In image mode the card background is just the
+         theme's PNG (primarycolor is not used), so a glass theme's colour is baked into the image
+         and cannot be changed through SAN. These add a colour layer over the card background and
+         let the image be faded so the live blur and the tint show through. Both only matter when
+         the profile sets them. */
+      function paApplyStyle(payload) {
+        const s = payload && payload.paStyle;
+        if (!s || document.getElementById("pa-style")) return;
+        const rules = [];
+        const imageOpacity = Number(s.paBgImageOpacity);
+        if (Number.isFinite(imageOpacity) && imageOpacity < 100) {
+          rules.push("body[bgimg] .wrapper#bg::after, body[gameart] .wrapper#bg::after { opacity: " +
+            (Math.max(0, imageOpacity) / 100) + " !important; }");
+        }
+        const tintOpacity = Number(s.paTintOpacity);
+        if (s.paTintColor && Number.isFinite(tintOpacity) && tintOpacity > 0) {
+          rules.push(".wrapper#bg::before { content: \"\"; position: absolute; inset: 0; border-radius: inherit; " +
+            "pointer-events: none; background: " + String(s.paTintColor).replace(/[;{}<>]/g, "") + "; opacity: " +
+            (Math.min(100, tintOpacity) / 100) + "; }");
+        }
+        if (!rules.length) return;
         const style = document.createElement("style");
-        style.id = "pa-blur-tint";
-        style.textContent =
-          "body[solid] .wrapper#bg { background-color: " + mix("--primarycolor") + " !important; }" +
-          "body[gradient] .wrapper#bg { background-image: linear-gradient(var(--gradientangle), " +
-          mix("--primarycolor") + ", " + mix("--secondarycolor") + ") !important; }";
+        style.id = "pa-style";
+        style.textContent = rules.join("\n");
         document.head.appendChild(style);
       }
 
@@ -887,7 +899,6 @@
         const cfg = payload && payload.paBlur;
         if (!cfg || !cfg.on || window.__paBackdropOn) return;
         window.__paBackdropOn = true;
-        paApplyBlurTint(cfg.tint);
         let last = "";
         const tick = () => {
           const el = document.getElementById("bg") || document.getElementById("xpwrapper") ||
@@ -977,6 +988,7 @@
           applySanVariables(payload, customisation);
           try { applyUpstreamElements(payload.upstream); } catch (e) {}
           try { paSetupPill(payload); } catch (e) {}
+          try { paApplyStyle(payload); } catch (e) {}
           try { paSetupBackdropReporter(payload); } catch (e) {}
           window.__paPreload = [payload.headerPath, payload.gameIconPath, payload.iconPath]
             .filter(Boolean).map((p) => fileUrl(p));
