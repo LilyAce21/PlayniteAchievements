@@ -845,7 +845,21 @@ namespace PlayniteAchievements.Services
 
                     if (slot.LiveBlurEnabled && liveBackdrop == null)
                     {
-                        liveBackdrop = SanLiveBackdrop.TryStart(window, slot.LiveBlurStrength, out var blurSkipped);
+                        // The running game's window gives the lowest-latency capture; a test from the
+                        // settings page (no game) falls back to capturing the monitor.
+                        var gameHwnd = IntPtr.Zero;
+                        try
+                        {
+                            var pid = game != null ? GameProcessIdResolver?.Invoke(game.Id) : null;
+                            if (pid.HasValue)
+                            {
+                                gameHwnd = (_sanScreenshotService ?? (_sanScreenshotService = new UnlockScreenshotService(_logger)))
+                                    .ResolveGameWindowHandle(pid);
+                            }
+                        }
+                        catch { }
+
+                        liveBackdrop = SanLiveBackdrop.TryStart(window, slot.LiveBlurStrength, gameHwnd, out var blurSkipped);
                         if (liveBackdrop != null)
                         {
                             // The page may already have reported its card before the backdrop existed.

@@ -42,6 +42,14 @@ namespace PlayniteAchievements.Services
         private readonly IPlayniteAPI _api;
         private readonly PlayniteAchievementsSettings _settings;
         private readonly ILogger _logger;
+
+        /// <summary>
+        /// Gives the process id of a game's running process (null when it is not running). Lets the
+        /// SAN live blur capture the game window directly instead of the whole monitor.
+        /// </summary>
+        public Func<Guid, int?> GameProcessIdResolver { get; set; }
+
+        private UnlockScreenshotService _sanScreenshotService;
         private static readonly List<OverlayWindowState> ActiveOverlayWindows = new List<OverlayWindowState>();
         private static readonly object WebView2LoaderSync = new object();
         private static bool _webView2LoaderConfigured;

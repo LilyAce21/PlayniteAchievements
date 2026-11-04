@@ -1268,7 +1268,10 @@ namespace PlayniteAchievements
                         _achievementDataService.SyncAllAchievementFiltersFromCustomData();
                     }
 
-                    _notifications = new NotificationPublisher(api, settings, _logger);
+                    _notifications = new NotificationPublisher(api, settings, _logger)
+                    {
+                        GameProcessIdResolver = id => GetProcessIdForGame(id)
+                    };
                     _refreshCoordinator = new RefreshEntryPoint(
                         _refreshService,
                         _logger,

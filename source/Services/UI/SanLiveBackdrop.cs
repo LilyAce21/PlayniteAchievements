@@ -24,8 +24,10 @@ namespace PlayniteAchievements.Services.UI
     /// Two windows rather than one WPF layer under the WebView2: a WebView2 is a child HWND, so WPF
     /// content under it would not show through its transparent areas.
     ///
-    /// Capture is of the whole monitor, so the SAN window and this window are both excluded from
-    /// it; otherwise the card would be blurred into its own background. UI thread only.
+    /// With a known game window the capture is of that window alone, which is the lowest-latency
+    /// mode and leaves the SAN card visible to screen recorders. Without one it falls back to the
+    /// whole monitor, and then the SAN window and this window are both excluded from the capture;
+    /// otherwise the card would be blurred into its own background. UI thread only.
     /// </summary>
     internal sealed class SanLiveBackdrop : IDisposable
     {
@@ -72,9 +74,12 @@ namespace PlayniteAchievements.Services.UI
         private bool _hasReport;
         private double _left, _top, _width, _height, _radius, _opacity, _viewW, _viewH;
 
-        private SanLiveBackdrop(Window san, IntPtr sanHwnd, LiveRegionCapture capture, double reachPhys)
+        private readonly bool _excluded;
+
+        private SanLiveBackdrop(Window san, IntPtr sanHwnd, LiveRegionCapture capture, double reachPhys, bool excluded)
         {
             _san = san;
+            _excluded = excluded;
             _sanHwnd = sanHwnd;
             _capture = capture;
             _reachPhys = reachPhys;
@@ -113,7 +118,8 @@ namespace PlayniteAchievements.Services.UI
             _backdrop.Show();
 
             _backdropHwnd = new WindowInteropHelper(_backdrop).Handle;
-            if (_backdropHwnd == IntPtr.Zero || !SetWindowDisplayAffinity(_backdropHwnd, WdaExcludeFromCapture))
+            if (_backdropHwnd == IntPtr.Zero ||
+                (_excluded && !SetWindowDisplayAffinity(_backdropHwnd, WdaExcludeFromCapture)))
             {
                 // Without this the backdrop would capture itself.
                 var error = Marshal.GetLastWin32Error();
@@ -129,12 +135,13 @@ namespace PlayniteAchievements.Services.UI
         }
 
         /// <summary>
-        /// Starts the live background for <paramref name="sanWindow"/>. Null when capture is
-        /// unavailable, with <paramref name="skipped"/> saying why; the card then shows only its own
-        /// background. <paramref name="strengthPercent"/> is the 0-100 blur strength. UI thread; the
-        /// window must already have a handle.
+        /// Starts the live background for <paramref name="sanWindow"/>, capturing
+        /// <paramref name="gameHwnd"/> when it is not zero and the whole monitor otherwise. Null
+        /// when capture is unavailable, with <paramref name="skipped"/> saying why; the card then
+        /// shows only its own background. <paramref name="strengthPercent"/> is the 0-100 blur
+        /// strength. UI thread; the window must already have a handle.
         /// </summary>
-        public static SanLiveBackdrop TryStart(Window sanWindow, double strengthPercent, out string skipped)
+        public static SanLiveBackdrop TryStart(Window sanWindow, double strengthPercent, IntPtr gameHwnd, out string skipped)
         {
             skipped = null;
             LiveRegionCapture capture = null;
@@ -156,24 +163,32 @@ namespace PlayniteAchievements.Services.UI
                     return null;
                 }
 
-                if (!SetWindowDisplayAffinity(sanHwnd, WdaExcludeFromCapture))
+                var wholeMonitor = gameHwnd == IntPtr.Zero;
+                if (wholeMonitor)
                 {
-                    skipped = "the SAN window could not be excluded from the monitor capture (error " +
-                              Marshal.GetLastWin32Error() + ")";
-                    return null;
+                    if (!SetWindowDisplayAffinity(sanHwnd, WdaExcludeFromCapture))
+                    {
+                        skipped = "the SAN window could not be excluded from the monitor capture (error " +
+                                  Marshal.GetLastWin32Error() + ")";
+                        return null;
+                    }
+
+                    excluded = true;
                 }
 
-                excluded = true;
-
-                capture = LiveRegionCapture.TryStart(sanHwnd, true, reach);
+                capture = LiveRegionCapture.TryStart(wholeMonitor ? sanHwnd : gameHwnd, wholeMonitor, reach, lowLatency: true);
                 if (capture == null)
                 {
                     skipped = "window capture is not supported";
-                    SetWindowDisplayAffinity(sanHwnd, WdaNone);
+                    if (excluded)
+                    {
+                        SetWindowDisplayAffinity(sanHwnd, WdaNone);
+                    }
+
                     return null;
                 }
 
-                return new SanLiveBackdrop(sanWindow, sanHwnd, capture, reach);
+                return new SanLiveBackdrop(sanWindow, sanHwnd, capture, reach, excluded);
             }
             catch (Exception ex)
             {
@@ -358,7 +373,11 @@ namespace PlayniteAchievements.Services.UI
             _disposed = true;
             CompositionTarget.Rendering -= OnRendering;
             try { _capture.Dispose(); } catch { }
-            try { SetWindowDisplayAffinity(_sanHwnd, WdaNone); } catch { }
+            if (_excluded)
+            {
+                try { SetWindowDisplayAffinity(_sanHwnd, WdaNone); } catch { }
+            }
+
             try { _backdrop.Close(); } catch { }
         }
     }

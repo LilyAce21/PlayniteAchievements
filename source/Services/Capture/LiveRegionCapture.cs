@@ -39,6 +39,23 @@ namespace PlayniteAchievements.Services.Capture
         private readonly bool _isMonitor;
         private readonly double _reachPhys;
 
+        // Opt-in low-latency pipeline (the SAN backdrop uses it; the native toast does not):
+        // every source frame is processed rather than every other one, the newest queued frame is
+        // taken, the GPU thread priority is raised, and the readback is pipelined so the CPU never
+        // waits on the copy it has only just issued behind a busy game.
+        private readonly bool _lowLatency;
+        private D3D11.Texture2D[] _ring;
+        private int _ringWrite;
+        private bool _ringPrimed;
+        private int _ringW, _ringH;
+        private Rectangle _ringCovered;
+
+        // Timing for the diagnostics line, written under _gate.
+        private long _framesSeen;
+        private long _procTicksTotal, _procTicksMax;
+        private double _ageMsMax;
+        private int _gpuPriority = int.MinValue;
+
         private D3D11.Device _device;
         private D3D11.DeviceContext _context;
         private WinRtIDirect3DDevice _winrtDevice;
@@ -91,11 +108,12 @@ namespace PlayniteAchievements.Services.Capture
             public Rectangle ScreenRect { get; }
         }
 
-        private LiveRegionCapture(IntPtr hwnd, bool isMonitor, double reachPhys)
+        private LiveRegionCapture(IntPtr hwnd, bool isMonitor, double reachPhys, bool lowLatency)
         {
             _hwnd = hwnd;
             _isMonitor = isMonitor;
             _reachPhys = reachPhys;
+            _lowLatency = lowLatency;
         }
 
         /// <summary>
@@ -103,14 +121,14 @@ namespace PlayniteAchievements.Services.Capture
         /// <paramref name="wholeMonitor"/> is set; <paramref name="reachPhys"/> is the blur's reach in
         /// physical pixels. Null when this Windows has no window capture.
         /// </summary>
-        public static LiveRegionCapture TryStart(IntPtr hwnd, bool wholeMonitor, double reachPhys)
+        public static LiveRegionCapture TryStart(IntPtr hwnd, bool wholeMonitor, double reachPhys, bool lowLatency = false)
         {
             if (hwnd == IntPtr.Zero || !GraphicsCaptureSession.IsSupported())
             {
                 return null;
             }
 
-            var capture = new LiveRegionCapture(hwnd, wholeMonitor, reachPhys);
+            var capture = new LiveRegionCapture(hwnd, wholeMonitor, reachPhys, lowLatency);
             Task.Run(() => capture.Start());
             return capture;
         }
@@ -134,8 +152,15 @@ namespace PlayniteAchievements.Services.Capture
             var firstMs = first == 0
                 ? "none"
                 : ((first - _createdTicks) * 1000.0 / Stopwatch.Frequency).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
-            return $"mode={(_isMonitor ? "monitor" : "window")} hdr={_hdr} frames={Volatile.Read(ref _framesDelivered)} " +
-                   $"firstFrameMs={firstMs} failure={Volatile.Read(ref _failure) ?? "none"}";
+            var delivered = Volatile.Read(ref _framesDelivered);
+            var procAvg = delivered > 0 ? _procTicksTotal * 1000.0 / Stopwatch.Frequency / delivered : 0;
+            var procMax = _procTicksMax * 1000.0 / Stopwatch.Frequency;
+            var timing = _lowLatency
+                ? $" lowLatency=true seen={Volatile.Read(ref _framesSeen)} procMs(avg/max)={procAvg:0.0}/{procMax:0.0} " +
+                  $"frameAgeMsMax={_ageMsMax:0} gpuPrio={(_gpuPriority == int.MinValue ? "n/a" : _gpuPriority.ToString())}"
+                : string.Empty;
+            return $"mode={(_isMonitor ? "monitor" : "window")} hdr={_hdr} frames={delivered} " +
+                   $"firstFrameMs={firstMs} failure={Volatile.Read(ref _failure) ?? "none"}{timing}";
         }
 
         private void RecordFailure(string stage, Exception ex)
@@ -201,6 +226,20 @@ namespace PlayniteAchievements.Services.Capture
                         return;
                     }
 
+                    if (_lowLatency)
+                    {
+                        // The queue is oldest-first: skip to the newest frame so a slow frame never
+                        // leaves older ones to be shown after it.
+                        Direct3D11CaptureFrame newer;
+                        while ((newer = pool.TryGetNextFrame()) != null)
+                        {
+                            frame.Dispose();
+                            frame = newer;
+                        }
+
+                        _framesSeen++;
+                    }
+
                     // A resized source delivers frames at the new size only after the pool follows.
                     if (frame.ContentSize.Width != _poolSize.Width || frame.ContentSize.Height != _poolSize.Height)
                     {
@@ -216,13 +255,34 @@ namespace PlayniteAchievements.Services.Capture
                     }
 
                     var now = Stopwatch.GetTimestamp();
-                    if (now - _lastFrameTicks < MinFrameTicks || request.IsEmpty)
+                    // The source runs a little faster than the target rate, so a gate at the full
+                    // interval rejects every other frame and halves the real rate (about 16 fps
+                    // measured). The low-latency path gates at half an interval instead.
+                    var gate = _lowLatency ? MinFrameTicks / 2 : MinFrameTicks;
+                    if (now - _lastFrameTicks < gate || request.IsEmpty)
                     {
                         return;
                     }
 
                     _lastFrameTicks = now;
                     var processed = Process(frame, request);
+                    if (_lowLatency)
+                    {
+                        var took = Stopwatch.GetTimestamp() - now;
+                        _procTicksTotal += took;
+                        if (took > _procTicksMax)
+                        {
+                            _procTicksMax = took;
+                        }
+
+                        var ageMs = Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency -
+                                    frame.SystemRelativeTime.TotalMilliseconds;
+                        if (ageMs > _ageMsMax && ageMs < 60000)
+                        {
+                            _ageMsMax = ageMs;
+                        }
+                    }
+
                     if (processed != null)
                     {
                         Interlocked.Exchange(ref _latest, processed);
@@ -276,12 +336,41 @@ namespace PlayniteAchievements.Services.Capture
                     _context.GenerateMips(_regionView);
                 }
 
-                _context.CopySubresourceRegion(_region, _mipLevel, null, _staging, 0);
-
                 var width = Math.Max(1, source.Width >> _mipLevel);
                 var height = Math.Max(1, source.Height >> _mipLevel);
+                var readTexture = _staging;
+                var shownCovered = covered;
+                if (_lowLatency)
+                {
+                    // Copy this frame into one staging texture and read back the one copied on the
+                    // previous frame, which the GPU has long finished: one frame (~33 ms) later, but
+                    // no CPU wait behind whatever the game has queued.
+                    _context.CopySubresourceRegion(_region, _mipLevel, null, _ring[_ringWrite], 0);
+                    var primed = _ringPrimed;
+                    readTexture = _ring[_ringWrite ^ 1];
+                    var readW = _ringW;
+                    var readH = _ringH;
+                    shownCovered = _ringCovered;
+                    _ringW = width;
+                    _ringH = height;
+                    _ringCovered = covered;
+                    _ringPrimed = true;
+                    _ringWrite ^= 1;
+                    if (!primed)
+                    {
+                        return null;
+                    }
+
+                    width = readW;
+                    height = readH;
+                }
+                else
+                {
+                    _context.CopySubresourceRegion(_region, _mipLevel, null, _staging, 0);
+                }
+
                 var bgra = new byte[width * height * 4];
-                var box = _context.MapSubresource(_staging, 0, D3D11.MapMode.Read, D3D11.MapFlags.None);
+                var box = _context.MapSubresource(readTexture, 0, D3D11.MapMode.Read, D3D11.MapFlags.None);
                 try
                 {
                     for (var y = 0; y < height; y++)
@@ -299,7 +388,7 @@ namespace PlayniteAchievements.Services.Capture
                 }
                 finally
                 {
-                    _context.UnmapSubresource(_staging, 0);
+                    _context.UnmapSubresource(readTexture, 0);
                 }
 
                 if (!_hdr)
@@ -317,7 +406,7 @@ namespace PlayniteAchievements.Services.Capture
                     _line = BoxBlur.Apply(bgra, 0, width, height, width * 4, 4, BoxBlur.RadiusFor(reachInLevel), _line);
                 }
 
-                return new Frame(bgra, width, height, covered);
+                return new Frame(bgra, width, height, shownCovered);
             }
         }
 
@@ -384,7 +473,7 @@ namespace PlayniteAchievements.Services.Capture
                 OptionFlags = D3D11.ResourceOptionFlags.GenerateMipMaps
             });
             _regionView = new D3D11.ShaderResourceView(_device, _region);
-            _staging = new D3D11.Texture2D(_device, new D3D11.Texture2DDescription
+            var stagingDesc = new D3D11.Texture2DDescription
             {
                 Width = Math.Max(1, width >> level),
                 Height = Math.Max(1, height >> level),
@@ -394,7 +483,17 @@ namespace PlayniteAchievements.Services.Capture
                 SampleDescription = new DXGI.SampleDescription(1, 0),
                 Usage = D3D11.ResourceUsage.Staging,
                 CpuAccessFlags = D3D11.CpuAccessFlags.Read
-            });
+            };
+            if (_lowLatency)
+            {
+                _ring = new[] { new D3D11.Texture2D(_device, stagingDesc), new D3D11.Texture2D(_device, stagingDesc) };
+                _ringWrite = 0;
+                _ringPrimed = false;
+            }
+            else
+            {
+                _staging = new D3D11.Texture2D(_device, stagingDesc);
+            }
         }
 
         private void CreateDevice()
@@ -404,6 +503,20 @@ namespace PlayniteAchievements.Services.Capture
             _context = _device.ImmediateContext;
             using (var dxgiDevice = _device.QueryInterface<DXGI.Device>())
             {
+                if (_lowLatency)
+                {
+                    // A game keeps the GPU saturated; at normal priority this device's small copies
+                    // queue behind it. Best effort: the driver or the process may refuse it.
+                    try
+                    {
+                        dxgiDevice.GPUThreadPriority = 7;
+                        _gpuPriority = dxgiDevice.GPUThreadPriority;
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 CreateDirect3D11DeviceFromDXGIDevice(dxgiDevice.NativePointer, out var inspectable)
                     .CheckWin32("CreateDirect3D11DeviceFromDXGIDevice");
                 try
@@ -461,6 +574,17 @@ namespace PlayniteAchievements.Services.Capture
         private void ReleaseTextures()
         {
             _staging?.Dispose();
+            if (_ring != null)
+            {
+                foreach (var texture in _ring)
+                {
+                    texture?.Dispose();
+                }
+
+                _ring = null;
+            }
+
+            _ringPrimed = false;
             _regionView?.Dispose();
             _region?.Dispose();
             _staging = null;
