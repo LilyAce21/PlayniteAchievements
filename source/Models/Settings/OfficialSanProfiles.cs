@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using PlayniteAchievements.Common;
 
 namespace PlayniteAchievements.Models.Settings
@@ -29,7 +28,7 @@ namespace PlayniteAchievements.Models.Settings
         private int _durationSeconds;
         private bool _liveBlurEnabled;
         private int _liveBlurStrength = 50;
-        private Dictionary<string, string> _styleOverrides = new Dictionary<string, string>();
+        private System.Collections.Generic.Dictionary<string, string> _styleOverrides = new System.Collections.Generic.Dictionary<string, string>();
 
         public string ThemePath { get => _themePath; set => SetValue(ref _themePath, value ?? string.Empty); }
 
@@ -76,10 +75,10 @@ namespace PlayniteAchievements.Models.Settings
         /// are applied; everything else keeps the theme's value. Values are stored as text: numbers
         /// in invariant culture, booleans as true/false, colours in SAN's #RRGGBB or #RRGGBBAA.
         /// </summary>
-        public Dictionary<string, string> StyleOverrides
+        public System.Collections.Generic.Dictionary<string, string> StyleOverrides
         {
             get => _styleOverrides;
-            set => SetValue(ref _styleOverrides, value ?? new Dictionary<string, string>());
+            set => SetValue(ref _styleOverrides, value ?? new System.Collections.Generic.Dictionary<string, string>());
         }
     }
 
