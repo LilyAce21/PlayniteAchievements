@@ -688,6 +688,13 @@ namespace PlayniteAchievements.Services
                         ["percent"] = hasPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
                         ["tier"] = pillTier
                     },
+                    // The host page reports its card's rect to the live blur backdrop (a window under
+                    // this one) and keeps only this share of a solid/gradient theme background.
+                    ["paBlur"] = new JObject
+                    {
+                        ["on"] = slot.LiveBlurEnabled,
+                        ["tint"] = slot.LiveBlurTintOpacity
+                    },
                     ["displayName"] = achievementName ?? string.Empty,
                     ["description"] = achievementDescription ?? string.Empty,
                     ["iconPath"] = iconPath,
@@ -789,8 +796,25 @@ namespace PlayniteAchievements.Services
                     PositionOverlayWindow(window, position, 0, followMonitor, debug);
                 }
 
+                // The live blur behind the card: a second window under this one, fed by the card
+                // rect the page reports. Started once the card is on screen, stopped with the window.
+                SanLiveBackdrop liveBackdrop = null;
+                string lastCardReport = null;
+
                 window.Closed += (_, __) =>
                 {
+                    if (liveBackdrop != null)
+                    {
+                        try
+                        {
+                            liveBackdrop.Dispose();
+                            ForkLog.Wrap(_logger)?.Debug($"[OfficialSan] Live blur: {liveBackdrop.Describe()}");
+                        }
+                        catch { }
+
+                        liveBackdrop = null;
+                    }
+
                     if (overlayState != null)
                     {
                         UnregisterOverlayWindow(overlayState);
@@ -818,6 +842,21 @@ namespace PlayniteAchievements.Services
                     started = true;
                     ForkLog.Wrap(_logger)?.Info($"[OfficialSan] '{achievementName}' on screen {showStopwatch.ElapsedMilliseconds} ms after the unlock reached the notifier ({(warm != null ? "warm" : "cold")}).");
                     try { readyFallback?.Stop(); } catch { }
+
+                    if (slot.LiveBlurEnabled && liveBackdrop == null)
+                    {
+                        liveBackdrop = SanLiveBackdrop.TryStart(window, slot.LiveBlurStrength, out var blurSkipped);
+                        if (liveBackdrop != null)
+                        {
+                            // The page may already have reported its card before the backdrop existed.
+                            liveBackdrop.UpdateCard(lastCardReport);
+                        }
+                        else if (blurSkipped != null)
+                        {
+                            ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Live blur: not started ({blurSkipped}).");
+                        }
+                    }
+
                     var closeTimer = new DispatcherTimer
                     {
                         Interval = TimeSpan.FromMilliseconds(Math.Max(1500, displaySeconds * 1000.0) + 1500)
@@ -874,6 +913,11 @@ namespace PlayniteAchievements.Services
                         {
                             ForkLog.Wrap(_logger)?.Debug($"[OfficialSan] Page timings ({message}); {showStopwatch.ElapsedMilliseconds} ms since hand-off.");
                             window.Dispatcher.BeginInvoke(new Action(StartPlayback));
+                        }
+                        else if (SanLiveBackdrop.IsCardReport(message))
+                        {
+                            lastCardReport = message;
+                            liveBackdrop?.UpdateCard(message);
                         }
                     };
                 }

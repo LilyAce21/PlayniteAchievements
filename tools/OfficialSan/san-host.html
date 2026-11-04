@@ -851,6 +851,66 @@
         tick();
       }
 
+      /* Live blur. The plugin draws the blurred game picture in a window directly under this one,
+         inside the card's rounded rect, and can only follow the card if the page says where it is.
+         While the live blur is on this reports the visible card (#bg): its box after transforms,
+         cut down by any overflow-clipping ancestor, its corner radius and its effective opacity,
+         whenever any of them change. The plugin turns it into the backdrop's position. */
+      function paCardClip(el, rect) {
+        let l = rect.left, t = rect.top, r = rect.right, b = rect.bottom;
+        for (let p = el.parentElement; p instanceof Element; p = p.parentElement) {
+          const st = getComputedStyle(p);
+          if (st.overflowX === "visible" && st.overflowY === "visible") continue;
+          const pr = p.getBoundingClientRect();
+          if (st.overflowX !== "visible") { l = Math.max(l, pr.left); r = Math.min(r, pr.right); }
+          if (st.overflowY !== "visible") { t = Math.max(t, pr.top); b = Math.min(b, pr.bottom); }
+        }
+        return { left: l, top: t, width: Math.max(0, r - l), height: Math.max(0, b - t) };
+      }
+
+      /* A solid or gradient theme background is usually opaque, which would hide the blur
+         entirely. The tint setting keeps only that share of the theme's own colour. */
+      function paApplyBlurTint(tint) {
+        const pct = Math.max(0, Math.min(100, Number(tint)));
+        if (!Number.isFinite(pct) || pct >= 100 || document.getElementById("pa-blur-tint")) return;
+        const mix = (v) => "color-mix(in srgb, var(" + v + ") " + pct + "%, transparent)";
+        const style = document.createElement("style");
+        style.id = "pa-blur-tint";
+        style.textContent =
+          "body[solid] .wrapper#bg { background-color: " + mix("--primarycolor") + " !important; }" +
+          "body[gradient] .wrapper#bg { background-image: linear-gradient(var(--gradientangle), " +
+          mix("--primarycolor") + ", " + mix("--secondarycolor") + ") !important; }";
+        document.head.appendChild(style);
+      }
+
+      function paSetupBackdropReporter(payload) {
+        const cfg = payload && payload.paBlur;
+        if (!cfg || !cfg.on || window.__paBackdropOn) return;
+        window.__paBackdropOn = true;
+        paApplyBlurTint(cfg.tint);
+        let last = "";
+        const tick = () => {
+          const el = document.getElementById("bg") || document.getElementById("xpwrapper") ||
+            document.getElementById("outerwrapper");
+          if (el && el.isConnected) {
+            const r = paCardClip(el, el.getBoundingClientRect());
+            const radiusText = String(getComputedStyle(el).borderTopLeftRadius || "0");
+            let rad = parseFloat(radiusText) || 0;
+            if (radiusText.indexOf("%") > -1) rad = rad / 100 * Math.min(r.width, r.height);
+            rad = Math.min(rad, r.width / 2, r.height / 2);
+            const msg = ["san-card", r.left.toFixed(1), r.top.toFixed(1), r.width.toFixed(1),
+              r.height.toFixed(1), rad.toFixed(1), paVisualOpacity(el).toFixed(3),
+              window.innerWidth, window.innerHeight].join("|");
+            if (msg !== last) {
+              last = msg;
+              try { window.chrome.webview.postMessage(msg); } catch (e) {}
+            }
+          }
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+
       function paDecodeImages(urls, timeoutMs) {
         const jobs = (urls || []).filter(Boolean).map((url) => new Promise((resolve) => {
           const img = new Image();
@@ -917,6 +977,7 @@
           applySanVariables(payload, customisation);
           try { applyUpstreamElements(payload.upstream); } catch (e) {}
           try { paSetupPill(payload); } catch (e) {}
+          try { paSetupBackdropReporter(payload); } catch (e) {}
           window.__paPreload = [payload.headerPath, payload.gameIconPath, payload.iconPath]
             .filter(Boolean).map((p) => fileUrl(p));
           notifyReady();

@@ -26,6 +26,9 @@ namespace PlayniteAchievements.Models.Settings
         private string _soundPath = string.Empty;
         private int _soundVolume = 100;
         private int _durationSeconds;
+        private bool _liveBlurEnabled;
+        private int _liveBlurStrength = 50;
+        private int _liveBlurTintOpacity = 60;
 
         public string ThemePath { get => _themePath; set => SetValue(ref _themePath, value ?? string.Empty); }
 
@@ -50,6 +53,30 @@ namespace PlayniteAchievements.Models.Settings
         {
             get => _durationSeconds;
             set => SetValue(ref _durationSeconds, System.Math.Max(0, System.Math.Min(60, value)));
+        }
+
+        /// <summary>
+        /// Blurs the live game picture behind the notification card (the same capture the native
+        /// toast uses), instead of relying on the theme's own blur, which has nothing to blur in a
+        /// transparent window.
+        /// </summary>
+        public bool LiveBlurEnabled { get => _liveBlurEnabled; set => SetValue(ref _liveBlurEnabled, value); }
+
+        /// <summary>How far the live blur spreads, 0-100 (shared mapping with the toast blur).</summary>
+        public int LiveBlurStrength
+        {
+            get => _liveBlurStrength;
+            set => SetValue(ref _liveBlurStrength, System.Math.Max(0, System.Math.Min(100, value)));
+        }
+
+        /// <summary>
+        /// How opaque a solid or gradient theme background stays over the live blur, 0-100. Lower
+        /// shows more of the blur; 100 leaves the theme's background exactly as authored.
+        /// </summary>
+        public int LiveBlurTintOpacity
+        {
+            get => _liveBlurTintOpacity;
+            set => SetValue(ref _liveBlurTintOpacity, System.Math.Max(0, System.Math.Min(100, value)));
         }
     }
 
