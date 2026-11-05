@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -29,7 +30,7 @@ namespace PlayniteAchievements.Services.UI
     /// whole monitor, and then the SAN window and this window are both excluded from the capture;
     /// otherwise the card would be blurred into its own background. UI thread only.
     /// </summary>
-    internal sealed class SanLiveBackdrop : ISanBackdrop
+    internal sealed class SanLiveBackdrop : IDisposable
     {
         private const uint WdaNone = 0;
         private const uint WdaExcludeFromCapture = 0x11;
@@ -70,9 +71,39 @@ namespace PlayniteAchievements.Services.UI
         private int _framesApplied;
         private bool _disposed;
 
-        // The page's last report: the card's box in CSS pixels of the page viewport.
-        private bool _hasReport;
-        private double _left, _top, _width, _height, _radius, _opacity, _viewW, _viewH;
+        // The page's last two reports (the card's box in CSS pixels of the page viewport) and when
+        // each arrived, for projecting the card forward.
+        private SanCardReport _report;
+        private SanCardReport _prev;
+        private long _lastTicks, _prevTicks;
+        private bool _hasReport, _hasPrev;
+
+        // Capture padding around the card, sized from how fast the card moves; see MotionPad.
+        private System.Drawing.Rectangle _lastCard;
+        private long _lastCardTicks;
+        private int _pad = MinMotionPad;
+        private int _padCalm;
+
+        // How old a frame is when it is handed to WPF, for the diagnostics line.
+        private double _ageTotalMs, _ageMaxMs;
+        private long _ageCount;
+
+        // The page reports where the card was; by the time this frame is on screen it has moved on.
+        // Project each edge forward by this long (plus the age of the report) from the velocity
+        // between the last two reports. A report older than StaleMs means the animation stopped.
+        private const double LeadMs = 20;
+        private const double MaxLeadMs = 40;
+        private const double StaleMs = 60;
+
+        // Padding around the card in the capture, in physical pixels: the blur's reach plus room for
+        // the card to move before the next frame lands. Sized from the card's speed, in steps, and
+        // slow to shrink, because a change in padding changes the capture's size and reallocates
+        // its textures. (A fixed quarter of the card's size, as the toast uses, is 345 px a side on a
+        // wide card: about four times more pixels than needed.)
+        private const int MinMotionPad = 32;
+        private const int MaxMotionPad = 256;
+        private const int PadStep = 32;
+        private const double MotionLookaheadMs = 90;
 
         private readonly bool _excluded;
 
@@ -215,42 +246,30 @@ namespace PlayniteAchievements.Services.UI
         /// </summary>
         public void UpdateCard(string message)
         {
-            if (_disposed || !IsCardReport(message))
+            if (_disposed || !SanCardReport.TryParse(message, out var report))
             {
                 return;
             }
 
-            var parts = message.Split('|');
-            if (parts.Length < 9)
+            var now = Stopwatch.GetTimestamp();
+            if (_hasReport)
             {
-                return;
+                _prev = _report;
+                _prevTicks = _lastTicks;
+                _hasPrev = true;
             }
 
-            var values = new double[8];
-            for (var i = 0; i < values.Length; i++)
-            {
-                if (!double.TryParse(parts[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out values[i]) ||
-                    double.IsNaN(values[i]) || double.IsInfinity(values[i]))
-                {
-                    return;
-                }
-            }
-
-            _left = values[0];
-            _top = values[1];
-            _width = values[2];
-            _height = values[3];
-            _radius = Math.Max(0, values[4]);
-            _opacity = Math.Max(0, Math.Min(1, values[5]));
-            _viewW = values[6];
-            _viewH = values[7];
+            _report = report;
+            _lastTicks = now;
             _hasReport = true;
         }
 
         /// <summary>One line for the notification's diagnostics, read after <see cref="Dispose"/>.</summary>
         public string Describe()
         {
-            return $"{_capture.Describe()} applied={_framesApplied} reach={_reachPhys:0.#}";
+            var age = _ageCount > 0 ? _ageTotalMs / _ageCount : 0;
+            return $"{_capture.Describe()} applied={_framesApplied} reach={_reachPhys:0.#} pad={_pad} " +
+                   $"presentAgeMs(avg/max)={age:0.0}/{_ageMaxMs:0}";
         }
 
         private void OnRendering(object sender, EventArgs e)
@@ -269,7 +288,8 @@ namespace PlayniteAchievements.Services.UI
                 }
 
                 _tick++;
-                if (_disposed || !_hasReport || _viewW <= 0 || _viewH <= 0 ||
+                var now = Stopwatch.GetTimestamp();
+                if (_disposed || !_hasReport || _report.ViewWidth <= 0 || _report.ViewHeight <= 0 ||
                     !ToastWindowPlacer.TryGetPhysicalRect(_san, out var win) || win.Width <= 0 || win.Height <= 0)
                 {
                     return;
@@ -277,29 +297,45 @@ namespace PlayniteAchievements.Services.UI
 
                 Place(win);
 
-                // Physical pixels per CSS pixel of the page, whatever the DPI or zoom.
-                var scale = win.Width / _viewW;
-                var card = new System.Drawing.Rectangle(
-                    win.X + (int)Math.Round(_left * scale),
-                    win.Y + (int)Math.Round(_top * scale),
-                    Math.Max(1, (int)Math.Round(_width * scale)),
-                    Math.Max(1, (int)Math.Round(_height * scale)));
+                // Where the card is now: the page's last report, projected forward by the card's own
+                // velocity.
+                var sinceMs = (now - _lastTicks) * 1000.0 / Stopwatch.Frequency;
+                double left = _report.Left, top = _report.Top;
+                double right = _report.Left + _report.Width, bottom = _report.Top + _report.Height;
+                if (_hasPrev)
+                {
+                    var dtMs = (_lastTicks - _prevTicks) * 1000.0 / Stopwatch.Frequency;
+                    if (dtMs > 0.5 && dtMs < 80 && sinceMs < StaleMs)
+                    {
+                        var lead = Math.Min(LeadMs + sinceMs, MaxLeadMs);
+                        left += (_report.Left - _prev.Left) / dtMs * lead;
+                        top += (_report.Top - _prev.Top) / dtMs * lead;
+                        right += ((_report.Left + _report.Width) - (_prev.Left + _prev.Width)) / dtMs * lead;
+                        bottom += ((_report.Top + _report.Height) - (_prev.Top + _prev.Height)) / dtMs * lead;
+                    }
+                }
 
-                if (_width < 1 || _height < 1 || _opacity < 0.01)
+                // Physical pixels per CSS pixel of the page, whatever the DPI or zoom.
+                var scale = win.Width / _report.ViewWidth;
+                var card = new System.Drawing.Rectangle(
+                    win.X + (int)Math.Round(left * scale),
+                    win.Y + (int)Math.Round(top * scale),
+                    Math.Max(1, (int)Math.Round((right - left) * scale)),
+                    Math.Max(1, (int)Math.Round((bottom - top) * scale)));
+
+                if (_report.Width < 1 || _report.Height < 1 || _report.Opacity < 0.01)
                 {
                     _card.Visibility = Visibility.Hidden;
                     return;
                 }
 
-                // Same padding rule as the toast: the blur's reach plus a quarter of the card for
-                // the motion that happens before the next capture lands.
-                var motionPad = Math.Max(card.Width, card.Height) / 4;
-                _capture.Request(LiveBackdropMath.RequestFor(card, _reachPhys, motionPad));
+                _capture.Request(LiveBackdropMath.RequestFor(card, _reachPhys, MotionPad(card, now)));
 
                 var frame = _capture.TakeLatest();
                 if (frame != null)
                 {
                     WriteFrame(frame);
+                    _capture.Recycle(frame);
                     _framesApplied++;
                 }
 
@@ -322,11 +358,11 @@ namespace PlayniteAchievements.Services.UI
                 var sy = dpi.DpiScaleY > 0 ? dpi.DpiScaleY : 1;
                 _card.Width = card.Width / sx;
                 _card.Height = card.Height / sy;
-                _card.RadiusX = _radius * scale / sx;
-                _card.RadiusY = _radius * scale / sy;
+                _card.RadiusX = _report.Radius * scale / sx;
+                _card.RadiusY = _report.Radius * scale / sy;
                 Canvas.SetLeft(_card, (card.X - win.X) / sx);
                 Canvas.SetTop(_card, (card.Y - win.Y) / sy);
-                _card.Opacity = _opacity;
+                _card.Opacity = _report.Opacity;
                 _card.Visibility = Visibility.Visible;
             }
             catch
@@ -351,8 +387,66 @@ namespace PlayniteAchievements.Services.UI
             SetWindowPos(_backdropHwnd, _sanHwnd, win.X, win.Y, win.Width, win.Height, SwpNoActivate);
         }
 
+        /// <summary>
+        /// The padding to capture around the card. Grows at once when the card speeds up and shrinks
+        /// only after it has been calm for a while, in steps, so the capture's size stays put.
+        /// </summary>
+        private int MotionPad(System.Drawing.Rectangle card, long now)
+        {
+            var needed = MinMotionPad;
+            if (_lastCardTicks != 0)
+            {
+                var dtMs = (now - _lastCardTicks) * 1000.0 / Stopwatch.Frequency;
+                if (dtMs > 0.5 && dtMs < 100)
+                {
+                    var move = Math.Max(
+                        Math.Max(Math.Abs(card.Left - _lastCard.Left), Math.Abs(card.Right - _lastCard.Right)),
+                        Math.Max(Math.Abs(card.Top - _lastCard.Top), Math.Abs(card.Bottom - _lastCard.Bottom)));
+                    needed = (int)Math.Min(MaxMotionPad, MinMotionPad + move / dtMs * MotionLookaheadMs);
+                }
+            }
+
+            _lastCard = card;
+            _lastCardTicks = now;
+
+            needed = (needed + PadStep - 1) / PadStep * PadStep;
+            if (needed > _pad)
+            {
+                _pad = needed;
+                _padCalm = 0;
+            }
+            else if (needed < _pad)
+            {
+                if (++_padCalm > 90)
+                {
+                    _pad = needed;
+                    _padCalm = 0;
+                }
+            }
+            else
+            {
+                _padCalm = 0;
+            }
+
+            return _pad;
+        }
+
         private void WriteFrame(LiveRegionCapture.Frame frame)
         {
+            if (frame.CapturedMs > 0)
+            {
+                var ageMs = Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency - frame.CapturedMs;
+                if (ageMs >= 0 && ageMs < 5000)
+                {
+                    _ageTotalMs += ageMs;
+                    _ageCount++;
+                    if (ageMs > _ageMaxMs)
+                    {
+                        _ageMaxMs = ageMs;
+                    }
+                }
+            }
+
             if (_bitmap == null || _bitmap.PixelWidth != frame.Width || _bitmap.PixelHeight != frame.Height)
             {
                 _bitmap = new WriteableBitmap(frame.Width, frame.Height, 96, 96, PixelFormats.Bgr32, null);

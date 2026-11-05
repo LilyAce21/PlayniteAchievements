@@ -860,7 +860,7 @@ namespace PlayniteAchievements.Services
 
                 // The live blur behind the card: a second window under this one, fed by the card
                 // rect the page reports. Started once the card is on screen, stopped with the window.
-                ISanBackdrop liveBackdrop = null;
+                SanLiveBackdrop liveBackdrop = null;
                 string lastCardReport = null;
 
                 window.Closed += (_, __) =>
@@ -904,37 +904,6 @@ namespace PlayniteAchievements.Services
                     started = true;
                     ForkLog.Wrap(_logger)?.Info($"[OfficialSan] '{achievementName}' on screen {showStopwatch.ElapsedMilliseconds} ms after the unlock reached the notifier ({(warm != null ? "warm" : "cold")}).");
                     try { readyFallback?.Stop(); } catch { }
-
-                    // System acrylic first: Windows blurs the game itself in the same frame, so it has
-                    // no delay. The capture engine below is the fallback, and the chosen engine when
-                    // the profile asks for an adjustable blur.
-                    if (slot.LiveBlurEnabled && liveBackdrop == null && slot.LiveBlurEngine != 1)
-                    {
-                        // SAN's corner radius in CSS pixels (roundness / 4, times the scale), so the backdrop
-                        // can create the right number of windows before the slide-in starts.
-                        double radiusHint = 0;
-                        try
-                        {
-                            var roundness = theme.Customisation.Value<double?>("roundness") ?? 0;
-                            var sanScale = theme.Customisation.Value<double?>("scale") ?? 100;
-                            radiusHint = roundness / 4.0 * sanScale / 100.0;
-                        }
-                        catch { }
-
-                        liveBackdrop = SanAcrylicBackdrop.TryStart(
-                            window,
-                            slot.LiveBlurEngine == 2 ? SanSystemBlurMode.Acrylic : SanSystemBlurMode.RoundedBlur,
-                            radiusHint,
-                            out var acrylicSkipped);
-                        if (liveBackdrop != null)
-                        {
-                            liveBackdrop.UpdateCard(lastCardReport);
-                        }
-                        else
-                        {
-                            ForkLog.Wrap(_logger)?.Info($"[OfficialSan] System blur not started ({acrylicSkipped}); using screen capture.");
-                        }
-                    }
 
                     if (slot.LiveBlurEnabled && liveBackdrop == null)
                     {

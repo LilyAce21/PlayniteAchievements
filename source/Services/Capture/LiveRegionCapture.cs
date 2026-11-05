@@ -50,9 +50,24 @@ namespace PlayniteAchievements.Services.Capture
         private readonly bool _lowLatency;
         private D3D11.Texture2D[] _ring;
         private int _ringWrite;
-        private bool _ringPrimed;
-        private int _ringW, _ringH;
-        private Rectangle _ringCovered;
+
+        // Per staging texture: what it holds and whether that frame has not been shown yet.
+        private readonly int[] _slotW = new int[2];
+        private readonly int[] _slotH = new int[2];
+        private readonly Rectangle[] _slotCovered = new Rectangle[2];
+        private readonly double[] _slotCapturedMs = new double[2];
+        private readonly bool[] _slotFresh = new bool[2];
+        private D3D11.Query _query;
+        private long _readyNow, _readyLate, _waitTicksTotal;
+
+        private readonly FastBoxBlur _fastBlur = new FastBoxBlur();
+        private readonly System.Collections.Generic.List<byte[]> _bufferPool = new System.Collections.Generic.List<byte[]>();
+
+        /// <summary>
+        /// The longest the low-latency path waits for the GPU to finish copying the frame it just
+        /// issued before falling back to the previous frame's already-finished copy.
+        /// </summary>
+        private const int LowLatencyReadbackBudgetMs = 2;
 
         // Timing for the diagnostics line, written under _gate.
         private long _framesSeen;
@@ -93,13 +108,21 @@ namespace PlayniteAchievements.Services.Capture
         /// <summary>A blurred, shrunk BGRA copy of a screen region.</summary>
         public sealed class Frame
         {
-            public Frame(byte[] bgra, int width, int height, Rectangle screenRect)
+            public Frame(byte[] bgra, int width, int height, Rectangle screenRect, double capturedMs = 0)
             {
                 Bgra = bgra;
                 Width = width;
                 Height = height;
                 ScreenRect = screenRect;
+                CapturedMs = capturedMs;
             }
+
+            /// <summary>
+            /// When the pixels were captured, in milliseconds on the same clock as
+            /// <c>Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency</c>; 0 when unknown. Lets the
+            /// consumer measure how old a frame is when it is shown.
+            /// </summary>
+            public double CapturedMs { get; }
 
             /// <summary>Opaque BGRA pixels, rows packed at <see cref="Width"/> * 4 bytes.</summary>
             public byte[] Bgra { get; }
@@ -161,7 +184,8 @@ namespace PlayniteAchievements.Services.Capture
             var procMax = _procTicksMax * 1000.0 / Stopwatch.Frequency;
             var timing = _lowLatency
                 ? $" lowLatency=true seen={Volatile.Read(ref _framesSeen)} procMs(avg/max)={procAvg:0.0}/{procMax:0.0} " +
-                  $"frameAgeMsMax={_ageMsMax:0} gpuPrio={(_gpuPriority == int.MinValue ? "n/a" : _gpuPriority.ToString())}"
+                  $"frameAgeMsMax={_ageMsMax:0} gpuPrio={(_gpuPriority == int.MinValue ? "n/a" : _gpuPriority.ToString())} " +
+                  $"readback(now/late)={_readyNow}/{_readyLate} waitMsAvg={(_readyNow + _readyLate > 0 ? _waitTicksTotal * 1000.0 / Stopwatch.Frequency / (_readyNow + _readyLate) : 0):0.00}"
                 : string.Empty;
             return $"mode={(_isMonitor ? "monitor" : "window")} hdr={_hdr} frames={delivered} " +
                    $"firstFrameMs={firstMs} failure={Volatile.Read(ref _failure) ?? "none"}{timing}";
@@ -176,6 +200,60 @@ namespace PlayniteAchievements.Services.Capture
         public Frame TakeLatest()
         {
             return Interlocked.Exchange(ref _latest, null);
+        }
+
+        /// <summary>
+        /// Hands a frame's pixel buffer back once the consumer has copied it out, so the low-latency
+        /// path allocates nothing per frame (a few hundred KB a frame, 60 a second, is large-object
+        /// garbage and full collections, which show up as stalls). Optional; a no-op otherwise.
+        /// </summary>
+        public void Recycle(Frame frame)
+        {
+            if (_lowLatency && frame != null)
+            {
+                ReturnBuffer(frame.Bgra);
+            }
+        }
+
+        private byte[] RentBuffer(int length)
+        {
+            lock (_bufferPool)
+            {
+                for (var i = 0; i < _bufferPool.Count; i++)
+                {
+                    var candidate = _bufferPool[i];
+                    if (candidate.Length >= length && candidate.Length <= length * 2)
+                    {
+                        _bufferPool.RemoveAt(i);
+                        return candidate;
+                    }
+                }
+            }
+
+            // A little slack, so a region that grows a few pixels still fits the same buffer.
+            return new byte[length + length / 4];
+        }
+
+        private void ReturnBuffer(byte[] buffer)
+        {
+            if (buffer == null)
+            {
+                return;
+            }
+
+            lock (_bufferPool)
+            {
+                if (_bufferPool.Count < 6)
+                {
+                    _bufferPool.Add(buffer);
+                }
+            }
+        }
+
+        private void ResetSlots()
+        {
+            _slotFresh[0] = false;
+            _slotFresh[1] = false;
         }
 
         private void Start()
@@ -289,7 +367,12 @@ namespace PlayniteAchievements.Services.Capture
 
                     if (processed != null)
                     {
-                        Interlocked.Exchange(ref _latest, processed);
+                        var replaced = Interlocked.Exchange(ref _latest, processed);
+                        if (_lowLatency && replaced != null)
+                        {
+                            ReturnBuffer(replaced.Bgra);
+                        }
+
                         Interlocked.CompareExchange(ref _firstFrameTicks, now, 0);
                         Interlocked.Increment(ref _framesDelivered);
                     }
@@ -342,51 +425,100 @@ namespace PlayniteAchievements.Services.Capture
 
                 var width = Math.Max(1, source.Width >> _mipLevel);
                 var height = Math.Max(1, source.Height >> _mipLevel);
+                var capturedMs = frame.SystemRelativeTime.TotalMilliseconds;
                 var readTexture = _staging;
                 var shownCovered = covered;
                 if (_lowLatency)
                 {
-                    // Copy this frame into one staging texture and read back the one copied on the
-                    // previous frame, which the GPU has long finished: one frame (~33 ms) later, but
-                    // no CPU wait behind whatever the game has queued.
-                    _context.CopySubresourceRegion(_region, _mipLevel, null, _ring[_ringWrite], 0);
-                    var primed = _ringPrimed;
-                    readTexture = _ring[_ringWrite ^ 1];
-                    var readW = _ringW;
-                    var readH = _ringH;
-                    shownCovered = _ringCovered;
-                    _ringW = width;
-                    _ringH = height;
-                    _ringCovered = covered;
-                    _ringPrimed = true;
+                    // Copy this frame into one of two staging textures and read it back as soon as the
+                    // GPU has finished the copy: normally well inside a millisecond, so what is shown is
+                    // this frame rather than the last one. If a game keeps the GPU busy past the short
+                    // wait, read the previous frame's copy instead (already finished, as the GPU runs
+                    // commands in order) rather than stall the capture behind the game.
+                    var write = _ringWrite;
+                    _context.CopySubresourceRegion(_region, _mipLevel, null, _ring[write], 0);
+                    _slotW[write] = width;
+                    _slotH[write] = height;
+                    _slotCovered[write] = covered;
+                    _slotCapturedMs[write] = capturedMs;
+                    _slotFresh[write] = true;
+
+                    if (_query == null)
+                    {
+                        _query = new D3D11.Query(_device, new D3D11.QueryDescription
+                        {
+                            Type = D3D11.QueryType.Event,
+                            Flags = D3D11.QueryFlags.None
+                        });
+                    }
+
+                    _context.End(_query);
+                    _context.Flush();
+
+                    var waitStart = Stopwatch.GetTimestamp();
+                    var budget = Stopwatch.Frequency * LowLatencyReadbackBudgetMs / 1000;
+                    var ready = _context.IsDataAvailable(_query);
+                    while (!ready && Stopwatch.GetTimestamp() - waitStart < budget)
+                    {
+                        Thread.SpinWait(50);
+                        ready = _context.IsDataAvailable(_query);
+                    }
+
+                    _waitTicksTotal += Stopwatch.GetTimestamp() - waitStart;
+
+                    var read = write;
+                    if (ready)
+                    {
+                        _readyNow++;
+                        // Anything older than this frame is no longer worth showing.
+                        _slotFresh[write ^ 1] = false;
+                    }
+                    else
+                    {
+                        _readyLate++;
+                        read = write ^ 1;
+                    }
+
                     _ringWrite ^= 1;
-                    if (!primed)
+                    if (!_slotFresh[read])
                     {
                         return null;
                     }
 
-                    width = readW;
-                    height = readH;
+                    _slotFresh[read] = false;
+                    readTexture = _ring[read];
+                    width = _slotW[read];
+                    height = _slotH[read];
+                    shownCovered = _slotCovered[read];
+                    capturedMs = _slotCapturedMs[read];
                 }
                 else
                 {
                     _context.CopySubresourceRegion(_region, _mipLevel, null, _staging, 0);
                 }
 
-                var bgra = new byte[width * height * 4];
+                var pixelBytes = width * height * 4;
+                var bgra = _lowLatency ? RentBuffer(pixelBytes) : new byte[pixelBytes];
                 var box = _context.MapSubresource(readTexture, 0, D3D11.MapMode.Read, D3D11.MapFlags.None);
                 try
                 {
-                    for (var y = 0; y < height; y++)
+                    if (_lowLatency && !_hdr && box.RowPitch == width * 4)
                     {
-                        var row = box.DataPointer + y * box.RowPitch;
-                        if (_hdr)
+                        Marshal.Copy(box.DataPointer, bgra, 0, pixelBytes);
+                    }
+                    else
+                    {
+                        for (var y = 0; y < height; y++)
                         {
-                            HdrToneMap.ToBgraRow(row, width, _refWhite, bgra, y * width * 4);
-                        }
-                        else
-                        {
-                            Marshal.Copy(row, bgra, y * width * 4, width * 4);
+                            var row = box.DataPointer + y * box.RowPitch;
+                            if (_hdr)
+                            {
+                                HdrToneMap.ToBgraRow(row, width, _refWhite, bgra, y * width * 4);
+                            }
+                            else
+                            {
+                                Marshal.Copy(row, bgra, y * width * 4, width * 4);
+                            }
                         }
                     }
                 }
@@ -398,7 +530,7 @@ namespace PlayniteAchievements.Services.Capture
                 if (!_hdr)
                 {
                     // Capture alpha carries nothing; the background is opaque.
-                    for (var i = 3; i < bgra.Length; i += 4)
+                    for (var i = 3; i < pixelBytes; i += 4)
                     {
                         bgra[i] = 255;
                     }
@@ -407,10 +539,17 @@ namespace PlayniteAchievements.Services.Capture
                 var reachInLevel = _reachPhys * scale / (1 << _mipLevel);
                 if (reachInLevel >= 1)
                 {
-                    _line = BoxBlur.Apply(bgra, 0, width, height, width * 4, 4, BoxBlur.RadiusFor(reachInLevel), _line);
+                    if (_lowLatency)
+                    {
+                        _fastBlur.Apply(bgra, width, height, BoxBlur.RadiusFor(reachInLevel));
+                    }
+                    else
+                    {
+                        _line = BoxBlur.Apply(bgra, 0, width, height, width * 4, 4, BoxBlur.RadiusFor(reachInLevel), _line);
+                    }
                 }
 
-                return new Frame(bgra, width, height, shownCovered);
+                return new Frame(bgra, width, height, shownCovered, capturedMs);
             }
         }
 
@@ -492,7 +631,7 @@ namespace PlayniteAchievements.Services.Capture
             {
                 _ring = new[] { new D3D11.Texture2D(_device, stagingDesc), new D3D11.Texture2D(_device, stagingDesc) };
                 _ringWrite = 0;
-                _ringPrimed = false;
+                ResetSlots();
             }
             else
             {
@@ -588,7 +727,7 @@ namespace PlayniteAchievements.Services.Capture
                 _ring = null;
             }
 
-            _ringPrimed = false;
+            ResetSlots();
             _regionView?.Dispose();
             _region?.Dispose();
             _staging = null;
@@ -608,6 +747,8 @@ namespace PlayniteAchievements.Services.Capture
                 _session?.Dispose();
                 _pool?.Dispose();
                 ReleaseTextures();
+                _query?.Dispose();
+                _query = null;
                 _context?.Dispose();
                 _device?.Dispose();
             }

@@ -4,19 +4,6 @@ using System.Globalization;
 namespace PlayniteAchievements.Services.UI
 {
     /// <summary>
-    /// The blur behind an official-SAN card, whichever engine draws it. The host page reports its
-    /// card's rect every frame; the backdrop keeps its window under the card to match.
-    /// </summary>
-    internal interface ISanBackdrop : IDisposable
-    {
-        /// <summary>Takes the page's <c>san-card|...</c> report.</summary>
-        void UpdateCard(string message);
-
-        /// <summary>One diagnostics line for the log; valid after <see cref="IDisposable.Dispose"/>.</summary>
-        string Describe();
-    }
-
-    /// <summary>
     /// The page's card report, <c>san-card|left|top|width|height|radius|opacity|viewW|viewH</c>:
     /// the visible card's box, corner radius and opacity in CSS pixels of the page viewport.
     /// </summary>
