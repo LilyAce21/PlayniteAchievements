@@ -2771,8 +2771,23 @@
                                                 <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
-                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                   ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                            <DockPanel.Style>
+                                                <Style TargetType="DockPanel">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEnabled}" Value="True"/>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEngine}" Value="1"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DockPanel.Style>
+                                            <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Default.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Default.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -2841,8 +2856,23 @@
                                                 <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
-                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                   ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                            <DockPanel.Style>
+                                                <Style TargetType="DockPanel">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEnabled}" Value="True"/>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEngine}" Value="1"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DockPanel.Style>
+                                            <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Common.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Common.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -2909,8 +2939,23 @@
                                                     <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
-                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                       ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                                <DockPanel.Style>
+                                                    <Style TargetType="DockPanel">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEnabled}" Value="True"/>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEngine}" Value="1"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="IsEnabled" Value="True"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DockPanel.Style>
+                                                <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Common.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Common.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -2980,8 +3025,23 @@
                                                 <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
-                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                   ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                            <DockPanel.Style>
+                                                <Style TargetType="DockPanel">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEnabled}" Value="True"/>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEngine}" Value="1"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DockPanel.Style>
+                                            <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3048,8 +3108,23 @@
                                                     <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
-                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                       ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                                <DockPanel.Style>
+                                                    <Style TargetType="DockPanel">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEnabled}" Value="True"/>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEngine}" Value="1"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="IsEnabled" Value="True"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DockPanel.Style>
+                                                <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3119,8 +3194,23 @@
                                                 <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
-                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                   ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                            <DockPanel.Style>
+                                                <Style TargetType="DockPanel">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEnabled}" Value="True"/>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEngine}" Value="1"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DockPanel.Style>
+                                            <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3187,8 +3277,23 @@
                                                     <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
-                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                       ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                                <DockPanel.Style>
+                                                    <Style TargetType="DockPanel">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEnabled}" Value="True"/>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEngine}" Value="1"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="IsEnabled" Value="True"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DockPanel.Style>
+                                                <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3258,8 +3363,23 @@
                                                 <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
-                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                   ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                            <DockPanel.Style>
+                                                <Style TargetType="DockPanel">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEnabled}" Value="True"/>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEngine}" Value="1"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DockPanel.Style>
+                                            <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3326,8 +3446,23 @@
                                                     <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
-                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                       ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                                <DockPanel.Style>
+                                                    <Style TargetType="DockPanel">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEnabled}" Value="True"/>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEngine}" Value="1"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="IsEnabled" Value="True"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DockPanel.Style>
+                                                <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3397,8 +3532,23 @@
                                                 <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
-                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                   ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                            <DockPanel.Style>
+                                                <Style TargetType="DockPanel">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEnabled}" Value="True"/>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEngine}" Value="1"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DockPanel.Style>
+                                            <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3465,8 +3615,23 @@
                                                     <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
-                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                       ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                                <DockPanel.Style>
+                                                    <Style TargetType="DockPanel">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEnabled}" Value="True"/>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEngine}" Value="1"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="IsEnabled" Value="True"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DockPanel.Style>
+                                                <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3536,8 +3701,23 @@
                                                 <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
-                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                   ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                            <DockPanel.Style>
+                                                <Style TargetType="DockPanel">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEnabled}" Value="True"/>
+                                                                <Condition Binding="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEngine}" Value="1"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="IsEnabled" Value="True"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DockPanel.Style>
+                                            <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3604,8 +3784,23 @@
                                                     <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
-                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                                                       ToolTip="Only the screen-capture engine has an adjustable blur. Windows' own blur has one fixed radius.">
+                                                <DockPanel.Style>
+                                                    <Style TargetType="DockPanel">
+                                                        <Setter Property="IsEnabled" Value="False"/>
+                                                        <Style.Triggers>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEnabled}" Value="True"/>
+                                                                    <Condition Binding="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEngine}" Value="1"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="IsEnabled" Value="True"/>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DockPanel.Style>
+                                                <TextBlock Text="Blur strength (screen capture only):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>

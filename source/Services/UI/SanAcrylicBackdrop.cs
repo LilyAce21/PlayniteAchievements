@@ -53,6 +53,9 @@ namespace PlayniteAchievements.Services.UI
         private const uint SwpHideWindow = 0x0080;
         private const uint SwpNoMove = 0x0002;
         private const uint SwpNoSize = 0x0001;
+        // Windows fades and scales a window in and out when it is shown or hidden; on these blur
+        // windows that reads as a flash of the backdrop as the card appears and goes.
+        private const int DwmwaTransitionsForceDisabled = 3;
         private const int GwlExStyle = -20;
         private const int WsExTransparent = 0x00000020;
         private const int WsExToolWindow = 0x00000080;
@@ -107,6 +110,9 @@ namespace PlayniteAchievements.Services.UI
         [DllImport("user32.dll")]
         private static extern bool EndDeferWindowPos(IntPtr winPosInfo);
 
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
         [DllImport("user32.dll", SetLastError = true)]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
@@ -128,6 +134,8 @@ namespace PlayniteAchievements.Services.UI
         private bool _disposed;
         private int _placedX = int.MinValue, _placedY, _placedW, _placedH, _placedR;
         private long _updates;
+        private int _peakVisible;
+        private int _created;
         private TimeSpan _lastRenderingTime = TimeSpan.MinValue;
 
         private SanAcrylicBackdrop(Window san, IntPtr sanHwnd, SanSystemBlurMode mode)
@@ -214,15 +222,19 @@ namespace PlayniteAchievements.Services.UI
                 IsHitTestVisible = false,
                 Focusable = false
             };
-            window.Show();
-
-            var hwnd = new WindowInteropHelper(window).Handle;
+            // Create the handle first so the transitions can be switched off before the window is
+            // ever shown (its first show would animate too).
+            var hwnd = new WindowInteropHelper(window).EnsureHandle();
             if (hwnd == IntPtr.Zero)
             {
                 skipped = "no backdrop window handle";
                 window.Close();
                 return false;
             }
+
+            var noTransitions = 1;
+            DwmSetWindowAttribute(hwnd, DwmwaTransitionsForceDisabled, ref noTransitions, sizeof(int));
+            window.Show();
 
             var source = HwndSource.FromHwnd(hwnd);
             if (source?.CompositionTarget != null)
@@ -246,6 +258,7 @@ namespace PlayniteAchievements.Services.UI
             SetWindowPos(hwnd, _sanHwnd, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow);
             _windows.Add(window);
             _hwnds.Add(hwnd);
+            _created++;
             return true;
         }
 
@@ -304,8 +317,8 @@ namespace PlayniteAchievements.Services.UI
         public string Describe()
         {
             return $"engine={(_mode == SanSystemBlurMode.RoundedBlur ? "blur-behind" : "acrylic")} " +
-                   $"windows={_windows.Count} visible={_visibleTiles} updates={_updates} " +
-                   $"card={_placedW}x{_placedH}@{_placedX},{_placedY} r={_placedR}";
+                   $"windows={_created} peakVisible={_peakVisible} placements={_updates} " +
+                   $"card={_placedW}x{_placedH} r={_placedR} transitionsOff=true";
         }
 
         private void OnRendering(object sender, EventArgs e)
@@ -389,6 +402,7 @@ namespace PlayniteAchievements.Services.UI
                 _placedH = h;
                 _placedR = radius;
                 _visibleTiles = count;
+                _peakVisible = Math.Max(_peakVisible, count);
                 _updates++;
             }
             catch
