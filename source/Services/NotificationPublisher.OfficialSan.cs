@@ -910,9 +910,21 @@ namespace PlayniteAchievements.Services
                     // the profile asks for an adjustable blur.
                     if (slot.LiveBlurEnabled && liveBackdrop == null && slot.LiveBlurEngine != 1)
                     {
+                        // SAN's corner radius in CSS pixels (roundness / 4, times the scale), so the backdrop
+                        // can create the right number of windows before the slide-in starts.
+                        double radiusHint = 0;
+                        try
+                        {
+                            var roundness = theme.Customisation.Value<double?>("roundness") ?? 0;
+                            var sanScale = theme.Customisation.Value<double?>("scale") ?? 100;
+                            radiusHint = roundness / 4.0 * sanScale / 100.0;
+                        }
+                        catch { }
+
                         liveBackdrop = SanAcrylicBackdrop.TryStart(
                             window,
                             slot.LiveBlurEngine == 2 ? SanSystemBlurMode.Acrylic : SanSystemBlurMode.RoundedBlur,
+                            radiusHint,
                             out var acrylicSkipped);
                         if (liveBackdrop != null)
                         {

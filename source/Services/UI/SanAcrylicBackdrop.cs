@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -10,10 +11,10 @@ namespace PlayniteAchievements.Services.UI
     /// <summary>Which of Windows' own blurs the system backdrop uses.</summary>
     internal enum SanSystemBlurMode
     {
-        /// <summary>The accent blur-behind (not acrylic) with a rounded window region, to follow the card's corners.</summary>
+        /// <summary>The plain accent blur-behind.</summary>
         RoundedBlur = 0,
 
-        /// <summary>The acrylic accent: nicer material, but its corners stay square.</summary>
+        /// <summary>The acrylic accent: a nicer material, with a little tint and noise.</summary>
         Acrylic = 1
     }
 
@@ -22,14 +23,18 @@ namespace PlayniteAchievements.Services.UI
     ///
     /// The capture engine (<see cref="SanLiveBackdrop"/>) has to grab the game's frame, blur it and
     /// copy it back to the CPU, which is several frames behind by construction. Here the backdrop is
-    /// an ordinary, non-layered window exactly the size of the card with the DWM acrylic accent
-    /// switched on: the compositor blurs whatever is under it in the same frame it composes the game,
-    /// at the display's refresh rate. The window is clipped to the card's rounded rect with a window
-    /// region and kept directly beneath the SAN window, following the card rect the page reports.
+    /// made of ordinary windows with the DWM blur accent switched on: the compositor blurs whatever is
+    /// under them in the same frame it composes the game, at the display's refresh rate.
+    ///
+    /// Windows' blur does not follow a window region (tried: the corners stayed square), so the
+    /// rounded shape is built from the windows themselves. The card is cut into non-overlapping
+    /// rectangles: a full-width band for the middle, and at each end a stack of strips that get
+    /// narrower towards the corner, tracing the quarter circle. They are moved together in one
+    /// operation, directly beneath the SAN window, following the card rect the page reports.
     ///
     /// Trade-offs: the blur radius is fixed by Windows, the blur cannot fade (it appears once the card
-    /// is mostly visible), and while it is on the game is composed by the desktop compositor rather
-    /// than flipped straight to the display. UI thread only.
+    /// is mostly visible), the curve is a staircase of about 6 px steps, and while it is on the game
+    /// is composed by the desktop compositor rather than flipped straight to the display. UI thread only.
     /// </summary>
     internal sealed class SanAcrylicBackdrop : ISanBackdrop
     {
@@ -39,6 +44,10 @@ namespace PlayniteAchievements.Services.UI
 
         // Almost no tint for the plain blur; alpha is not zero because some builds then draw nothing.
         private const int BlurTintAbgr = 0x01000000;
+
+        // Windows' own tint over the acrylic, ABGR: a light dark wash.
+        private const int AcrylicTintAbgr = 0x26000000;
+
         private const uint SwpNoActivate = 0x0010;
         private const uint SwpShowWindow = 0x0040;
         private const uint SwpHideWindow = 0x0080;
@@ -49,14 +58,10 @@ namespace PlayniteAchievements.Services.UI
         private const int WsExToolWindow = 0x00000080;
         private const int WsExNoActivate = 0x08000000;
 
-        // Windows' own tint over the blur, ABGR: a light dark wash so bright scenery does not wash
-        // out white text. Alpha must not be zero, which some builds treat as "no blur at all".
-        private const int AcrylicTintAbgr = 0x26000000;
-
         // The blur is on/off, so it appears once the card is mostly visible and goes as it fades.
         private const double ShowAtOpacity = 0.35;
 
-        // The page reports where the card was; by the time this window moves and the card is on
+        // The page reports where the card was; by the time these windows move and the card is on
         // screen it has moved on. Project each edge forward by this long (plus the age of the
         // report) using the velocity between the last two reports. Reports older than StaleMs mean
         // the animation has stopped, so nothing is projected.
@@ -64,6 +69,9 @@ namespace PlayniteAchievements.Services.UI
         private const double MaxLeadMs = 45;
         private const double StaleMs = 60;
 
+        // Strips per corner: about one per 6 px of radius, at most this many. Tiles = 2 * strips + 1.
+        private const int MaxStrips = 6;
+        private const double StripHeightPx = 6;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct AccentPolicy
@@ -90,13 +98,14 @@ namespace PlayniteAchievements.Services.UI
             IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 
         [DllImport("user32.dll")]
-        private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool redraw);
+        private static extern IntPtr BeginDeferWindowPos(int numWindows);
 
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int widthEllipse, int heightEllipse);
+        [DllImport("user32.dll")]
+        private static extern IntPtr DeferWindowPos(
+            IntPtr winPosInfo, IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 
-        [DllImport("gdi32.dll")]
-        private static extern bool DeleteObject(IntPtr hObject);
+        [DllImport("user32.dll")]
+        private static extern bool EndDeferWindowPos(IntPtr winPosInfo);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -106,40 +115,40 @@ namespace PlayniteAchievements.Services.UI
 
         private readonly Window _san;
         private readonly IntPtr _sanHwnd;
-        private readonly Window _window;
-        private readonly IntPtr _hwnd;
-
         private readonly SanSystemBlurMode _mode;
+        private readonly List<Window> _windows = new List<Window>();
+        private readonly List<IntPtr> _hwnds = new List<IntPtr>();
+        private readonly System.Drawing.Rectangle[] _tiles = new System.Drawing.Rectangle[MaxStrips * 2 + 1];
+
         private SanCardReport _report;
         private SanCardReport _prev;
         private long _lastTicks, _prevTicks;
         private bool _hasReport, _hasPrev;
-        private bool _shown;
+        private int _visibleTiles;
         private bool _disposed;
-        private int _regionW = -1, _regionH = -1, _regionR = -1;
-        private int _placedX = int.MinValue, _placedY, _placedW, _placedH;
+        private int _placedX = int.MinValue, _placedY, _placedW, _placedH, _placedR;
         private long _updates;
         private TimeSpan _lastRenderingTime = TimeSpan.MinValue;
 
-        private SanAcrylicBackdrop(Window san, IntPtr sanHwnd, Window window, IntPtr hwnd, SanSystemBlurMode mode)
+        private SanAcrylicBackdrop(Window san, IntPtr sanHwnd, SanSystemBlurMode mode)
         {
             _san = san;
             _sanHwnd = sanHwnd;
-            _window = window;
-            _hwnd = hwnd;
             _mode = mode;
-            CompositionTarget.Rendering += OnRendering;
         }
 
         /// <summary>
-        /// Starts the acrylic backdrop under <paramref name="sanWindow"/>. Null when Windows refuses
-        /// the accent, with <paramref name="skipped"/> saying why; the caller can then fall back to the
-        /// capture engine. UI thread; the SAN window must already have a handle.
+        /// Starts the system blur under <paramref name="sanWindow"/>. Null when Windows refuses the
+        /// accent, with <paramref name="skipped"/> saying why; the caller can then fall back to the
+        /// capture engine. <paramref name="radiusHintCss"/> is the card's corner radius in CSS pixels
+        /// when known (0 otherwise); it only decides how many windows to create up front, because
+        /// creating them in the middle of the slide-in would hitch it. UI thread; the SAN window must
+        /// already have a handle.
         /// </summary>
-        public static SanAcrylicBackdrop TryStart(Window sanWindow, SanSystemBlurMode mode, out string skipped)
+        public static SanAcrylicBackdrop TryStart(Window sanWindow, SanSystemBlurMode mode, double radiusHintCss, out string skipped)
         {
             skipped = null;
-            Window window = null;
+            SanAcrylicBackdrop backdrop = null;
             try
             {
                 var sanHwnd = sanWindow == null ? IntPtr.Zero : new WindowInteropHelper(sanWindow).Handle;
@@ -149,61 +158,95 @@ namespace PlayniteAchievements.Services.UI
                     return null;
                 }
 
-                window = new Window
-                {
-                    Width = 1,
-                    Height = 1,
-                    Left = sanWindow.Left,
-                    Top = sanWindow.Top,
-                    WindowStyle = WindowStyle.None,
-                    ResizeMode = ResizeMode.NoResize,
-                    // Not layered: the accent blur does not work on layered windows.
-                    AllowsTransparency = false,
-                    Background = Brushes.Transparent,
-                    Topmost = true,
-                    ShowInTaskbar = false,
-                    ShowActivated = false,
-                    IsHitTestVisible = false,
-                    Focusable = false
-                };
-                window.Show();
+                var dpi = VisualTreeHelper.GetDpi(sanWindow).DpiScaleX;
+                var hintPx = Math.Max(0, radiusHintCss) * (dpi > 0 ? dpi : 1);
+                var tilesWanted = TileCountFor(hintPx > 0 ? (int)Math.Round(hintPx) : 24);
 
-                var hwnd = new WindowInteropHelper(window).Handle;
-                if (hwnd == IntPtr.Zero)
+                backdrop = new SanAcrylicBackdrop(sanWindow, sanHwnd, mode);
+                for (var i = 0; i < tilesWanted; i++)
                 {
-                    skipped = "no backdrop window handle";
-                    window.Close();
-                    return null;
+                    if (!backdrop.AddTile(out skipped))
+                    {
+                        backdrop.Dispose();
+                        return null;
+                    }
                 }
 
-                var source = HwndSource.FromHwnd(hwnd);
-                if (source?.CompositionTarget != null)
-                {
-                    // The accent only shows through where WPF paints nothing.
-                    source.CompositionTarget.BackgroundColor = Colors.Transparent;
-                }
-
-                var ex = GetWindowLong(hwnd, GwlExStyle);
-                SetWindowLong(hwnd, GwlExStyle, ex | WsExTransparent | WsExNoActivate | WsExToolWindow);
-
-                var acrylic = mode == SanSystemBlurMode.Acrylic;
-                if (!ApplyAccent(hwnd, acrylic ? AccentEnableAcrylicBlurBehind : AccentEnableBlurBehind, acrylic ? AcrylicTintAbgr : BlurTintAbgr))
-                {
-                    skipped = "Windows refused the " + (acrylic ? "acrylic" : "blur") + " accent";
-                    window.Close();
-                    return null;
-                }
-
-                // Hidden until the page has reported where the card is.
-                SetWindowPos(hwnd, sanHwnd, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow);
-                return new SanAcrylicBackdrop(sanWindow, sanHwnd, window, hwnd, mode);
+                CompositionTarget.Rendering += backdrop.OnRendering;
+                return backdrop;
             }
             catch (Exception ex)
             {
                 skipped = ex.GetType().Name + " " + ex.Message;
-                try { window?.Close(); } catch { }
+                try { backdrop?.Dispose(); } catch { }
                 return null;
             }
+        }
+
+        private static int StripsFor(int radiusPx)
+        {
+            return Math.Max(1, Math.Min(MaxStrips, (int)Math.Round(radiusPx / StripHeightPx)));
+        }
+
+        private static int TileCountFor(int radiusPx)
+        {
+            return radiusPx < 3 ? 1 : StripsFor(radiusPx) * 2 + 1;
+        }
+
+        /// <summary>Creates one hidden blur window and adds it to the pool.</summary>
+        private bool AddTile(out string skipped)
+        {
+            skipped = null;
+            var window = new Window
+            {
+                Width = 1,
+                Height = 1,
+                Left = _san.Left,
+                Top = _san.Top,
+                WindowStyle = WindowStyle.None,
+                ResizeMode = ResizeMode.NoResize,
+                // Not layered: the accent blur does not work on layered windows.
+                AllowsTransparency = false,
+                Background = Brushes.Transparent,
+                Topmost = true,
+                ShowInTaskbar = false,
+                ShowActivated = false,
+                IsHitTestVisible = false,
+                Focusable = false
+            };
+            window.Show();
+
+            var hwnd = new WindowInteropHelper(window).Handle;
+            if (hwnd == IntPtr.Zero)
+            {
+                skipped = "no backdrop window handle";
+                window.Close();
+                return false;
+            }
+
+            var source = HwndSource.FromHwnd(hwnd);
+            if (source?.CompositionTarget != null)
+            {
+                // The accent only shows through where WPF paints nothing.
+                source.CompositionTarget.BackgroundColor = Colors.Transparent;
+            }
+
+            var ex = GetWindowLong(hwnd, GwlExStyle);
+            SetWindowLong(hwnd, GwlExStyle, ex | WsExTransparent | WsExNoActivate | WsExToolWindow);
+
+            var acrylic = _mode == SanSystemBlurMode.Acrylic;
+            if (!ApplyAccent(hwnd, acrylic ? AccentEnableAcrylicBlurBehind : AccentEnableBlurBehind, acrylic ? AcrylicTintAbgr : BlurTintAbgr))
+            {
+                skipped = "Windows refused the " + (acrylic ? "acrylic" : "blur") + " accent";
+                window.Close();
+                return false;
+            }
+
+            // Hidden until the page has reported where the card is.
+            SetWindowPos(hwnd, _sanHwnd, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow);
+            _windows.Add(window);
+            _hwnds.Add(hwnd);
+            return true;
         }
 
         private static bool ApplyAccent(IntPtr hwnd, int accentState, int gradientAbgr)
@@ -261,7 +304,8 @@ namespace PlayniteAchievements.Services.UI
         public string Describe()
         {
             return $"engine={(_mode == SanSystemBlurMode.RoundedBlur ? "blur-behind" : "acrylic")} " +
-                   $"shown={_shown} updates={_updates} placed={_placedW}x{_placedH}@{_placedX},{_placedY} region={_regionW}x{_regionH}r{_regionR}";
+                   $"windows={_windows.Count} visible={_visibleTiles} updates={_updates} " +
+                   $"card={_placedW}x{_placedH}@{_placedX},{_placedY} r={_placedR}";
         }
 
         private void OnRendering(object sender, EventArgs e)
@@ -313,42 +357,39 @@ namespace PlayniteAchievements.Services.UI
                 var y = win.Y + (int)Math.Round(top * scale);
                 var w = (int)Math.Round((right - left) * scale);
                 var h = (int)Math.Round((bottom - top) * scale);
+                var radius = (int)Math.Round(_report.Radius * scale);
 
                 if (w < 1 || h < 1 || _report.Opacity < ShowAtOpacity)
                 {
-                    if (_shown)
-                    {
-                        SetWindowPos(_hwnd, _sanHwnd, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow);
-                        _shown = false;
-                        _placedX = int.MinValue;
-                    }
-
+                    HideAll();
                     return;
                 }
 
-                if (_shown && x == _placedX && y == _placedY && w == _placedW && h == _placedH)
+                if (_visibleTiles > 0 && x == _placedX && y == _placedY && w == _placedW && h == _placedH && radius == _placedR)
                 {
                     return;
                 }
 
-                // Inserting after the SAN window keeps this one directly beneath it, in the same
-                // topmost band, every time it moves.
-                SetWindowPos(_hwnd, _sanHwnd, x, y, w, h, SwpNoActivate | (_shown ? 0u : SwpShowWindow));
-                _shown = true;
+                var count = Layout(x, y, w, h, radius, _tiles);
+                while (_windows.Count < count)
+                {
+                    // More tiles than were created up front (the radius turned out larger).
+                    if (!AddTile(out _))
+                    {
+                        break;
+                    }
+                }
+
+                count = Math.Min(count, _windows.Count);
+                Place(count);
+
                 _placedX = x;
                 _placedY = y;
                 _placedW = w;
                 _placedH = h;
+                _placedR = radius;
+                _visibleTiles = count;
                 _updates++;
-
-                var radius = (int)Math.Round(_report.Radius * scale);
-                if (w != _regionW || h != _regionH || radius != _regionR)
-                {
-                    _regionW = w;
-                    _regionH = h;
-                    _regionR = radius;
-                    ApplyShape(w, h, radius);
-                }
             }
             catch
             {
@@ -356,20 +397,108 @@ namespace PlayniteAchievements.Services.UI
             }
         }
 
-        /// <summary>Clips the window, and so the blur, to the card's rounded rect.</summary>
-        private void ApplyShape(int w, int h, int radius)
+        /// <summary>
+        /// Cuts the rounded rect into rectangles that do not overlap: a full-width middle band, and
+        /// at the top and bottom a stack of strips that are narrower the closer they are to the
+        /// corner, each as wide as the quarter circle is at the strip's middle. Returns the count.
+        /// </summary>
+        private static int Layout(int x, int y, int w, int h, int radius, System.Drawing.Rectangle[] tiles)
         {
-            var region = CreateRoundRectRgn(0, 0, w + 1, h + 1, radius * 2, radius * 2);
-            if (region == IntPtr.Zero)
+            var r = Math.Min(radius, Math.Min(w, h) / 2);
+            if (r < 3)
+            {
+                tiles[0] = new System.Drawing.Rectangle(x, y, w, h);
+                return 1;
+            }
+
+            var strips = StripsFor(r);
+            var n = 0;
+            for (var i = 0; i < strips; i++)
+            {
+                var y0 = i * r / strips;
+                var y1 = (i + 1) * r / strips;
+                if (y1 <= y0)
+                {
+                    continue;
+                }
+
+                // How far below the circle's centre line the strip's middle is, and so how far the
+                // arc has moved in from the card's edge there.
+                var dy = r - (y0 + y1) / 2.0;
+                var inset = (int)Math.Round(r - Math.Sqrt(Math.Max(0, (double)r * r - dy * dy)));
+                var width = w - 2 * inset;
+                if (width < 1)
+                {
+                    continue;
+                }
+
+                tiles[n++] = new System.Drawing.Rectangle(x + inset, y + y0, width, y1 - y0);
+                tiles[n++] = new System.Drawing.Rectangle(x + inset, y + h - y1, width, y1 - y0);
+            }
+
+            if (h - 2 * r > 0)
+            {
+                tiles[n++] = new System.Drawing.Rectangle(x, y + r, w, h - 2 * r);
+            }
+
+            return n;
+        }
+
+        /// <summary>
+        /// Moves the first <paramref name="count"/> windows to their tiles, hides the rest, and does it
+        /// in one operation so the pieces never show in different places. Inserting after the SAN
+        /// window keeps them directly beneath it, in the same topmost band.
+        /// </summary>
+        private void Place(int count)
+        {
+            var batch = BeginDeferWindowPos(_hwnds.Count);
+            for (var i = 0; i < _hwnds.Count; i++)
+            {
+                var visible = i < count;
+                var t = visible ? _tiles[i] : default(System.Drawing.Rectangle);
+                var flags = visible
+                    ? SwpNoActivate | SwpShowWindow
+                    : (i < _visibleTiles ? SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow : 0u);
+                if (!visible && flags == 0)
+                {
+                    continue;
+                }
+
+                if (batch != IntPtr.Zero)
+                {
+                    var next = DeferWindowPos(batch, _hwnds[i], _sanHwnd, t.X, t.Y, t.Width, t.Height, flags);
+                    if (next != IntPtr.Zero)
+                    {
+                        batch = next;
+                        continue;
+                    }
+                }
+
+                // The batch failed (or never started): place this one on its own.
+                SetWindowPos(_hwnds[i], _sanHwnd, t.X, t.Y, t.Width, t.Height, flags);
+                batch = IntPtr.Zero;
+            }
+
+            if (batch != IntPtr.Zero)
+            {
+                EndDeferWindowPos(batch);
+            }
+        }
+
+        private void HideAll()
+        {
+            if (_visibleTiles == 0)
             {
                 return;
             }
 
-            // The window region. On success the system owns it; on failure it must be freed.
-            if (SetWindowRgn(_hwnd, region, true) == 0)
+            for (var i = 0; i < _visibleTiles && i < _hwnds.Count; i++)
             {
-                DeleteObject(region);
+                SetWindowPos(_hwnds[i], _sanHwnd, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow);
             }
+
+            _visibleTiles = 0;
+            _placedX = int.MinValue;
         }
 
         public void Dispose()
@@ -381,7 +510,13 @@ namespace PlayniteAchievements.Services.UI
 
             _disposed = true;
             CompositionTarget.Rendering -= OnRendering;
-            try { _window.Close(); } catch { }
+            foreach (var window in _windows)
+            {
+                try { window.Close(); } catch { }
+            }
+
+            _windows.Clear();
+            _hwnds.Clear();
         }
     }
 }
