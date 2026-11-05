@@ -10,7 +10,7 @@ namespace PlayniteAchievements.Services.UI
     /// <summary>Which of Windows' own blurs the system backdrop uses.</summary>
     internal enum SanSystemBlurMode
     {
-        /// <summary>DwmEnableBlurBehindWindow with a rounded blur region: follows the card's corners.</summary>
+        /// <summary>The accent blur-behind (not acrylic) with a rounded window region, to follow the card's corners.</summary>
         RoundedBlur = 0,
 
         /// <summary>The acrylic accent: nicer material, but its corners stay square.</summary>
@@ -34,7 +34,11 @@ namespace PlayniteAchievements.Services.UI
     internal sealed class SanAcrylicBackdrop : ISanBackdrop
     {
         private const int WcaAccentPolicy = 19;
+        private const int AccentEnableBlurBehind = 3;
         private const int AccentEnableAcrylicBlurBehind = 4;
+
+        // Almost no tint for the plain blur; alpha is not zero because some builds then draw nothing.
+        private const int BlurTintAbgr = 0x01000000;
         private const uint SwpNoActivate = 0x0010;
         private const uint SwpShowWindow = 0x0040;
         private const uint SwpHideWindow = 0x0080;
@@ -60,20 +64,6 @@ namespace PlayniteAchievements.Services.UI
         private const double MaxLeadMs = 45;
         private const double StaleMs = 60;
 
-        private const uint DwmBbEnable = 0x1;
-        private const uint DwmBbBlurRegion = 0x2;
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct DwmBlurBehind
-        {
-            public uint Flags;
-            public int Enable;
-            public IntPtr BlurRegion;
-            public int TransitionOnMaximized;
-        }
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmEnableBlurBehindWindow(IntPtr hwnd, ref DwmBlurBehind blurBehind);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct AccentPolicy
@@ -128,7 +118,6 @@ namespace PlayniteAchievements.Services.UI
         private bool _disposed;
         private int _regionW = -1, _regionH = -1, _regionR = -1;
         private int _placedX = int.MinValue, _placedY, _placedW, _placedH;
-        private int _lastBlurHr;
         private long _updates;
         private TimeSpan _lastRenderingTime = TimeSpan.MinValue;
 
@@ -168,13 +157,9 @@ namespace PlayniteAchievements.Services.UI
                     Top = sanWindow.Top,
                     WindowStyle = WindowStyle.None,
                     ResizeMode = ResizeMode.NoResize,
-                    // The acrylic accent does not work on layered windows; the blur-behind region
-                    // route (like Rainmeter's) is used with a layered, per-pixel-alpha one.
-                    AllowsTransparency = mode == SanSystemBlurMode.RoundedBlur,
-                    // Nearly clear but not fully: a fully transparent layered window may not be drawn.
-                    Background = mode == SanSystemBlurMode.RoundedBlur
-                        ? new SolidColorBrush(Color.FromArgb(1, 0, 0, 0))
-                        : Brushes.Transparent,
+                    // Not layered: the accent blur does not work on layered windows.
+                    AllowsTransparency = false,
+                    Background = Brushes.Transparent,
                     Topmost = true,
                     ShowInTaskbar = false,
                     ShowActivated = false,
@@ -201,24 +186,12 @@ namespace PlayniteAchievements.Services.UI
                 var ex = GetWindowLong(hwnd, GwlExStyle);
                 SetWindowLong(hwnd, GwlExStyle, ex | WsExTransparent | WsExNoActivate | WsExToolWindow);
 
-                if (mode == SanSystemBlurMode.Acrylic)
+                var acrylic = mode == SanSystemBlurMode.Acrylic;
+                if (!ApplyAccent(hwnd, acrylic ? AccentEnableAcrylicBlurBehind : AccentEnableBlurBehind, acrylic ? AcrylicTintAbgr : BlurTintAbgr))
                 {
-                    if (!ApplyAcrylic(hwnd))
-                    {
-                        skipped = "Windows refused the acrylic accent";
-                        window.Close();
-                        return null;
-                    }
-                }
-                else
-                {
-                    var hr = SetBlurRegion(hwnd, IntPtr.Zero);
-                    if (hr < 0)
-                    {
-                        skipped = "DwmEnableBlurBehindWindow failed (0x" + hr.ToString("X8") + ")";
-                        window.Close();
-                        return null;
-                    }
+                    skipped = "Windows refused the " + (acrylic ? "acrylic" : "blur") + " accent";
+                    window.Close();
+                    return null;
                 }
 
                 // Hidden until the page has reported where the card is.
@@ -233,13 +206,13 @@ namespace PlayniteAchievements.Services.UI
             }
         }
 
-        private static bool ApplyAcrylic(IntPtr hwnd)
+        private static bool ApplyAccent(IntPtr hwnd, int accentState, int gradientAbgr)
         {
             var policy = new AccentPolicy
             {
-                AccentState = AccentEnableAcrylicBlurBehind,
+                AccentState = accentState,
                 AccentFlags = 0,
-                GradientColor = AcrylicTintAbgr,
+                GradientColor = gradientAbgr,
                 AnimationId = 0
             };
 
@@ -260,22 +233,6 @@ namespace PlayniteAchievements.Services.UI
             {
                 Marshal.FreeHGlobal(memory);
             }
-        }
-
-        /// <summary>
-        /// Turns on Windows' blur-behind for the given region of the window (null = the whole
-        /// window). The region is the shape the blur is limited to, in window coordinates.
-        /// </summary>
-        private static int SetBlurRegion(IntPtr hwnd, IntPtr region)
-        {
-            var blur = new DwmBlurBehind
-            {
-                Flags = DwmBbEnable | (region != IntPtr.Zero ? DwmBbBlurRegion : 0u),
-                Enable = 1,
-                BlurRegion = region,
-                TransitionOnMaximized = 0
-            };
-            return DwmEnableBlurBehindWindow(hwnd, ref blur);
         }
 
         public void UpdateCard(string message)
@@ -303,8 +260,8 @@ namespace PlayniteAchievements.Services.UI
 
         public string Describe()
         {
-            return $"engine={(_mode == SanSystemBlurMode.RoundedBlur ? "rounded-blur" : "acrylic")} " +
-                   $"shown={_shown} updates={_updates} blurHr=0x{_lastBlurHr:X8}";
+            return $"engine={(_mode == SanSystemBlurMode.RoundedBlur ? "blur-behind" : "acrylic")} " +
+                   $"shown={_shown} updates={_updates} placed={_placedW}x{_placedH}@{_placedX},{_placedY} region={_regionW}x{_regionH}r{_regionR}";
         }
 
         private void OnRendering(object sender, EventArgs e)
@@ -399,20 +356,12 @@ namespace PlayniteAchievements.Services.UI
             }
         }
 
-        /// <summary>Limits the blur to the card's rounded rect, whichever route this mode uses.</summary>
+        /// <summary>Clips the window, and so the blur, to the card's rounded rect.</summary>
         private void ApplyShape(int w, int h, int radius)
         {
             var region = CreateRoundRectRgn(0, 0, w + 1, h + 1, radius * 2, radius * 2);
             if (region == IntPtr.Zero)
             {
-                return;
-            }
-
-            if (_mode == SanSystemBlurMode.RoundedBlur)
-            {
-                // DWM copies the blur region, so the handle is ours to free.
-                _lastBlurHr = SetBlurRegion(_hwnd, region);
-                DeleteObject(region);
                 return;
             }
 
