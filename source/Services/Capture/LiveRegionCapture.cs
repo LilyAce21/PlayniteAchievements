@@ -32,7 +32,11 @@ namespace PlayniteAchievements.Services.Capture
         /// <summary>The capture rate; motion of the card itself is tracked per rendered frame.</summary>
         public const int FramesPerSecond = 30;
 
+        /// <summary>The low-latency (SAN backdrop) path matches a 60 Hz display.</summary>
+        public const int LowLatencyFramesPerSecond = 60;
+
         private static readonly long MinFrameTicks = Stopwatch.Frequency / FramesPerSecond;
+        private static readonly long LowLatencyMinFrameTicks = Stopwatch.Frequency / LowLatencyFramesPerSecond;
 
         private readonly object _gate = new object();
         private readonly IntPtr _hwnd;
@@ -201,7 +205,7 @@ namespace PlayniteAchievements.Services.Capture
                     _session = _pool.CreateCaptureSession(item);
                     WgcCaptureBorder.SuppressCursor(_session);
                     WgcCaptureBorder.Suppress(_session);
-                    WgcCaptureBorder.LimitUpdateRate(_session, FramesPerSecond);
+                    WgcCaptureBorder.LimitUpdateRate(_session, _lowLatency ? LowLatencyFramesPerSecond : FramesPerSecond);
                     _pool.FrameArrived += OnFrameArrived;
                     _session.StartCapture();
                 }
@@ -258,7 +262,7 @@ namespace PlayniteAchievements.Services.Capture
                     // The source runs a little faster than the target rate, so a gate at the full
                     // interval rejects every other frame and halves the real rate (about 16 fps
                     // measured). The low-latency path gates at half an interval instead.
-                    var gate = _lowLatency ? MinFrameTicks / 2 : MinFrameTicks;
+                    var gate = _lowLatency ? LowLatencyMinFrameTicks / 2 : MinFrameTicks;
                     if (now - _lastFrameTicks < gate || request.IsEmpty)
                     {
                         return;

@@ -29,7 +29,7 @@ namespace PlayniteAchievements.Services.UI
     /// whole monitor, and then the SAN window and this window are both excluded from the capture;
     /// otherwise the card would be blurred into its own background. UI thread only.
     /// </summary>
-    internal sealed class SanLiveBackdrop : IDisposable
+    internal sealed class SanLiveBackdrop : ISanBackdrop
     {
         private const uint WdaNone = 0;
         private const uint WdaExcludeFromCapture = 0x11;

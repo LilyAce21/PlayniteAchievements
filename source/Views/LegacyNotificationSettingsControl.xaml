@@ -2763,7 +2763,15 @@
                                                   IsChecked="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEnabled, Mode=TwoWay}"
                                                   ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEngine, Mode=TwoWay}"
+                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEnabled}">
+                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Default.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Default.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -2824,7 +2832,15 @@
                                                   IsChecked="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEnabled, Mode=TwoWay}"
                                                   ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEngine, Mode=TwoWay}"
+                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEnabled}">
+                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Common.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Common.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -2883,7 +2899,15 @@
                                                       IsChecked="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEnabled, Mode=TwoWay}"
                                                       ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEngine, Mode=TwoWay}"
+                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                    <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEnabled}">
+                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Common.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Common.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -2945,7 +2969,15 @@
                                                   IsChecked="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEnabled, Mode=TwoWay}"
                                                   ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEngine, Mode=TwoWay}"
+                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEnabled}">
+                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3004,7 +3036,15 @@
                                                       IsChecked="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEnabled, Mode=TwoWay}"
                                                       ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEngine, Mode=TwoWay}"
+                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                    <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEnabled}">
+                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3066,7 +3106,15 @@
                                                   IsChecked="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEnabled, Mode=TwoWay}"
                                                   ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEngine, Mode=TwoWay}"
+                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEnabled}">
+                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3125,7 +3173,15 @@
                                                       IsChecked="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEnabled, Mode=TwoWay}"
                                                       ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEngine, Mode=TwoWay}"
+                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                    <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEnabled}">
+                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3187,7 +3243,15 @@
                                                   IsChecked="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEnabled, Mode=TwoWay}"
                                                   ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEngine, Mode=TwoWay}"
+                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEnabled}">
+                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3246,7 +3310,15 @@
                                                       IsChecked="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEnabled, Mode=TwoWay}"
                                                       ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEngine, Mode=TwoWay}"
+                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                    <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEnabled}">
+                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3308,7 +3380,15 @@
                                                   IsChecked="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEnabled, Mode=TwoWay}"
                                                   ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEngine, Mode=TwoWay}"
+                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEnabled}">
+                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3367,7 +3447,15 @@
                                                       IsChecked="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEnabled, Mode=TwoWay}"
                                                       ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEngine, Mode=TwoWay}"
+                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                    <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEnabled}">
+                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3429,7 +3517,15 @@
                                                   IsChecked="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEnabled, Mode=TwoWay}"
                                                   ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEnabled}">
-                                            <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                            <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEngine, Mode=TwoWay}"
+                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                            </ComboBox>
+                                        </DockPanel>
+                                        <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEnabled}">
+                                            <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                     Value="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurStrength, Mode=TwoWay}"/>
                                             <TextBlock Text="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
@@ -3488,7 +3584,15 @@
                                                       IsChecked="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEnabled, Mode=TwoWay}"
                                                       ToolTip="Blurs the live game picture behind the card, like the native toast does. The theme's own blur setting cannot do this, because the notification window is transparent."/>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEnabled}">
-                                                <TextBlock Text="Blur strength:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEngine, Mode=TwoWay}"
+                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
+                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                    <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEnabled}">
+                                                <TextBlock Text="Blur strength (screen capture):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <Slider Minimum="0" Maximum="100" Width="170" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"
                                                         Value="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurStrength, Mode=TwoWay}"/>
                                                 <TextBlock Text="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurStrength, StringFormat={}{0}%}" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
