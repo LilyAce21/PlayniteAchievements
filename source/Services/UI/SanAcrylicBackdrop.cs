@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -6,6 +7,16 @@ using System.Windows.Media;
 
 namespace PlayniteAchievements.Services.UI
 {
+    /// <summary>Which of Windows' own blurs the system backdrop uses.</summary>
+    internal enum SanSystemBlurMode
+    {
+        /// <summary>DwmEnableBlurBehindWindow with a rounded blur region: follows the card's corners.</summary>
+        RoundedBlur = 0,
+
+        /// <summary>The acrylic accent: nicer material, but its corners stay square.</summary>
+        Acrylic = 1
+    }
+
     /// <summary>
     /// The blur behind an official-SAN card done by Windows itself, so it has no delay.
     ///
@@ -40,6 +51,29 @@ namespace PlayniteAchievements.Services.UI
 
         // The blur is on/off, so it appears once the card is mostly visible and goes as it fades.
         private const double ShowAtOpacity = 0.35;
+
+        // The page reports where the card was; by the time this window moves and the card is on
+        // screen it has moved on. Project each edge forward by this long (plus the age of the
+        // report) using the velocity between the last two reports. Reports older than StaleMs mean
+        // the animation has stopped, so nothing is projected.
+        private const double LeadMs = 28;
+        private const double MaxLeadMs = 45;
+        private const double StaleMs = 60;
+
+        private const uint DwmBbEnable = 0x1;
+        private const uint DwmBbBlurRegion = 0x2;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct DwmBlurBehind
+        {
+            public uint Flags;
+            public int Enable;
+            public IntPtr BlurRegion;
+            public int TransitionOnMaximized;
+        }
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmEnableBlurBehindWindow(IntPtr hwnd, ref DwmBlurBehind blurBehind);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct AccentPolicy
@@ -85,20 +119,26 @@ namespace PlayniteAchievements.Services.UI
         private readonly Window _window;
         private readonly IntPtr _hwnd;
 
+        private readonly SanSystemBlurMode _mode;
         private SanCardReport _report;
-        private bool _hasReport;
+        private SanCardReport _prev;
+        private long _lastTicks, _prevTicks;
+        private bool _hasReport, _hasPrev;
         private bool _shown;
         private bool _disposed;
         private int _regionW = -1, _regionH = -1, _regionR = -1;
+        private int _placedX = int.MinValue, _placedY, _placedW, _placedH;
+        private int _lastBlurHr;
         private long _updates;
         private TimeSpan _lastRenderingTime = TimeSpan.MinValue;
 
-        private SanAcrylicBackdrop(Window san, IntPtr sanHwnd, Window window, IntPtr hwnd)
+        private SanAcrylicBackdrop(Window san, IntPtr sanHwnd, Window window, IntPtr hwnd, SanSystemBlurMode mode)
         {
             _san = san;
             _sanHwnd = sanHwnd;
             _window = window;
             _hwnd = hwnd;
+            _mode = mode;
             CompositionTarget.Rendering += OnRendering;
         }
 
@@ -107,7 +147,7 @@ namespace PlayniteAchievements.Services.UI
         /// the accent, with <paramref name="skipped"/> saying why; the caller can then fall back to the
         /// capture engine. UI thread; the SAN window must already have a handle.
         /// </summary>
-        public static SanAcrylicBackdrop TryStart(Window sanWindow, out string skipped)
+        public static SanAcrylicBackdrop TryStart(Window sanWindow, SanSystemBlurMode mode, out string skipped)
         {
             skipped = null;
             Window window = null;
@@ -128,9 +168,13 @@ namespace PlayniteAchievements.Services.UI
                     Top = sanWindow.Top,
                     WindowStyle = WindowStyle.None,
                     ResizeMode = ResizeMode.NoResize,
-                    // Not layered: the acrylic accent does not work on layered windows.
-                    AllowsTransparency = false,
-                    Background = Brushes.Transparent,
+                    // The acrylic accent does not work on layered windows; the blur-behind region
+                    // route (like Rainmeter's) is used with a layered, per-pixel-alpha one.
+                    AllowsTransparency = mode == SanSystemBlurMode.RoundedBlur,
+                    // Nearly clear but not fully: a fully transparent layered window may not be drawn.
+                    Background = mode == SanSystemBlurMode.RoundedBlur
+                        ? new SolidColorBrush(Color.FromArgb(1, 0, 0, 0))
+                        : Brushes.Transparent,
                     Topmost = true,
                     ShowInTaskbar = false,
                     ShowActivated = false,
@@ -157,16 +201,29 @@ namespace PlayniteAchievements.Services.UI
                 var ex = GetWindowLong(hwnd, GwlExStyle);
                 SetWindowLong(hwnd, GwlExStyle, ex | WsExTransparent | WsExNoActivate | WsExToolWindow);
 
-                if (!ApplyAcrylic(hwnd))
+                if (mode == SanSystemBlurMode.Acrylic)
                 {
-                    skipped = "Windows refused the acrylic accent";
-                    window.Close();
-                    return null;
+                    if (!ApplyAcrylic(hwnd))
+                    {
+                        skipped = "Windows refused the acrylic accent";
+                        window.Close();
+                        return null;
+                    }
+                }
+                else
+                {
+                    var hr = SetBlurRegion(hwnd, IntPtr.Zero);
+                    if (hr < 0)
+                    {
+                        skipped = "DwmEnableBlurBehindWindow failed (0x" + hr.ToString("X8") + ")";
+                        window.Close();
+                        return null;
+                    }
                 }
 
                 // Hidden until the page has reported where the card is.
                 SetWindowPos(hwnd, sanHwnd, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow);
-                return new SanAcrylicBackdrop(sanWindow, sanHwnd, window, hwnd);
+                return new SanAcrylicBackdrop(sanWindow, sanHwnd, window, hwnd, mode);
             }
             catch (Exception ex)
             {
@@ -205,46 +262,100 @@ namespace PlayniteAchievements.Services.UI
             }
         }
 
+        /// <summary>
+        /// Turns on Windows' blur-behind for the given region of the window (null = the whole
+        /// window). The region is the shape the blur is limited to, in window coordinates.
+        /// </summary>
+        private static int SetBlurRegion(IntPtr hwnd, IntPtr region)
+        {
+            var blur = new DwmBlurBehind
+            {
+                Flags = DwmBbEnable | (region != IntPtr.Zero ? DwmBbBlurRegion : 0u),
+                Enable = 1,
+                BlurRegion = region,
+                TransitionOnMaximized = 0
+            };
+            return DwmEnableBlurBehindWindow(hwnd, ref blur);
+        }
+
         public void UpdateCard(string message)
         {
-            if (!_disposed && SanCardReport.TryParse(message, out var report))
+            if (_disposed || !SanCardReport.TryParse(message, out var report))
             {
-                _report = report;
-                _hasReport = true;
+                return;
             }
+
+            var now = Stopwatch.GetTimestamp();
+            if (_hasReport)
+            {
+                _prev = _report;
+                _prevTicks = _lastTicks;
+                _hasPrev = true;
+            }
+
+            _report = report;
+            _lastTicks = now;
+            _hasReport = true;
+
+            // Move now rather than at the next render tick: that tick can be a whole frame away.
+            ApplyPlacement(now);
         }
 
         public string Describe()
         {
-            return $"engine=acrylic shown={_shown} updates={_updates}";
+            return $"engine={(_mode == SanSystemBlurMode.RoundedBlur ? "rounded-blur" : "acrylic")} " +
+                   $"shown={_shown} updates={_updates} blurHr=0x{_lastBlurHr:X8}";
         }
 
         private void OnRendering(object sender, EventArgs e)
         {
-            try
+            if (e is RenderingEventArgs args)
             {
-                if (e is RenderingEventArgs args)
+                if (args.RenderingTime == _lastRenderingTime)
                 {
-                    if (args.RenderingTime == _lastRenderingTime)
-                    {
-                        return;
-                    }
-
-                    _lastRenderingTime = args.RenderingTime;
+                    return;
                 }
 
+                _lastRenderingTime = args.RenderingTime;
+            }
+
+            // Keeps the card's projected position moving between the page's reports.
+            ApplyPlacement(Stopwatch.GetTimestamp());
+        }
+
+        private void ApplyPlacement(long now)
+        {
+            try
+            {
                 if (_disposed || !_hasReport || _report.ViewWidth <= 0 || _report.ViewHeight <= 0 ||
                     !ToastWindowPlacer.TryGetPhysicalRect(_san, out var win) || win.Width <= 0)
                 {
                     return;
                 }
 
+                // Where the card is now: the last report, projected forward by its own velocity.
+                var sinceMs = (now - _lastTicks) * 1000.0 / Stopwatch.Frequency;
+                double left = _report.Left, top = _report.Top;
+                double right = _report.Left + _report.Width, bottom = _report.Top + _report.Height;
+                if (_hasPrev)
+                {
+                    var dtMs = (_lastTicks - _prevTicks) * 1000.0 / Stopwatch.Frequency;
+                    if (dtMs > 0.5 && dtMs < 80 && sinceMs < StaleMs)
+                    {
+                        var lead = Math.Min(LeadMs + sinceMs, MaxLeadMs);
+                        left += (_report.Left - _prev.Left) / dtMs * lead;
+                        top += (_report.Top - _prev.Top) / dtMs * lead;
+                        right += ((_report.Left + _report.Width) - (_prev.Left + _prev.Width)) / dtMs * lead;
+                        bottom += ((_report.Top + _report.Height) - (_prev.Top + _prev.Height)) / dtMs * lead;
+                    }
+                }
+
                 // Physical pixels per CSS pixel of the page, whatever the DPI or zoom.
                 var scale = win.Width / _report.ViewWidth;
-                var x = win.X + (int)Math.Round(_report.Left * scale);
-                var y = win.Y + (int)Math.Round(_report.Top * scale);
-                var w = (int)Math.Round(_report.Width * scale);
-                var h = (int)Math.Round(_report.Height * scale);
+                var x = win.X + (int)Math.Round(left * scale);
+                var y = win.Y + (int)Math.Round(top * scale);
+                var w = (int)Math.Round((right - left) * scale);
+                var h = (int)Math.Round((bottom - top) * scale);
 
                 if (w < 1 || h < 1 || _report.Opacity < ShowAtOpacity)
                 {
@@ -252,15 +363,25 @@ namespace PlayniteAchievements.Services.UI
                     {
                         SetWindowPos(_hwnd, _sanHwnd, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate | SwpHideWindow);
                         _shown = false;
+                        _placedX = int.MinValue;
                     }
 
                     return;
                 }
 
+                if (_shown && x == _placedX && y == _placedY && w == _placedW && h == _placedH)
+                {
+                    return;
+                }
+
                 // Inserting after the SAN window keeps this one directly beneath it, in the same
-                // topmost band, every frame.
+                // topmost band, every time it moves.
                 SetWindowPos(_hwnd, _sanHwnd, x, y, w, h, SwpNoActivate | (_shown ? 0u : SwpShowWindow));
                 _shown = true;
+                _placedX = x;
+                _placedY = y;
+                _placedW = w;
+                _placedH = h;
                 _updates++;
 
                 var radius = (int)Math.Round(_report.Radius * scale);
@@ -269,19 +390,36 @@ namespace PlayniteAchievements.Services.UI
                     _regionW = w;
                     _regionH = h;
                     _regionR = radius;
-
-                    // The window region clips the blur to the card's rounded corners. On success the
-                    // system owns the region; on failure it must be freed.
-                    var region = CreateRoundRectRgn(0, 0, w + 1, h + 1, radius * 2, radius * 2);
-                    if (region != IntPtr.Zero && SetWindowRgn(_hwnd, region, true) == 0)
-                    {
-                        DeleteObject(region);
-                    }
+                    ApplyShape(w, h, radius);
                 }
             }
             catch
             {
                 // A missed frame keeps the previous position.
+            }
+        }
+
+        /// <summary>Limits the blur to the card's rounded rect, whichever route this mode uses.</summary>
+        private void ApplyShape(int w, int h, int radius)
+        {
+            var region = CreateRoundRectRgn(0, 0, w + 1, h + 1, radius * 2, radius * 2);
+            if (region == IntPtr.Zero)
+            {
+                return;
+            }
+
+            if (_mode == SanSystemBlurMode.RoundedBlur)
+            {
+                // DWM copies the blur region, so the handle is ours to free.
+                _lastBlurHr = SetBlurRegion(_hwnd, region);
+                DeleteObject(region);
+                return;
+            }
+
+            // The window region. On success the system owns it; on failure it must be freed.
+            if (SetWindowRgn(_hwnd, region, true) == 0)
+            {
+                DeleteObject(region);
             }
         }
 

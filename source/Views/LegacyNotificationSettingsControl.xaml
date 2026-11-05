@@ -2765,9 +2765,10 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEnabled}">
                                             <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEngine, Mode=TwoWay}"
-                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                      ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                 <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Default.Primary.LiveBlurEnabled}">
@@ -2834,9 +2835,10 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEnabled}">
                                             <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEngine, Mode=TwoWay}"
-                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                      ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                 <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Primary.LiveBlurEnabled}">
@@ -2901,9 +2903,10 @@
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEnabled}">
                                                 <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEngine, Mode=TwoWay}"
-                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                          ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                    <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                     <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                    <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Common.Alt.LiveBlurEnabled}">
@@ -2971,9 +2974,10 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEnabled}">
                                             <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEngine, Mode=TwoWay}"
-                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                      ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                 <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Primary.LiveBlurEnabled}">
@@ -3038,9 +3042,10 @@
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEnabled}">
                                                 <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEngine, Mode=TwoWay}"
-                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                          ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                    <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                     <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                    <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Uncommon.Alt.LiveBlurEnabled}">
@@ -3108,9 +3113,10 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEnabled}">
                                             <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEngine, Mode=TwoWay}"
-                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                      ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                 <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Primary.LiveBlurEnabled}">
@@ -3175,9 +3181,10 @@
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEnabled}">
                                                 <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEngine, Mode=TwoWay}"
-                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                          ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                    <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                     <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                    <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Rare.Alt.LiveBlurEnabled}">
@@ -3245,9 +3252,10 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEnabled}">
                                             <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEngine, Mode=TwoWay}"
-                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                      ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                 <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Primary.LiveBlurEnabled}">
@@ -3312,9 +3320,10 @@
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEnabled}">
                                                 <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEngine, Mode=TwoWay}"
-                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                          ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                    <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                     <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                    <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.UltraRare.Alt.LiveBlurEnabled}">
@@ -3382,9 +3391,10 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEnabled}">
                                             <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEngine, Mode=TwoWay}"
-                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                      ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                 <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Primary.LiveBlurEnabled}">
@@ -3449,9 +3459,10 @@
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEnabled}">
                                                 <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEngine, Mode=TwoWay}"
-                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                          ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                    <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                     <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                    <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Capstone.Alt.LiveBlurEnabled}">
@@ -3519,9 +3530,10 @@
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEnabled}">
                                             <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                             <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEngine, Mode=TwoWay}"
-                                                      ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                      ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                 <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                             </ComboBox>
                                         </DockPanel>
                                         <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Primary.LiveBlurEnabled}">
@@ -3586,9 +3598,10 @@
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEnabled}">
                                                 <TextBlock Text="Blur engine:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox Width="280" SelectedIndex="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEngine, Mode=TwoWay}"
-                                                          ToolTip="System acrylic: Windows blurs what is behind the card itself, in the same frame, so there is no delay (blur radius is fixed). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames.">
-                                                    <ComboBoxItem Content="System acrylic (no delay, fixed blur)"/>
+                                                          ToolTip="System blur: Windows blurs what is behind the card itself, in the same frame, so there is no delay and it follows the rounded corners (fixed blur radius). Screen capture: the plugin captures and blurs the game, so the strength is adjustable but it trails the game by a few frames. System acrylic: no delay, nicer material, but square corners.">
+                                                    <ComboBoxItem Content="System blur, rounded (no delay)"/>
                                                     <ComboBoxItem Content="Screen capture (adjustable, delayed)"/>
+                                                    <ComboBoxItem Content="System acrylic (no delay, square corners)"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,6" LastChildFill="False" IsEnabled="{Binding OfficialSanProfiles.Completion.Alt.LiveBlurEnabled}">

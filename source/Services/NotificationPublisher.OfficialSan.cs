@@ -908,16 +908,19 @@ namespace PlayniteAchievements.Services
                     // System acrylic first: Windows blurs the game itself in the same frame, so it has
                     // no delay. The capture engine below is the fallback, and the chosen engine when
                     // the profile asks for an adjustable blur.
-                    if (slot.LiveBlurEnabled && liveBackdrop == null && slot.LiveBlurEngine == 0)
+                    if (slot.LiveBlurEnabled && liveBackdrop == null && slot.LiveBlurEngine != 1)
                     {
-                        liveBackdrop = SanAcrylicBackdrop.TryStart(window, out var acrylicSkipped);
+                        liveBackdrop = SanAcrylicBackdrop.TryStart(
+                            window,
+                            slot.LiveBlurEngine == 2 ? SanSystemBlurMode.Acrylic : SanSystemBlurMode.RoundedBlur,
+                            out var acrylicSkipped);
                         if (liveBackdrop != null)
                         {
                             liveBackdrop.UpdateCard(lastCardReport);
                         }
                         else
                         {
-                            ForkLog.Wrap(_logger)?.Info($"[OfficialSan] System acrylic not started ({acrylicSkipped}); using screen capture.");
+                            ForkLog.Wrap(_logger)?.Info($"[OfficialSan] System blur not started ({acrylicSkipped}); using screen capture.");
                         }
                     }
 

@@ -64,15 +64,17 @@ namespace PlayniteAchievements.Models.Settings
         public bool LiveBlurEnabled { get => _liveBlurEnabled; set => SetValue(ref _liveBlurEnabled, value); }
 
         /// <summary>
-        /// 0 = system acrylic: Windows blurs what is behind the card itself, in the same frame, so
-        /// there is no delay, but the blur radius is fixed. 1 = screen capture: the game picture is
-        /// captured and blurred by the plugin, so the strength is adjustable but it trails the game
-        /// by a few frames.
+        /// 0 = system blur: Windows blurs what is behind the card itself, in the same frame, so there
+        /// is no delay and the blur follows the card's rounded corners; the radius is fixed.
+        /// 1 = screen capture: the game picture is captured and blurred by the plugin, so the
+        /// strength is adjustable but it trails the game by a few frames.
+        /// 2 = system acrylic: the same no-delay route with Windows' acrylic material, whose
+        /// corners stay square.
         /// </summary>
         public int LiveBlurEngine
         {
             get => _liveBlurEngine;
-            set => SetValue(ref _liveBlurEngine, System.Math.Max(0, System.Math.Min(1, value)));
+            set => SetValue(ref _liveBlurEngine, System.Math.Max(0, System.Math.Min(2, value)));
         }
 
         /// <summary>How far the live blur spreads, 0-100 (shared mapping with the toast blur).</summary>
