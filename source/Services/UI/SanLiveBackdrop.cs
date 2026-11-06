@@ -1,4 +1,6 @@
 using System;
+using System.Windows.Threading;
+using System.Threading;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -84,6 +86,13 @@ namespace PlayniteAchievements.Services.UI
         private int _pad = MinMotionPad;
         private int _padCalm;
 
+        // The card's last placed rect (physical px), for re-aiming the brush when a frame is uploaded
+        // between render ticks; and the pending-upload flag for OnFrameReady.
+        private System.Drawing.Rectangle _cardRect;
+        private bool _hasCardRect;
+        private int _uploadQueued;
+        private long _uploads;
+
         // How old a frame is when it is handed to WPF, for the diagnostics line.
         private double _ageTotalMs, _ageMaxMs;
         private long _ageCount;
@@ -163,6 +172,7 @@ namespace PlayniteAchievements.Services.UI
             SetWindowLong(_backdropHwnd, GwlExStyle, ex | WsExTransparent | WsExNoActivate | WsExToolWindow);
 
             CompositionTarget.Rendering += OnRendering;
+            _capture.FrameReady += OnFrameReady;
         }
 
         /// <summary>
@@ -268,7 +278,7 @@ namespace PlayniteAchievements.Services.UI
         public string Describe()
         {
             var age = _ageCount > 0 ? _ageTotalMs / _ageCount : 0;
-            return $"{_capture.Describe()} applied={_framesApplied} reach={_reachPhys:0.#} pad={_pad} " +
+            return $"{_capture.Describe()} applied={_framesApplied} uploadsOnArrival={_uploads} ticks={_tick} reach={_reachPhys:0.#} pad={_pad} " +
                    $"presentAgeMs(avg/max)={age:0.0}/{_ageMaxMs:0}";
         }
 
@@ -329,8 +339,12 @@ namespace PlayniteAchievements.Services.UI
                     return;
                 }
 
+                _cardRect = card;
+                _hasCardRect = true;
                 _capture.Request(LiveBackdropMath.RequestFor(card, _reachPhys, MotionPad(card, now)));
 
+                // Normally the frame was already taken by UploadLatest the moment it arrived; this
+                // catches one that landed after the last upload ran.
                 var frame = _capture.TakeLatest();
                 if (frame != null)
                 {
@@ -339,18 +353,10 @@ namespace PlayniteAchievements.Services.UI
                     _framesApplied++;
                 }
 
-                if (_bitmap == null)
+                if (!ApplyViewbox(card))
                 {
                     return;
                 }
-
-                var viewbox = LiveBackdropMath.Viewbox(card, _frameRect);
-                if (viewbox.IsEmpty)
-                {
-                    return;
-                }
-
-                _brush.Viewbox = new Rect(viewbox.X, viewbox.Y, viewbox.Width, viewbox.Height);
 
                 // The backdrop window's own DPI turns physical pixels into its DIPs.
                 var dpi = VisualTreeHelper.GetDpi(_backdrop);
@@ -385,6 +391,83 @@ namespace PlayniteAchievements.Services.UI
 
             _placed = win;
             SetWindowPos(_backdropHwnd, _sanHwnd, win.X, win.Y, win.Width, win.Height, SwpNoActivate);
+        }
+
+        /// <summary>
+        /// Runs on the capture thread each time a frame is ready. Queues one upload on the UI thread
+        /// (coalesced: while one is pending, further frames just replace the stored one), so a frame
+        /// reaches WPF as soon as it exists rather than at the next render tick: on average half a tick
+        /// sooner, and no frame is skipped just because two arrived between ticks.
+        /// </summary>
+        private void OnFrameReady()
+        {
+            if (_disposed || Interlocked.Exchange(ref _uploadQueued, 1) == 1)
+            {
+                return;
+            }
+
+            try
+            {
+                _backdrop.Dispatcher.BeginInvoke(new Action(UploadLatest), DispatcherPriority.Normal);
+            }
+            catch
+            {
+                Interlocked.Exchange(ref _uploadQueued, 0);
+            }
+        }
+
+        private void UploadLatest()
+        {
+            Interlocked.Exchange(ref _uploadQueued, 0);
+            if (_disposed)
+            {
+                return;
+            }
+
+            try
+            {
+                var frame = _capture.TakeLatest();
+                if (frame == null)
+                {
+                    return;
+                }
+
+                WriteFrame(frame);
+                _capture.Recycle(frame);
+                _framesApplied++;
+                _uploads++;
+
+                // Re-aim the brush at the card with the new frame, using where the card was last placed.
+                if (_hasCardRect)
+                {
+                    ApplyViewbox(_cardRect);
+                }
+            }
+            catch
+            {
+                // A missed upload keeps the previous picture until the next one.
+            }
+        }
+
+        /// <summary>
+        /// Points the brush at the part of the current frame that lies behind <paramref name="card"/>.
+        /// False when there is no frame yet or the card is outside it.
+        /// </summary>
+        private bool ApplyViewbox(System.Drawing.Rectangle card)
+        {
+            if (_bitmap == null)
+            {
+                return false;
+            }
+
+            var viewbox = LiveBackdropMath.Viewbox(card, _frameRect);
+            if (viewbox.IsEmpty)
+            {
+                return false;
+            }
+
+            _brush.Viewbox = new Rect(viewbox.X, viewbox.Y, viewbox.Width, viewbox.Height);
+            return true;
         }
 
         /// <summary>
@@ -466,6 +549,7 @@ namespace PlayniteAchievements.Services.UI
 
             _disposed = true;
             CompositionTarget.Rendering -= OnRendering;
+            _capture.FrameReady -= OnFrameReady;
             try { _capture.Dispose(); } catch { }
             if (_excluded)
             {

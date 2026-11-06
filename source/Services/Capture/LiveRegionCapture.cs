@@ -197,6 +197,13 @@ namespace PlayniteAchievements.Services.Capture
         }
 
         /// <summary>The newest frame since the last call, or null when none has arrived.</summary>
+        /// <summary>
+        /// Raised, on the capture thread, each time a new frame has been stored for
+        /// <see cref="TakeLatest"/>. Low-latency path only. Handlers must return quickly and must not
+        /// block; they are expected to hand the work to another thread.
+        /// </summary>
+        public event Action FrameReady;
+
         public Frame TakeLatest()
         {
             return Interlocked.Exchange(ref _latest, null);
@@ -371,6 +378,13 @@ namespace PlayniteAchievements.Services.Capture
                         if (_lowLatency && replaced != null)
                         {
                             ReturnBuffer(replaced.Bgra);
+                        }
+
+                        if (_lowLatency)
+                        {
+                            // Tell the consumer now, on this (capture) thread, so it can take the frame
+                            // at once rather than at its next poll.
+                            try { FrameReady?.Invoke(); } catch { }
                         }
 
                         Interlocked.CompareExchange(ref _firstFrameTicks, now, 0);

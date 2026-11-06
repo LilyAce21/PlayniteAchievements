@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Wpf;
 using Newtonsoft.Json.Linq;
@@ -852,6 +853,9 @@ namespace PlayniteAchievements.Services
                     overlayState.SanInset = theme.Offset * scale;
                     overlayState.SanCardHeight = theme.BaseHeight * scale;
                     PositionOfficialSanWindow(overlayState, GetOverlayStackIndex(overlayState), followMonitor);
+
+                    // This card took the first slot, so the ones already showing slide one slot over.
+                    RepositionActiveOverlayWindows(position, animate: true, skip: overlayState);
                 }
                 else
                 {
@@ -1192,7 +1196,7 @@ namespace PlayniteAchievements.Services
         /// does: the theme already carries a transparent margin round its card, so no extra margin is
         /// added. Stacked cards are spaced by their visible edges (margins overlap).
         /// </summary>
-        private void PositionOfficialSanWindow(OverlayWindowState state, int stackIndex, bool followActiveGameMonitor)
+        private void PositionOfficialSanWindow(OverlayWindowState state, int stackIndex, bool followActiveGameMonitor, bool animate = false)
         {
             var window = state?.Window;
             if (window == null)
@@ -1209,33 +1213,61 @@ namespace PlayniteAchievements.Services
             var visibleGap = Math.Max(1.0, Math.Round((inset * 2 + 8) * 0.15));
             var stackOffset = Math.Max(0, stackIndex) * (card + visibleGap);
 
+            double left, top;
             switch (state.Position)
             {
                 case LocalUnlockOverlayPosition.TopLeft:
-                    window.Left = workArea.Left;
-                    window.Top = workArea.Top + stackOffset;
+                    left = workArea.Left;
+                    top = workArea.Top + stackOffset;
                     break;
                 case LocalUnlockOverlayPosition.TopCenter:
-                    window.Left = workArea.Left + ((workArea.Width - window.Width) / 2);
-                    window.Top = workArea.Top + stackOffset;
+                    left = workArea.Left + ((workArea.Width - window.Width) / 2);
+                    top = workArea.Top + stackOffset;
                     break;
                 case LocalUnlockOverlayPosition.BottomLeft:
-                    window.Left = workArea.Left;
-                    window.Top = workArea.Bottom - height - stackOffset;
+                    left = workArea.Left;
+                    top = workArea.Bottom - height - stackOffset;
                     break;
                 case LocalUnlockOverlayPosition.BottomCenter:
-                    window.Left = workArea.Left + ((workArea.Width - window.Width) / 2);
-                    window.Top = workArea.Bottom - height - stackOffset;
+                    left = workArea.Left + ((workArea.Width - window.Width) / 2);
+                    top = workArea.Bottom - height - stackOffset;
                     break;
                 case LocalUnlockOverlayPosition.BottomRight:
-                    window.Left = workArea.Right - window.Width;
-                    window.Top = workArea.Bottom - height - stackOffset;
+                    left = workArea.Right - window.Width;
+                    top = workArea.Bottom - height - stackOffset;
                     break;
                 default:
-                    window.Left = workArea.Right - window.Width;
-                    window.Top = workArea.Top + stackOffset;
+                    left = workArea.Right - window.Width;
+                    top = workArea.Top + stackOffset;
                     break;
             }
+
+            window.Left = left;
+
+            // Read before the new value is set: while a slide is running this is where the card is now,
+            // so a second move in quick succession carries on from there instead of jumping.
+            var from = window.Top;
+            window.Top = top;
+            if (animate && window.IsVisible && Math.Abs(from - top) > 0.5)
+            {
+                // Slide to the new slot. The window's own base value is already the destination, so
+                // when the animation ends (or is replaced) the card simply stays there.
+                window.BeginAnimation(Window.TopProperty, new DoubleAnimation
+                {
+                    From = from,
+                    To = top,
+                    Duration = TimeSpan.FromMilliseconds(StackSlideMilliseconds),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                    FillBehavior = FillBehavior.Stop
+                });
+            }
+            else
+            {
+                window.BeginAnimation(Window.TopProperty, null);
+            }
         }
+
+        /// <summary>How long a card takes to slide to its new slot when the stack changes.</summary>
+        private const double StackSlideMilliseconds = 280;
     }
 }

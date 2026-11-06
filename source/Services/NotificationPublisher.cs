@@ -478,7 +478,10 @@ namespace PlayniteAchievements.Services
 
             var state = new OverlayWindowState(window, position);
             ActiveOverlayWindows.RemoveAll(item => item?.Window == null || !item.Window.IsVisible);
-            ActiveOverlayWindows.Add(state);
+
+            // Newest first: a new notification takes the slot nearest the screen corner and the ones
+            // already showing move one slot further away.
+            ActiveOverlayWindows.Insert(0, state);
             return state;
         }
 
@@ -491,7 +494,9 @@ namespace PlayniteAchievements.Services
 
             state.CloseTimer?.Stop();
             ActiveOverlayWindows.Remove(state);
-            RepositionActiveOverlayWindows(state.Position);
+
+            // The cards that were beyond this one slide back towards the corner.
+            RepositionActiveOverlayWindows(state.Position, animate: true);
         }
 
         private static int GetOverlayStackIndex(OverlayWindowState state)
@@ -507,18 +512,30 @@ namespace PlayniteAchievements.Services
                 .Count();
         }
 
-        private void RepositionActiveOverlayWindows(LocalUnlockOverlayPosition position)
+        /// <summary>
+        /// Lays the active windows of one screen position out in order, newest first. Windows that
+        /// are exiting still count and still move, so nothing overlaps while a card leaves.
+        /// <paramref name="skip"/> is a window that has just been placed (it may not be visible yet, so
+        /// it is counted anyway) and is not moved again.
+        /// </summary>
+        private void RepositionActiveOverlayWindows(LocalUnlockOverlayPosition position, bool animate = false, OverlayWindowState skip = null)
         {
             var overlays = ActiveOverlayWindows
-                .Where(item => item != null && item.Position == position && !item.IsClosing && item.Window?.IsVisible == true)
+                .Where(item => item != null && item.Window != null && item.Position == position &&
+                               (item.Window.IsVisible || ReferenceEquals(item, skip)))
                 .ToList();
 
             for (var i = 0; i < overlays.Count; i++)
             {
+                if (ReferenceEquals(overlays[i], skip))
+                {
+                    continue;
+                }
+
                 var settings = ProviderRegistry.Settings<LocalSettings>();
                 if (overlays[i].Renderer == "OfficialSAN")
                 {
-                    PositionOfficialSanWindow(overlays[i], i, settings?.ShowOverlayOnActiveGameMonitor == true);
+                    PositionOfficialSanWindow(overlays[i], i, settings?.ShowOverlayOnActiveGameMonitor == true, animate);
                     continue;
                 }
 
