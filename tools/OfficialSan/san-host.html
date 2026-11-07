@@ -944,6 +944,8 @@
         setVar("--bodyopacity", "1");
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
+            // The page is now painted and visible: start the entrance from its first frame.
+            document.body.removeAttribute("paused");
             window.api?.notificationRenderReady?.();
           });
         });
@@ -984,6 +986,15 @@
           window.__paTimings.css = performance.now();
           document.body.insertAdjacentHTML("beforeend", theme.presetHtml || "");
           setBodyAttributes(payload, customisation);
+          // SAN's own app loads its notification page with body[paused], which freezes every entrance
+          // animation until the window is ready to show. This host dropped that, so the card's slide-in
+          // started the moment its HTML was inserted - invisibly, with the body still at opacity 0 -
+          // and by the time the images had decoded and the body faded in (40-250 ms later) the card
+          // appeared part-way through its entrance. Pause here, release in paShow() when the card is
+          // actually about to be seen, so the whole entrance is always visible. A timer releases it
+          // regardless, so a page that never reaches paShow() cannot stay frozen and invisible.
+          document.body.setAttribute("paused", "");
+          setTimeout(() => document.body.removeAttribute("paused"), 2500);
           applyCustomFont(customisation);
           applySanVariables(payload, customisation);
           try { applyUpstreamElements(payload.upstream); } catch (e) {}
