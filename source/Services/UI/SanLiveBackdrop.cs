@@ -100,11 +100,6 @@ namespace PlayniteAchievements.Services.UI
         // The page reports where the card was; by the time this frame is on screen it has moved on.
         // Project each edge forward by this long (plus the age of the report) from the velocity
         // between the last two reports. A report older than StaleMs means the animation stopped.
-        // The blur fades in over this long from its first picture, whatever the card is doing, so it
-        // can never snap on part-way through the card's entrance.
-        private const double FadeInMs = 160;
-        private long _fadeStartTicks;
-
         private const double LeadMs = 20;
         private const double MaxLeadMs = 40;
         private const double StaleMs = 60;
@@ -181,39 +176,17 @@ namespace PlayniteAchievements.Services.UI
         }
 
         /// <summary>
-        /// A capture that has been set up (GPU device, capture session) but not yet given a window.
-        /// Setting it up is the slow part (tens of milliseconds, more when a game owns the GPU), so
-        /// <see cref="PrepareCapture"/> runs on a background thread; <see cref="Attach"/> then does
-        /// the quick part on the UI thread. Dispose it if it is never attached.
+        /// Starts the live background for <paramref name="sanWindow"/>, capturing
+        /// <paramref name="gameHwnd"/> when it is not zero and the whole monitor otherwise. Null
+        /// when capture is unavailable, with <paramref name="skipped"/> saying why; the card then
+        /// shows only its own background. <paramref name="strengthPercent"/> is the 0-100 blur
+        /// strength. UI thread; the window must already have a handle.
         /// </summary>
-        public sealed class PreparedCapture : IDisposable
-        {
-            internal LiveRegionCapture Capture;
-            internal double Reach;
-            internal bool Excluded;
-            internal IntPtr SanHwnd;
-
-            public void Dispose()
-            {
-                try { Capture?.Dispose(); } catch { }
-                if (Excluded)
-                {
-                    try { SetWindowDisplayAffinity(SanHwnd, WdaNone); } catch { }
-                    Excluded = false;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Sets up the capture for the SAN window <paramref name="sanHwnd"/>: the game window
-        /// <paramref name="gameHwnd"/> when it is not zero, the whole monitor otherwise.
-        /// <paramref name="strengthPercent"/> is the 0-100 blur strength. Null when capture is
-        /// unavailable, with <paramref name="skipped"/> saying why. Safe on any thread.
-        /// </summary>
-        public static PreparedCapture PrepareCapture(IntPtr sanHwnd, double strengthPercent, IntPtr gameHwnd, out string skipped)
+        public static SanLiveBackdrop TryStart(Window sanWindow, double strengthPercent, IntPtr gameHwnd, out string skipped)
         {
             skipped = null;
             LiveRegionCapture capture = null;
+            var sanHwnd = IntPtr.Zero;
             var excluded = false;
             try
             {
@@ -224,6 +197,7 @@ namespace PlayniteAchievements.Services.UI
                     return null;
                 }
 
+                sanHwnd = sanWindow == null ? IntPtr.Zero : new WindowInteropHelper(sanWindow).Handle;
                 if (sanHwnd == IntPtr.Zero)
                 {
                     skipped = "no SAN window handle";
@@ -233,7 +207,6 @@ namespace PlayniteAchievements.Services.UI
                 var wholeMonitor = gameHwnd == IntPtr.Zero;
                 if (wholeMonitor)
                 {
-                    // The card would otherwise be blurred into its own background.
                     if (!SetWindowDisplayAffinity(sanHwnd, WdaExcludeFromCapture))
                     {
                         skipped = "the SAN window could not be excluded from the monitor capture (error " +
@@ -256,7 +229,7 @@ namespace PlayniteAchievements.Services.UI
                     return null;
                 }
 
-                return new PreparedCapture { Capture = capture, Reach = reach, Excluded = excluded, SanHwnd = sanHwnd };
+                return new SanLiveBackdrop(sanWindow, sanHwnd, capture, reach, excluded);
             }
             catch (Exception ex)
             {
@@ -267,24 +240,6 @@ namespace PlayniteAchievements.Services.UI
                     try { SetWindowDisplayAffinity(sanHwnd, WdaNone); } catch { }
                 }
 
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Gives a prepared capture its window under <paramref name="sanWindow"/> and starts showing it.
-        /// Takes ownership of <paramref name="prepared"/> (disposing it when this fails). UI thread.
-        /// </summary>
-        public static SanLiveBackdrop Attach(Window sanWindow, PreparedCapture prepared, out string skipped)
-        {
-            skipped = null;
-            try
-            {
-                return new SanLiveBackdrop(sanWindow, prepared.SanHwnd, prepared.Capture, prepared.Reach, prepared.Excluded);
-            }
-            catch (Exception ex)
-            {
-                skipped = ex.GetType().Name + " " + ex.Message;
                 return null;
             }
         }
@@ -413,13 +368,7 @@ namespace PlayniteAchievements.Services.UI
                 _card.RadiusY = _report.Radius * scale / sy;
                 Canvas.SetLeft(_card, (card.X - win.X) / sx);
                 Canvas.SetTop(_card, (card.Y - win.Y) / sy);
-                if (_fadeStartTicks == 0)
-                {
-                    _fadeStartTicks = now;
-                }
-
-                var t = Math.Min(1.0, (now - _fadeStartTicks) * 1000.0 / Stopwatch.Frequency / FadeInMs);
-                _card.Opacity = _report.Opacity * (t * t * (3 - 2 * t));
+                _card.Opacity = _report.Opacity;
                 _card.Visibility = Visibility.Visible;
             }
             catch

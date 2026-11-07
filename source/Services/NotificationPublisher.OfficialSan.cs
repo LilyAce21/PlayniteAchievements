@@ -866,12 +866,9 @@ namespace PlayniteAchievements.Services
                 // rect the page reports. Started once the card is on screen, stopped with the window.
                 SanLiveBackdrop liveBackdrop = null;
                 string lastCardReport = null;
-                var blurBegun = false;
-                var windowClosed = false;
 
                 window.Closed += (_, __) =>
                 {
-                    windowClosed = true;
                     if (liveBackdrop != null)
                     {
                         try
@@ -901,87 +898,6 @@ namespace PlayniteAchievements.Services
                 var started = false;
                 var showStopwatch = System.Diagnostics.Stopwatch.StartNew();
                 DispatcherTimer readyFallback = null;
-                // Starts the live blur: the slow part (game window lookup, GPU device, capture session) on a
-                // background thread, then the window on the UI thread. Called as soon as the card is
-                // placed, well before the page is ready, so the first picture exists by the time the card
-                // starts to appear, and none of the set-up work lands on the UI thread while the card is
-                // sliding in and the cards already showing are sliding over.
-                void BeginLiveBlur()
-                {
-                    if (blurBegun || !slot.LiveBlurEnabled)
-                    {
-                        return;
-                    }
-
-                    blurBegun = true;
-                    IntPtr sanHwnd;
-                    var gameHwnd = IntPtr.Zero;
-                    try
-                    {
-                        sanHwnd = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
-
-                        // The running game's window gives the lowest-latency capture; a test from the
-                        // settings page (no game) falls back to capturing the monitor. Only the process
-                        // id is looked up here (a cheap lookup in Playnite's own state).
-                        var pid = game != null ? GameProcessIdResolver?.Invoke(game.Id) : null;
-                        var shots = pid.HasValue
-                            ? (_sanScreenshotService ?? (_sanScreenshotService = new UnlockScreenshotService(_logger)))
-                            : null;
-                        var strength = slot.LiveBlurStrength;
-                        var dispatcher = window.Dispatcher;
-
-                        System.Threading.Tasks.Task.Run(() =>
-                        {
-                            SanLiveBackdrop.PreparedCapture prepared = null;
-                            string skipped = null;
-                            try
-                            {
-                                try { gameHwnd = shots != null ? shots.ResolveGameWindowHandle(pid) : IntPtr.Zero; } catch { }
-                                prepared = SanLiveBackdrop.PrepareCapture(sanHwnd, strength, gameHwnd, out skipped);
-                            }
-                            catch (Exception ex)
-                            {
-                                skipped = ex.GetType().Name + " " + ex.Message;
-                            }
-
-                            dispatcher.BeginInvoke(new Action(() =>
-                            {
-                                if (prepared == null)
-                                {
-                                    if (skipped != null)
-                                    {
-                                        ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Live blur: not started ({skipped}).");
-                                    }
-
-                                    return;
-                                }
-
-                                // The card may be gone already (a very short notification, or a closed window).
-                                if (windowClosed || liveBackdrop != null)
-                                {
-                                    prepared.Dispose();
-                                    return;
-                                }
-
-                                liveBackdrop = SanLiveBackdrop.Attach(window, prepared, out var attachSkipped);
-                                if (liveBackdrop != null)
-                                {
-                                    // The page may already have reported its card before the backdrop existed.
-                                    liveBackdrop.UpdateCard(lastCardReport);
-                                }
-                                else
-                                {
-                                    ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Live blur: not started ({attachSkipped}).");
-                                }
-                            }));
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Live blur: not started ({ex.GetType().Name} {ex.Message}).");
-                    }
-                }
-
                 void StartPlayback()
                 {
                     if (started)
@@ -993,7 +909,33 @@ namespace PlayniteAchievements.Services
                     ForkLog.Wrap(_logger)?.Info($"[OfficialSan] '{achievementName}' on screen {showStopwatch.ElapsedMilliseconds} ms after the unlock reached the notifier ({(warm != null ? "warm" : "cold")}).");
                     try { readyFallback?.Stop(); } catch { }
 
-                    BeginLiveBlur();
+                    if (slot.LiveBlurEnabled && liveBackdrop == null)
+                    {
+                        // The running game's window gives the lowest-latency capture; a test from the
+                        // settings page (no game) falls back to capturing the monitor.
+                        var gameHwnd = IntPtr.Zero;
+                        try
+                        {
+                            var pid = game != null ? GameProcessIdResolver?.Invoke(game.Id) : null;
+                            if (pid.HasValue)
+                            {
+                                gameHwnd = (_sanScreenshotService ?? (_sanScreenshotService = new UnlockScreenshotService(_logger)))
+                                    .ResolveGameWindowHandle(pid);
+                            }
+                        }
+                        catch { }
+
+                        liveBackdrop = SanLiveBackdrop.TryStart(window, slot.LiveBlurStrength, gameHwnd, out var blurSkipped);
+                        if (liveBackdrop != null)
+                        {
+                            // The page may already have reported its card before the backdrop existed.
+                            liveBackdrop.UpdateCard(lastCardReport);
+                        }
+                        else if (blurSkipped != null)
+                        {
+                            ForkLog.Wrap(_logger)?.Info($"[OfficialSan] Live blur: not started ({blurSkipped}).");
+                        }
+                    }
 
                     var closeTimer = new DispatcherTimer
                     {
@@ -1040,9 +982,6 @@ namespace PlayniteAchievements.Services
                 readyFallback = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
                 readyFallback.Tick += (_, __) => StartPlayback();
                 readyFallback.Start();
-
-                // Start the live blur now rather than when the page reports ready (see BeginLiveBlur).
-                BeginLiveBlur();
 
                 void Hook(Microsoft.Web.WebView2.Core.CoreWebView2 core)
                 {
