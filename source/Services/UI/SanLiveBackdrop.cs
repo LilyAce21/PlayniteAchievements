@@ -104,12 +104,6 @@ namespace PlayniteAchievements.Services.UI
         // can never snap on part-way through the card's entrance.
         private const double FadeInMs = 160;
         private long _fadeStartTicks;
-        private bool _fadeInstant;
-        private double _firstPictureCardOpacity = -1;
-
-        // If the first picture is ready while the card is still below this opacity, no ramp is
-        // needed (see where the ramp starts).
-        private const double InstantBelowCardOpacity = 0.15;
 
         private const double LeadMs = 20;
         private const double MaxLeadMs = 40;
@@ -330,9 +324,7 @@ namespace PlayniteAchievements.Services.UI
         {
             var age = _ageCount > 0 ? _ageTotalMs / _ageCount : 0;
             return $"{_capture.Describe()} applied={_framesApplied} uploadsOnArrival={_uploads} ticks={_tick} reach={_reachPhys:0.#} pad={_pad} " +
-                   $"presentAgeMs(avg/max)={age:0.0}/{_ageMaxMs:0} " +
-                   $"firstPicture={(_firstPictureCardOpacity < 0 ? "never" : (_fadeInstant ? "in-time" : "late"))}" +
-                   $"(cardOpacity={_firstPictureCardOpacity:0.00})";
+                   $"presentAgeMs(avg/max)={age:0.0}/{_ageMaxMs:0}";
         }
 
         private void OnRendering(object sender, EventArgs e)
@@ -423,24 +415,11 @@ namespace PlayniteAchievements.Services.UI
                 Canvas.SetTop(_card, (card.Y - win.Y) / sy);
                 if (_fadeStartTicks == 0)
                 {
-                    // The first moment there is both a card to show and a picture to show behind it.
-                    // If the card has only just started to appear, the blur is in time: it follows the
-                    // card's own fade exactly, so the card is never seen without its blur. If the card
-                    // is already well visible, the picture was late, and snapping it on would look like a
-                    // flicker, so it is eased in instead.
                     _fadeStartTicks = now;
-                    _fadeInstant = _report.Opacity < InstantBelowCardOpacity;
-                    _firstPictureCardOpacity = _report.Opacity;
                 }
 
-                var fade = 1.0;
-                if (!_fadeInstant)
-                {
-                    var t = Math.Min(1.0, (now - _fadeStartTicks) * 1000.0 / Stopwatch.Frequency / FadeInMs);
-                    fade = t * t * (3 - 2 * t);
-                }
-
-                _card.Opacity = _report.Opacity * fade;
+                var t = Math.Min(1.0, (now - _fadeStartTicks) * 1000.0 / Stopwatch.Frequency / FadeInMs);
+                _card.Opacity = _report.Opacity * (t * t * (3 - 2 * t));
                 _card.Visibility = Visibility.Visible;
             }
             catch
