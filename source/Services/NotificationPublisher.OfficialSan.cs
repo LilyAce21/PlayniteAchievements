@@ -846,6 +846,12 @@ namespace PlayniteAchievements.Services
                 }
 
                 AttachOverlayTopmostGuard(window, debug);
+
+                // Moves the cards already showing one slot over. Run when this card becomes visible
+                // (StartPlayback), not here: the new window is transparent until then, so the old card
+                // is still where it should be, and the slide then happens together with this card's own
+                // entrance instead of while its page is still loading and the unlock is being handed over.
+                Action reflowOthers = null;
                 var overlayState = RegisterOverlayWindow(window, position);
                 if (overlayState != null)
                 {
@@ -855,7 +861,7 @@ namespace PlayniteAchievements.Services
                     PositionOfficialSanWindow(overlayState, GetOverlayStackIndex(overlayState), followMonitor);
 
                     // This card took the first slot, so the ones already showing slide one slot over.
-                    RepositionActiveOverlayWindows(position, animate: true, skip: overlayState);
+                    reflowOthers = () => RepositionActiveOverlayWindows(position, animate: true, skip: overlayState);
                 }
                 else
                 {
@@ -908,6 +914,10 @@ namespace PlayniteAchievements.Services
                     started = true;
                     ForkLog.Wrap(_logger)?.Info($"[OfficialSan] '{achievementName}' on screen {showStopwatch.ElapsedMilliseconds} ms after the unlock reached the notifier ({(warm != null ? "warm" : "cold")}).");
                     try { readyFallback?.Stop(); } catch { }
+
+                    var reflow = reflowOthers;
+                    reflowOthers = null;
+                    try { reflow?.Invoke(); } catch { }
 
                     if (slot.LiveBlurEnabled && liveBackdrop == null)
                     {
@@ -1008,7 +1018,11 @@ namespace PlayniteAchievements.Services
                     // The window has only just been moved from its parking spot to the screen. Give the
                     // browser a couple of frames to start painting there before the notification starts
                     // animating; otherwise the first frames are drawn half transparent / out of step.
-                    var kick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(25) };
+                    // Send priority: a plain DispatcherTimer runs at Background priority, below every
+                    // render and animation tick, so while another card was busy (its live blur, a stack
+                    // slide) this hand-off waited for the UI thread to go idle: about 300 ms later in the
+                    // logs whenever a card was already on screen, against ~25 ms when it was not.
+                    var kick = new DispatcherTimer(DispatcherPriority.Send) { Interval = TimeSpan.FromMilliseconds(25) };
                     kick.Tick += (_, __) =>
                     {
                         kick.Stop();

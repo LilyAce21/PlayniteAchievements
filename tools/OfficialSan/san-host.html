@@ -491,11 +491,15 @@
         const percent = getPercentInfo(payload);
         const icons = getPresetIcons(customisation);
         const decoration = pickRarityAsset(icons.decoration || "", percent.tier);
+        // The game's own icon. The achievement icon (payload.iconPath) used to be first in this list,
+        // so any notification with a real achievement icon (every real unlock; a settings-page test has
+        // none) showed the achievement icon a second time instead of the game icon. It is now only the
+        // last resort, when nothing else is known.
         const gameIcon =
-          payload?.iconPath ||
           payload?.gameIconPath ||
           payload?.appIconPath ||
           customisation.gameicon ||
+          payload?.iconPath ||
           "";
         const logo = pickRarityAsset(
           customisation.replacelogo && icons.decoration
@@ -837,11 +841,17 @@
         const tick = () => {
           if (!icon.isConnected || !pill.isConnected) return;
           const r = icon.getBoundingClientRect();
-          const ready = icon.complete && icon.naturalWidth > 0 && r.width >= 8 && r.height >= 8 &&
-            r.left + r.width / 2 > 0 && r.left + r.width / 2 < window.innerWidth && paVisualOpacity(icon) >= 0.35;
-          pill.style.opacity = ready ? "1" : "0";
-          pill.style.visibility = ready ? "visible" : "hidden";
-          if (ready) {
+          const placed = icon.complete && icon.naturalWidth > 0 && r.width >= 8 && r.height >= 8 &&
+            r.left + r.width / 2 > 0 && r.left + r.width / 2 < window.innerWidth;
+          // Follow the icon's own effective opacity (its fade in and out) instead of switching on and
+          // off at a threshold. The pill lives on the document root, outside the body and the paused
+          // entrance animation, and it used to snap to full strength the moment the icon passed 35%,
+          // so on the way in the card faded smoothly while the pill popped: a flicker that exists with
+          // the blur off and in every earlier build.
+          const o = placed ? Math.min(1, paVisualOpacity(icon)) : 0;
+          pill.style.opacity = o.toFixed(3);
+          pill.style.visibility = o > 0.01 ? "visible" : "hidden";
+          if (o > 0.01) {
             const h = pill.offsetHeight || 18;
             pill.style.left = (r.left + r.width / 2) + "px";
             pill.style.top = Math.min(r.bottom + 4, Math.max(0, window.innerHeight - h - 2)) + "px";
