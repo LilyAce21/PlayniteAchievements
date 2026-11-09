@@ -410,64 +410,8 @@ namespace PlayniteAchievements.Providers.Local
         private Dictionary<Guid, bool> _refreshOnGameCloseOverrides = new Dictionary<Guid, bool>();
         private string _steamUserdataPath = string.Empty;
         private bool _useSteamHuntersForCategories = true;
-        private bool _enableActiveGameMonitoring;
         private bool _refreshAchievementsOnGameClose;
-        private int _activeGameMonitoringIntervalSeconds = 5;
         private int _missingAchievementFilePollingIntervalSeconds = 5;
-        private bool _enableUnlockScreenshots;
-        private string _screenshotSaveFolder = string.Empty;
-        private string _screenshotFilenameTemplate = DefaultScreenshotFilenameTemplate;
-        private bool _screenshotClean;
-        private bool _screenshotWithNotification = true;
-        private bool _screenshotFramed;
-        private string _screenshotSuffixClean = "clean";
-        private string _screenshotSuffixWithNotification = "notification";
-        private string _screenshotSuffixFramed = "framed";
-        private SanScreenshotView _sanScreenshotView = SanScreenshotView.Automatic;
-        private RaritySelection _screenshotCleanRarities = RaritySelection.All;
-        private bool _screenshotCleanAlwaysCaptureCompletion = true;
-        private RaritySelection _screenshotWithNotificationRarities = RaritySelection.All;
-        private bool _screenshotWithNotificationAlwaysCaptureCompletion = true;
-        private RaritySelection _screenshotFramedRarities = RaritySelection.All;
-        private bool _screenshotFramedAlwaysCaptureCompletion = true;
-        private bool _enableUnlockRecordings;
-        private string _recordingSaveFolder = string.Empty;
-        private string _recordingFilenameTemplate = DefaultRecordingFilenameTemplate;
-        private int _recordingClipSeconds = 15;
-        private int _recordingFps = 30;
-        private RecordingResolution _recordingResolution = RecordingResolution.Native;
-        private bool _recordingIncludeAudio;
-        private RecordingAudioSource _recordingAudioSource = RecordingAudioSource.FullSystem;
-        private bool _recordingIncludeMicrophone;
-        private RaritySelection _recordingRarities = RaritySelection.All;
-        private bool _recordingAlwaysCaptureCompletion = true;
-        private LocalUnlockNotificationDeliveryMode _unlockNotificationDeliveryMode = LocalUnlockNotificationDeliveryMode.Hybrid;
-        private bool _showOverlayOnActiveGameMonitor = false;
-        private bool _enableOverlayDebugLogging;
-        private int _unlockOverlayFadeInMilliseconds = 180;
-        private int _unlockOverlayFadeOutMilliseconds = 280;
-        private LocalUnlockOverlayTransitionStyle _unlockOverlayTransitionStyle = LocalUnlockOverlayTransitionStyle.Fade;
-        private int _unlockSoundLeadMilliseconds;
-        private string _overlayCustomTitleTemplate = "Achievement unlocked";
-        private string _overlayCustomGameNameTemplate = "<gameName>";
-        private string _overlayCustomAchievementTemplate = "Unlocked: <achievementName>";
-        private string _overlayCustomMetaTemplate = "<provider> / Custom";
-        private string _overlayCustomLine4Template = string.Empty;
-        private string _overlayCustomLine5Template = string.Empty;
-        private string _overlayCustomLine6Template = string.Empty;
-        private string _overlayCustomSanElementPresetId = string.Empty;
-        private int _overlayCustomSanView1DurationMilliseconds = 5000;
-        private int _overlayCustomSanView2DurationMilliseconds = 5000;
-        private string _overlayCustomIconPath = string.Empty;
-        private string _overlayCustomSecondaryIconPath = string.Empty;
-        private string _overlayCustomIconLibraryPaths = string.Empty;
-        private int _selectedCustomStyleSlot = 1;
-        private List<LocalCustomOverlayStyleSlot> _customOverlayStyleSlots = CreateDefaultCustomOverlayStyleSlots();
-        private bool _enableInAppUnlockNotifications = true;
-        private bool _enableWindowsToastNotifications = true;
-        private string _bundledUnlockSoundPath = string.Empty;
-        private string _customUnlockSoundPath = string.Empty;
-        private string _extraUnlockSoundPaths = string.Empty;
         private ScoreProgressNotificationSettings _collectionProgressNotifications = new ScoreProgressNotificationSettings();
         private ScoreProgressNotificationSettings _prestigeProgressNotifications = new ScoreProgressNotificationSettings();
         private LocalSteamSchemaPreference _steamSchemaPreference = LocalSteamSchemaPreference.PreferSteam;
@@ -488,13 +432,6 @@ namespace PlayniteAchievements.Providers.Local
         private string _customProviderIconPath = string.Empty;
         private string _borrowedProviderIconKey = string.Empty;
         private bool _warnOnAmbiguousLocalFolder = true;
-        private bool _enableGameCoverInOverlay = false;
-        private LocalOverlayCoverPosition _gameCoverPosition = LocalOverlayCoverPosition.Right;
-        private double _gameCoverWidth = 80;
-        private bool _centerGameCoverVertically;
-        private bool _enableGameBannerAsBackground = false;
-        private double _gameBannerOpacity = 0.3;
-        private int _gameBannerBlurRadius = 8;
 
         public override string ProviderKey => "Local";
 
@@ -569,10 +506,6 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        /// <summary>True when capture (screenshots, recordings) should ignore the Memories settings.</summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public bool UpstreamCaptureOverridesMemories =>
-            true;
 
 
 
@@ -580,20 +513,8 @@ namespace PlayniteAchievements.Providers.Local
 
         public bool OfficialSanApplyUpstreamElements { get => _officialSanApplyUpstreamElements; set => SetValue(ref _officialSanApplyUpstreamElements, value); }
 
-        public bool EnableActiveGameMonitoring
-        {
-            get => _enableActiveGameMonitoring;
-            set => SetValue(ref _enableActiveGameMonitoring, value);
-        }
 
 
-        public int ActiveGameMonitoringIntervalSeconds
-        {
-            get => _activeGameMonitoringIntervalSeconds;
-            set => SetValue(
-                ref _activeGameMonitoringIntervalSeconds,
-                Math.Max(MinActiveGameMonitoringIntervalSeconds, Math.Min(MaxActiveGameMonitoringIntervalSeconds, value)));
-        }
 
         public int MissingAchievementFilePollingIntervalSeconds
         {
@@ -605,147 +526,30 @@ namespace PlayniteAchievements.Providers.Local
                     Math.Min(MaxMissingAchievementFilePollingIntervalSeconds, value)));
         }
 
-        public bool EnableUnlockScreenshots
-        {
-            get => _enableUnlockScreenshots;
-            set => SetValue(ref _enableUnlockScreenshots, value);
-        }
-
-        public string ScreenshotSaveFolder
-        {
-            get => _screenshotSaveFolder;
-            set
-            {
-                if (SetValue(ref _screenshotSaveFolder, value ?? string.Empty))
-                {
-                    OnPropertyChanged(nameof(EffectiveScreenshotSaveFolder));
-                }
-            }
-        }
-
-        [JsonIgnore]
-        public string EffectiveScreenshotSaveFolder => GetEffectiveScreenshotSaveFolder();
-
-        public string ScreenshotFilenameTemplate
-        {
-            get => _screenshotFilenameTemplate;
-            set => SetValue(
-                ref _screenshotFilenameTemplate,
-                string.IsNullOrWhiteSpace(value) ? DefaultScreenshotFilenameTemplate : value);
-        }
 
 
 
 
 
 
-        public bool ScreenshotClean { get => _screenshotClean; set => SetValue(ref _screenshotClean, value); }
-        public bool ScreenshotWithNotification { get => _screenshotWithNotification; set => SetValue(ref _screenshotWithNotification, value); }
-        public bool ScreenshotFramed { get => _screenshotFramed; set => SetValue(ref _screenshotFramed, value); }
-        public string ScreenshotSuffixClean { get => _screenshotSuffixClean; set => SetValue(ref _screenshotSuffixClean, value ?? string.Empty); }
-        public string ScreenshotSuffixWithNotification { get => _screenshotSuffixWithNotification; set => SetValue(ref _screenshotSuffixWithNotification, value ?? string.Empty); }
-        public string ScreenshotSuffixFramed { get => _screenshotSuffixFramed; set => SetValue(ref _screenshotSuffixFramed, value ?? string.Empty); }
-        public SanScreenshotView SanScreenshotView { get => _sanScreenshotView; set => SetValue(ref _sanScreenshotView, value); }
-        public RaritySelection ScreenshotCleanRarities { get => _screenshotCleanRarities; set => SetValue(ref _screenshotCleanRarities, value); }
-        public bool ScreenshotCleanAlwaysCaptureCompletion { get => _screenshotCleanAlwaysCaptureCompletion; set => SetValue(ref _screenshotCleanAlwaysCaptureCompletion, value); }
-        public RaritySelection ScreenshotWithNotificationRarities { get => _screenshotWithNotificationRarities; set => SetValue(ref _screenshotWithNotificationRarities, value); }
-        public bool ScreenshotWithNotificationAlwaysCaptureCompletion { get => _screenshotWithNotificationAlwaysCaptureCompletion; set => SetValue(ref _screenshotWithNotificationAlwaysCaptureCompletion, value); }
-        public RaritySelection ScreenshotFramedRarities { get => _screenshotFramedRarities; set => SetValue(ref _screenshotFramedRarities, value); }
-        public bool ScreenshotFramedAlwaysCaptureCompletion { get => _screenshotFramedAlwaysCaptureCompletion; set => SetValue(ref _screenshotFramedAlwaysCaptureCompletion, value); }
 
 
-        public LocalUnlockNotificationDeliveryMode UnlockNotificationDeliveryMode
-        {
-            get => _unlockNotificationDeliveryMode;
-            set => SetValue(ref _unlockNotificationDeliveryMode, value);
-        }
 
 
-        public bool EnableUnlockRecordings
-        {
-            get => _enableUnlockRecordings;
-            set => SetValue(ref _enableUnlockRecordings, value);
-        }
 
-        public string RecordingSaveFolder
-        {
-            get => _recordingSaveFolder;
-            set => SetValue(ref _recordingSaveFolder, value ?? string.Empty);
-        }
 
-        public string RecordingFilenameTemplate
-        {
-            get => _recordingFilenameTemplate;
-            set => SetValue(
-                ref _recordingFilenameTemplate,
-                string.IsNullOrWhiteSpace(value) ? DefaultRecordingFilenameTemplate : value);
-        }
 
-        public int RecordingClipSeconds
-        {
-            get => _recordingClipSeconds;
-            set => SetValue(ref _recordingClipSeconds, Math.Min(60, Math.Max(5, value)));
-        }
 
-        public int RecordingFps
-        {
-            get => _recordingFps;
-            set => SetValue(ref _recordingFps, Math.Min(60, Math.Max(10, value)));
-        }
 
-        public RecordingResolution RecordingResolution
-        {
-            get => _recordingResolution;
-            set => SetValue(ref _recordingResolution, value);
-        }
 
-        public bool RecordingIncludeAudio
-        {
-            get => _recordingIncludeAudio;
-            set => SetValue(ref _recordingIncludeAudio, value);
-        }
 
-        public RecordingAudioSource RecordingAudioSource
-        {
-            get => _recordingAudioSource;
-            set => SetValue(ref _recordingAudioSource, value);
-        }
 
-        public bool RecordingIncludeMicrophone
-        {
-            get => _recordingIncludeMicrophone;
-            set => SetValue(ref _recordingIncludeMicrophone, value);
-        }
 
-        public RaritySelection RecordingRarities
-        {
-            get => _recordingRarities;
-            set
-            {
-                if (SetValue(ref _recordingRarities, value))
-                {
-                    OnPropertyChanged(nameof(RecordingCaptureCommon));
-                    OnPropertyChanged(nameof(RecordingCaptureUncommon));
-                    OnPropertyChanged(nameof(RecordingCaptureRare));
-                    OnPropertyChanged(nameof(RecordingCaptureUltraRare));
-                }
-            }
-        }
 
-        public bool RecordingAlwaysCaptureCompletion
-        {
-            get => _recordingAlwaysCaptureCompletion;
-            set => SetValue(ref _recordingAlwaysCaptureCompletion, value);
-        }
 
-        [JsonIgnore]
-        public bool RecordingCaptureCommon { get => RecordingRarities.Contains(RarityTier.Common); set => SetRecordingRarity(RaritySelection.Common, value); }
-        [JsonIgnore]
-        public bool RecordingCaptureUncommon { get => RecordingRarities.Contains(RarityTier.Uncommon); set => SetRecordingRarity(RaritySelection.Uncommon, value); }
-        [JsonIgnore]
-        public bool RecordingCaptureRare { get => RecordingRarities.Contains(RarityTier.Rare); set => SetRecordingRarity(RaritySelection.Rare, value); }
-        [JsonIgnore]
-        public bool RecordingCaptureUltraRare { get => RecordingRarities.Contains(RarityTier.UltraRare); set => SetRecordingRarity(RaritySelection.UltraRare, value); }
+
+
+
 
 
         private void SetRecordingRarity(RaritySelection rarity, bool enabled)
@@ -753,49 +557,6 @@ namespace PlayniteAchievements.Providers.Local
             RecordingRarities = enabled ? RecordingRarities | rarity : RecordingRarities & ~rarity;
         }
 
-        public bool ShowOverlayOnActiveGameMonitor
-        {
-            get => _showOverlayOnActiveGameMonitor;
-            set => SetValue(ref _showOverlayOnActiveGameMonitor, value);
-        }
-
-        public bool EnableOverlayDebugLogging
-        {
-            get => _enableOverlayDebugLogging;
-            set => SetValue(ref _enableOverlayDebugLogging, value);
-        }
-
-
-        public int UnlockOverlayFadeInMilliseconds
-        {
-            get => _unlockOverlayFadeInMilliseconds;
-            set => SetValue(ref _unlockOverlayFadeInMilliseconds, Math.Max(0, Math.Min(4000, value)));
-        }
-
-        public int UnlockOverlayFadeOutMilliseconds
-        {
-            get => _unlockOverlayFadeOutMilliseconds;
-            set => SetValue(ref _unlockOverlayFadeOutMilliseconds, Math.Max(0, Math.Min(4000, value)));
-        }
-
-        public LocalUnlockOverlayTransitionStyle UnlockOverlayTransitionStyle
-        {
-            get => _unlockOverlayTransitionStyle;
-            set
-            {
-                if (SetValue(ref _unlockOverlayTransitionStyle, value))
-                {
-                    OnPropertyChanged(nameof(HasSanScreenshotTiming));
-                }
-            }
-        }
-
-
-        public int UnlockSoundLeadMilliseconds
-        {
-            get => _unlockSoundLeadMilliseconds;
-            set => SetValue(ref _unlockSoundLeadMilliseconds, value);
-        }
 
 
 
@@ -839,47 +600,19 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        public string OverlayCustomTitleTemplate
-        {
-            get => _overlayCustomTitleTemplate;
-            set => SetValue(ref _overlayCustomTitleTemplate, value ?? string.Empty);
-        }
 
-        public string OverlayCustomGameNameTemplate
-        {
-            get => _overlayCustomGameNameTemplate;
-            set => SetValue(ref _overlayCustomGameNameTemplate, value ?? string.Empty);
-        }
 
-        public string OverlayCustomAchievementTemplate
-        {
-            get => _overlayCustomAchievementTemplate;
-            set => SetValue(ref _overlayCustomAchievementTemplate, value ?? string.Empty);
-        }
 
-        public string OverlayCustomMetaTemplate
-        {
-            get => _overlayCustomMetaTemplate;
-            set => SetValue(ref _overlayCustomMetaTemplate, value ?? string.Empty);
-        }
 
-        public string OverlayCustomLine4Template
-        {
-            get => _overlayCustomLine4Template;
-            set => SetValue(ref _overlayCustomLine4Template, value ?? string.Empty);
-        }
 
-        public string OverlayCustomLine5Template
-        {
-            get => _overlayCustomLine5Template;
-            set => SetValue(ref _overlayCustomLine5Template, value ?? string.Empty);
-        }
 
-        public string OverlayCustomLine6Template
-        {
-            get => _overlayCustomLine6Template;
-            set => SetValue(ref _overlayCustomLine6Template, value ?? string.Empty);
-        }
+
+
+
+
+
+
+
 
 
 
@@ -889,8 +622,6 @@ namespace PlayniteAchievements.Providers.Local
             NotificationBarLayout.Migrate(copy);
             return copy;
         }
-        [JsonIgnore]
-        internal Dictionary<NotificationBarSource, NotificationBarCounter> NotificationBarCounters { get; set; }
 
 
 
@@ -904,8 +635,6 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        [JsonIgnore]
-        public bool OverlayCustomPreviewShowProgress { get => _previewShowProgress; set => SetValue(ref _previewShowProgress, value); }
         private bool _previewShowProgress = true;
 
         [JsonIgnore]
@@ -968,46 +697,6 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        public string OverlayCustomSanElementPresetId
-        {
-            get => _overlayCustomSanElementPresetId;
-            set
-            {
-                if (SetValue(ref _overlayCustomSanElementPresetId, value ?? string.Empty))
-                {
-                    OnPropertyChanged(nameof(HasSanScreenshotTiming));
-                }
-            }
-        }
-
-        [JsonIgnore]
-        public bool HasSanScreenshotTiming =>
-            UnlockOverlayTransitionStyle.ToString().StartsWith("San", StringComparison.Ordinal) ||
-            !string.IsNullOrWhiteSpace(OverlayCustomSanElementPresetId);
-
-
-
-
-
-
-
-
-
-
-
-
-
-        public int OverlayCustomSanView1DurationMilliseconds
-        {
-            get => _overlayCustomSanView1DurationMilliseconds;
-            set => SetValue(ref _overlayCustomSanView1DurationMilliseconds, Math.Max(500, Math.Min(30000, value)));
-        }
-
-        public int OverlayCustomSanView2DurationMilliseconds
-        {
-            get => _overlayCustomSanView2DurationMilliseconds;
-            set => SetValue(ref _overlayCustomSanView2DurationMilliseconds, Math.Max(500, Math.Min(30000, value)));
-        }
 
 
 
@@ -1034,23 +723,23 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        public string OverlayCustomIconPath
-        {
-            get => _overlayCustomIconPath;
-            set => SetValue(ref _overlayCustomIconPath, value ?? string.Empty);
-        }
 
-        public string OverlayCustomSecondaryIconPath
-        {
-            get => _overlayCustomSecondaryIconPath;
-            set => SetValue(ref _overlayCustomSecondaryIconPath, value ?? string.Empty);
-        }
 
-        public string OverlayCustomIconLibraryPaths
-        {
-            get => _overlayCustomIconLibraryPaths;
-            set => SetValue(ref _overlayCustomIconLibraryPaths, value ?? string.Empty);
-        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         public IEnumerable<string> GetOverlayCustomIconLibraryPathEntries()
         {
@@ -1062,35 +751,10 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        public int SelectedCustomStyleSlot
-        {
-            get => _selectedCustomStyleSlot;
-            set => SetValue(ref _selectedCustomStyleSlot, Math.Max(1, value));
-        }
 
-        public List<LocalCustomOverlayStyleSlot> CustomOverlayStyleSlots
-        {
-            get => _customOverlayStyleSlots;
-            set => SetValue(ref _customOverlayStyleSlots, NormalizeCustomOverlayStyleSlots(value));
-        }
 
-        public bool EnableWindowsToastNotifications
-        {
-            get => _enableWindowsToastNotifications;
-            set => SetValue(ref _enableWindowsToastNotifications, value);
-        }
 
-        public bool EnableInAppUnlockNotifications
-        {
-            get => _enableInAppUnlockNotifications;
-            set => SetValue(ref _enableInAppUnlockNotifications, value);
-        }
 
-        public string ExtraUnlockSoundPaths
-        {
-            get => _extraUnlockSoundPaths;
-            set => SetValue(ref _extraUnlockSoundPaths, value ?? string.Empty);
-        }
 
 
 
@@ -1114,40 +778,9 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        public string BundledUnlockSoundPath
-        {
-            get => _bundledUnlockSoundPath;
-            set
-            {
-                if (SetValue(ref _bundledUnlockSoundPath, value ?? string.Empty))
-                {
-                    OnPropertyChanged(nameof(UnlockSoundPath));
-                }
-            }
-        }
 
-        public string CustomUnlockSoundPath
-        {
-            get => _customUnlockSoundPath;
-            set
-            {
-                if (SetValue(ref _customUnlockSoundPath, value ?? string.Empty))
-                {
-                    OnPropertyChanged(nameof(UnlockSoundPath));
-                }
-            }
-        }
 
-        [JsonIgnore]
-        public string UnlockSoundPath
-        {
-            get => !string.IsNullOrWhiteSpace(CustomUnlockSoundPath)
-                ? CustomUnlockSoundPath
-                : GetEffectiveBundledUnlockSoundPath();
-        }
 
-        [JsonIgnore]
-        public string EffectiveBundledUnlockSoundPath => GetEffectiveBundledUnlockSoundPath();
 
 
         public string SteamUserdataPath
@@ -1297,47 +930,12 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _warnOnAmbiguousLocalFolder, value);
         }
 
-        public bool EnableGameCoverInOverlay
-        {
-            get => _enableGameCoverInOverlay;
-            set => SetValue(ref _enableGameCoverInOverlay, value);
-        }
 
-        public LocalOverlayCoverPosition GameCoverPosition
-        {
-            get => _gameCoverPosition;
-            set => SetValue(ref _gameCoverPosition, value);
-        }
 
-        public double GameCoverWidth
-        {
-            get => _gameCoverWidth;
-            set => SetValue(ref _gameCoverWidth, Math.Max(40, Math.Min(200, value)));
-        }
 
-        public bool CenterGameCoverVertically
-        {
-            get => _centerGameCoverVertically;
-            set => SetValue(ref _centerGameCoverVertically, value);
-        }
 
-        public bool EnableGameBannerAsBackground
-        {
-            get => _enableGameBannerAsBackground;
-            set => SetValue(ref _enableGameBannerAsBackground, value);
-        }
 
-        public double GameBannerOpacity
-        {
-            get => _gameBannerOpacity;
-            set => SetValue(ref _gameBannerOpacity, Math.Max(0.1, Math.Min(1.0, value)));
-        }
 
-        public int GameBannerBlurRadius
-        {
-            get => _gameBannerBlurRadius;
-            set => SetValue(ref _gameBannerBlurRadius, Math.Max(0, Math.Min(50, value)));
-        }
 
         public Dictionary<Guid, int> SteamAppIdOverrides
         {
