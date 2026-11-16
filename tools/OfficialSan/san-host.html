@@ -31,7 +31,7 @@
         width: var(--rsize);
         height: var(--rsize);
         margin-inline: calc(2px * var(--scale)) calc(5px * var(--scale));
-        border-radius: 50%;
+        border-radius: var(--iconroundness, 50%);
         overflow: hidden;
         opacity: 0;
         animation:
@@ -47,11 +47,33 @@
         display: block;
         width: 100%;
         height: 100%;
-        border-radius: 50%;
+        border-radius: var(--iconroundness, 50%);
         object-fit: cover;
       }
       @keyframes rightachicon-in { to { opacity: 1; } }
       @keyframes rightachicon-out { to { opacity: 0; } }
+
+      /* Xbox-style themes: the theme's emblem (the animated logo) is the card's icon for the whole
+         notification. SAN's own animation fades it out and fades the achievement icon in over it;
+         here the achievement icon lives in its own square on the right instead, so the emblem
+         keeps playing (pop in, stay, scale down with the card). */
+      body[pa-xbox] #achicon { display: none !important; }
+      body[pa-xbox] #logo {
+        animation:
+          popin var(--transition) ease-in-out forwards,
+          scaledown calc(var(--transition) * 2) calc(var(--displaytime) - (var(--transition) * 9)) cubic-bezier(1, 0, 1, 1) forwards;
+      }
+      /* The theme sizes the "S" glyph as a share of the prefix's width, so a longer score text made
+         it grow over the digits. Give it a fixed size instead. */
+      body[pa-xbox] #title[gs]::before { background-size: 1.15em auto !important; background-position: left center !important; }
+      /* No score to show: do not leave the theme's bare " - " in front of the title. */
+      body[pa-xbox][pa-noscore] #title::before { display: none !important; }
+      /* Rarity trophy inline, left of the "Achievement unlocked" text. */
+      #pa-trophy {
+        display: inline-block; width: 1.2em; height: 1.2em; margin-right: 0.35em; vertical-align: -0.22em;
+        background: var(--patrophy, none) center / contain no-repeat;
+      }
+      body[pa-notrophy] #pa-trophy { display: none; }
     
       /* Xbox presets: laurels and the rarity pill hang below the card, so the card must not clip them.
          The background keeps its own rounded clipping. */
@@ -338,6 +360,25 @@
         return icons.plat || icons.platinum || customisation?.platIcon || "";
       }
 
+      /* The SAN trophy for this notification's rarity (the same per-tier images the percent badge
+         uses). Full completion and PSN Platinum use the Platinum one; a tier the theme has no image
+         for falls back down the chain. Returns "" when the theme has none at all. */
+      function getTrophyAsset(payload, customisation, tier) {
+        const pick = (key) => getActiveSanBadgeValue(payload, customisation, key) || customisation[key] || "";
+        const chain =
+          tier === "psnplatinum" ? ["platinum", "diamond", "sapphire", "gold"]
+          : tier === "diamond" ? ["diamond", "sapphire", "gold"]
+          : tier === "sapphire" ? ["sapphire", "gold"]
+          : tier === "gold" ? ["gold"]
+          : tier === "silver" ? ["silver"]
+          : ["bronze"];
+        for (const t of chain.concat(["gold", "silver", "bronze"])) {
+          const v = pick("percentbadgeimg" + t);
+          if (v) return v;
+        }
+        return "";
+      }
+
       function setBodyAttributes(payload, customisation) {
         const body = document.body;
         body.removeAttribute("style");
@@ -371,6 +412,11 @@
         if (isScreenshotSanMode(payload, customisation)) body.setAttribute("ss", "");
         if (customisation.ssdisplay) body.setAttribute("ssdisplay", "");
         if (!customisation.iconanim) body.setAttribute("noiconanim", "");
+        const xb = payload?.paXbox;
+        if (xb && xb.emblem === true && !isScreenshotSanMode(payload, customisation)) {
+          body.setAttribute("pa-xbox", "");
+          if (xb.score === null || xb.score === undefined) body.setAttribute("pa-noscore", "");
+        }
       }
 
       function applyCustomFont(customisation) {
@@ -438,13 +484,33 @@
               : "";
           const percentPart =
             pos === textPercentPosition ? percentText : "";
-          const html = `${decoration}${hiddenIcon}${strings[typeValue] || ""}${percentPart}`;
+          const trophy = payload?.paXbox?.inlineTrophy === true && typeValue === "unlockmsg"
+            ? `<span id="pa-trophy"></span>`
+            : "";
+          const html = `${trophy}${decoration}${hiddenIcon}${strings[typeValue] || ""}${percentPart}`;
           el.innerHTML = html;
           if (!el.textContent) el.innerHTML = "";
         }
 
         document.body.toggleAttribute("alldetails", filter.length === 3);
         setVar("--decorationindex", decorationPosition || 1);
+
+        // Xbox-style themes print "<score><unit> - " in front of the title when the card has a
+        // decoration marker (SAN's own app fills these two attributes; this host does it from the
+        // plugin's data: the Xbox gamerscore, or the collection / prestige value).
+        const xb = payload?.paXbox;
+        if (xb && xb.emblem === true && xb.score !== null && xb.score !== undefined && !useScreenshotElems) {
+          const titleEl = document.getElementById("title");
+          if (titleEl) {
+            titleEl.setAttribute("gs", String(xb.score));
+            titleEl.setAttribute("unit", xb.scoreUnit || "");
+            if (!document.getElementById("decoration")) {
+              const unlockEl = document.getElementById("unlockmsg");
+              const holder = unlockEl && unlockEl.textContent ? unlockEl : titleEl;
+              holder.insertAdjacentHTML("afterbegin", `<span id="decoration"></span>`);
+            }
+          }
+        }
       }
 
       function setBadge(payload, customisation, percent) {
@@ -714,6 +780,15 @@
           getActiveSanBadgeValue(payload, customisation, "percentbadgeimg") ? cssUrl(badgeAsset) : "none",
         );
 
+        {
+          const trophyTier = payload?.isPlatinum === true || payload?.isPsnPlatinum === true ? "psnplatinum" : percent.tier;
+          const trophyAsset = payload?.paXbox?.inlineTrophy === true
+            ? getTrophyAsset(payload, customisation, trophyTier)
+            : "";
+          setVar("--patrophy", trophyAsset ? cssUrl(trophyAsset) : "none");
+          document.body.toggleAttribute("pa-notrophy", !trophyAsset);
+        }
+
         const achicon = document.getElementById("achicon");
         if (achicon) {
           const defaultAchIcon = customisation.defaultAchIcon || "";
@@ -742,7 +817,12 @@
           // Full-completion (platinum) unlocks and the Mythic themes have no achievement icon.
           const themeName = `${payload?.sanTheme?.label || ""} ${String(payload?.sanTheme?.cacheDir || "").split(/[\\/]/).pop()}`;
           const hideRightIcon = payload?.isPlatinum === true || /mythic/i.test(themeName);
-          if (useThemeIcon && !hideRightIcon && payload?.iconPath && rightHost) {
+          // Xbox-emblem themes (emblem in the logo slot): the plugin decides whether this card gets the
+          // right-hand achievement icon; the other Xbox themes keep the previous rule.
+          const xbox = payload?.paXbox;
+          const emblemTheme = xbox && xbox.emblem === true && !isScreenshotSanMode(payload, customisation);
+          const wantsRightIcon = emblemTheme ? xbox.rightIcon === true : useThemeIcon && !hideRightIcon;
+          if (wantsRightIcon && payload?.iconPath && rightHost) {
             const rightWrap = document.createElement("div");
             rightWrap.id = "rightachicon";
             const rightImg = document.createElement("img");
@@ -964,7 +1044,10 @@
       window.api?.onNotification?.((payload) => {
         window.__paTimings = { start: performance.now() };
         // The pill replaces whatever percentage the theme would draw itself.
-        if (payload && payload.paPill) payload.showRarityPercentage = false;
+        // (Unless the Xbox-theme option keeps the theme's own percentage and drops the pill.)
+        if (payload && payload.paPill && !(payload.paXbox && payload.paXbox.keepThemePercent)) {
+          payload.showRarityPercentage = false;
+        }
         const theme = payload?.sanTheme || {};
         const customisation = {
           ...(theme.customisation || {}),
@@ -981,7 +1064,10 @@
         // viewport (3vmax). Pin it to the notification window the host created so a viewport that is
         // not the window size (warm host, DPI) can no longer inflate every font.
         if (payload && payload.windowDip) {
-          const longest = Math.max(Number(payload.windowDip.width) || 0, Number(payload.windowDip.height) || 0);
+          let longest = Math.max(Number(payload.windowDip.width) || 0, Number(payload.windowDip.height) || 0);
+          // A widened Xbox card keeps the font of the window the theme was designed for.
+          const fontRef = Number(payload.paXbox && payload.paXbox.fontRefLongest);
+          if (fontRef > 0) longest = fontRef;
           if (longest > 0) {
             document.documentElement.style.setProperty("font-size", (0.03 * longest + 0.8).toFixed(3) + "px", "important");
           }

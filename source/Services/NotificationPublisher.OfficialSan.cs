@@ -14,6 +14,7 @@ using Microsoft.Web.WebView2.Wpf;
 using Newtonsoft.Json.Linq;
 using Playnite.SDK.Models;
 using PlayniteAchievements.Models.Achievements;
+using PlayniteAchievements.Models.Achievements.Scoring;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.UI;
 using PlayniteAchievements.Providers.Local;
@@ -652,6 +653,27 @@ namespace PlayniteAchievements.Services
                 : double.NaN;
         }
 
+        /// <summary>The XB Modern preset with an animated emblem set as the theme's logo.</summary>
+        private static bool IsXboxEmblemTheme(OfficialSanTheme theme)
+        {
+            if (theme == null || !string.Equals(theme.Preset, "xboxone", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var icons = theme.Customisation?["customicons"] as JObject;
+            var xbox = icons?["xboxone"] as JObject;
+            var logo = xbox?["logo"];
+            return logo != null && logo.Type == JTokenType.String && !string.IsNullOrWhiteSpace((string)logo) &&
+                   theme.Customisation["usegameicon"]?.Value<bool>() != true;
+        }
+
+        private static bool IsMythicTheme(OfficialSanTheme theme)
+        {
+            var dir = string.IsNullOrWhiteSpace(theme?.CacheDir) ? string.Empty : Path.GetFileName(theme.CacheDir.TrimEnd('\\', '/'));
+            return Regex.IsMatch((theme?.Label ?? string.Empty) + " " + dir, "mythic", RegexOptions.IgnoreCase);
+        }
+
         private bool TryShowOfficialSanNotification(
             string gameName,
             string achievementName,
@@ -722,6 +744,39 @@ namespace PlayniteAchievements.Services
                 // and position are not in the catalog: the plugin has its own settings for those.
                 var paStyle = ApplySanStyleOverrides(theme.Customisation, slot);
 
+                // Xbox-style themes (XB Modern preset with an animated emblem in the logo slot) keep that
+                // emblem for good; the real achievement icon gets its own square on the right.
+                var xboxEmblem = IsXboxEmblemTheme(theme);
+                var xboxRightIcon = xboxEmblem && !completion && !IsMythicTheme(theme) &&
+                                    IsUsableImage(achievementIconPath);
+                // SAN sizes every font from the window width (3% of its longest side), so the font is
+                // pinned to the window the theme was designed for, not to the widened one below.
+                var xboxFontRefLongest = (theme.BaseWidth + theme.Offset * 2) * scale;
+                if (xboxEmblem)
+                {
+                    // The icon square sits beside the text, so widen the card (and with it the window)
+                    // by its width plus margin; the text area stays as wide as the theme designed it.
+                    var rightIconUnits = xboxRightIcon ? Math.Max(0, theme.BaseHeight - 10) + 7 : 0;
+
+                    // The card is as wide as the theme says, so long text would be cut off. Estimate the
+                    // width the text needs (about 0.58 em per character; the description wraps to two
+                    // lines) and grow the card by the shortfall, up to 60% of its designed width.
+                    var fontPx = 0.03 * xboxFontRefLongest + 0.8;
+                    var textColumnUnits = theme.BaseWidth - theme.BaseHeight - 20;
+                    var unlockLen = 20;
+                    if (theme.Customisation["usecustomtext"]?.Value<bool>() == true)
+                    {
+                        unlockLen = Math.Max(unlockLen, ((string)theme.Customisation["customtextunlockmsg"] ?? string.Empty).Length);
+                    }
+
+                    var chars = Math.Max(
+                        Math.Max(unlockLen + 10, (achievementName ?? string.Empty).Length + 9),
+                        Math.Ceiling((achievementDescription ?? string.Empty).Length / 2.0));
+                    var neededUnits = chars * 0.58 * fontPx / scale;
+                    var growUnits = Math.Max(0, Math.Min(neededUnits - textColumnUnits, theme.BaseWidth * 0.6));
+                    theme.BaseWidth += rightIconUnits + Math.Ceiling(growUnits);
+                }
+
                 var position = slot.UseThemePosition
                     ? SanToPosition(OfficialSanThemeService.PositionName(theme.Customisation))
                     : slot.Position;
@@ -739,8 +794,34 @@ namespace PlayniteAchievements.Services
                 var trophy = (achievementTrophy ?? string.Empty).Trim().ToLowerInvariant();
                 // The rarity pill (under the achievement icon) is drawn by the host page. It is never
                 // shown for the 100% completion unlock, and "Never show" hides every percentage.
+                var keepThemePercent = xboxEmblem && settings.OfficialSanXboxKeepThemePercent;
                 var pillShow = hasPercent && !completion && !(capstone && !completion) &&
+                               !keepThemePercent &&
                                settings.OfficialSanPercentMode != OfficialSanPercentMode.Never;
+
+                // Score shown in front of the title. An Xbox game's own gamerscore (the unlock's points)
+                // wins; otherwise the collection or prestige value of this achievement, per setting.
+                int? score = null;
+                var scoreUnit = string.Empty;
+                if (xboxEmblem && !completion && context != null)
+                {
+                    if (string.Equals(PointsFamilies.FromProviderKey(providerKey), PointsFamilies.Xbox, StringComparison.OrdinalIgnoreCase) &&
+                        context.Points.GetValueOrDefault() > 0)
+                    {
+                        score = context.Points.Value;
+                        scoreUnit = "G";
+                    }
+                    else if (settings.OfficialSanXboxScoreFallback == OfficialSanScoreFallback.Collection)
+                    {
+                        score = AchievementScoreCalculator.GetCollectionValue(tier);
+                        scoreUnit = "pts";
+                    }
+                    else if (settings.OfficialSanXboxScoreFallback == OfficialSanScoreFallback.Prestige)
+                    {
+                        score = AchievementScoreCalculator.GetPrestigeValue(hasPercent ? percent : (double?)null, tier);
+                        scoreUnit = "pts";
+                    }
+                }
                 var pillTier = ToSanTier(tier, false, hasPercent ? percent : double.NaN);
                 var payload = new JObject
                 {
@@ -749,6 +830,17 @@ namespace PlayniteAchievements.Services
                         ["show"] = pillShow,
                         ["percent"] = hasPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
                         ["tier"] = pillTier
+                    },
+                    // Xbox-style theme layout handled by the host page.
+                    ["paXbox"] = new JObject
+                    {
+                        ["emblem"] = xboxEmblem,
+                        ["rightIcon"] = xboxRightIcon,
+                        ["fontRefLongest"] = xboxEmblem ? (JToken)new JValue(xboxFontRefLongest) : JValue.CreateNull(),
+                        ["keepThemePercent"] = keepThemePercent,
+                        ["inlineTrophy"] = xboxEmblem && settings.OfficialSanXboxInlineTrophy,
+                        ["score"] = score.HasValue ? (JToken)new JValue(score.Value) : JValue.CreateNull(),
+                        ["scoreUnit"] = scoreUnit
                     },
                     // The host page reports its card's rect to the live blur backdrop, a window under this
                     // one, while the live blur is on.
