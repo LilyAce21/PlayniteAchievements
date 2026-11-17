@@ -4,11 +4,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Wpf;
 using Newtonsoft.Json.Linq;
@@ -668,6 +670,116 @@ namespace PlayniteAchievements.Services
                    theme.Customisation["usegameicon"]?.Value<bool>() != true;
         }
 
+        /// <summary>
+        /// PA's trophy for the inline icon. Full completion shows the Completed badge and a capstone the
+        /// Capstone Platinum trophy. Otherwise the PlayStation style uses the achievement's Bronze /
+        /// Silver / Gold / Platinum trophy metadata (the rarity badge when it has none), and the
+        /// Rarity style uses the badge for the rarity tier.
+        /// </summary>
+        private static ImageSource PickPaTrophy(PersistedSettings persisted, OfficialSanXboxTrophyStyle style,
+            RarityTier tier, string trophy, bool completion, bool capstone)
+        {
+            if (persisted == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                if (completion)
+                {
+                    return RarityAppearanceHelper.CreateCompletedBadgePreview(persisted, true);
+                }
+
+                if (capstone)
+                {
+                    return RarityAppearanceHelper.CreateCapstonePlatinumPreview(persisted);
+                }
+
+                if (style == OfficialSanXboxTrophyStyle.PlayStation)
+                {
+                    string key = null;
+                    switch ((trophy ?? string.Empty).Trim().ToLowerInvariant())
+                    {
+                        case "bronze": key = "TrophyBronze"; break;
+                        case "silver": key = "TrophySilver"; break;
+                        case "gold": key = "TrophyGold"; break;
+                        case "platinum": key = "TrophyPlatinum"; break;
+                    }
+
+                    if (key != null)
+                    {
+                        return RarityAppearanceHelper.CreateTrophyPreview(key, persisted, true);
+                    }
+                }
+
+                return RarityAppearanceHelper.CreateBadgePreview(tier, persisted, true);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Draws an image (fitted, centered) onto a 128 px transparent PNG in the SAN cache and returns its path.</summary>
+        private string RenderPaTrophyPath(ImageSource source)
+        {
+            if (source == null)
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                const int size = 128;
+                var width = source.Width > 0 ? source.Width : size;
+                var height = source.Height > 0 ? source.Height : size;
+                var fit = Math.Min(size / width, size / height);
+                var drawWidth = width * fit;
+                var drawHeight = height * fit;
+
+                var visual = new DrawingVisual();
+                using (var dc = visual.RenderOpen())
+                {
+                    dc.DrawImage(source, new Rect((size - drawWidth) / 2, (size - drawHeight) / 2, drawWidth, drawHeight));
+                }
+
+                var bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(visual);
+                bitmap.Freeze();
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                byte[] bytes;
+                using (var stream = new MemoryStream())
+                {
+                    encoder.Save(stream);
+                    bytes = stream.ToArray();
+                }
+
+                string hash;
+                using (var sha = SHA1.Create())
+                {
+                    hash = BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", string.Empty).Substring(0, 16).ToLowerInvariant();
+                }
+
+                var dir = Path.Combine(OfficialSanCacheRoot(), "pa-trophies");
+                Directory.CreateDirectory(dir);
+                var path = Path.Combine(dir, hash + ".png");
+                if (!File.Exists(path))
+                {
+                    File.WriteAllBytes(path, bytes);
+                }
+
+                return path;
+            }
+            catch (Exception ex)
+            {
+                ForkLog.Wrap(_logger)?.Warn("[OfficialSan] Could not render the PA trophy for the notification: " + ex.Message);
+                return string.Empty;
+            }
+        }
+
         private static bool IsMythicTheme(OfficialSanTheme theme)
         {
             var dir = string.IsNullOrWhiteSpace(theme?.CacheDir) ? string.Empty : Path.GetFileName(theme.CacheDir.TrimEnd('\\', '/'));
@@ -799,6 +911,16 @@ namespace PlayniteAchievements.Services
                                !keepThemePercent &&
                                settings.OfficialSanPercentMode != OfficialSanPercentMode.Never;
 
+                // The trophy shown before "Achievement unlocked": one of PA's own trophies (the custom
+                // images from Display settings when set, otherwise the drawn ones), rendered to a PNG
+                // for the host page. Empty keeps the theme's own trophy image.
+                var xboxTrophyPath = string.Empty;
+                if (xboxEmblem && settings.OfficialSanXboxInlineTrophy)
+                {
+                    xboxTrophyPath = RenderPaTrophyPath(
+                        PickPaTrophy(_settings?.Persisted, settings.OfficialSanXboxTrophyStyle, tier, trophy, completion, capstone));
+                }
+
                 // Score shown in front of the title. An Xbox game's own gamerscore (the unlock's points)
                 // wins; otherwise the collection or prestige value of this achievement, per setting.
                 int? score = null;
@@ -839,6 +961,7 @@ namespace PlayniteAchievements.Services
                         ["fontRefLongest"] = xboxEmblem ? (JToken)new JValue(xboxFontRefLongest) : JValue.CreateNull(),
                         ["keepThemePercent"] = keepThemePercent,
                         ["inlineTrophy"] = xboxEmblem && settings.OfficialSanXboxInlineTrophy,
+                        ["trophyPath"] = xboxTrophyPath,
                         ["score"] = score.HasValue ? (JToken)new JValue(score.Value) : JValue.CreateNull(),
                         ["scoreUnit"] = scoreUnit
                     },

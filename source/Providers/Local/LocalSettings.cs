@@ -97,6 +97,15 @@ namespace PlayniteAchievements.Providers.Local
         None = 2
     }
 
+    /// <summary>Which of PA's trophies the Xbox-style SAN themes show before "Achievement unlocked".</summary>
+    public enum OfficialSanXboxTrophyStyle
+    {
+        /// <summary>PA's rarity badge for the achievement's rarity tier.</summary>
+        Rarity = 0,
+        /// <summary>PA's Bronze / Silver / Gold / Platinum trophy from the achievement's PlayStation trophy metadata (rarity badge when it has none).</summary>
+        PlayStation = 1
+    }
+
     public enum LocalOverlayCoverPosition
     {
         None = 0,
@@ -480,6 +489,8 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanApplyUpstreamElements;
         private bool _officialSanXboxKeepThemePercent = true;
         private bool _officialSanXboxInlineTrophy = true;
+        private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
+        private bool _enableOverlayDebugLogging;
         private OfficialSanScoreFallback _officialSanXboxScoreFallback = OfficialSanScoreFallback.Collection;
 
         public bool UseOfficialSanTemplate
@@ -536,6 +547,15 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Xbox-style SAN themes: a rarity trophy inline, left of the "Achievement unlocked" text.</summary>
         public bool OfficialSanXboxInlineTrophy { get => _officialSanXboxInlineTrophy; set => SetValue(ref _officialSanXboxInlineTrophy, value); }
+
+        /// <summary>Xbox-style SAN themes: PA's rarity badge, or PA's PlayStation trophy, for the inline trophy.</summary>
+        public OfficialSanXboxTrophyStyle OfficialSanXboxTrophyStyle { get => _officialSanXboxTrophyStyle; set => SetValue(ref _officialSanXboxTrophyStyle, value); }
+
+        public bool EnableOverlayDebugLogging
+        {
+            get => _enableOverlayDebugLogging;
+            set => SetValue(ref _enableOverlayDebugLogging, value);
+        }
 
         /// <summary>
         /// Xbox-style SAN themes show the achievement's Xbox gamerscore when the game has one;

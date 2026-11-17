@@ -782,8 +782,9 @@
 
         {
           const trophyTier = payload?.isPlatinum === true || payload?.isPsnPlatinum === true ? "psnplatinum" : percent.tier;
+          // PA's own trophy (rendered by the plugin) wins; the theme's trophy images are the fallback.
           const trophyAsset = payload?.paXbox?.inlineTrophy === true
-            ? getTrophyAsset(payload, customisation, trophyTier)
+            ? (payload.paXbox.trophyPath || getTrophyAsset(payload, customisation, trophyTier))
             : "";
           setVar("--patrophy", trophyAsset ? cssUrl(trophyAsset) : "none");
           document.body.toggleAttribute("pa-notrophy", !trophyAsset);
