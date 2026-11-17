@@ -97,6 +97,14 @@ namespace PlayniteAchievements.Providers.Local
         None = 2
     }
 
+    /// <summary>When the Xbox-style SAN themes draw a laurel around the emblem.</summary>
+    public enum OfficialSanXboxLaurelMode
+    {
+        Off = 0,
+        RareAndMythic = 1,
+        Always = 2
+    }
+
     /// <summary>Which of PA's trophies the Xbox-style SAN themes show before "Achievement unlocked".</summary>
     public enum OfficialSanXboxTrophyStyle
     {
@@ -489,6 +497,8 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanApplyUpstreamElements;
         private bool _officialSanXboxKeepThemePercent = true;
         private bool _officialSanXboxInlineTrophy = true;
+        private bool _officialSanXboxTintEmblem = true;
+        private OfficialSanXboxLaurelMode _officialSanXboxLaurel = OfficialSanXboxLaurelMode.RareAndMythic;
         private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
         private int _unlockSoundLeadMilliseconds;
         private string _extraUnlockSoundPaths = string.Empty;
@@ -553,6 +563,12 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Xbox-style SAN themes: a rarity trophy inline, left of the "Achievement unlocked" text.</summary>
         public bool OfficialSanXboxInlineTrophy { get => _officialSanXboxInlineTrophy; set => SetValue(ref _officialSanXboxInlineTrophy, value); }
+
+        /// <summary>Xbox-style SAN themes: recolour the animated emblem with the card's colours.</summary>
+        public bool OfficialSanXboxTintEmblem { get => _officialSanXboxTintEmblem; set => SetValue(ref _officialSanXboxTintEmblem, value); }
+
+        /// <summary>Xbox-style SAN themes: laurel around the emblem (rare and mythic by default).</summary>
+        public OfficialSanXboxLaurelMode OfficialSanXboxLaurel { get => _officialSanXboxLaurel; set => SetValue(ref _officialSanXboxLaurel, value); }
 
         /// <summary>Xbox-style SAN themes: PA's rarity badge, or PA's PlayStation trophy, for the inline trophy.</summary>
         public OfficialSanXboxTrophyStyle OfficialSanXboxTrophyStyle { get => _officialSanXboxTrophyStyle; set => SetValue(ref _officialSanXboxTrophyStyle, value); }

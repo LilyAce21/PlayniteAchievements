@@ -30,7 +30,7 @@
         place-self: center;
         width: var(--rsize);
         height: var(--rsize);
-        margin-inline: calc(2px * var(--scale)) calc(5px * var(--scale));
+        margin-inline: var(--pa-gap, calc(2px * var(--scale))) calc(5px * var(--scale));
         border-radius: var(--iconroundness, 50%);
         overflow: hidden;
         opacity: 0;
@@ -66,6 +66,28 @@
       /* The theme sizes the "S" glyph as a share of the prefix's width, so a longer score text made
          it grow over the digits. Give it a fixed size instead. */
       body[pa-xbox] #title[gs]::before { background-size: 1.15em auto !important; background-position: left center !important; }
+      /* Recolour the emblem with the card's colours (see paBuildTint). */
+      body[pa-tint] #logo { filter: url(#pa-emblem-tint); }
+
+      /* The card is fitted to its text (see paFitXbox); the window stays at the widest size, so a
+         shorter card is anchored to the side the notification is positioned on. */
+      body[pa-fit] .wrapper#outerwrapper { width: var(--pa-fullwidth); }
+      body[pa-fit][bottomleft] .wrapper#achcont, body[pa-fit][topleft] .wrapper#achcont { justify-self: start; }
+      body[pa-fit][bottomright] .wrapper#achcont, body[pa-fit][topright] .wrapper#achcont { justify-self: end; }
+
+      /* Laurel around the emblem (drawn by the plugin, see paBuildLaurel). */
+      body[pa-xbox] .wrapper#achiconwrapper { overflow: visible; }
+      #pa-laurel {
+        position: relative; z-index: 2; width: 100%; height: 100%; overflow: visible; pointer-events: none;
+        grid-column-start: 1; grid-row-start: 1; opacity: 0; scale: 0.6;
+        animation:
+          pa-laurel-in calc(var(--transition) * 2) calc(var(--transition) * 4) ease-out forwards,
+          scaledown calc(var(--transition) * 2) calc(var(--displaytime) - (var(--transition) * 9)) cubic-bezier(1, 0, 1, 1) forwards;
+      }
+      #pa-laurel svg { width: 100%; height: 100%; overflow: visible; display: block; }
+      @keyframes pa-laurel-in { 60% { scale: 1.06; } to { opacity: 1; scale: 1; } }
+      body[fastanim] #pa-laurel { animation: pa-laurel-in calc(var(--transition) * 2) calc(var(--transition) * 4) ease-out forwards; }
+
       /* No score to show: do not leave the theme's bare " - " in front of the title. */
       body[pa-xbox][pa-noscore] #title::before { display: none !important; }
       /* Rarity trophy inline, left of the "Achievement unlocked" text. */
@@ -499,11 +521,14 @@
         // decoration marker (SAN's own app fills these two attributes; this host does it from the
         // plugin's data: the Xbox gamerscore, or the collection / prestige value).
         const xb = payload?.paXbox;
-        if (xb && xb.emblem === true && xb.score !== null && xb.score !== undefined && !useScreenshotElems) {
+        if (xb && xb.emblem === true && !useScreenshotElems) {
           const titleEl = document.getElementById("title");
           if (titleEl) {
-            titleEl.setAttribute("gs", String(xb.score));
-            titleEl.setAttribute("unit", xb.scoreUnit || "");
+            if (xb.score !== null && xb.score !== undefined) {
+              titleEl.setAttribute("gs", String(xb.score));
+              titleEl.setAttribute("unit", xb.scoreUnit || "");
+            }
+            // The marker also gives every card the same spacing between emblem and text.
             if (!document.getElementById("decoration")) {
               const unlockEl = document.getElementById("unlockmsg");
               const holder = unlockEl && unlockEl.textContent ? unlockEl : titleEl;
@@ -1042,6 +1067,124 @@
         });
       }
 
+
+      /* ---- Xbox-style emblem themes: colours, laurel and card fitting ---- */
+      function paParseColor(value) {
+        try {
+          const ctx = document.createElement("canvas").getContext("2d");
+          ctx.fillStyle = "#000000";
+          ctx.fillStyle = String(value || "").trim() || "#000000";
+          const s = ctx.fillStyle;
+          if (s[0] === "#") return [parseInt(s.substr(1, 2), 16), parseInt(s.substr(3, 2), 16), parseInt(s.substr(5, 2), 16)];
+          const m = s.match(/[\d.]+/g) || [0, 0, 0];
+          return [Math.round(+m[0]), Math.round(+m[1]), Math.round(+m[2])];
+        } catch (e) { return [18, 126, 17]; }
+      }
+      function paMix(a, b, t) { return a.map((v, i) => Math.round(v + (b[i] - v) * t)); }
+      function paRgb(c, a) { return a === undefined ? `rgb(${c[0]},${c[1]},${c[2]})` : `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+
+      /* The emblem gifs have a grey (mythic) or green disc baked in. Map their brightness onto a ramp built from
+         the card's secondary colour so the emblem looks like part of the card: the disc becomes the card's colour,
+         the rim, star and glow become lighter shades of it. */
+      function paBuildTint() {
+        const sec = paParseColor(getComputedStyle(document.documentElement).getPropertyValue("--secondarycolor"));
+        const white = [255, 255, 255], black = [0, 0, 0];
+        const stops = [
+          [0.00, paMix(sec, black, 0.70)],
+          [0.20, paMix(sec, black, 0.40)],
+          [0.33, sec],
+          [0.60, paMix(sec, white, 0.55)],
+          [0.85, paMix(sec, white, 0.78)],
+          [1.00, paMix(sec, white, 0.90)],
+        ];
+        const N = 32, tab = [[], [], []];
+        for (let i = 0; i <= N; i++) {
+          const l = i / N;
+          let k = 0;
+          while (k < stops.length - 2 && l > stops[k + 1][0]) k++;
+          const [l0, c0] = stops[k], [l1, c1] = stops[k + 1];
+          const c = paMix(c0, c1, Math.min(1, Math.max(0, (l - l0) / (l1 - l0))));
+          for (let ch = 0; ch < 3; ch++) tab[ch].push((c[ch] / 255).toFixed(4));
+        }
+        document.getElementById("pa-tint-svg")?.remove();
+        document.body.insertAdjacentHTML("beforeend",
+          `<svg id="pa-tint-svg" width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="pa-emblem-tint" color-interpolation-filters="sRGB" x="-20%" y="-20%" width="140%" height="140%">` +
+          `<feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0 0.299 0.587 0.114 0 0 0.299 0.587 0.114 0 0 0 0 0 1 0"/>` +
+          `<feComponentTransfer><feFuncR type="table" tableValues="${tab[0].join(" ")}"/><feFuncG type="table" tableValues="${tab[1].join(" ")}"/><feFuncB type="table" tableValues="${tab[2].join(" ")}"/></feComponentTransfer></filter></svg>`);
+        document.body.setAttribute("pa-tint", "");
+      }
+
+      /* Two branches of leaves hugging the lower half of the emblem. */
+      function paBuildLaurel() {
+        const sec = paParseColor(getComputedStyle(document.documentElement).getPropertyValue("--secondarycolor"));
+        const light = paMix(sec, [255, 255, 255], 0.88), mid = paMix(sec, [255, 255, 255], 0.55);
+        const leaves = [];
+        const angles = [186, 198, 211, 224, 237, 250, 262];
+        angles.forEach((deg, i) => {
+          const th = deg * Math.PI / 180, r = 47;
+          const x = 50 + r * Math.sin(th), y = 50 - r * Math.cos(th);
+          const len = 21 - i * 0.9, wid = 8.2 - i * 0.25;
+          leaves.push(`<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${(deg - 38).toFixed(1)})">` +
+            `<path d="M0 0 C${(len * 0.25).toFixed(1)} ${(-wid).toFixed(1)} ${(len * 0.75).toFixed(1)} ${(-wid * 0.9).toFixed(1)} ${len.toFixed(1)} 0 C${(len * 0.75).toFixed(1)} ${(wid * 0.9).toFixed(1)} ${(len * 0.25).toFixed(1)} ${wid.toFixed(1)} 0 0Z" fill="url(#pa-leaf)"/></g>`);
+        });
+        const branch = leaves.join("");
+        const el = document.createElement("div");
+        el.id = "pa-laurel";
+        el.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="pa-leaf" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${paRgb(mid)}" stop-opacity="0.85"/><stop offset="1" stop-color="${paRgb(light)}" stop-opacity="0.97"/></linearGradient></defs>` +
+          `<g style="filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.35))"><g>${branch}</g><g transform="translate(100 0) scale(-1 1)">${branch}</g></g></svg>`;
+        document.getElementById("achiconwrapper")?.appendChild(el);
+      }
+
+      /* Fit the card to its text: as wide as the longest line needs, no wider (and never wider than the window
+         the plugin made for the longest text). The right-hand icon sits one text-gap from the text, the same
+         distance the text keeps from the emblem. */
+      function paFitXbox(payload) {
+        const xb = payload && payload.paXbox;
+        if (!xb || xb.emblem !== true) return;
+        const root = document.documentElement;
+        const card = document.getElementById("achcont");
+        const content = document.getElementById("achcontent");
+        const wrap = document.getElementById("achiconwrapper");
+        if (!card || !content || !wrap) return;
+        const cs = getComputedStyle(root);
+        const fullW = parseFloat(cs.getPropertyValue("--notifywidth"));
+        const h = parseFloat(cs.getPropertyValue("--notifyheight"));
+        if (!(fullW > 0) || !(h > 0)) return;
+
+        card.style.setProperty("width", fullW + "px", "important");
+        // The text grid's column gap is animated in later; measure with its final value.
+        content.style.setProperty("column-gap", (10 * h / 50) + "px", "important");
+        try {
+          // gap between the emblem and where the text starts
+          const firstText = document.getElementById("unlockmsg") || document.getElementById("title") || content;
+          const gap = Math.max(0, firstText.getBoundingClientRect().left - wrap.getBoundingClientRect().right);
+          if (xb.rightIcon === true) root.style.setProperty("--pa-gap", gap + "px");
+          const chrome = card.getBoundingClientRect().width - firstText.getBoundingClientRect().width;
+
+          const natural = (id) => {
+            const el = document.getElementById(id);
+            if (!el || !el.textContent) return 0;
+            const saved = el.getAttribute("style");
+            el.style.cssText = (saved || "") + ";width:max-content;max-width:none;white-space:nowrap;overflow:visible;display:block;justify-self:start;-webkit-line-clamp:unset;";
+            const w = el.getBoundingClientRect().width;
+            if (saved === null) el.removeAttribute("style"); else el.setAttribute("style", saved);
+            return w;
+          };
+          const first = Math.max(natural("unlockmsg"), natural("title"));
+          const desc = natural("desc");
+          // the description may wrap to two lines, so it only needs about half its single-line width
+          const descNeed = desc <= first ? desc : Math.max(first, desc * 0.58);
+          const textW = Math.max(first, descNeed, h * 1.5);
+          const fitted = Math.min(fullW, Math.ceil(textW * 1.03 + chrome + 2));
+          root.style.setProperty("--pa-fullwidth", fullW + "px");
+          root.style.setProperty("--notifywidth", fitted + "px");
+          document.body.setAttribute("pa-fit", "");
+        } finally {
+          card.style.removeProperty("width");
+          content.style.removeProperty("column-gap");
+        }
+      }
+
       window.api?.onNotification?.((payload) => {
         window.__paTimings = { start: performance.now() };
         // The pill replaces whatever percentage the theme would draw itself.
@@ -1100,7 +1243,23 @@
           try { paSetupBackdropReporter(payload); } catch (e) {}
           window.__paPreload = [payload.headerPath, payload.gameIconPath, payload.iconPath]
             .filter(Boolean).map((p) => fileUrl(p));
-          notifyReady();
+          const xb = payload.paXbox;
+          const finish = () => {
+            try { if (xb && xb.emblem === true && xb.tint !== false) paBuildTint(); } catch (e) {}
+            try { if (xb && xb.emblem === true && xb.laurel === true) paBuildLaurel(); } catch (e) {}
+            try { paFitXbox(payload); } catch (e) {}
+            notifyReady();
+          };
+          // text widths depend on the theme font, so wait for it (briefly) before measuring
+          const fontsLoaded = () => {
+            if (!document.fonts || !document.fonts.load) return Promise.resolve();
+            const loads = ["unlockmsg", "title", "desc"].map((id) => document.getElementById(id)).filter(Boolean).map((el) => {
+              const st = getComputedStyle(el);
+              return document.fonts.load(`${st.fontWeight} ${st.fontSize} ${st.fontFamily}`, el.textContent || "x").catch(() => {});
+            });
+            return Promise.all(loads).then(() => document.fonts.ready);
+          };
+          Promise.race([fontsLoaded(), new Promise((resolve) => setTimeout(resolve, 900))]).then(finish, finish);
         });
       });
     </script>

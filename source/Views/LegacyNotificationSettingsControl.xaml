@@ -3523,6 +3523,17 @@
                                               ToolTip="On: the percentage stays where the .san puts it. Off: the plugin's rarity bubble is drawn under the achievement icon instead."/>
                                     <CheckBox Content="Show a trophy before the 'Achievement unlocked' text"
                                               IsChecked="{Binding OfficialSanXboxInlineTrophy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <CheckBox Content="Recolour the animated emblem with the card's colours"
+                                              IsChecked="{Binding OfficialSanXboxTintEmblem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
+                                              ToolTip="The emblem gifs have a grey or green disc baked in. On: the disc, rim and star take the card's secondary colour, so the emblem matches whatever colours you pick in Edit style."/>
+                                    <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                        <TextBlock Text="Laurel around the emblem:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <ComboBox SelectedValue="{Binding OfficialSanXboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="200">
+                                            <ComboBoxItem Content="Off" Tag="{x:Static local:OfficialSanXboxLaurelMode.Off}"/>
+                                            <ComboBoxItem Content="Rare and mythic only" Tag="{x:Static local:OfficialSanXboxLaurelMode.RareAndMythic}"/>
+                                            <ComboBoxItem Content="Always" Tag="{x:Static local:OfficialSanXboxLaurelMode.Always}"/>
+                                        </ComboBox>
+                                    </DockPanel>
                                     <DockPanel Margin="0,0,0,6" LastChildFill="False">
                                         <TextBlock Text="Trophy shown (PA's own trophies):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
                                         <ComboBox SelectedValue="{Binding OfficialSanXboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="200"

@@ -143,7 +143,7 @@ namespace PlayniteAchievements.Models.Settings
             list.Add(new SanStyleOption { Key = "iconborderscale", Label = "Icon border scale", Group = "Achievement icon", Kind = SanStyleKind.Range, Min = 50, Max = 150, Step = 5, Unit = "%", Default = "100" });
             list.Add(new SanStyleOption { Key = "iconborderx", Label = "Icon border horizontal offset", Group = "Achievement icon", Kind = SanStyleKind.Range, Min = -5, Max = 5, Step = 0.5, Unit = "px", Default = "0" });
             list.Add(new SanStyleOption { Key = "iconbordery", Label = "Icon border vertical offset", Group = "Achievement icon", Kind = SanStyleKind.Range, Min = -5, Max = 5, Step = 0.5, Unit = "px", Default = "0" });
-            list.Add(new SanStyleOption { Key = "logoscale", Label = "Logo scale", Group = "Logo and decoration", Kind = SanStyleKind.Range, Min = 50, Max = 150, Step = 5, Unit = "%", Default = "100" });
+            list.Add(new SanStyleOption { Key = "logoscale", Label = "Logo scale", Group = "Logo and decoration", Kind = SanStyleKind.Range, Min = 25, Max = 400, Step = 5, Unit = "%", Default = "100" });
             list.Add(new SanStyleOption { Key = "decorationscale", Label = "Decoration scale", Group = "Logo and decoration", Kind = SanStyleKind.Range, Min = 50, Max = 150, Step = 5, Unit = "%", Default = "100" });
             list.Add(new SanStyleOption { Key = "decorationshadow", Label = "Decoration shadow", Group = "Logo and decoration", Kind = SanStyleKind.Bool, Default = "false" });
             list.Add(new SanStyleOption { Key = "replacelogo", Label = "Replace the logo with the decoration", Group = "Logo and decoration", Kind = SanStyleKind.Bool, Default = "false" });

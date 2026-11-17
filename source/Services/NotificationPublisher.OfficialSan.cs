@@ -871,8 +871,9 @@ namespace PlayniteAchievements.Services
                     var rightIconUnits = xboxRightIcon ? Math.Max(0, theme.BaseHeight - 10) + 7 : 0;
 
                     // The card is as wide as the theme says, so long text would be cut off. Estimate the
-                    // width the text needs (about 0.58 em per character; the description wraps to two
-                    // lines) and grow the card by the shortfall, up to 60% of its designed width.
+                    // width the text needs (about 0.62 em per character; the description wraps to two
+                    // lines) and make the window that wide, up to double the designed width. The host page then
+                    // fits the card to the real text, so a short text gets a short card inside it.
                     var fontPx = 0.03 * xboxFontRefLongest + 0.8;
                     var textColumnUnits = theme.BaseWidth - theme.BaseHeight - 20;
                     var unlockLen = 20;
@@ -884,8 +885,8 @@ namespace PlayniteAchievements.Services
                     var chars = Math.Max(
                         Math.Max(unlockLen + 10, (achievementName ?? string.Empty).Length + 9),
                         Math.Ceiling((achievementDescription ?? string.Empty).Length / 2.0));
-                    var neededUnits = chars * 0.58 * fontPx / scale;
-                    var growUnits = Math.Max(0, Math.Min(neededUnits - textColumnUnits, theme.BaseWidth * 0.6));
+                    var neededUnits = chars * 0.62 * fontPx / scale;
+                    var growUnits = Math.Max(0, Math.Min(neededUnits - textColumnUnits, theme.BaseWidth * 1.0));
                     theme.BaseWidth += rightIconUnits + Math.Ceiling(growUnits);
                 }
 
@@ -962,6 +963,10 @@ namespace PlayniteAchievements.Services
                         ["keepThemePercent"] = keepThemePercent,
                         ["inlineTrophy"] = xboxEmblem && settings.OfficialSanXboxInlineTrophy,
                         ["trophyPath"] = xboxTrophyPath,
+                        ["tint"] = settings.OfficialSanXboxTintEmblem,
+                        ["laurel"] = xboxEmblem && (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.Always ||
+                            (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.RareAndMythic &&
+                             (completion || capstone || tier >= RarityTier.Rare))),
                         ["score"] = score.HasValue ? (JToken)new JValue(score.Value) : JValue.CreateNull(),
                         ["scoreUnit"] = scoreUnit
                     },
