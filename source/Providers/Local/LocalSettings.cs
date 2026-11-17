@@ -490,6 +490,8 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanXboxKeepThemePercent = true;
         private bool _officialSanXboxInlineTrophy = true;
         private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
+        private bool _enableActiveGameMonitoring;
+        private bool _showOverlayOnActiveGameMonitor = false;
         private bool _enableOverlayDebugLogging;
         private OfficialSanScoreFallback _officialSanXboxScoreFallback = OfficialSanScoreFallback.Collection;
 
@@ -550,6 +552,18 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Xbox-style SAN themes: PA's rarity badge, or PA's PlayStation trophy, for the inline trophy.</summary>
         public OfficialSanXboxTrophyStyle OfficialSanXboxTrophyStyle { get => _officialSanXboxTrophyStyle; set => SetValue(ref _officialSanXboxTrophyStyle, value); }
+
+        public bool EnableActiveGameMonitoring
+        {
+            get => _enableActiveGameMonitoring;
+            set => SetValue(ref _enableActiveGameMonitoring, value);
+        }
+
+        public bool ShowOverlayOnActiveGameMonitor
+        {
+            get => _showOverlayOnActiveGameMonitor;
+            set => SetValue(ref _showOverlayOnActiveGameMonitor, value);
+        }
 
         public bool EnableOverlayDebugLogging
         {

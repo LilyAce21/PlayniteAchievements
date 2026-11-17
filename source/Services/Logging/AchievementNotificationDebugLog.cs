@@ -182,12 +182,6 @@ namespace PlayniteAchievements.Services.Logging
             builder.AppendLine("[Local notification settings]");
             AppendProperties(builder, localSettings, IsLocalNotificationSetting);
 
-            var slots = localSettings.CustomOverlayStyleSlots;
-            builder.AppendLine($"CustomOverlayStyleSlotCount={slots?.Count ?? 0}");
-            var selectedSlotIndex = Math.Max(0, (localSettings.SelectedCustomStyleSlot - 1));
-            var selectedSlot = slots != null && selectedSlotIndex < slots.Count ? slots[selectedSlotIndex] : null;
-            builder.AppendLine($"SelectedCustomStyleSlotName={FormatValue(selectedSlot?.Name)}");
-
             builder.AppendLine("[Global notification settings]");
             if (persistedSettings != null)
             {
@@ -220,15 +214,7 @@ namespace PlayniteAchievements.Services.Logging
                    name.StartsWith("ActiveGameMonitoring", StringComparison.Ordinal) ||
                    name == nameof(LocalSettings.EnableActiveGameMonitoring) ||
                    name == nameof(LocalSettings.EnableOverlayDebugLogging) ||
-                   name == nameof(LocalSettings.EnableWindowsToastNotifications) ||
-                   name == nameof(LocalSettings.EnableInAppUnlockNotifications) ||
                    name == nameof(LocalSettings.ShowOverlayOnActiveGameMonitor) ||
-                   name == nameof(LocalSettings.BundledUnlockSoundPath) ||
-                   name == nameof(LocalSettings.CustomUnlockSoundPath) ||
-                   name == nameof(LocalSettings.ExtraUnlockSoundPaths) ||
-                   name == nameof(LocalSettings.EffectiveBundledUnlockSoundPath) ||
-                   name == nameof(LocalSettings.EffectiveScreenshotSaveFolder) ||
-                   name == nameof(LocalSettings.SelectedCustomStyleSlot) ||
                    name == nameof(LocalSettings.CollectionProgressNotifications) ||
                    name == nameof(LocalSettings.PrestigeProgressNotifications);
         }
@@ -237,7 +223,6 @@ namespace PlayniteAchievements.Services.Logging
         {
             foreach (var property in source.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Where(property => property.CanRead && property.GetIndexParameters().Length == 0 && include(property))
-                .Where(property => property.Name != nameof(LocalSettings.CustomOverlayStyleSlots))
                 .OrderBy(property => property.Name, StringComparer.Ordinal))
             {
                 AppendProperty(builder, source, property);

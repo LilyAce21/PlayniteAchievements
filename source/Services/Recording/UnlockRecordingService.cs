@@ -234,8 +234,6 @@ namespace PlayniteAchievements.Services.Recording
             public Guid OwnerGameId;
             public string GameName;
             public PersistedSettings EffectiveSettings;
-            public bool UsesCustomSettings;
-            public LocalSettings CustomSettings;
             public DateTime CaptureStartUtc;
             // The WGC + Media Foundation capture engine: occlusion-independent, HDR-correct,
             // GPU-resident. Writes .mp4 segments the Media Foundation export/prune consume.
@@ -377,8 +375,7 @@ namespace PlayniteAchievements.Services.Recording
             // A single capture session exists at a time; the most recently started game owns it.
             StopCurrentSession();
 
-            var persisted = ResolveEffectiveRecordingSettings(
-                out var usesCustomSettings, out var customSettings);
+            var persisted = _settings?.Persisted;
             var gameData = LoadGameData(game?.Id ?? Guid.Empty);
             if (!ProviderNotificationPolicy.Resolve(persisted, null, gameData).RecordingsEnabled)
             {
@@ -419,8 +416,6 @@ namespace PlayniteAchievements.Services.Recording
                 OwnerGameId = game?.Id ?? Guid.Empty,
                 GameName = game?.Name,
                 EffectiveSettings = persisted,
-                UsesCustomSettings = usesCustomSettings,
-                CustomSettings = customSettings,
                 Cts = new CancellationTokenSource()
             };
 
@@ -891,7 +886,7 @@ namespace PlayniteAchievements.Services.Recording
                 return ClipEligibility.NotRecordable;
             }
 
-            if (!session.UsesCustomSettings && gameData?.CaptureOverride == null &&
+            if (gameData?.CaptureOverride == null &&
                 _isProviderRecordingEnabled?.Invoke(e.ProviderKey) == false)
             {
                 return ClipEligibility.ProviderDisabled;
@@ -2502,42 +2497,6 @@ namespace PlayniteAchievements.Services.Recording
         {
             try
             {
-                var custom = request?.Session?.CustomSettings;
-                if (request?.Session?.UsesCustomSettings == true && custom != null)
-                {
-                    var game = _api?.Database?.Games?.Get(request.PlayniteGameId);
-                    var timestamp = DateTime.Now;
-                    var directoryTemplate = string.IsNullOrWhiteSpace(custom.RecordingSaveFolder)
-                        ? custom.EffectiveScreenshotSaveFolder
-                        : custom.RecordingSaveFolder;
-                    var customBaseDir = PlayniteAchievements.Services.UI.CaptureFileNaming.ReplaceTokens(
-                        directoryTemplate,
-                        game,
-                        request.AchievementName,
-                        timestamp,
-                        Math.Max(1, request.AchievementNumber),
-                        Math.Max(1, request.TotalCount),
-                        sanitizeValues: true,
-                        providerName: request.ProviderKey);
-                    if (string.IsNullOrWhiteSpace(customBaseDir))
-                    {
-                        return null;
-                    }
-
-                    var filename = PlayniteAchievements.Services.UI.CaptureFileNaming.ReplaceTokens(
-                        custom.RecordingFilenameTemplate,
-                        game,
-                        request.AchievementName,
-                        timestamp,
-                        Math.Max(1, request.AchievementNumber),
-                        Math.Max(1, request.TotalCount),
-                        sanitizeValues: false,
-                        providerName: request.ProviderKey);
-                    filename = PlayniteAchievements.Services.UI.CaptureFileNaming.SanitizeFileName(filename);
-                    Directory.CreateDirectory(customBaseDir);
-                    return PlayniteAchievements.Services.UI.CaptureFileNaming.BuildUniquePath(customBaseDir, filename, ".mp4");
-                }
-
                 var baseDir = ResolveOutputDirectory(persisted);
                 var gameDir = request.GameDirectory;
                 if (string.IsNullOrWhiteSpace(baseDir) && string.IsNullOrWhiteSpace(gameDir))
@@ -2887,43 +2846,6 @@ namespace PlayniteAchievements.Services.Recording
         }
 
         // === Helpers ===
-
-        private PersistedSettings ResolveEffectiveRecordingSettings(
-            out bool usesCustomSettings, out LocalSettings customSettings)
-        {
-            usesCustomSettings = false;
-            var custom = ProviderRegistry.Settings<LocalSettings>();
-            if (custom?.EnableUnlockRecordings == true && !custom.UpstreamCaptureOverridesMemories)
-            {
-                // Memories is a complete, independent recorder configuration. When explicitly
-                // enabled it owns the session even if the main feature is also enabled.
-                usesCustomSettings = true;
-                customSettings = custom.Clone() as LocalSettings ?? custom;
-                var effective = _settings?.Persisted?.Clone() ?? new PersistedSettings();
-                effective.EnableUnlockRecordings = true;
-                effective.UnlockRecordingDirectory = customSettings.RecordingSaveFolder;
-                effective.UnlockScreenshotDirectory = customSettings.EffectiveScreenshotSaveFolder;
-                effective.RecordingClipSeconds = customSettings.RecordingClipSeconds;
-                effective.RecordingFps = customSettings.RecordingFps;
-                effective.RecordingResolution = customSettings.RecordingResolution;
-                effective.RecordingIncludeAudio = customSettings.RecordingIncludeAudio;
-                effective.RecordingAudioSource = customSettings.RecordingAudioSource;
-                effective.RecordingIncludeMicrophone = customSettings.RecordingIncludeMicrophone;
-                effective.UnlockRecordingRarities = customSettings.RecordingRarities;
-                effective.UnlockRecordingAlwaysCaptureCompletion = customSettings.RecordingAlwaysCaptureCompletion;
-                // Memories exposes one recording output rather than upstream's three clip
-                // variants. Preserve that contract by treating it as the with-notification
-                // variant regardless of unrelated choices in the upstream settings page.
-                effective.UnlockRecordingClean = false;
-                effective.UnlockRecordingWithToast = true;
-                effective.UnlockRecordingFramed = false;
-                return effective;
-            }
-
-            customSettings = null;
-            var main = _settings?.Persisted;
-            return main?.EnableUnlockRecordings == true ? main.Clone() : main;
-        }
 
         private static string ResolveOutputDirectory(PersistedSettings persisted)
         {

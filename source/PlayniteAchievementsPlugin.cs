@@ -2548,8 +2548,7 @@ namespace PlayniteAchievements
                     return;
                 }
 
-                if (_settingsViewModel?.Settings?.Persisted?.EnableUnlockRecordings == true ||
-                    ProviderRegistry.Settings<Providers.Local.LocalSettings>()?.EnableUnlockRecordings == true)
+                if (_settingsViewModel?.Settings?.Persisted?.EnableUnlockRecordings == true)
                 {
                     var game = ResolveRecordingHandoffGame() ?? PlayniteApi?.Database?.Games?
                         .Where(candidate => candidate?.IsRunning == true)

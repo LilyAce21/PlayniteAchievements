@@ -455,56 +455,11 @@ namespace PlayniteAchievements.Services.UI
             args.IsGameCompleted || args.IsCompletionAchievement || args.IsCapstone;
 
         /// <summary>
-        /// Memories is an independent screenshot configuration. Adapt it to the upstream capture
-        /// policy so live unlocks use the controls the user actually selected on that page.
+        /// Screenshots always use the upstream capture settings.
         /// </summary>
         private PersistedSettings ResolveEffectiveScreenshotSettings()
         {
-            var custom = Providers.ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-            if (custom?.EnableUnlockScreenshots != true || custom.UpstreamCaptureOverridesMemories)
-            {
-                return _settings?.Persisted;
-            }
-
-            _logger?.Info("[Capture] Screenshots are using the Memories settings (the upstream capture option is off or the SAN template is not active).");
-
-            var effective = _settings?.Persisted?.Clone() ?? new PersistedSettings();
-            effective.EnableUnlockScreenshots = true;
-            effective.UnlockScreenshotDirectory = ResolveCustomScreenshotRoot(custom.EffectiveScreenshotSaveFolder);
-            effective.UnlockScreenshotClean = custom.ScreenshotClean;
-            effective.UnlockScreenshotWithToast = custom.ScreenshotWithNotification;
-            effective.UnlockScreenshotFramed = custom.ScreenshotFramed;
-            effective.UnlockScreenshotSuffixClean = custom.ScreenshotSuffixClean;
-            effective.UnlockScreenshotSuffixWithToast = custom.ScreenshotSuffixWithNotification;
-            effective.UnlockScreenshotSuffixFramed = custom.ScreenshotSuffixFramed;
-            effective.UnlockScreenshotCleanRarities = custom.ScreenshotCleanRarities;
-            effective.UnlockScreenshotCleanAlwaysCaptureCompletion = custom.ScreenshotCleanAlwaysCaptureCompletion;
-            effective.UnlockScreenshotWithToastRarities = custom.ScreenshotWithNotificationRarities;
-            effective.UnlockScreenshotWithToastAlwaysCaptureCompletion = custom.ScreenshotWithNotificationAlwaysCaptureCompletion;
-            effective.UnlockScreenshotFramedRarities = custom.ScreenshotFramedRarities;
-            effective.UnlockScreenshotFramedAlwaysCaptureCompletion = custom.ScreenshotFramedAlwaysCaptureCompletion;
-            return effective;
-        }
-
-        private static string ResolveCustomScreenshotRoot(string configuredDirectory)
-        {
-            var directory = configuredDirectory?.Trim();
-            if (string.IsNullOrWhiteSpace(directory))
-            {
-                return directory;
-            }
-
-            // The Memories writer accepts a tokenized per-game directory. The upstream writer
-            // receives a library root and appends the sanitized game folder itself, so remove the
-            // final game token instead of passing an illegal '<gameName>' path to Path.Combine.
-            const string gameToken = "<gameName>";
-            if (directory.EndsWith(gameToken, StringComparison.OrdinalIgnoreCase))
-            {
-                directory = directory.Substring(0, directory.Length - gameToken.Length)
-                    .TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
-            }
-
-            return directory;
+            return _settings?.Persisted;
         }
 
         private static DataTemplate CreateCustomCaptureTemplate()
@@ -5944,48 +5899,14 @@ namespace PlayniteAchievements.Services.UI
                 return;
             }
 
-            var local = Providers.ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-            if (local == null)
-            {
-                return;
-            }
-
-            if (local.UnlockOverlayTransitionStyle >= Providers.Local.LocalUnlockOverlayTransitionStyle.SanDefault)
-            {
-                // SAN animates inside WebView2. Keep the outer WPF capture host stationary and
-                // transparent to animation so it does not add the upstream slide on top.
-                _activeSlideInStoryboard = null;
-                _activeSlideOutStoryboard = null;
-                _activeSlideInMs = 0;
-                _activeSlideOutMs = 0;
-                _activeSlideInTravels = false;
-                _activeSlideOutTravels = false;
-                return;
-            }
-
-            if (local.UnlockOverlayTransitionStyle != Providers.Local.LocalUnlockOverlayTransitionStyle.Fade)
-            {
-                return;
-            }
-
-            _activeSlideInStoryboard = CreateOpacityStoryboard(0d, 1d, local.UnlockOverlayFadeInMilliseconds);
-            _activeSlideOutStoryboard = CreateOpacityStoryboard(1d, 0d, local.UnlockOverlayFadeOutMilliseconds);
-            _activeSlideInMs = local.UnlockOverlayFadeInMilliseconds;
-            _activeSlideOutMs = local.UnlockOverlayFadeOutMilliseconds;
+            // SAN animates inside WebView2. Keep the outer WPF capture host stationary and
+            // transparent to animation so it does not add the upstream slide on top.
+            _activeSlideInStoryboard = null;
+            _activeSlideOutStoryboard = null;
+            _activeSlideInMs = 0;
+            _activeSlideOutMs = 0;
             _activeSlideInTravels = false;
             _activeSlideOutTravels = false;
-        }
-
-        private static Storyboard CreateOpacityStoryboard(double from, double to, int durationMs)
-        {
-            var animation = new DoubleAnimation(
-                from,
-                to,
-                new Duration(TimeSpan.FromMilliseconds(Math.Max(0, durationMs))));
-            Storyboard.SetTargetProperty(animation, new PropertyPath(UIElement.OpacityProperty));
-            var storyboard = new Storyboard();
-            storyboard.Children.Add(animation);
-            return storyboard;
         }
 
         /// <summary>
@@ -5996,16 +5917,6 @@ namespace PlayniteAchievements.Services.UI
         /// </summary>
         private int EffectiveDurationSeconds()
         {
-            if (_activeUsesCustomCapture)
-            {
-                var local = Providers.ProviderRegistry.Settings<Providers.Local.LocalSettings>();
-                if (local?.UnlockOverlayTransitionStyle >= Providers.Local.LocalUnlockOverlayTransitionStyle.SanDefault)
-                {
-                    return Math.Max(2, (int)Math.Ceiling(
-                        (local.OverlayCustomSanView1DurationMilliseconds + local.OverlayCustomSanView2DurationMilliseconds) / 1000d));
-                }
-            }
-
             var setting = Math.Max(2, _settings?.Persisted?.ToastDurationSeconds ?? 6);
             try
             {
