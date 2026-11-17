@@ -1499,18 +1499,6 @@ namespace PlayniteAchievements.Views
             {
                 return;
             }
-
-            foreach (var path in localSettings.GetOverlayCustomIconLibraryPathEntries())
-            {
-                _notificationCustomIconOptions.Add(new NotificationCustomIconOption
-                {
-                    DisplayName = System.IO.Path.GetFileNameWithoutExtension(path),
-                    Path = path,
-                    SourcePath = ResolveNotificationCustomIconSourcePath(path),
-                    PreviewSource = TryCreateNotificationCustomIconPreview(path),
-                    SlotUsage = string.Empty
-                });
-            }
         }
 
         private string ResolveNotificationCustomIconSourcePath(string managedPath)

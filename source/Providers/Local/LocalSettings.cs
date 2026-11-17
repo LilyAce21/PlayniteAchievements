@@ -491,6 +491,7 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanXboxInlineTrophy = true;
         private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
         private int _unlockSoundLeadMilliseconds;
+        private string _extraUnlockSoundPaths = string.Empty;
         private string _bundledUnlockSoundPath = string.Empty;
         private string _customUnlockSoundPath = string.Empty;
         private bool _enableActiveGameMonitoring;
@@ -555,6 +556,12 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Xbox-style SAN themes: PA's rarity badge, or PA's PlayStation trophy, for the inline trophy.</summary>
         public OfficialSanXboxTrophyStyle OfficialSanXboxTrophyStyle { get => _officialSanXboxTrophyStyle; set => SetValue(ref _officialSanXboxTrophyStyle, value); }
+
+        public string ExtraUnlockSoundPaths
+        {
+            get => _extraUnlockSoundPaths;
+            set => SetValue(ref _extraUnlockSoundPaths, value ?? string.Empty);
+        }
 
         public int UnlockSoundLeadMilliseconds
         {
@@ -660,10 +667,6 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        private void SetRecordingRarity(RaritySelection rarity, bool enabled)
-        {
-            RecordingRarities = enabled ? RecordingRarities | rarity : RecordingRarities & ~rarity;
-        }
 
 
 
@@ -849,10 +852,6 @@ namespace PlayniteAchievements.Providers.Local
 
 
 
-        public IEnumerable<string> GetOverlayCustomIconLibraryPathEntries()
-        {
-            return SplitCustomIconLibraryPaths(OverlayCustomIconLibraryPaths);
-        }
 
 
 
@@ -1300,12 +1299,6 @@ namespace PlayniteAchievements.Providers.Local
                 : BundledUnlockSoundPath;
         }
 
-        private string GetEffectiveScreenshotSaveFolder()
-        {
-            if (!string.IsNullOrWhiteSpace(ScreenshotSaveFolder))
-            {
-                return ScreenshotSaveFolder;
-            }
 
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
