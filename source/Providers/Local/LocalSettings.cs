@@ -1300,12 +1300,6 @@ namespace PlayniteAchievements.Providers.Local
         }
 
 
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
-                "PlayniteAchievements",
-                "UnlockScreenshots");
-        }
-
         private static string NormalizeColorSetting(string value, string fallback)
         {
             var normalized = value?.Trim();
