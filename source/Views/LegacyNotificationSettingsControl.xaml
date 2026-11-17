@@ -3517,6 +3517,29 @@
                                             <ComboBoxItem Content="Never show" Tag="{x:Static local:OfficialSanPercentMode.Never}"/>
                                         </ComboBox>
                                     </DockPanel>
+                                    <TextBlock Text="Xbox-style themes (XB Modern with an animated emblem)" FontWeight="SemiBold" Margin="0,4,0,6" Foreground="{DynamicResource TextBrush}"/>
+                                    <CheckBox Content="Keep the theme's own rarity percentage (no rarity bubble over the emblem)"
+                                              IsChecked="{Binding OfficialSanXboxKeepThemePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
+                                              ToolTip="On: the percentage stays where the .san puts it. Off: the plugin's rarity bubble is drawn under the achievement icon instead."/>
+                                    <CheckBox Content="Show a trophy before the 'Achievement unlocked' text"
+                                              IsChecked="{Binding OfficialSanXboxInlineTrophy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                        <TextBlock Text="Trophy shown (PA's own trophies):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <ComboBox SelectedValue="{Binding OfficialSanXboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="200"
+                                                  ToolTip="Rarity: the rarity badge for the achievement's rarity. PlayStation: the Bronze/Silver/Gold/Platinum trophy from the achievement's PlayStation trophy data (the rarity badge when it has none). Custom images from Display settings are used when set.">
+                                            <ComboBoxItem Content="Rarity based" Tag="{x:Static local:OfficialSanXboxTrophyStyle.Rarity}"/>
+                                            <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static local:OfficialSanXboxTrophyStyle.PlayStation}"/>
+                                        </ComboBox>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,8" LastChildFill="False">
+                                        <TextBlock Text="Score when the game has no Xbox gamerscore:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <ComboBox SelectedValue="{Binding OfficialSanXboxScoreFallback, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="200"
+                                                  ToolTip="Xbox games show the achievement's own gamerscore. Other games show this instead.">
+                                            <ComboBoxItem Content="Collection score points" Tag="{x:Static local:OfficialSanScoreFallback.Collection}"/>
+                                            <ComboBoxItem Content="Prestige points" Tag="{x:Static local:OfficialSanScoreFallback.Prestige}"/>
+                                            <ComboBoxItem Content="Show no score" Tag="{x:Static local:OfficialSanScoreFallback.None}"/>
+                                        </ComboBox>
+                                    </DockPanel>
                                     <CheckBox Content="Use my custom rarity / trophy / capstone Platinum icons (Display settings)"
                                               IsChecked="{Binding OfficialSanUseCustomRarityIcons, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
                                     <CheckBox Content="Show the theme's hidden-achievement icon for hidden achievements"

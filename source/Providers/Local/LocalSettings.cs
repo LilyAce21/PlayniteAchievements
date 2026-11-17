@@ -86,6 +86,26 @@ namespace PlayniteAchievements.Providers.Local
         Never = 2
     }
 
+    /// <summary>
+    /// What the Xbox-style SAN themes show as the score in front of the title when the game has
+    /// no Xbox gamerscore of its own.
+    /// </summary>
+    public enum OfficialSanScoreFallback
+    {
+        Collection = 0,
+        Prestige = 1,
+        None = 2
+    }
+
+    /// <summary>Which of PA's trophies the Xbox-style SAN themes show before "Achievement unlocked".</summary>
+    public enum OfficialSanXboxTrophyStyle
+    {
+        /// <summary>PA's rarity badge for the achievement's rarity tier.</summary>
+        Rarity = 0,
+        /// <summary>PA's Bronze / Silver / Gold / Platinum trophy from the achievement's PlayStation trophy metadata (rarity badge when it has none).</summary>
+        PlayStation = 1
+    }
+
     public enum LocalOverlayCoverPosition
     {
         None = 0,
@@ -530,6 +550,10 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanUseCustomRarityIcons = true;
         private bool _officialSanShowHiddenAsLocked = true;
         private bool _officialSanApplyUpstreamElements;
+        private bool _officialSanXboxKeepThemePercent = true;
+        private bool _officialSanXboxInlineTrophy = true;
+        private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
+        private OfficialSanScoreFallback _officialSanXboxScoreFallback = OfficialSanScoreFallback.Collection;
 
         public bool UseOfficialSanTemplate
         {
@@ -579,6 +603,25 @@ namespace PlayniteAchievements.Providers.Local
 
 
         public bool OfficialSanApplyUpstreamElements { get => _officialSanApplyUpstreamElements; set => SetValue(ref _officialSanApplyUpstreamElements, value); }
+
+        /// <summary>
+        /// Xbox-style SAN themes (the "XB Modern" preset with an animated emblem): keep the rarity
+        /// percentage where the theme itself puts it, and do not draw the plugin's rarity bubble
+        /// over the emblem. Off restores the bubble.
+        /// </summary>
+        public bool OfficialSanXboxKeepThemePercent { get => _officialSanXboxKeepThemePercent; set => SetValue(ref _officialSanXboxKeepThemePercent, value); }
+
+        /// <summary>Xbox-style SAN themes: a trophy inline, left of the "Achievement unlocked" text.</summary>
+        public bool OfficialSanXboxInlineTrophy { get => _officialSanXboxInlineTrophy; set => SetValue(ref _officialSanXboxInlineTrophy, value); }
+
+        /// <summary>Xbox-style SAN themes: PA's rarity badge, or PA's PlayStation trophy, for the inline trophy.</summary>
+        public OfficialSanXboxTrophyStyle OfficialSanXboxTrophyStyle { get => _officialSanXboxTrophyStyle; set => SetValue(ref _officialSanXboxTrophyStyle, value); }
+
+        /// <summary>
+        /// Xbox-style SAN themes show the achievement's Xbox gamerscore when the game has one;
+        /// otherwise this picks the score shown instead.
+        /// </summary>
+        public OfficialSanScoreFallback OfficialSanXboxScoreFallback { get => _officialSanXboxScoreFallback; set => SetValue(ref _officialSanXboxScoreFallback, value); }
 
         public bool EnableActiveGameMonitoring
         {
