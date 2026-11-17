@@ -490,6 +490,9 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanXboxKeepThemePercent = true;
         private bool _officialSanXboxInlineTrophy = true;
         private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
+        private int _unlockSoundLeadMilliseconds;
+        private string _bundledUnlockSoundPath = string.Empty;
+        private string _customUnlockSoundPath = string.Empty;
         private bool _enableActiveGameMonitoring;
         private bool _showOverlayOnActiveGameMonitor = false;
         private bool _enableOverlayDebugLogging;
@@ -552,6 +555,47 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Xbox-style SAN themes: PA's rarity badge, or PA's PlayStation trophy, for the inline trophy.</summary>
         public OfficialSanXboxTrophyStyle OfficialSanXboxTrophyStyle { get => _officialSanXboxTrophyStyle; set => SetValue(ref _officialSanXboxTrophyStyle, value); }
+
+        public int UnlockSoundLeadMilliseconds
+        {
+            get => _unlockSoundLeadMilliseconds;
+            set => SetValue(ref _unlockSoundLeadMilliseconds, value);
+        }
+
+        public string BundledUnlockSoundPath
+        {
+            get => _bundledUnlockSoundPath;
+            set
+            {
+                if (SetValue(ref _bundledUnlockSoundPath, value ?? string.Empty))
+                {
+                    OnPropertyChanged(nameof(UnlockSoundPath));
+                }
+            }
+        }
+
+        public string CustomUnlockSoundPath
+        {
+            get => _customUnlockSoundPath;
+            set
+            {
+                if (SetValue(ref _customUnlockSoundPath, value ?? string.Empty))
+                {
+                    OnPropertyChanged(nameof(UnlockSoundPath));
+                }
+            }
+        }
+
+        [JsonIgnore]
+        public string UnlockSoundPath
+        {
+            get => !string.IsNullOrWhiteSpace(CustomUnlockSoundPath)
+                ? CustomUnlockSoundPath
+                : GetEffectiveBundledUnlockSoundPath();
+        }
+
+        [JsonIgnore]
+        public string EffectiveBundledUnlockSoundPath => GetEffectiveBundledUnlockSoundPath();
 
         public bool EnableActiveGameMonitoring
         {

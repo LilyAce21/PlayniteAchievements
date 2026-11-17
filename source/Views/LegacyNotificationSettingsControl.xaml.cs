@@ -938,11 +938,6 @@ namespace PlayniteAchievements.Views
             UpdateNotificationSoundButtons();
             RefreshOverlayRuntimeControls(localSettings);
 
-            if (NotificationsPollingIntervalSecondsTextBox != null)
-            {
-                NotificationsPollingIntervalSecondsTextBox.Text = localSettings.ActiveGameMonitoringIntervalSeconds.ToString();
-            }
-
             if (NotificationsUnlockSoundLeadMillisecondsTextBox != null)
             {
                 NotificationsUnlockSoundLeadMillisecondsTextBox.Text = localSettings.UnlockSoundLeadMilliseconds.ToString();
@@ -1038,36 +1033,6 @@ namespace PlayniteAchievements.Views
         }
 
 
-
-        private void NotificationsPollingIntervalSecondsTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            ApplyNotificationsPollingIntervalFromTextBox(updateTextBox: false);
-        }
-
-        private void NotificationsPollingIntervalSecondsTextBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            ApplyNotificationsPollingIntervalFromTextBox(updateTextBox: true);
-        }
-
-        private void ApplyNotificationsPollingIntervalFromTextBox(bool updateTextBox)
-        {
-            if (NotificationsPollingIntervalSecondsTextBox == null)
-                return;
-
-            var localSettings = _providerRegistry?.GetSettingsForEdit("Local") as Providers.Local.LocalSettings;
-            if (localSettings == null)
-                return;
-
-            if (int.TryParse(NotificationsPollingIntervalSecondsTextBox.Text, out var interval))
-            {
-                localSettings.ActiveGameMonitoringIntervalSeconds = interval;
-            }
-
-            if (updateTextBox)
-            {
-                NotificationsPollingIntervalSecondsTextBox.Text = localSettings.ActiveGameMonitoringIntervalSeconds.ToString();
-            }
-        }
 
         private void NotificationsBundledUnlockSoundComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -1543,7 +1508,7 @@ namespace PlayniteAchievements.Views
                     Path = path,
                     SourcePath = ResolveNotificationCustomIconSourcePath(path),
                     PreviewSource = TryCreateNotificationCustomIconPreview(path),
-                    SlotUsage = ResolveNotificationCustomIconSlotUsage(localSettings, path)
+                    SlotUsage = string.Empty
                 });
             }
         }
@@ -1591,22 +1556,6 @@ namespace PlayniteAchievements.Views
 
 
 
-
-        private static string ResolveNotificationCustomIconSlotUsage(Providers.Local.LocalSettings localSettings, string path)
-        {
-            var usages = new List<string>();
-            if (string.Equals(localSettings?.OverlayCustomIconPath, path, StringComparison.OrdinalIgnoreCase))
-            {
-                usages.Add("Primary");
-            }
-
-            if (string.Equals(localSettings?.OverlayCustomSecondaryIconPath, path, StringComparison.OrdinalIgnoreCase))
-            {
-                usages.Add("Secondary");
-            }
-
-            return usages.Count == 0 ? string.Empty : string.Join(" + ", usages);
-        }
 
         private static ImageSource TryCreateNotificationCustomIconPreview(string path)
         {

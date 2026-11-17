@@ -3565,33 +3565,6 @@
                                            TextWrapping="Wrap"/>
 
                                 <!-- Polling Interval -->
-                                <Grid Style="{StaticResource SettingRowStyle}"
-                                      IsEnabled="{Binding EnableActiveGameMonitoring}"
-                                      Margin="18,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Grid.Column="0"
-                                               Text="Polling interval (seconds):"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,8,0"
-                                               Foreground="{DynamicResource TextBrush}"
-                                               FontWeight="SemiBold"/>
-                                    <TextBox Grid.Column="1"
-                                             Width="70"
-                                             VerticalContentAlignment="Center"
-                                             x:Name="NotificationsPollingIntervalSecondsTextBox"
-                                             TextChanged="NotificationsPollingIntervalSecondsTextBox_TextChanged"
-                                             LostFocus="NotificationsPollingIntervalSecondsTextBox_LostFocus"/>
-                                </Grid>
-
-                                <TextBlock Text="Check every 1–60 seconds."
-                                           Style="{StaticResource MutedTextStyle}"
-                                           Margin="18,0,0,10"
-                                           TextWrapping="Wrap"
-                                           IsEnabled="{Binding EnableActiveGameMonitoring}"/>
                                 <!-- Retained only for loading older saved settings; API verification
                                      is superseded by the v3 live-polling detection pipeline. -->
                                 <TextBox x:Name="ApiVerificationPollingIntervalSecondsTextBox"
