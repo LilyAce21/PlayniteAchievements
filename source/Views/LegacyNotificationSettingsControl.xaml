@@ -3518,6 +3518,7 @@
                                         </ComboBox>
                                     </DockPanel>
                                     <TextBlock Text="Xbox-style themes (XB Modern with an animated emblem)" FontWeight="SemiBold" Margin="0,4,0,6" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock Text="These are the defaults for every notification tier. To change one tier only (for example no trophy on Mythic), open that tier's Edit style and tick the setting under 'Xbox-style themes'." TextWrapping="Wrap" Margin="0,0,0,8" Opacity="0.8" Foreground="{DynamicResource TextBrush}"/>
                                     <CheckBox Content="Keep the theme's own rarity percentage (no rarity bubble over the emblem)"
                                               IsChecked="{Binding OfficialSanXboxKeepThemePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
                                               ToolTip="On: the percentage stays where the .san puts it. Off: the plugin's rarity bubble is drawn under the achievement icon instead."/>

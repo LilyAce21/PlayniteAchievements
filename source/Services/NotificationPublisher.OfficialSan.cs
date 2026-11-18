@@ -780,6 +780,55 @@ namespace PlayniteAchievements.Services
             }
         }
 
+        /// <summary>A per-profile Xbox-style flag: the slot's own override when it has one, otherwise the global setting.</summary>
+        private static bool XboxFlag(OfficialSanSlot slot, string key, bool fallback)
+        {
+            if (slot?.StyleOverrides != null && slot.StyleOverrides.TryGetValue(key, out var text) && bool.TryParse(text, out var flag))
+            {
+                return flag;
+            }
+
+            return fallback;
+        }
+
+        /// <summary>A per-profile Xbox-style choice: the slot's own override when it has one, otherwise null.</summary>
+        private static string XboxChoice(OfficialSanSlot slot, string key)
+        {
+            return slot?.StyleOverrides != null && slot.StyleOverrides.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text)
+                ? text.Trim().ToLowerInvariant()
+                : null;
+        }
+
+        /// <summary>The global laurel mode as the on/off value a tier would get (also what the style editor shows as the default).</summary>
+        internal static bool XboxLaurelDefault(OfficialSanXboxLaurelMode mode, bool completion, bool capstone, RarityTier tier)
+        {
+            return mode == OfficialSanXboxLaurelMode.Always ||
+                   (mode == OfficialSanXboxLaurelMode.RareAndMythic && (completion || capstone || tier >= RarityTier.Rare));
+        }
+
+        /// <summary>
+        /// The global Xbox-style values as the style editor's "unticked" defaults for one profile, so a row
+        /// shows what the notification will really do when the row is not overridden.
+        /// </summary>
+        internal static void AddXboxBaseline(JObject baseline, LocalSettings settings, string profileKey)
+        {
+            if (baseline == null || settings == null)
+            {
+                return;
+            }
+
+            var key = (profileKey ?? string.Empty).Trim().ToLowerInvariant();
+            var rareUp = key == "rare" || key == "ultrarare" || key == "capstone" || key == "completion";
+            baseline["paXboxTrophy"] = settings.OfficialSanXboxInlineTrophy;
+            baseline["paXboxTrophyStyle"] = settings.OfficialSanXboxTrophyStyle == OfficialSanXboxTrophyStyle.PlayStation ? "playstation" : "rarity";
+            baseline["paXboxLaurel"] = settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.Always ||
+                                       (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.RareAndMythic && rareUp);
+            baseline["paXboxTint"] = settings.OfficialSanXboxTintEmblem;
+            baseline["paXboxKeepPercent"] = settings.OfficialSanXboxKeepThemePercent;
+            baseline["paXboxScore"] = settings.OfficialSanXboxScoreFallback == OfficialSanScoreFallback.Prestige ? "prestige"
+                : settings.OfficialSanXboxScoreFallback == OfficialSanScoreFallback.None ? "none" : "collection";
+        }
+
         private static bool IsMythicTheme(OfficialSanTheme theme)
         {
             var dir = string.IsNullOrWhiteSpace(theme?.CacheDir) ? string.Empty : Path.GetFileName(theme.CacheDir.TrimEnd('\\', '/'));
@@ -907,7 +956,17 @@ namespace PlayniteAchievements.Services
                 var trophy = (achievementTrophy ?? string.Empty).Trim().ToLowerInvariant();
                 // The rarity pill (under the achievement icon) is drawn by the host page. It is never
                 // shown for the 100% completion unlock, and "Never show" hides every percentage.
-                var keepThemePercent = xboxEmblem && settings.OfficialSanXboxKeepThemePercent;
+                // Every Xbox-style option can be set per profile (Edit style); the global setting is the default.
+                var xboxKeepPercent = XboxFlag(slot, "paXboxKeepPercent", settings.OfficialSanXboxKeepThemePercent);
+                var xboxInlineTrophy = XboxFlag(slot, "paXboxTrophy", settings.OfficialSanXboxInlineTrophy);
+                var xboxTint = XboxFlag(slot, "paXboxTint", settings.OfficialSanXboxTintEmblem);
+                var xboxTrophyStyle = XboxChoice(slot, "paXboxTrophyStyle") is string trophyChoice
+                    ? (trophyChoice == "playstation" ? OfficialSanXboxTrophyStyle.PlayStation : OfficialSanXboxTrophyStyle.Rarity)
+                    : settings.OfficialSanXboxTrophyStyle;
+                var xboxScoreFallback = XboxChoice(slot, "paXboxScore") is string scoreChoice
+                    ? (scoreChoice == "prestige" ? OfficialSanScoreFallback.Prestige : scoreChoice == "none" ? OfficialSanScoreFallback.None : OfficialSanScoreFallback.Collection)
+                    : settings.OfficialSanXboxScoreFallback;
+                var keepThemePercent = xboxEmblem && xboxKeepPercent;
                 var pillShow = hasPercent && !completion && !(capstone && !completion) &&
                                !keepThemePercent &&
                                settings.OfficialSanPercentMode != OfficialSanPercentMode.Never;
@@ -916,16 +975,15 @@ namespace PlayniteAchievements.Services
                 // images from Display settings when set, otherwise the drawn ones), rendered to a PNG
                 // for the host page. Empty keeps the theme's own trophy image.
                 var xboxTrophyPath = string.Empty;
-                if (xboxEmblem && settings.OfficialSanXboxInlineTrophy)
+                if (xboxEmblem && xboxInlineTrophy)
                 {
                     xboxTrophyPath = RenderPaTrophyPath(
-                        PickPaTrophy(_settings?.Persisted, settings.OfficialSanXboxTrophyStyle, tier, trophy, completion, capstone));
+                        PickPaTrophy(_settings?.Persisted, xboxTrophyStyle, tier, trophy, completion, capstone));
                 }
 
                 // Laurel around the emblem: the Mythic one for full completion and capstones, the Rare one otherwise.
-                var xboxLaurel = xboxEmblem && (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.Always ||
-                    (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.RareAndMythic &&
-                     (completion || capstone || tier >= RarityTier.Rare)));
+                var xboxLaurel = xboxEmblem && XboxFlag(slot, "paXboxLaurel",
+                    XboxLaurelDefault(settings.OfficialSanXboxLaurel, completion, capstone, tier));
                 var xboxLaurelKind = completion || capstone ? "mythic" : "rare";
                 var xboxLaurelPath = string.Empty;
                 if (xboxLaurel)
@@ -949,12 +1007,12 @@ namespace PlayniteAchievements.Services
                         score = context.Points.Value;
                         scoreUnit = "G";
                     }
-                    else if (settings.OfficialSanXboxScoreFallback == OfficialSanScoreFallback.Collection)
+                    else if (xboxScoreFallback == OfficialSanScoreFallback.Collection)
                     {
                         score = AchievementScoreCalculator.GetCollectionValue(tier);
                         scoreUnit = "pts";
                     }
-                    else if (settings.OfficialSanXboxScoreFallback == OfficialSanScoreFallback.Prestige)
+                    else if (xboxScoreFallback == OfficialSanScoreFallback.Prestige)
                     {
                         score = AchievementScoreCalculator.GetPrestigeValue(hasPercent ? percent : (double?)null, tier);
                         scoreUnit = "pts";
@@ -976,9 +1034,9 @@ namespace PlayniteAchievements.Services
                         ["rightIcon"] = xboxRightIcon,
                         ["fontRefLongest"] = xboxEmblem ? (JToken)new JValue(xboxFontRefLongest) : JValue.CreateNull(),
                         ["keepThemePercent"] = keepThemePercent,
-                        ["inlineTrophy"] = xboxEmblem && settings.OfficialSanXboxInlineTrophy,
+                        ["inlineTrophy"] = xboxEmblem && xboxInlineTrophy,
                         ["trophyPath"] = xboxTrophyPath,
-                        ["tint"] = settings.OfficialSanXboxTintEmblem,
+                        ["tint"] = xboxTint,
                         ["laurel"] = xboxLaurel,
                         ["laurelKind"] = xboxLaurelKind,
                         ["laurelPath"] = xboxLaurelPath,

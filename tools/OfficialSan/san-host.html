@@ -85,7 +85,29 @@
           scaledown calc(var(--transition) * 2) calc(var(--displaytime) - (var(--transition) * 9)) cubic-bezier(1, 0, 1, 1) forwards;
       }
       #pa-laurel svg { width: 100%; height: 100%; overflow: visible; display: block; }
-      #pa-laurel .pa-laurel-img { position: absolute; background: center / 100% 100% no-repeat; }
+      /* The supplied laurel gifs, placed exactly like the official SAN Xbox patch: an <img> inside the icon wrapper,
+         140% of it, hung from the bottom edge with the same offsets, so it lines up with the emblem circle for both
+         the Rare and the Mythic gif (the offsets already allow for where each gif draws its leaves). */
+      #pa-laurel-img {
+        display: block;
+        position: absolute !important;
+        left: 50% !important;
+        bottom: calc(-19px * var(--scale, 1)) !important;
+        width: 140% !important;
+        height: 140% !important;
+        object-fit: contain;
+        z-index: 5 !important;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease-out;
+        translate: -41% 0 !important;
+        scale: 1.10 1 !important;
+        transform-origin: center bottom !important;
+      }
+      #pa-laurel-img.show { opacity: 1; }
+      body[fastanim] #pa-laurel-img.show {
+        animation: fadeout calc(var(--transition) * 2) calc(var(--displaytime) - (var(--transition) * 5)) forwards;
+      }
       @keyframes pa-laurel-in { 60% { scale: 1.06; } to { opacity: 1; scale: 1; } }
       body[fastanim] #pa-laurel { animation: pa-laurel-in calc(var(--transition) * 2) calc(var(--transition) * 4) ease-out forwards; }
 
@@ -1085,9 +1107,11 @@
       function paMix(a, b, t) { return a.map((v, i) => Math.round(v + (b[i] - v) * t)); }
       function paRgb(c, a) { return a === undefined ? `rgb(${c[0]},${c[1]},${c[2]})` : `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
 
-      /* The emblem gifs have a grey (mythic) or green disc baked in. Map their brightness onto a ramp built from
-         the card's secondary colour so the emblem looks like part of the card: the disc becomes the card's colour,
-         the rim, star and glow become lighter shades of it. */
+      /* The emblem gifs are grey-scale: a disc, a star and a soft halo around them. The brightness of the opaque
+         parts is mapped onto a ramp built from the card's secondary colour, so the disc, rim and star take the
+         card's colour. The halo is only a faint, almost white, semi-transparent haze, and the ramp alone left it
+         white whatever colour the card had, so the halo is painted separately in a light shade of the card's colour
+         (as strong as the gif's own alpha), under the opaque parts. The laurel gifs use the same filter. */
       function paBuildTint() {
         const sec = paParseColor(getComputedStyle(document.documentElement).getPropertyValue("--secondarycolor"));
         const white = [255, 255, 255], black = [0, 0, 0];
@@ -1108,38 +1132,57 @@
           const c = paMix(c0, c1, Math.min(1, Math.max(0, (l - l0) / (l1 - l0))));
           for (let ch = 0; ch < 3; ch++) tab[ch].push((c[ch] / 255).toFixed(4));
         }
+        // The halo colour: the secondary colour, lifted so it still reads as a glow on a dark game picture.
+        const halo = paMix(sec, white, 0.18);
         document.getElementById("pa-tint-svg")?.remove();
         document.body.insertAdjacentHTML("beforeend",
           `<svg id="pa-tint-svg" width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="pa-emblem-tint" color-interpolation-filters="sRGB" x="-20%" y="-20%" width="140%" height="140%">` +
-          `<feColorMatrix type="matrix" values="0.299 0.587 0.114 0 0 0.299 0.587 0.114 0 0 0.299 0.587 0.114 0 0 0 0 0 1 0"/>` +
-          `<feComponentTransfer><feFuncR type="table" tableValues="${tab[0].join(" ")}"/><feFuncG type="table" tableValues="${tab[1].join(" ")}"/><feFuncB type="table" tableValues="${tab[2].join(" ")}"/></feComponentTransfer></filter></svg>`);
+          `<feColorMatrix in="SourceGraphic" type="matrix" values="0.299 0.587 0.114 0 0 0.299 0.587 0.114 0 0 0.299 0.587 0.114 0 0 0 0 0 1 0" result="grey"/>` +
+          `<feComponentTransfer in="grey" result="ramp"><feFuncR type="table" tableValues="${tab[0].join(" ")}"/><feFuncG type="table" tableValues="${tab[1].join(" ")}"/><feFuncB type="table" tableValues="${tab[2].join(" ")}"/></feComponentTransfer>` +
+          `<feComponentTransfer in="SourceAlpha" result="solid"><feFuncA type="linear" slope="2.857" intercept="-1.2857"/></feComponentTransfer>` +
+          `<feComposite in="ramp" in2="solid" operator="in" result="core"/>` +
+          `<feFlood flood-color="${paRgb(halo)}" flood-opacity="1" result="haloflood"/>` +
+          `<feComponentTransfer in="SourceAlpha" result="haloalpha"><feFuncA type="linear" slope="1.6" intercept="0"/></feComponentTransfer>` +
+          `<feComposite in="haloflood" in2="haloalpha" operator="in" result="halo"/>` +
+          `<feMerge><feMergeNode in="halo"/><feMergeNode in="core"/></feMerge>` +
+          `</filter></svg>`);
         document.body.setAttribute("pa-tint", "");
       }
 
       /* Two branches of leaves hugging the lower half of the emblem. */
-      /* Visible bounds of the bundled laurel gifs inside their canvases (all frames). */
-      const PA_LAUREL = {
-        rare:   { w: 120, h: 120, x0: 8, y0: 63, x1: 93,  y1: 96 },
-        mythic: { w: 160, h: 160, x0: 0, y0: 47, x1: 137, y1: 128 },
-      };
-
-      /* The user's laurel gif, placed by its visible bounds: as wide as the emblem circle (a little wider) and
-         hanging a little below it. The gif starts when the card appears (paStartLaurel). */
+      /* The supplied laurel gif, placed by the CSS above (the official SAN method). It appears once the card has
+         opened: the Rare laurel as soon as the card is open, the Mythic one 2.5 s after the notification started
+         (or when the card is open, if that is later), the same cues the official patch uses. Setting the source
+         then also starts the gif from its first frame. */
       function paBuildLaurelImage(payload) {
-        const xb = payload.paXbox, g = PA_LAUREL[xb.laurelKind] || PA_LAUREL.rare;
-        const kf = 1.08 / (g.x1 - g.x0);                       // canvas px -> fraction of the emblem circle
-        const cx = (g.x0 + g.x1) / 2;
-        const el = document.createElement("div");
-        el.id = "pa-laurel";
-        const img = document.createElement("div");
-        img.className = "pa-laurel-img";
-        img.style.width = (g.w * kf * 100) + "%";
-        img.style.height = (g.h * kf * 100) + "%";
-        img.style.left = ((0.5 - cx * kf) * 100) + "%";
-        img.style.top = ((1.05 - g.y1 * kf) * 100) + "%";
-        el.appendChild(img);
-        document.getElementById("achiconwrapper")?.appendChild(el);
-        window.__paStartLaurel = () => { img.style.backgroundImage = cssUrl(xb.laurelPath); };
+        const xb = payload.paXbox;
+        const wrapper = document.getElementById("achiconwrapper");
+        if (!wrapper) return;
+        document.getElementById("pa-laurel-img")?.remove();
+        const img = document.createElement("img");
+        img.id = "pa-laurel-img";
+        img.draggable = false;
+        if (xb.tint !== false && document.getElementById("pa-emblem-tint")) {
+          img.style.filter = "url(#pa-emblem-tint) drop-shadow(0 1px 4px rgba(0,0,0,0.6))";
+        } else {
+          img.style.filter = "drop-shadow(0 1px 4px rgba(0,0,0,0.6))";
+        }
+        wrapper.appendChild(img);
+        const mythic = xb.laurelKind === "mythic";
+        window.__paStartLaurel = () => {
+          window.__paStartLaurel = null;
+          const root = getComputedStyle(document.documentElement);
+          const t = (parseFloat(root.getPropertyValue("--transition")) || 150);
+          const transMs = /ms\s*$/.test(root.getPropertyValue("--transition")) ? t : t * 1000;
+          // the card finishes opening after eight transitions (it starts at seven and takes one)
+          const openMs = Math.round(transMs * 8) + 30;
+          const delay = mythic ? Math.max(openMs, 2500) : openMs;
+          setTimeout(() => {
+            if (!img.isConnected) return;
+            img.src = fileUrl(xb.laurelPath) + "?t=" + Date.now();
+            img.classList.add("show");
+          }, delay);
+        };
       }
 
       function paBuildLaurel() {

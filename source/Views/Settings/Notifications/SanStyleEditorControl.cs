@@ -319,7 +319,7 @@ namespace PlayniteAchievements.Views.Settings.Notifications
         /// <summary>The theme's own value for the row as text (the catalog default when it has none).</summary>
         private string BaselineText(SanStyleOption option)
         {
-            if (!option.IsPluginExtra && _baseline != null && _baseline.TryGetValue(option.Key, out var token) && token != null)
+            if (_baseline != null && _baseline.TryGetValue(option.Key, out var token) && token != null)
             {
                 switch (token.Type)
                 {

@@ -1398,10 +1398,15 @@ namespace PlayniteAchievements.Views
             var second = parts.Length > 1 && string.Equals(parts[1], "Alt", StringComparison.OrdinalIgnoreCase);
             var title = $"SAN style: {parts[0]}{(second ? " (second theme)" : string.Empty)}";
 
+            // The theme's values plus the global Xbox-style settings, so an unticked row shows what the card will do.
+            var baseline = NotificationPublisher.TryLoadSanBaseline(slot.ThemePath);
+            baseline = baseline != null ? (Newtonsoft.Json.Linq.JObject)baseline.DeepClone() : new Newtonsoft.Json.Linq.JObject();
+            NotificationPublisher.AddXboxBaseline(baseline, localSettings, parts[0]);
+
             _plugin.OpenSanStyleEditor(
                 Window.GetWindow(this),
                 slot,
-                NotificationPublisher.TryLoadSanBaseline(slot.ThemePath),
+                baseline,
                 title,
                 () => OfficialSanTest_Click(new Button { Tag = tag }, new RoutedEventArgs()),
                 overrides =>
