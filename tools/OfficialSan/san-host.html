@@ -85,6 +85,7 @@
           scaledown calc(var(--transition) * 2) calc(var(--displaytime) - (var(--transition) * 9)) cubic-bezier(1, 0, 1, 1) forwards;
       }
       #pa-laurel svg { width: 100%; height: 100%; overflow: visible; display: block; }
+      #pa-laurel .pa-laurel-img { position: absolute; background: center / 100% 100% no-repeat; }
       @keyframes pa-laurel-in { 60% { scale: 1.06; } to { opacity: 1; scale: 1; } }
       body[fastanim] #pa-laurel { animation: pa-laurel-in calc(var(--transition) * 2) calc(var(--transition) * 4) ease-out forwards; }
 
@@ -1062,6 +1063,7 @@
           requestAnimationFrame(() => {
             // The page is now painted and visible: start the entrance from its first frame.
             document.body.removeAttribute("paused");
+            try { window.__paStartLaurel && window.__paStartLaurel(); } catch (e) {}
             window.api?.notificationRenderReady?.();
           });
         });
@@ -1115,6 +1117,31 @@
       }
 
       /* Two branches of leaves hugging the lower half of the emblem. */
+      /* Visible bounds of the bundled laurel gifs inside their canvases (all frames). */
+      const PA_LAUREL = {
+        rare:   { w: 120, h: 120, x0: 8, y0: 63, x1: 93,  y1: 96 },
+        mythic: { w: 160, h: 160, x0: 0, y0: 47, x1: 137, y1: 128 },
+      };
+
+      /* The user's laurel gif, placed by its visible bounds: as wide as the emblem circle (a little wider) and
+         hanging a little below it. The gif starts when the card appears (paStartLaurel). */
+      function paBuildLaurelImage(payload) {
+        const xb = payload.paXbox, g = PA_LAUREL[xb.laurelKind] || PA_LAUREL.rare;
+        const kf = 1.08 / (g.x1 - g.x0);                       // canvas px -> fraction of the emblem circle
+        const cx = (g.x0 + g.x1) / 2;
+        const el = document.createElement("div");
+        el.id = "pa-laurel";
+        const img = document.createElement("div");
+        img.className = "pa-laurel-img";
+        img.style.width = (g.w * kf * 100) + "%";
+        img.style.height = (g.h * kf * 100) + "%";
+        img.style.left = ((0.5 - cx * kf) * 100) + "%";
+        img.style.top = ((1.05 - g.y1 * kf) * 100) + "%";
+        el.appendChild(img);
+        document.getElementById("achiconwrapper")?.appendChild(el);
+        window.__paStartLaurel = () => { img.style.backgroundImage = cssUrl(xb.laurelPath); };
+      }
+
       function paBuildLaurel() {
         const sec = paParseColor(getComputedStyle(document.documentElement).getPropertyValue("--secondarycolor"));
         const light = paMix(sec, [255, 255, 255], 0.88), mid = paMix(sec, [255, 255, 255], 0.55);
@@ -1246,7 +1273,11 @@
           const xb = payload.paXbox;
           const finish = () => {
             try { if (xb && xb.emblem === true && xb.tint !== false) paBuildTint(); } catch (e) {}
-            try { if (xb && xb.emblem === true && xb.laurel === true) paBuildLaurel(); } catch (e) {}
+            try {
+              if (xb && xb.emblem === true && xb.laurel === true) {
+                if (xb.laurelPath) paBuildLaurelImage(payload); else paBuildLaurel();
+              }
+            } catch (e) {}
             try { paFitXbox(payload); } catch (e) {}
             notifyReady();
           };

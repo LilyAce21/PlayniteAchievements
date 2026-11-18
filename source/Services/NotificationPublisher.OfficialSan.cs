@@ -922,6 +922,21 @@ namespace PlayniteAchievements.Services
                         PickPaTrophy(_settings?.Persisted, settings.OfficialSanXboxTrophyStyle, tier, trophy, completion, capstone));
                 }
 
+                // Laurel around the emblem: the Mythic one for full completion and capstones, the Rare one otherwise.
+                var xboxLaurel = xboxEmblem && (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.Always ||
+                    (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.RareAndMythic &&
+                     (completion || capstone || tier >= RarityTier.Rare)));
+                var xboxLaurelKind = completion || capstone ? "mythic" : "rare";
+                var xboxLaurelPath = string.Empty;
+                if (xboxLaurel)
+                {
+                    var laurelFile = Path.Combine(runtimeRoot, "img", "xbox_laurel_" + xboxLaurelKind + ".gif");
+                    if (File.Exists(laurelFile))
+                    {
+                        xboxLaurelPath = laurelFile;
+                    }
+                }
+
                 // Score shown in front of the title. An Xbox game's own gamerscore (the unlock's points)
                 // wins; otherwise the collection or prestige value of this achievement, per setting.
                 int? score = null;
@@ -964,9 +979,9 @@ namespace PlayniteAchievements.Services
                         ["inlineTrophy"] = xboxEmblem && settings.OfficialSanXboxInlineTrophy,
                         ["trophyPath"] = xboxTrophyPath,
                         ["tint"] = settings.OfficialSanXboxTintEmblem,
-                        ["laurel"] = xboxEmblem && (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.Always ||
-                            (settings.OfficialSanXboxLaurel == OfficialSanXboxLaurelMode.RareAndMythic &&
-                             (completion || capstone || tier >= RarityTier.Rare))),
+                        ["laurel"] = xboxLaurel,
+                        ["laurelKind"] = xboxLaurelKind,
+                        ["laurelPath"] = xboxLaurelPath,
                         ["score"] = score.HasValue ? (JToken)new JValue(score.Value) : JValue.CreateNull(),
                         ["scoreUnit"] = scoreUnit
                     },
