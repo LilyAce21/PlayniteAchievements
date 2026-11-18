@@ -2773,6 +2773,76 @@
                                             <Button Content="Edit style..." Tag="Default|Primary" Click="OfficialSanStyleEdit_Click" Margin="8,0,0,0" Padding="12,3"
                                                     ToolTip="Override this theme's colours, text, glow, outline, icon and tint for this notification only."/>
                                         </StackPanel>
+                                        <Expander Header="Xbox-style options for this tier" Margin="0,8,0,4" Foreground="{DynamicResource TextBrush}">
+                                            <StackPanel Margin="8,6,0,0">
+                                            <TextBlock Text="Only for Xbox-style themes (XB Modern with an animated emblem). 'Settings-page default' follows the Default tab, then the setting at the top of this page." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy before the unlock text" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxTrophy, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy shown" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Default}"/>
+                                                    <ComboBoxItem Content="Rarity based" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Rarity}"/>
+                                                    <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.PlayStation}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Unlock text by rarity" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxRarityText, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170" ToolTip="Rare Achievement unlocked, Ultra-Rare Achievement unlocked, Mythic Achievement unlocked. Common and Uncommon keep the base text.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="&quot;Trophy&quot; instead of &quot;Achievement&quot;" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxTrophyWord, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Laurel around the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Recolour emblem, glow and laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxTint, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Keep the theme's own rarity percentage" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxKeepPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
+                                                    <ComboBoxItem Content="Collection score points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Collection}"/>
+                                                    <ComboBoxItem Content="Prestige points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Prestige}"/>
+                                                    <ComboBoxItem Content="Show no score" Tag="{x:Static settings:OfficialSanXboxScoreChoice.None}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            </StackPanel>
+                                        </Expander>
                                         </StackPanel>
                                     </TabItem>
                                     <TabItem Header="Common">
@@ -2834,6 +2904,76 @@
                                             <Button Content="Edit style..." Tag="Common|Primary" Click="OfficialSanStyleEdit_Click" Margin="8,0,0,0" Padding="12,3"
                                                     ToolTip="Override this theme's colours, text, glow, outline, icon and tint for this notification only."/>
                                         </StackPanel>
+                                        <Expander Header="Xbox-style options for this tier" Margin="0,8,0,4" Foreground="{DynamicResource TextBrush}">
+                                            <StackPanel Margin="8,6,0,0">
+                                            <TextBlock Text="Only for Xbox-style themes (XB Modern with an animated emblem). 'Settings-page default' follows the Default tab, then the setting at the top of this page." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy before the unlock text" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxTrophy, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy shown" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Default}"/>
+                                                    <ComboBoxItem Content="Rarity based" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Rarity}"/>
+                                                    <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.PlayStation}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Unlock text by rarity" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxRarityText, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170" ToolTip="Rare Achievement unlocked, Ultra-Rare Achievement unlocked, Mythic Achievement unlocked. Common and Uncommon keep the base text.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="&quot;Trophy&quot; instead of &quot;Achievement&quot;" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxTrophyWord, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Laurel around the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Recolour emblem, glow and laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxTint, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Keep the theme's own rarity percentage" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxKeepPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
+                                                    <ComboBoxItem Content="Collection score points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Collection}"/>
+                                                    <ComboBoxItem Content="Prestige points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Prestige}"/>
+                                                    <ComboBoxItem Content="Show no score" Tag="{x:Static settings:OfficialSanXboxScoreChoice.None}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            </StackPanel>
+                                        </Expander>
                                         <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
                                                   IsChecked="{Binding OfficialSanProfiles.Common.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                         <StackPanel Visibility="{Binding OfficialSanProfiles.Common.AltEnabled, Converter={StaticResource BoolToVis}}">
@@ -2955,6 +3095,76 @@
                                             <Button Content="Edit style..." Tag="Uncommon|Primary" Click="OfficialSanStyleEdit_Click" Margin="8,0,0,0" Padding="12,3"
                                                     ToolTip="Override this theme's colours, text, glow, outline, icon and tint for this notification only."/>
                                         </StackPanel>
+                                        <Expander Header="Xbox-style options for this tier" Margin="0,8,0,4" Foreground="{DynamicResource TextBrush}">
+                                            <StackPanel Margin="8,6,0,0">
+                                            <TextBlock Text="Only for Xbox-style themes (XB Modern with an animated emblem). 'Settings-page default' follows the Default tab, then the setting at the top of this page." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy before the unlock text" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxTrophy, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy shown" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Default}"/>
+                                                    <ComboBoxItem Content="Rarity based" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Rarity}"/>
+                                                    <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.PlayStation}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Unlock text by rarity" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxRarityText, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170" ToolTip="Rare Achievement unlocked, Ultra-Rare Achievement unlocked, Mythic Achievement unlocked. Common and Uncommon keep the base text.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="&quot;Trophy&quot; instead of &quot;Achievement&quot;" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxTrophyWord, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Laurel around the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Recolour emblem, glow and laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxTint, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Keep the theme's own rarity percentage" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxKeepPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
+                                                    <ComboBoxItem Content="Collection score points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Collection}"/>
+                                                    <ComboBoxItem Content="Prestige points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Prestige}"/>
+                                                    <ComboBoxItem Content="Show no score" Tag="{x:Static settings:OfficialSanXboxScoreChoice.None}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            </StackPanel>
+                                        </Expander>
                                         <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
                                                   IsChecked="{Binding OfficialSanProfiles.Uncommon.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                         <StackPanel Visibility="{Binding OfficialSanProfiles.Uncommon.AltEnabled, Converter={StaticResource BoolToVis}}">
@@ -3076,6 +3286,76 @@
                                             <Button Content="Edit style..." Tag="Rare|Primary" Click="OfficialSanStyleEdit_Click" Margin="8,0,0,0" Padding="12,3"
                                                     ToolTip="Override this theme's colours, text, glow, outline, icon and tint for this notification only."/>
                                         </StackPanel>
+                                        <Expander Header="Xbox-style options for this tier" Margin="0,8,0,4" Foreground="{DynamicResource TextBrush}">
+                                            <StackPanel Margin="8,6,0,0">
+                                            <TextBlock Text="Only for Xbox-style themes (XB Modern with an animated emblem). 'Settings-page default' follows the Default tab, then the setting at the top of this page." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy before the unlock text" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxTrophy, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy shown" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Default}"/>
+                                                    <ComboBoxItem Content="Rarity based" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Rarity}"/>
+                                                    <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.PlayStation}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Unlock text by rarity" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxRarityText, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170" ToolTip="Rare Achievement unlocked, Ultra-Rare Achievement unlocked, Mythic Achievement unlocked. Common and Uncommon keep the base text.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="&quot;Trophy&quot; instead of &quot;Achievement&quot;" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxTrophyWord, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Laurel around the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Recolour emblem, glow and laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxTint, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Keep the theme's own rarity percentage" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxKeepPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
+                                                    <ComboBoxItem Content="Collection score points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Collection}"/>
+                                                    <ComboBoxItem Content="Prestige points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Prestige}"/>
+                                                    <ComboBoxItem Content="Show no score" Tag="{x:Static settings:OfficialSanXboxScoreChoice.None}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            </StackPanel>
+                                        </Expander>
                                         <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
                                                   IsChecked="{Binding OfficialSanProfiles.Rare.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                         <StackPanel Visibility="{Binding OfficialSanProfiles.Rare.AltEnabled, Converter={StaticResource BoolToVis}}">
@@ -3197,6 +3477,76 @@
                                             <Button Content="Edit style..." Tag="UltraRare|Primary" Click="OfficialSanStyleEdit_Click" Margin="8,0,0,0" Padding="12,3"
                                                     ToolTip="Override this theme's colours, text, glow, outline, icon and tint for this notification only."/>
                                         </StackPanel>
+                                        <Expander Header="Xbox-style options for this tier" Margin="0,8,0,4" Foreground="{DynamicResource TextBrush}">
+                                            <StackPanel Margin="8,6,0,0">
+                                            <TextBlock Text="Only for Xbox-style themes (XB Modern with an animated emblem). 'Settings-page default' follows the Default tab, then the setting at the top of this page." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy before the unlock text" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxTrophy, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy shown" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Default}"/>
+                                                    <ComboBoxItem Content="Rarity based" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Rarity}"/>
+                                                    <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.PlayStation}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Unlock text by rarity" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxRarityText, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170" ToolTip="Rare Achievement unlocked, Ultra-Rare Achievement unlocked, Mythic Achievement unlocked. Common and Uncommon keep the base text.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="&quot;Trophy&quot; instead of &quot;Achievement&quot;" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxTrophyWord, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Laurel around the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Recolour emblem, glow and laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxTint, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Keep the theme's own rarity percentage" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxKeepPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
+                                                    <ComboBoxItem Content="Collection score points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Collection}"/>
+                                                    <ComboBoxItem Content="Prestige points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Prestige}"/>
+                                                    <ComboBoxItem Content="Show no score" Tag="{x:Static settings:OfficialSanXboxScoreChoice.None}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            </StackPanel>
+                                        </Expander>
                                         <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
                                                   IsChecked="{Binding OfficialSanProfiles.UltraRare.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                         <StackPanel Visibility="{Binding OfficialSanProfiles.UltraRare.AltEnabled, Converter={StaticResource BoolToVis}}">
@@ -3318,6 +3668,76 @@
                                             <Button Content="Edit style..." Tag="Capstone|Primary" Click="OfficialSanStyleEdit_Click" Margin="8,0,0,0" Padding="12,3"
                                                     ToolTip="Override this theme's colours, text, glow, outline, icon and tint for this notification only."/>
                                         </StackPanel>
+                                        <Expander Header="Xbox-style options for this tier" Margin="0,8,0,4" Foreground="{DynamicResource TextBrush}">
+                                            <StackPanel Margin="8,6,0,0">
+                                            <TextBlock Text="Only for Xbox-style themes (XB Modern with an animated emblem). 'Settings-page default' follows the Default tab, then the setting at the top of this page." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy before the unlock text" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxTrophy, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy shown" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Default}"/>
+                                                    <ComboBoxItem Content="Rarity based" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Rarity}"/>
+                                                    <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.PlayStation}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Unlock text by rarity" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxRarityText, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170" ToolTip="Rare Achievement unlocked, Ultra-Rare Achievement unlocked, Mythic Achievement unlocked. Common and Uncommon keep the base text.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="&quot;Trophy&quot; instead of &quot;Achievement&quot;" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxTrophyWord, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Laurel around the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Recolour emblem, glow and laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxTint, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Keep the theme's own rarity percentage" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxKeepPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
+                                                    <ComboBoxItem Content="Collection score points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Collection}"/>
+                                                    <ComboBoxItem Content="Prestige points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Prestige}"/>
+                                                    <ComboBoxItem Content="Show no score" Tag="{x:Static settings:OfficialSanXboxScoreChoice.None}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            </StackPanel>
+                                        </Expander>
                                         <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
                                                   IsChecked="{Binding OfficialSanProfiles.Capstone.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                         <StackPanel Visibility="{Binding OfficialSanProfiles.Capstone.AltEnabled, Converter={StaticResource BoolToVis}}">
@@ -3439,6 +3859,76 @@
                                             <Button Content="Edit style..." Tag="Completion|Primary" Click="OfficialSanStyleEdit_Click" Margin="8,0,0,0" Padding="12,3"
                                                     ToolTip="Override this theme's colours, text, glow, outline, icon and tint for this notification only."/>
                                         </StackPanel>
+                                        <Expander Header="Xbox-style options for this tier" Margin="0,8,0,4" Foreground="{DynamicResource TextBrush}">
+                                            <StackPanel Margin="8,6,0,0">
+                                            <TextBlock Text="Only for Xbox-style themes (XB Modern with an animated emblem). 'Settings-page default' follows the Default tab, then the setting at the top of this page." Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy before the unlock text" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxTrophy, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Trophy shown" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxTrophyStyle, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Default}"/>
+                                                    <ComboBoxItem Content="Rarity based" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.Rarity}"/>
+                                                    <ComboBoxItem Content="PlayStation trophy" Tag="{x:Static settings:OfficialSanXboxTrophyChoice.PlayStation}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Unlock text by rarity" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxRarityText, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170" ToolTip="Rare Achievement unlocked, Ultra-Rare Achievement unlocked, Mythic Achievement unlocked. Common and Uncommon keep the base text.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="&quot;Trophy&quot; instead of &quot;Achievement&quot;" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxTrophyWord, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Laurel around the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxLaurel, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Recolour emblem, glow and laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxTint, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Keep the theme's own rarity percentage" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxKeepPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
+                                                    <ComboBoxItem Content="Collection score points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Collection}"/>
+                                                    <ComboBoxItem Content="Prestige points" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Prestige}"/>
+                                                    <ComboBoxItem Content="Show no score" Tag="{x:Static settings:OfficialSanXboxScoreChoice.None}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            </StackPanel>
+                                        </Expander>
                                         <CheckBox Content="Add a second theme (50/50 chance of either one on each unlock)" Margin="0,8,0,4"
                                                   IsChecked="{Binding OfficialSanProfiles.Completion.AltEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                         <StackPanel Visibility="{Binding OfficialSanProfiles.Completion.AltEnabled, Converter={StaticResource BoolToVis}}">
@@ -3517,13 +4007,17 @@
                                             <ComboBoxItem Content="Never show" Tag="{x:Static local:OfficialSanPercentMode.Never}"/>
                                         </ComboBox>
                                     </DockPanel>
-                                    <TextBlock Text="Xbox-style themes (XB Modern with an animated emblem)" FontWeight="SemiBold" Margin="0,4,0,6" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock Text="Xbox-style themes (XB Modern with an animated emblem): defaults for every tier. Each tier tab below can override them." FontWeight="SemiBold" Margin="0,4,0,6" Foreground="{DynamicResource TextBrush}"/>
                                     <TextBlock Text="These are the defaults for every notification tier. To change one tier only (for example no trophy on Mythic), open that tier's Edit style and tick the setting under 'Xbox-style themes'." TextWrapping="Wrap" Margin="0,0,0,8" Opacity="0.8" Foreground="{DynamicResource TextBrush}"/>
                                     <CheckBox Content="Keep the theme's own rarity percentage (no rarity bubble over the emblem)"
                                               IsChecked="{Binding OfficialSanXboxKeepThemePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
                                               ToolTip="On: the percentage stays where the .san puts it. Off: the plugin's rarity bubble is drawn under the achievement icon instead."/>
                                     <CheckBox Content="Show a trophy before the 'Achievement unlocked' text"
                                               IsChecked="{Binding OfficialSanXboxInlineTrophy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <CheckBox Content="Unlock text by rarity (Rare / Ultra-Rare / Mythic Achievement unlocked)"
+                                              IsChecked="{Binding OfficialSanXboxRarityText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <CheckBox Content="Say &quot;Trophy&quot; instead of &quot;Achievement&quot; in the unlock text"
+                                              IsChecked="{Binding OfficialSanXboxTrophyWord, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
                                     <CheckBox Content="Recolour the animated emblem with the card's colours"
                                               IsChecked="{Binding OfficialSanXboxTintEmblem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
                                               ToolTip="The emblem gifs have a grey or green disc baked in. On: the disc, rim and star take the card's secondary colour, so the emblem matches whatever colours you pick in Edit style."/>

@@ -86,8 +86,55 @@ namespace PlayniteAchievements.Models.Settings
     /// The notification setup for one kind of unlock. When the second slot is enabled, each unlock
     /// has a 50/50 chance of using it instead of the primary slot.
     /// </summary>
+    public enum OfficialSanXboxToggle
+    {
+        Default = 0,
+        On = 1,
+        Off = 2
+    }
+
+    public enum OfficialSanXboxTrophyChoice
+    {
+        Default = 0,
+        Rarity = 1,
+        PlayStation = 2
+    }
+
+    public enum OfficialSanXboxScoreChoice
+    {
+        Default = 0,
+        Collection = 1,
+        Prestige = 2,
+        None = 3
+    }
+
     public sealed class OfficialSanProfile : ObservableObject
     {
+        private OfficialSanXboxToggle _xboxTrophy;
+        private OfficialSanXboxTrophyChoice _xboxTrophyStyle;
+        private OfficialSanXboxToggle _xboxLaurel;
+        private OfficialSanXboxToggle _xboxTint;
+        private OfficialSanXboxToggle _xboxKeepPercent;
+        private OfficialSanXboxScoreChoice _xboxScore;
+        private OfficialSanXboxToggle _xboxRarityText;
+        private OfficialSanXboxToggle _xboxTrophyWord;
+
+        // Xbox-style theme options for this kind of unlock. "Default" means: take the Default tab's value,
+        // and if that is also Default, the setting on the settings page. They belong to the profile (the
+        // tier), not to the theme slot, so tiers that share one theme can still differ.
+        public OfficialSanXboxToggle XboxTrophy { get => _xboxTrophy; set => SetValue(ref _xboxTrophy, value); }
+        public OfficialSanXboxTrophyChoice XboxTrophyStyle { get => _xboxTrophyStyle; set => SetValue(ref _xboxTrophyStyle, value); }
+        public OfficialSanXboxToggle XboxLaurel { get => _xboxLaurel; set => SetValue(ref _xboxLaurel, value); }
+        public OfficialSanXboxToggle XboxTint { get => _xboxTint; set => SetValue(ref _xboxTint, value); }
+        public OfficialSanXboxToggle XboxKeepPercent { get => _xboxKeepPercent; set => SetValue(ref _xboxKeepPercent, value); }
+        public OfficialSanXboxScoreChoice XboxScore { get => _xboxScore; set => SetValue(ref _xboxScore, value); }
+
+        /// <summary>Unlock text by rarity: "Rare Achievement unlocked", "Ultra-Rare Achievement unlocked", ...</summary>
+        public OfficialSanXboxToggle XboxRarityText { get => _xboxRarityText; set => SetValue(ref _xboxRarityText, value); }
+
+        /// <summary>"Trophy" instead of "Achievement" in the unlock text.</summary>
+        public OfficialSanXboxToggle XboxTrophyWord { get => _xboxTrophyWord; set => SetValue(ref _xboxTrophyWord, value); }
+
         private OfficialSanSlot _primary = new OfficialSanSlot();
         private OfficialSanSlot _alt = new OfficialSanSlot();
         private bool _altEnabled;

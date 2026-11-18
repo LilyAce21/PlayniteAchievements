@@ -498,6 +498,8 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanXboxKeepThemePercent = true;
         private bool _officialSanXboxInlineTrophy = true;
         private bool _officialSanXboxTintEmblem = true;
+        private bool _officialSanXboxRarityText = true;
+        private bool _officialSanXboxTrophyWord;
         private OfficialSanXboxLaurelMode _officialSanXboxLaurel = OfficialSanXboxLaurelMode.RareAndMythic;
         private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
         private int _unlockSoundLeadMilliseconds;
@@ -566,6 +568,12 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Xbox-style SAN themes: recolour the animated emblem with the card's colours.</summary>
         public bool OfficialSanXboxTintEmblem { get => _officialSanXboxTintEmblem; set => SetValue(ref _officialSanXboxTintEmblem, value); }
+
+        /// <summary>Xbox-style SAN themes: "Rare Achievement unlocked" / "Ultra-Rare Achievement unlocked" by rarity.</summary>
+        public bool OfficialSanXboxRarityText { get => _officialSanXboxRarityText; set => SetValue(ref _officialSanXboxRarityText, value); }
+
+        /// <summary>Xbox-style SAN themes: say "Trophy" instead of "Achievement" in the unlock text.</summary>
+        public bool OfficialSanXboxTrophyWord { get => _officialSanXboxTrophyWord; set => SetValue(ref _officialSanXboxTrophyWord, value); }
 
         /// <summary>Xbox-style SAN themes: laurel around the emblem (rare and mythic by default).</summary>
         public OfficialSanXboxLaurelMode OfficialSanXboxLaurel { get => _officialSanXboxLaurel; set => SetValue(ref _officialSanXboxLaurel, value); }

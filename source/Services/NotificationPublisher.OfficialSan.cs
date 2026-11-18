@@ -780,23 +780,23 @@ namespace PlayniteAchievements.Services
             }
         }
 
-        /// <summary>A per-profile Xbox-style flag: the slot's own override when it has one, otherwise the global setting.</summary>
-        private static bool XboxFlag(OfficialSanSlot slot, string key, bool fallback)
+        /// <summary>A per-profile Xbox-style flag: the tier's own value, else the Default tab's, else the global setting.</summary>
+        private static bool XboxFlag(OfficialSanProfiles profiles, string profileKey, Func<OfficialSanProfile, OfficialSanXboxToggle> get, bool fallback)
         {
-            if (slot?.StyleOverrides != null && slot.StyleOverrides.TryGetValue(key, out var text) && bool.TryParse(text, out var flag))
+            var value = get(profiles.Get(profileKey));
+            if (value == OfficialSanXboxToggle.Default)
             {
-                return flag;
+                value = get(profiles.Default);
             }
 
-            return fallback;
+            return value == OfficialSanXboxToggle.On ? true : value == OfficialSanXboxToggle.Off ? false : fallback;
         }
 
-        /// <summary>A per-profile Xbox-style choice: the slot's own override when it has one, otherwise null.</summary>
-        private static string XboxChoice(OfficialSanSlot slot, string key)
+        /// <summary>A per-profile Xbox-style choice: the tier's own value, else the Default tab's (Default = use the global setting).</summary>
+        private static T XboxPick<T>(OfficialSanProfiles profiles, string profileKey, Func<OfficialSanProfile, T> get) where T : struct
         {
-            return slot?.StyleOverrides != null && slot.StyleOverrides.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text)
-                ? text.Trim().ToLowerInvariant()
-                : null;
+            var value = get(profiles.Get(profileKey));
+            return EqualityComparer<T>.Default.Equals(value, default(T)) ? get(profiles.Default) : value;
         }
 
         /// <summary>The global laurel mode as the on/off value a tier would get (also what the style editor shows as the default).</summary>
@@ -925,11 +925,8 @@ namespace PlayniteAchievements.Services
                     // fits the card to the real text, so a short text gets a short card inside it.
                     var fontPx = 0.03 * xboxFontRefLongest + 0.8;
                     var textColumnUnits = theme.BaseWidth - theme.BaseHeight - 20;
-                    var unlockLen = 20;
-                    if (theme.Customisation["usecustomtext"]?.Value<bool>() == true)
-                    {
-                        unlockLen = Math.Max(unlockLen, ((string)theme.Customisation["customtextunlockmsg"] ?? string.Empty).Length);
-                    }
+                    // "Ultra-Rare Achievement unlocked" is the longest text this can become.
+                    var unlockLen = 32;
 
                     var chars = Math.Max(
                         Math.Max(unlockLen + 10, (achievementName ?? string.Empty).Length + 9),
@@ -957,14 +954,21 @@ namespace PlayniteAchievements.Services
                 // The rarity pill (under the achievement icon) is drawn by the host page. It is never
                 // shown for the 100% completion unlock, and "Never show" hides every percentage.
                 // Every Xbox-style option can be set per profile (Edit style); the global setting is the default.
-                var xboxKeepPercent = XboxFlag(slot, "paXboxKeepPercent", settings.OfficialSanXboxKeepThemePercent);
-                var xboxInlineTrophy = XboxFlag(slot, "paXboxTrophy", settings.OfficialSanXboxInlineTrophy);
-                var xboxTint = XboxFlag(slot, "paXboxTint", settings.OfficialSanXboxTintEmblem);
-                var xboxTrophyStyle = XboxChoice(slot, "paXboxTrophyStyle") is string trophyChoice
-                    ? (trophyChoice == "playstation" ? OfficialSanXboxTrophyStyle.PlayStation : OfficialSanXboxTrophyStyle.Rarity)
+                // Xbox-style options are per profile (the tier), then the Default tab, then the settings page.
+                var xbProfiles = settings.OfficialSanProfiles ?? new OfficialSanProfiles();
+                var xboxKeepPercent = XboxFlag(xbProfiles, profileKey, pr => pr.XboxKeepPercent, settings.OfficialSanXboxKeepThemePercent);
+                var xboxInlineTrophy = XboxFlag(xbProfiles, profileKey, pr => pr.XboxTrophy, settings.OfficialSanXboxInlineTrophy);
+                var xboxTint = XboxFlag(xbProfiles, profileKey, pr => pr.XboxTint, settings.OfficialSanXboxTintEmblem);
+                var xboxRarityText = XboxFlag(xbProfiles, profileKey, pr => pr.XboxRarityText, settings.OfficialSanXboxRarityText);
+                var xboxTrophyWord = XboxFlag(xbProfiles, profileKey, pr => pr.XboxTrophyWord, settings.OfficialSanXboxTrophyWord);
+                var trophyChoice = XboxPick(xbProfiles, profileKey, pr => pr.XboxTrophyStyle);
+                var xboxTrophyStyle = trophyChoice == OfficialSanXboxTrophyChoice.PlayStation ? OfficialSanXboxTrophyStyle.PlayStation
+                    : trophyChoice == OfficialSanXboxTrophyChoice.Rarity ? OfficialSanXboxTrophyStyle.Rarity
                     : settings.OfficialSanXboxTrophyStyle;
-                var xboxScoreFallback = XboxChoice(slot, "paXboxScore") is string scoreChoice
-                    ? (scoreChoice == "prestige" ? OfficialSanScoreFallback.Prestige : scoreChoice == "none" ? OfficialSanScoreFallback.None : OfficialSanScoreFallback.Collection)
+                var scoreChoice = XboxPick(xbProfiles, profileKey, pr => pr.XboxScore);
+                var xboxScoreFallback = scoreChoice == OfficialSanXboxScoreChoice.Prestige ? OfficialSanScoreFallback.Prestige
+                    : scoreChoice == OfficialSanXboxScoreChoice.None ? OfficialSanScoreFallback.None
+                    : scoreChoice == OfficialSanXboxScoreChoice.Collection ? OfficialSanScoreFallback.Collection
                     : settings.OfficialSanXboxScoreFallback;
                 var keepThemePercent = xboxEmblem && xboxKeepPercent;
                 var pillShow = hasPercent && !completion && !(capstone && !completion) &&
@@ -982,7 +986,7 @@ namespace PlayniteAchievements.Services
                 }
 
                 // Laurel around the emblem: the Mythic one for full completion and capstones, the Rare one otherwise.
-                var xboxLaurel = xboxEmblem && XboxFlag(slot, "paXboxLaurel",
+                var xboxLaurel = xboxEmblem && XboxFlag(xbProfiles, profileKey, pr => pr.XboxLaurel,
                     XboxLaurelDefault(settings.OfficialSanXboxLaurel, completion, capstone, tier));
                 var xboxLaurelKind = completion || capstone ? "mythic" : "rare";
                 var xboxLaurelPath = string.Empty;
@@ -1018,6 +1022,21 @@ namespace PlayniteAchievements.Services
                         scoreUnit = "pts";
                     }
                 }
+                // Unlock text by rarity (Xbox style): common and uncommon keep the base text, Rare and Ultra-Rare get a
+                // prefix and the 100% completion is "Mythic". "Trophy" can replace the word "Achievement".
+                string xboxUnlockText = null;
+                if (xboxEmblem && (xboxRarityText || xboxTrophyWord))
+                {
+                    var word = xboxTrophyWord ? "Trophy" : "Achievement";
+                    var prefix = string.Empty;
+                    if (xboxRarityText)
+                    {
+                        prefix = completion ? "Mythic " : tier >= RarityTier.UltraRare ? "Ultra-Rare " : tier == RarityTier.Rare ? "Rare " : string.Empty;
+                    }
+
+                    xboxUnlockText = prefix + word + " unlocked";
+                }
+
                 var pillTier = ToSanTier(tier, false, hasPercent ? percent : double.NaN);
                 var payload = new JObject
                 {
@@ -1040,6 +1059,7 @@ namespace PlayniteAchievements.Services
                         ["laurel"] = xboxLaurel,
                         ["laurelKind"] = xboxLaurelKind,
                         ["laurelPath"] = xboxLaurelPath,
+                        ["unlockText"] = xboxUnlockText,
                         ["score"] = score.HasValue ? (JToken)new JValue(score.Value) : JValue.CreateNull(),
                         ["scoreUnit"] = scoreUnit
                     },

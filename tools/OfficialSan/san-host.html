@@ -72,6 +72,9 @@
       /* The card is fitted to its text (see paFitXbox); the window stays at the widest size, so a
          shorter card is anchored to the side the notification is positioned on. */
       body[pa-fit] .wrapper#outerwrapper { width: var(--pa-fullwidth); }
+      /* No achievement icon on the right (100% completion): keep the text off the rounded end, with the same
+         space after it as there is between the emblem and the text. */
+      body[pa-xbox]:not([rightachicon]) .wrapper#achcontent { margin-inline-end: var(--pa-gap, 0px); }
       body[pa-fit][bottomleft] .wrapper#achcont, body[pa-fit][topleft] .wrapper#achcont { justify-self: start; }
       body[pa-fit][bottomright] .wrapper#achcont, body[pa-fit][topright] .wrapper#achcont { justify-self: end; }
 
@@ -489,7 +492,7 @@
             ? icons.elems
             : ["unlockmsg", "title", "desc"];
         const strings = {
-          unlockmsg: customisation.unlockmsg || "Achievement Unlocked",
+          unlockmsg: (payload?.paXbox?.emblem === true && payload.paXbox.unlockText) || customisation.unlockmsg || "Achievement Unlocked",
           title: payload?.displayName || "Achievement Unlocked",
           desc: payload?.description || "",
         };
@@ -511,8 +514,11 @@
         const textPercentPosition = badgeOnlyIndexedPercent
           ? 0
           : getSanPercentPosition(payload, customisation);
+        // Xbox-style themes write the percentage the way SAN does: "Rare Achievement unlocked - 19%".
         const percentText = shouldShowSanPercent(payload, customisation) && textPercentPosition > 0
-          ? ` (${percent.value.toFixed(1)}%)`
+          ? (payload?.paXbox?.emblem === true
+              ? ` - ${Number(percent.value.toFixed(1))}%`
+              : ` (${percent.value.toFixed(1)}%)`)
           : "";
 
         for (const [id, [pos, index]] of positions.entries()) {
@@ -1228,7 +1234,7 @@
           // gap between the emblem and where the text starts
           const firstText = document.getElementById("unlockmsg") || document.getElementById("title") || content;
           const gap = Math.max(0, firstText.getBoundingClientRect().left - wrap.getBoundingClientRect().right);
-          if (xb.rightIcon === true) root.style.setProperty("--pa-gap", gap + "px");
+          root.style.setProperty("--pa-gap", gap + "px");
           const chrome = card.getBoundingClientRect().width - firstText.getBoundingClientRect().width;
 
           const natural = (id) => {
