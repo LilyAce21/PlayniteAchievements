@@ -500,6 +500,7 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanXboxTintEmblem = true;
         private bool _officialSanXboxRarityText = true;
         private bool _officialSanXboxLaurelPercent;
+        private bool _officialSanXboxLaurelRim;
         private bool _officialSanXboxTrophyWord;
         private OfficialSanXboxLaurelMode _officialSanXboxLaurel = OfficialSanXboxLaurelMode.RareAndMythic;
         private OfficialSanXboxTrophyStyle _officialSanXboxTrophyStyle = OfficialSanXboxTrophyStyle.Rarity;
@@ -573,7 +574,10 @@ namespace PlayniteAchievements.Providers.Local
         /// <summary>Xbox-style SAN themes: "Rare Achievement unlocked" / "Ultra-Rare Achievement unlocked" by rarity.</summary>
         public bool OfficialSanXboxRarityText { get => _officialSanXboxRarityText; set => SetValue(ref _officialSanXboxRarityText, value); }
 
-        /// <summary>Xbox-style SAN themes: show the rarity percentage in a bubble in the middle of the laurel.</summary>
+        /// <summary>Xbox-style SAN themes: a thin dark rim around the laurel leaves (off = the original look).</summary>
+        public bool OfficialSanXboxLaurelRim { get => _officialSanXboxLaurelRim; set => SetValue(ref _officialSanXboxLaurelRim, value); }
+
+        /// <summary>Xbox-style SAN themes: show the rarity percentage in a bubble on the bottom edge of the emblem circle.</summary>
         public bool OfficialSanXboxLaurelPercent { get => _officialSanXboxLaurelPercent; set => SetValue(ref _officialSanXboxLaurelPercent, value); }
 
         /// <summary>Xbox-style SAN themes: say "Trophy" instead of "Achievement" in the unlock text.</summary>
