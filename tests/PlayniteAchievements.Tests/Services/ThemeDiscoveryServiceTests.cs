@@ -227,113 +227,100 @@ namespace PlayniteAchievements.ThemeMigration.Tests
             }
         }
 
-        [TestMethod]
-        public async Task MigrateThemeAsync_AddsLocalToSolarisDynamicAndPresetLists()
+        private const string NativeLegacyView =
+            "<ContentControl x:Name=\"PlayniteAchievements_PluginButton\" " +
+            "Visibility=\"{Binding LegacyData.HasData}\" />\n" +
+            "<ContentControl x:Name=\"SuccessStory_PluginButton\" />\n" +
+            "<TextBlock Text=\"\" />";
+
+        [DataTestMethod]
+        [DataRow("Desktop", true)]
+        [DataRow("Fullscreen", false)]
+        public void DiscoverThemes_FlagsNativeLegacyThemeForMigration_OnDesktopOnly(string themeType, bool expectedNeedsMigration)
         {
             var themesRoot = CreateThemesRoot();
 
             try
             {
-                var themePath = Path.Combine(themesRoot, "Fullscreen", "Solaris_ab123456");
+                var themePath = Path.Combine(themesRoot, themeType, "NativeLegacy_ab123456");
                 Directory.CreateDirectory(themePath);
-                var viewPath = Path.Combine(themePath, "Main.xaml");
-                File.WriteAllText(Path.Combine(themePath, "theme.yaml"), "Name: Solaris\nVersion: 1.0.0\n");
-                File.WriteAllText(
-                    viewPath,
-                    string.Join(
-                        "\n",
-                        "<ButtonEx Content=\"Hoyoverse\" CommandParameter=\"Hoyoverse\"",
-                        "    Command=\"{PluginSettings Plugin=PlayniteAchievements, Path=FilterDynamicGameSummariesByProviderCommand}\">",
-                        "    <ButtonEx.Triggers />",
-                        "</ButtonEx>",
-                        "<ComboBoxItem Content=\"Hoyoverse\" Tag=\"HoyoverseGames\" />",
-                        "<!-- List//HoyoverseGames -->",
-                        "<ListView x:Name=\"HoyoverseGames\" ItemsSource=\"{PluginSettings Plugin=PlayniteAchievements, Path=HoyoverseGames}\"",
-                        "    Visibility=\"Collapsed\" />",
-                        "<Setter Property=\"Visibility\" Value=\"Collapsed\" TargetName=\"HoyoverseGames\" />",
-                        "<MultiDataTrigger>",
-                        "    <MultiDataTrigger.Conditions>",
-                        "        <Condition Value=\"HoyoverseGames\" />",
-                        "    </MultiDataTrigger.Conditions>",
-                        "    <Setter Property=\"Text\" Value=\"Hoyoverse\" />",
-                        "    <Setter Property=\"Visibility\" Value=\"Visible\" TargetName=\"HoyoverseGames\" />",
-                        "</MultiDataTrigger>"));
+                File.WriteAllText(Path.Combine(themePath, "theme.yaml"), "Name: Native Legacy\nVersion: 1.0.0\n");
+                File.WriteAllText(Path.Combine(themePath, "View.xaml"), NativeLegacyView);
+
+                var service = new ThemeDiscoveryService(new FakeLogger(), new FakePlayniteApi());
+                var theme = service.DiscoverThemes(themesRoot).Single();
+
+                Assert.IsTrue(theme.ModernizeOnly);
+                Assert.AreEqual(expectedNeedsMigration, theme.NeedsMigration);
+                Assert.IsFalse(theme.CouldNotScan);
+            }
+            finally
+            {
+                DeleteDirectory(themesRoot);
+            }
+        }
+
+        [TestMethod]
+        public async Task MigrateThemeAsync_FullModernizesNativeLegacyThemeWithoutSuccessStoryRenames()
+        {
+            var themesRoot = CreateThemesRoot();
+
+            try
+            {
+                var themePath = Path.Combine(themesRoot, "Desktop", "NativeLegacy_ab123456");
+                Directory.CreateDirectory(themePath);
+                var viewPath = Path.Combine(themePath, "View.xaml");
+                File.WriteAllText(Path.Combine(themePath, "theme.yaml"), "Name: Native Legacy\nVersion: 1.0.0\n");
+                File.WriteAllText(viewPath, NativeLegacyView);
+
+                var service = new ThemeMigrationService(new FakeLogger());
+                var result = await service.MigrateThemeAsync(themePath, MigrationMode.Full);
+
+                Assert.IsTrue(result.Success);
+                Assert.IsTrue(Directory.Exists(Path.Combine(themePath, "PlayniteAchievements_backup")));
+                Assert.AreEqual(
+                    "<ContentControl x:Name=\"PlayniteAchievements_AchievementButton\" " +
+                    "Visibility=\"{Binding ModernTheme.HasAchievements}\" />\n" +
+                    "<ContentControl x:Name=\"SuccessStory_PluginButton\" />\n" +
+                    "<TextBlock Text=\"\" />",
+                    File.ReadAllText(viewPath));
+
+                var revert = await service.RevertThemeAsync(themePath);
+
+                Assert.IsTrue(revert.Success);
+                Assert.AreEqual(NativeLegacyView, File.ReadAllText(viewPath));
+            }
+            finally
+            {
+                DeleteDirectory(themesRoot);
+            }
+        }
+
+        [TestMethod]
+        public async Task MigrateThemeAsync_LimitedLeavesNativeLegacyThemeUnchanged()
+        {
+            var themesRoot = CreateThemesRoot();
+
+            try
+            {
+                var themePath = Path.Combine(themesRoot, "Desktop", "NativeLegacy_ab123456");
+                Directory.CreateDirectory(themePath);
+                var viewPath = Path.Combine(themePath, "View.xaml");
+                File.WriteAllText(Path.Combine(themePath, "theme.yaml"), "Name: Native Legacy\nVersion: 1.0.0\n");
+                File.WriteAllText(viewPath, NativeLegacyView);
 
                 var service = new ThemeMigrationService(new FakeLogger());
                 var result = await service.MigrateThemeAsync(themePath, MigrationMode.Limited);
-                var migrated = File.ReadAllText(viewPath);
 
                 Assert.IsTrue(result.Success);
-                StringAssert.Contains(migrated, "CommandParameter=\"Local\"");
-                StringAssert.Contains(migrated, "Content=\"Local\" Tag=\"LocalGames\"");
-                StringAssert.Contains(migrated, "x:Name=\"LocalGames\"");
-                StringAssert.Contains(migrated, "Path=LocalGames");
-                StringAssert.Contains(migrated, "Value=\"LocalGames\"");
-                StringAssert.Contains(migrated, "TargetName=\"LocalGames\"");
-
-                var secondResult = await service.MigrateThemeAsync(themePath, MigrationMode.Limited);
-                var migratedAgain = File.ReadAllText(viewPath);
-
-                Assert.IsTrue(secondResult.Success);
-                Assert.AreEqual(migrated, migratedAgain);
-                Assert.AreEqual(1, CountOccurrences(migratedAgain, "CommandParameter=\"Local\""));
-                Assert.AreEqual(1, CountOccurrences(migratedAgain, "Tag=\"LocalGames\""));
-                Assert.AreEqual(1, CountOccurrences(migratedAgain, "x:Name=\"LocalGames\""));
-                Assert.AreEqual(1, CountOccurrences(migratedAgain, "Value=\"LocalGames\""));
+                Assert.AreEqual(0, result.FilesBackedUp);
+                Assert.IsFalse(Directory.Exists(Path.Combine(themePath, "PlayniteAchievements_backup")));
+                Assert.AreEqual(NativeLegacyView, File.ReadAllText(viewPath));
             }
             finally
             {
                 DeleteDirectory(themesRoot);
             }
-        }
-
-        [TestMethod]
-        public async Task MigrateThemeAsync_PreservesDistinctResourceKeysAndCrossFileReferences()
-        {
-            var themesRoot = CreateThemesRoot();
-            try
-            {
-                var themePath = Path.Combine(themesRoot, "Fullscreen", "Solaris_resources");
-                Directory.CreateDirectory(themePath);
-                var mediaPath = Path.Combine(themePath, "Media.xaml");
-                File.WriteAllText(mediaPath,
-                    "<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">" +
-                    "<SolidColorBrush x:Key=\"SuccessStoryIcon\" Color=\"Red\"/>" +
-                    "<SolidColorBrush x:Key=\"PlayniteAchievementsIcon\" Color=\"Blue\"/>" +
-                    "<SolidColorBrush x:Key='SSHelper_Icon' Color='Green'/></ResourceDictionary>");
-                var viewPath = Path.Combine(themePath, "Main.xaml");
-                var view = "<Border Background=\"{StaticResource SuccessStoryIcon}\" " +
-                    "BorderBrush=\"{DynamicResource ResourceKey=SSHelper_Icon}\" " +
-                    "Tag=\"{StaticResource 'SuccessStoryIcon'}\"/>";
-                File.WriteAllText(viewPath, view);
-                var service = new ThemeMigrationService(new FakeLogger());
-                Assert.IsTrue((await service.MigrateThemeAsync(themePath)).Success);
-                var media = File.ReadAllText(mediaPath);
-                var document = System.Xml.Linq.XDocument.Parse(media);
-                var keys = document.Root.Elements().Select(element =>
-                    (string)element.Attribute(System.Xml.Linq.XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"))).ToArray();
-                CollectionAssert.AreEqual(new[] { "SuccessStoryIcon", "PlayniteAchievementsIcon", "SSHelper_Icon" }, keys);
-                Assert.AreEqual(view, File.ReadAllText(viewPath));
-                Assert.IsTrue((await service.MigrateThemeAsync(themePath)).Success);
-                Assert.AreEqual(media, File.ReadAllText(mediaPath));
-            }
-            finally
-            {
-                DeleteDirectory(themesRoot);
-            }
-        }
-
-        private static int CountOccurrences(string content, string value)
-        {
-            var count = 0;
-            var index = 0;
-            while ((index = content.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
-            {
-                count++;
-                index += value.Length;
-            }
-
-            return count;
         }
 
         private static string CreateThemesRoot()
@@ -466,6 +453,79 @@ namespace PlayniteAchievements.ThemeMigration.Tests
             public void AddConvertersSupport(Plugin plugin, AddConvertersSupportArgs args)
             {
             }
+        }
+
+        [TestMethod]
+        public async Task MigrateThemeAsync_AddsLocalToSolarisDynamicAndPresetLists()
+        {
+            var themesRoot = CreateThemesRoot();
+
+            try
+            {
+                var themePath = Path.Combine(themesRoot, "Fullscreen", "Solaris_ab123456");
+                Directory.CreateDirectory(themePath);
+                var viewPath = Path.Combine(themePath, "Main.xaml");
+                File.WriteAllText(Path.Combine(themePath, "theme.yaml"), "Name: Solaris\nVersion: 1.0.0\n");
+                File.WriteAllText(
+                    viewPath,
+                    string.Join(
+                        "\n",
+                        "<ButtonEx Content=\"Hoyoverse\" CommandParameter=\"Hoyoverse\"",
+                        "    Command=\"{PluginSettings Plugin=PlayniteAchievements, Path=FilterDynamicGameSummariesByProviderCommand}\">",
+                        "    <ButtonEx.Triggers />",
+                        "</ButtonEx>",
+                        "<ComboBoxItem Content=\"Hoyoverse\" Tag=\"HoyoverseGames\" />",
+                        "<!-- List//HoyoverseGames -->",
+                        "<ListView x:Name=\"HoyoverseGames\" ItemsSource=\"{PluginSettings Plugin=PlayniteAchievements, Path=HoyoverseGames}\"",
+                        "    Visibility=\"Collapsed\" />",
+                        "<Setter Property=\"Visibility\" Value=\"Collapsed\" TargetName=\"HoyoverseGames\" />",
+                        "<MultiDataTrigger>",
+                        "    <MultiDataTrigger.Conditions>",
+                        "        <Condition Value=\"HoyoverseGames\" />",
+                        "    </MultiDataTrigger.Conditions>",
+                        "    <Setter Property=\"Text\" Value=\"Hoyoverse\" />",
+                        "    <Setter Property=\"Visibility\" Value=\"Visible\" TargetName=\"HoyoverseGames\" />",
+                        "</MultiDataTrigger>"));
+
+                var service = new ThemeMigrationService(new FakeLogger());
+                var result = await service.MigrateThemeAsync(themePath, MigrationMode.Limited);
+                var migrated = File.ReadAllText(viewPath);
+
+                Assert.IsTrue(result.Success);
+                StringAssert.Contains(migrated, "CommandParameter=\"Local\"");
+                StringAssert.Contains(migrated, "Content=\"Local\" Tag=\"LocalGames\"");
+                StringAssert.Contains(migrated, "x:Name=\"LocalGames\"");
+                StringAssert.Contains(migrated, "Path=LocalGames");
+                StringAssert.Contains(migrated, "Value=\"LocalGames\"");
+                StringAssert.Contains(migrated, "TargetName=\"LocalGames\"");
+
+                var secondResult = await service.MigrateThemeAsync(themePath, MigrationMode.Limited);
+                var migratedAgain = File.ReadAllText(viewPath);
+
+                Assert.IsTrue(secondResult.Success);
+                Assert.AreEqual(migrated, migratedAgain);
+                Assert.AreEqual(1, CountOccurrences(migratedAgain, "CommandParameter=\"Local\""));
+                Assert.AreEqual(1, CountOccurrences(migratedAgain, "Tag=\"LocalGames\""));
+                Assert.AreEqual(1, CountOccurrences(migratedAgain, "x:Name=\"LocalGames\""));
+                Assert.AreEqual(1, CountOccurrences(migratedAgain, "Value=\"LocalGames\""));
+            }
+            finally
+            {
+                DeleteDirectory(themesRoot);
+            }
+        }
+
+        private static int CountOccurrences(string content, string value)
+        {
+            var count = 0;
+            var index = 0;
+            while ((index = content.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                index += value.Length;
+            }
+
+            return count;
         }
     }
 }

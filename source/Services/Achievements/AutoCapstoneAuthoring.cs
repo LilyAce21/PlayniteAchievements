@@ -30,11 +30,16 @@ namespace PlayniteAchievements.Services.Achievements
         private readonly Func<Guid, GameAchievementData> _resolveGameData;
         private readonly Func<ManagedCustomIconService> _iconService;
         private readonly Func<AutoCapstoneTemplates> _templates;
+        private readonly Func<bool, string> _configuredTags;
         private readonly Func<MetadataLinkStore> _metadataLinks;
         private readonly ILogger _logger;
         private readonly Func<bool> _hideLockedPlayStation;
 
         /// <param name="templates">The text templates in effect, read at each authoring.</param>
+        /// <param name="configuredTags">
+        /// The tags the settings give a capstone, whole-game (true) or category (false), read at
+        /// each authoring; null for none.
+        /// </param>
         /// <param name="metadataLinks">Where the art written into each capstone is recorded.</param>
         public AutoCapstoneAuthoring(
             GameCustomDataStore store,
@@ -42,6 +47,7 @@ namespace PlayniteAchievements.Services.Achievements
             Func<Guid, GameAchievementData> resolveGameData,
             Func<ManagedCustomIconService> iconService,
             Func<AutoCapstoneTemplates> templates,
+            Func<bool, string> configuredTags,
             Func<MetadataLinkStore> metadataLinks,
             ILogger logger,
             Func<bool> hideLockedPlayStation = null)
@@ -52,6 +58,7 @@ namespace PlayniteAchievements.Services.Achievements
             _resolveGameData = resolveGameData;
             _iconService = iconService;
             _templates = templates;
+            _configuredTags = configuredTags;
             _metadataLinks = metadataLinks;
             _logger = logger;
         }
@@ -699,7 +706,8 @@ namespace PlayniteAchievements.Services.Achievements
             var derived = AutoCapstoneCalculator.Derive(
                 achievements,
                 normalizedCategory,
-                gameData?.AchievementCategoryOrder);
+                gameData?.AchievementCategoryOrder,
+                _configuredTags?.Invoke(normalizedCategory == null));
 
             // A whole-game capstone is a guarantee, so a game whose achievements are all filtered
             // (an exclusion rule, a filter preset) still gets one, standing for all of them.
@@ -709,6 +717,7 @@ namespace PlayniteAchievements.Services.Achievements
                     achievements,
                     null,
                     gameData?.AchievementCategoryOrder,
+                    _configuredTags?.Invoke(true),
                     includeFiltered: true);
             }
 

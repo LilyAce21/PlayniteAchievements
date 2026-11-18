@@ -118,12 +118,18 @@ namespace PlayniteAchievements.Services.ThemeMigration
 
                 var result = await Task.Run(() =>
                 {
+                    // A theme that already targets PlayniteAchievements only gets its legacy controls and
+                    // bindings modernized, unless it still holds SuccessStory references (mixed themes
+                    // exist in the wild), which keep getting the full migration.
+                    var scan = ThemeDiscoveryService.ScanTheme(themePath, _logger);
+                    var modernizeOnly = scan.hasNativePlayniteAchievementsSupport && !scan.needsMigration;
                     return PerformMigration(
                         themePath,
                         backupPath,
                         mode,
                         customSelection,
-                        hasExistingBackup);
+                        hasExistingBackup,
+                        modernizeOnly);
                 });
 
                 if (result.FilesProcessed == 0)
@@ -259,7 +265,8 @@ namespace PlayniteAchievements.Services.ThemeMigration
             string backupPath,
             MigrationMode mode,
             CustomMigrationSelection customSelection,
-            bool hasExistingBackup)
+            bool hasExistingBackup,
+            bool modernizeOnly)
         {
             var backedUpFiles = new List<string>();
             int filesProcessed = 0;
@@ -286,7 +293,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                     continue;
                 }
 
-                var (needsReplacement, replacementCount) = CheckIfNeedsReplacement(file, mode, customSelection);
+                var (needsReplacement, replacementCount) = CheckIfNeedsReplacement(file, mode, customSelection, modernizeOnly);
                 if (!needsReplacement)
                 {
                     filesSkipped++;
@@ -301,7 +308,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 }
 
                 // Apply replacements
-                var (processed, textCount, ctrlCount, bindCount) = ProcessFile(file, mode, customSelection);
+                var (processed, textCount, ctrlCount, bindCount) = ProcessFile(file, mode, customSelection, modernizeOnly);
                 if (processed)
                 {
                     filesProcessed++;
@@ -388,18 +395,26 @@ namespace PlayniteAchievements.Services.ThemeMigration
         private (bool needsReplacement, int count) CheckIfNeedsReplacement(
             FileInfo file,
             MigrationMode mode,
-            CustomMigrationSelection customSelection)
+            CustomMigrationSelection customSelection,
+            bool modernizeOnly)
         {
             try
             {
                 var content = File.ReadAllText(file.FullName, Encoding.UTF8);
 
-                int fullscreenHelperCount = CountOccurrences(content, "SuccessStoryFullscreenHelper");
-                int pluginIdCount = CountOccurrences(content, "playnite-successstory-plugin");
-                int helperCount = CountOccurrences(content, "SSHelper");
-                int successStoryCount = CountOccurrences(content, "SuccessStory");
-                int iconCount = CountOccurrences(content, "\uE820");  // SuccessStory trophy icon (U+E820)
-                int iconEntityCount = CountOccurrences(content, "&#xE820;");
+                int totalCount = 0;
+                if (!modernizeOnly)
+                {
+                    int fullscreenHelperCount = CountOccurrences(content, "SuccessStoryFullscreenHelper");
+                    int pluginIdCount = CountOccurrences(content, "playnite-successstory-plugin");
+                    int helperCount = CountOccurrences(content, "SSHelper");
+                    int successStoryCount = CountOccurrences(content, "SuccessStory");
+                    int iconCount = CountOccurrences(content, "\uE820");  // SuccessStory trophy icon (U+E820)
+                    int iconEntityCount = CountOccurrences(content, "&#xE820;");
+                    totalCount = fullscreenHelperCount + pluginIdCount + helperCount + successStoryCount + iconCount + iconEntityCount;
+                }
+
+                // Fork: these apply to themes that already target the fork too.
                 int originalForkPluginStatusCount = Regex.Matches(
                     content,
                     PluginStatusOriginalForkPattern,
@@ -414,14 +429,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 int localProviderCompatibilityCount = NeedsLocalProviderCompatibility(content) ? 1 : 0;
                 if (NeedsPs5TrophyProgressMigration(content)) localProviderCompatibilityCount++;
                 if (NeedsPs5RankMigration(content)) localProviderCompatibilityCount++;
-
-                int totalCount = fullscreenHelperCount
-                    + pluginIdCount
-                    + helperCount
-                    + successStoryCount
-                    + iconCount
-                    + iconEntityCount
-                    + originalForkPluginStatusCount
+                totalCount += originalForkPluginStatusCount
                     + forkIdInPluginSettingsCount
                     + duplicatedForkIdCount
                     + localProviderCompatibilityCount;
@@ -429,8 +437,11 @@ namespace PlayniteAchievements.Services.ThemeMigration
                 foreach (var mapping in GetSelectedControlMappings(mode, customSelection))
                 {
                     totalCount += CountStandaloneControlNameOccurrences(content, mapping.Key);
-                    totalCount += CountOccurrences(content, $"SuccessStory_{mapping.Key}");
                     totalCount += CountOccurrences(content, $"PlayniteAchievements_{mapping.Key}");
+                    if (!modernizeOnly)
+                    {
+                        totalCount += CountOccurrences(content, $"SuccessStory_{mapping.Key}");
+                    }
                 }
 
                 if (ShouldConfigureUnlockedListHighlight(mode, customSelection))
@@ -527,7 +538,8 @@ namespace PlayniteAchievements.Services.ThemeMigration
         private (bool processed, int textReplacements, int controlReplacements, int bindingReplacements) ProcessFile(
             FileInfo file,
             MigrationMode mode,
-            CustomMigrationSelection customSelection)
+            CustomMigrationSelection customSelection,
+            bool modernizeOnly)
         {
             string content;
             try
@@ -546,14 +558,18 @@ namespace PlayniteAchievements.Services.ThemeMigration
             int bindingReplacements = 0;
             bool isYamlFile = file.Extension.Equals(".yaml", StringComparison.OrdinalIgnoreCase);
 
-            // For YAML files, preserve URLs to avoid breaking external references
-            if (isYamlFile)
+            // A theme that already targets PlayniteAchievements gets no SuccessStory text replacements.
+            if (!modernizeOnly)
             {
-                content = ProcessYamlFile(content, originalContent, ref textReplacements);
+                // For YAML files, preserve URLs to avoid breaking external references
+                content = isYamlFile
+                    ? ProcessYamlFile(content, originalContent, ref textReplacements)
+                    : ProcessStandardFile(content, originalContent, ref textReplacements);
             }
-            else
+
+            // Fork: PS5-Experience compatibility also applies to themes that already target the fork.
+            if (!isYamlFile)
             {
-                content = ProcessStandardFile(content, originalContent, ref textReplacements);
                 content = MigratePs5TrophyProgress(content, ref textReplacements);
                 content = MigratePs5Ranks(content, ref textReplacements);
             }
@@ -561,7 +577,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             // Apply selected modernization replacements if enabled
             if (ShouldApplyModernization(mode, customSelection))
             {
-                content = ApplyModernizationReplacements(content, mode, customSelection, ref controlReplacements, ref bindingReplacements);
+                content = ApplyModernizationReplacements(content, mode, customSelection, modernizeOnly, ref controlReplacements, ref bindingReplacements);
             }
 
             if (content != originalContent)
@@ -1041,6 +1057,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
             string content,
             MigrationMode mode,
             CustomMigrationSelection customSelection,
+            bool modernizeOnly,
             ref int controlReplacements,
             ref int bindingReplacements)
         {
@@ -1051,7 +1068,10 @@ namespace PlayniteAchievements.Services.ThemeMigration
             foreach (var mapping in GetSelectedControlMappings(mode, customSelection))
             {
                 controlReplacements += ReplacePrefixedControlName(ref result, "PlayniteAchievements", mapping.Key, mapping.Value);
-                controlReplacements += ReplacePrefixedControlName(ref result, "SuccessStory", mapping.Key, mapping.Value);
+                if (!modernizeOnly)
+                {
+                    controlReplacements += ReplacePrefixedControlName(ref result, "SuccessStory", mapping.Key, mapping.Value);
+                }
                 controlReplacements += ReplaceStandaloneControlName(ref result, mapping.Key, mapping.Value);
             }
 
