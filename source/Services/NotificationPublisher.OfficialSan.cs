@@ -989,6 +989,16 @@ namespace PlayniteAchievements.Services
                 var xboxLaurel = xboxEmblem && XboxFlag(xbProfiles, profileKey, pr => pr.XboxLaurel,
                     XboxLaurelDefault(settings.OfficialSanXboxLaurel, completion, capstone, tier));
                 var xboxLaurelKind = completion || capstone ? "mythic" : "rare";
+                // Rarity percentage inside the laurel: only when the laurel is drawn, the unlock has a percentage and
+                // percentages are not switched off. It replaces the header text percentage and the bubble under the icon.
+                var xboxLaurelPercent = xboxLaurel && hasPercent && !completion &&
+                                        settings.OfficialSanPercentMode != OfficialSanPercentMode.Never &&
+                                        XboxFlag(xbProfiles, profileKey, pr => pr.XboxLaurelPercent, settings.OfficialSanXboxLaurelPercent);
+                if (xboxLaurelPercent)
+                {
+                    keepThemePercent = false;
+                    pillShow = false;
+                }
                 var xboxLaurelPath = string.Empty;
                 if (xboxLaurel)
                 {
@@ -1059,6 +1069,7 @@ namespace PlayniteAchievements.Services
                         ["laurel"] = xboxLaurel,
                         ["laurelKind"] = xboxLaurelKind,
                         ["laurelPath"] = xboxLaurelPath,
+                        ["laurelPercent"] = xboxLaurelPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
                         ["unlockText"] = xboxUnlockText,
                         ["score"] = score.HasValue ? (JToken)new JValue(score.Value) : JValue.CreateNull(),
                         ["scoreUnit"] = scoreUnit

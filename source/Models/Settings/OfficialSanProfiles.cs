@@ -118,6 +118,7 @@ namespace PlayniteAchievements.Models.Settings
         private OfficialSanXboxScoreChoice _xboxScore;
         private OfficialSanXboxToggle _xboxRarityText;
         private OfficialSanXboxToggle _xboxTrophyWord;
+        private OfficialSanXboxToggle _xboxLaurelPercent;
 
         // Xbox-style theme options for this kind of unlock. "Default" means: take the Default tab's value,
         // and if that is also Default, the setting on the settings page. They belong to the profile (the
@@ -131,6 +132,9 @@ namespace PlayniteAchievements.Models.Settings
 
         /// <summary>Unlock text by rarity: "Rare Achievement unlocked", "Ultra-Rare Achievement unlocked", ...</summary>
         public OfficialSanXboxToggle XboxRarityText { get => _xboxRarityText; set => SetValue(ref _xboxRarityText, value); }
+
+        /// <summary>Rarity percentage in a bubble in the middle of the laurel (needs the laurel; replaces the other two places).</summary>
+        public OfficialSanXboxToggle XboxLaurelPercent { get => _xboxLaurelPercent; set => SetValue(ref _xboxLaurelPercent, value); }
 
         /// <summary>"Trophy" instead of "Achievement" in the unlock text.</summary>
         public OfficialSanXboxToggle XboxTrophyWord { get => _xboxTrophyWord; set => SetValue(ref _xboxTrophyWord, value); }
