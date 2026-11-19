@@ -738,24 +738,6 @@ namespace PlayniteAchievements.Providers.Local
             set => SetValue(ref _useForkThemeMigrationCache, value);
         }
 
-        public bool RestrictCustomPollingAuthentication
-        {
-            get => _restrictCustomPollingAuthentication;
-            set => SetValue(ref _restrictCustomPollingAuthentication, value);
-        }
-
-        public bool CheckCustomPollingSourcesWhileWaiting
-        {
-            get => _checkCustomPollingSourcesWhileWaiting;
-            set => SetValue(ref _checkCustomPollingSourcesWhileWaiting, value);
-        }
-
-        public bool ReuseCustomPollingDiscoveryWithinPoll
-        {
-            get => _reuseCustomPollingDiscoveryWithinPoll;
-            set => SetValue(ref _reuseCustomPollingDiscoveryWithinPoll, value);
-        }
-
         /// <summary>
         /// Xbox-style SAN themes show the achievement's Xbox gamerscore when the game has one;
         /// otherwise this picks the score shown instead.
