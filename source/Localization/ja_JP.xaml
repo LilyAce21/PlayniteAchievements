@@ -1842,17 +1842,22 @@ The mapping is removed from this game. Saved mappings and recorded unlocks are k
 
 キャッシュされた実績データは保持されます。</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirmManual">&quot;{0}&quot; のすべてのカスタムデータを消去しますか?
+
 手動リンクおよびそれによって取得された実績も削除されます。この操作は元に戻せません。</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overview_MetadataLink_SetByYou">手動設定</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ClearData">データを消去</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ClearData_ConfirmSelected">選択した {0} 件のゲームのデータを消去しますか?
+
 キャッシュされた実績やアイコン、設定した手動リンクおよび解除時間がすべて削除されます。</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ClearData_ConfirmSingle">&quot;{0}&quot; のデータを削除しますか?
+
 キャッシュされた実績やアイコン、設定した手動リンクおよび解除時間が削除されます。</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ExcludeFromRefreshesAndClearData">更新とデータの消去から除外</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_Exclude_ConfirmSelected">選択した &quot;{0}&quot; 件のゲームを除外してデータを消去しますか?
+
 これらのゲームは実績画面から非表示になり、キャッシュされたデータおよび手動リンクが削除されます。</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_Exclude_ConfirmSingle">&quot;{0}&quot; を除外してデータを消去しますか?
+
 このゲームは実績画面から非表示になり、キャッシュされたデータおよび手動リンクが削除されます。</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_IncludeInRefreshesAndRefresh">選択したゲームを更新して今後の更新に含める</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_BattleNet_AggregateAccountCharacters">アカウント内のすべてのキャラクターの実績を統合する</sys:String>
@@ -1869,6 +1874,10 @@ The mapping is removed from this game. Saved mappings and recorded unlocks are k
     <sys:String x:Key="LOCPlayAch_Tagging_SyncingProgress">タグを同期中...</sys:String>
     <sys:String x:Key="LOCPlayAch_Tagging_Tag_CustomManualTracking">手動トラッキング</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_Likes">評価</sys:String>
+
+    <!-- ================================================================= -->
+    <!-- Fork additions (kept across the upstream v4.3.0 merge)             -->
+    <!-- ================================================================= -->
     <sys:String x:Key="LOCPlayAch_Column_AppId">ID</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_ApplyToSelected">選択項目に適用</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Date_LastMonth">先月</sys:String>
@@ -1887,13 +1896,14 @@ The mapping is removed from this game. Saved mappings and recorded unlocks are k
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_NewCategoryEllipsis">新規カテゴリー…</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_NewCategoryHint">Enter a name for the new category.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Tab_Assign">Assign Achievements</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_TypeSelectorLabel">Category Type</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Base">本体</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Challenge">Challenge</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Collectable">Collectable</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Completion">Completion</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Cumulative">Cumulative</sys:String>
-    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Difficulty">難易度</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_DLC">DLC</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Difficulty">難易度</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Hardcore">ハードコア</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Miscellaneous">Miscellaneous</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Missable">Missable</sys:String>
@@ -1908,7 +1918,6 @@ The mapping is removed from this game. Saved mappings and recorded unlocks are k
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Unobtainable">Unobtainable</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Update">更新</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_WinCondition">Win Condition</sys:String>
-    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_TypeSelectorLabel">Category Type</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ExophaseEnrichmentInvalid">Enter a valid Exophase game slug or exophase.com game URL.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ProviderStatusAuto">オーバーライド設定: {0} (自動検出)</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ProviderStatusNoValue">オーバーライド設定: {0}</sys:String>
@@ -1944,8 +1953,8 @@ The mapping is removed from this game. Saved mappings and recorded unlocks are k
     <sys:String x:Key="LOCPlayAch_Showcase_PieMode_Rarity">Rarity distribution</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_PieMode_Trophy">Trophy distribution</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_PinToShowcase">ショーケースにピン留め</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_Profile_DefaultName">実績ショーケース</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ProfileProviderHint">空のままにすると、プロバイダーのプロフィールを使用します</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Profile_DefaultName">実績ショーケース</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_SlideshowSource_All">すべてのキャプチャ</sys:String>
     <sys:String x:Key="LOCPlayAch_Timeline_SplitByPlatform">プラットフォーム別区分</sys:String>
 

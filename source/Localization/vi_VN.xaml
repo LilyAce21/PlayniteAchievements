@@ -1842,17 +1842,22 @@ Bạn có muốn tiếp tục không?</sys:String>
 
 Cached achievement data is kept.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ClearCustomDataConfirmManual">Clear all custom data for &quot;{0}&quot;?
+
 This also deletes the manual link and the achievements it produced. This cannot be undone.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overview_MetadataLink_SetByYou">Set by you</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ClearData">Làm sạch dữ liệu</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ClearData_ConfirmSelected">Làm sạch dữ liệu cho {0} trò chơi được chọn?
+
 Hành động này sẽ xoá những thành tựu, biểu tượng, bất kì liên kết thủ công nào và thời gian mở khoá của chúng trong bộ nhớ đệm.</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ClearData_ConfirmSingle">Làm sạch dữ liệu của &quot;{0}&quot;?
+
 Hành động này sẽ xoá thành tựu, biểu tượng, bất kì liên kết thủ công nào và thời gian mở khoá của nó trong bộ nhớ đệm.</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_ExcludeFromRefreshesAndClearData">Loại trừ khỏi làm mới và làm sạch dữ liệu</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_Exclude_ConfirmSelected">Loại trừ {0} trò chơi được chọn và làm sạch dữ liệu của chúng?
+
 Hành động này sẽ ẩn chúng khỏi màn hình thành tựu đồng thời xoá dữ liệu và liên kết thủ công của chúng trong bộ nhớ đệm.</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_Exclude_ConfirmSingle">Loại bỏ &quot;{0}&quot; và làm sạch dữ liệu của nó?
+
 Hành động này sẽ ẩn trò chơi khỏi màn hình thành tựu đồng thời xoá dữ liệu và liên kết thủ công của nó trong bộ nhớ đệm.</sys:String>
     <sys:String x:Key="LOCPlayAch_Menu_IncludeInRefreshesAndRefresh">Bao gồm trong làm mới và làm mới các trò chơi được chọn</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_BattleNet_AggregateAccountCharacters">Gập thành tựu từ mọi nhân vật trong tài khoản</sys:String>
@@ -1869,6 +1874,10 @@ Hành động này sẽ ẩn trò chơi khỏi màn hình thành tựu đồng t
     <sys:String x:Key="LOCPlayAch_Tagging_SyncingProgress">Đang đồng bộ thẻ...</sys:String>
     <sys:String x:Key="LOCPlayAch_Tagging_Tag_CustomManualTracking">Manual Tracking</sys:String>
     <sys:String x:Key="LOCPlayAch_Workshop_Likes">Likes</sys:String>
+
+    <!-- ================================================================= -->
+    <!-- Fork additions (kept across the upstream v4.3.0 merge)             -->
+    <!-- ================================================================= -->
     <sys:String x:Key="LOCPlayAch_Column_AppId">ID</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_ApplyToSelected">Áp dụng cho các mục được chọn</sys:String>
     <sys:String x:Key="LOCPlayAch_Common_Date_LastMonth">Tháng trước</sys:String>
@@ -1887,13 +1896,14 @@ Hành động này sẽ ẩn trò chơi khỏi màn hình thành tựu đồng t
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_NewCategoryEllipsis">Danh mục mới…</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_NewCategoryHint">Nhập tên cho danh mục mới.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Tab_Assign">Gán thành tựu</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_TypeSelectorLabel">Loại danh mục</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Base">Gốc</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Challenge">Thử thách</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Collectable">Có thể sưu tầm</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Completion">Hoàn thành</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Cumulative">Tích luỹ</sys:String>
-    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Difficulty">Độ khó</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_DLC">DLC</sys:String>
+    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Difficulty">Độ khó</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Hardcore">Thử thách</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Miscellaneous">Linh tinh</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Missable">Dễ bỏ lỡ</sys:String>
@@ -1908,7 +1918,6 @@ Hành động này sẽ ẩn trò chơi khỏi màn hình thành tựu đồng t
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Unobtainable">Không thể đạt được</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_Update">Cập nhật</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_Type_WinCondition">Điều kiện thắng</sys:String>
-    <sys:String x:Key="LOCPlayAch_ManageAchievements_Category_TypeSelectorLabel">Loại danh mục</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ExophaseEnrichmentInvalid">Nhập một slug trò chơi Exophase hợp lệ hoặc URL trò chơi trên exophase.com.</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ProviderStatusAuto">Đặt ghi đè: {0} (tự động phát hiện)</sys:String>
     <sys:String x:Key="LOCPlayAch_ManageAchievements_Overrides_ProviderStatusNoValue">Đặt ghi đè: {0}</sys:String>
@@ -1944,8 +1953,8 @@ Hành động này sẽ ẩn trò chơi khỏi màn hình thành tựu đồng t
     <sys:String x:Key="LOCPlayAch_Showcase_PieMode_Rarity">Phân bổ theo độ hiếm</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_PieMode_Trophy">Phân bổ theo cúp</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_PinToShowcase">Ghim vào Khu trưng bày</sys:String>
-    <sys:String x:Key="LOCPlayAch_Showcase_Profile_DefaultName">Trưng bày thành tựu</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_ProfileProviderHint">Để trống để sử dụng hồ sơ nhà cung cấp của bạn</sys:String>
+    <sys:String x:Key="LOCPlayAch_Showcase_Profile_DefaultName">Trưng bày thành tựu</sys:String>
     <sys:String x:Key="LOCPlayAch_Showcase_SlideshowSource_All">Toàn bộ bản ghi hình</sys:String>
     <sys:String x:Key="LOCPlayAch_Timeline_SplitByPlatform">Split by platform</sys:String>
 
