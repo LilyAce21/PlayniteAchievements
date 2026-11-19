@@ -8557,7 +8557,7 @@ namespace PlayniteAchievements.Providers.Local
             return false;
         }
 
-        private bool TryResolveLocalFolder(
+        private bool TryResolveLocalFolderUncached(
             Game game,
             string appId,
             out string folderPath,
