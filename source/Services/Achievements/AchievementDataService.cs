@@ -18,7 +18,7 @@ namespace PlayniteAchievements.Services.Achievements
     /// <summary>
     /// Centralized read-side service for cached achievement data and hydration overlays.
     /// </summary>
-    public sealed class AchievementDataService
+    public sealed partial class AchievementDataService
     {
         private static readonly IReadOnlyDictionary<string, string> EmptyIconOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

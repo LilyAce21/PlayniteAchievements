@@ -22,7 +22,7 @@ using Playnite.SDK.Models;
 
 namespace PlayniteAchievements.Providers.Steam
 {
-    internal sealed class SteamDataProvider : DataProviderBase<SteamSettings>, IDataProvider, IProfileLinkProvider, IAchievementPageLinkProvider, IProviderOverride, IRefreshAuthContextReceiver, IInGameProgressSource, IOfflineRefreshFallbackProvider, IEnglishTitleSource, IDisposable
+    internal sealed partial class SteamDataProvider : DataProviderBase<SteamSettings>, IDataProvider, IProfileLinkProvider, IAchievementPageLinkProvider, IProviderOverride, IRefreshAuthContextReceiver, IInGameProgressSource, IOfflineRefreshFallbackProvider, IEnglishTitleSource, IDisposable
     {
         /// <summary>
         /// Resolved once at game start so the fast prong never repeats path discovery. Steam's remote
@@ -106,10 +106,7 @@ namespace PlayniteAchievements.Providers.Steam
                 steamHuntersApiClient,
                 logger,
                 categoryArtDownloader);
-            _localSteamHuntersCategoryEnricher = new SteamHuntersCategoryEnricher(
-                steamHuntersApiClient,
-                logger,
-                categoryArtDownloader);
+            InitializeSantodanMetadataCache(steamHuntersApiClient, logger, categoryArtDownloader);
             _tokenResolver = new SteamWebApiTokenResolver(_sessionManager, logger);
             _sessionManager.SetClearInMemoryAuthState(_steamClient.ClearInMemoryAuthState);
             _scanner = new SteamScanner(settings, _steamClient, steamApiClient, _tokenResolver, api, logger, categoryArtDownloader: categoryArtDownloader);
@@ -335,14 +332,15 @@ namespace PlayniteAchievements.Providers.Steam
             Guid? playniteGameId,
             CancellationToken cancel)
         {
-            if (_localSteamHuntersCategoryEnricher == null)
+            var categoryEnricher = GetSantodanExternalCategoryEnricher();
+            if (categoryEnricher == null)
             {
                 return;
             }
 
             using (_sessionManager.BeginOffscreenViewLease())
             {
-                await _localSteamHuntersCategoryEnricher
+                await categoryEnricher
                     .EnrichAsync(appId, gameName, achievements, playniteGameId, cancel)
                     .ConfigureAwait(false);
             }
@@ -528,12 +526,7 @@ namespace PlayniteAchievements.Providers.Steam
         public void BeginRefreshAuthContext(RefreshAuthContext context)
         {
             _steamHuntersCategoryEnricher?.ClearCache();
-            // Manual/periodic refreshes and the game-close refresh revalidate metadata.
-            // Polling only needs fresh unlock/progress values, not fresh category definitions.
-            if (!Services.Logging.RealtimePollingLogScope.IsActive)
-            {
-                _localSteamHuntersCategoryEnricher?.ClearCache();
-            }
+            ResetSantodanMetadataCache();
             _tokenResolver?.BeginRefreshAuthContext(context);
         }
 

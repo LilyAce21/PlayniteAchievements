@@ -28,7 +28,7 @@ using PlayniteAchievements.Services.UI;
 
 namespace PlayniteAchievements.Services
 {
-    internal sealed class InGameAchievementMonitor : IDisposable
+    internal sealed partial class InGameAchievementMonitor : IDisposable
     {
         private const int StartupDelaySeconds = 20;
         private static readonly TimeSpan SchedulerResolution = TimeSpan.FromMilliseconds(100);
@@ -91,6 +91,7 @@ namespace PlayniteAchievements.Services
             public DateTime NextFriendDueUtc;
             public DateTime RecoveryCooldownUtc;
             public bool WaitingForLocalAchievementFile;
+            public readonly SantodanLocalPollingState CustomLocalPolling = new SantodanLocalPollingState();
             public IDataProvider Provider;
             public IInGameProgressSource ProgressSource;
             public InGameProgressRegistration Registration;
@@ -1361,6 +1362,7 @@ namespace PlayniteAchievements.Services
             var previousTargets = NormalizeTargets(state.Registration?.WatchTargets);
             var waitingForLocalAchievementFile =
                 provider is LocalSavesProvider localProvider &&
+                !(state.Provider == null && localProvider.HasSantodanKnownAchievementFile(state.Game, cached, state.SessionStartUtc)) &&
                 !localProvider.RefreshMissingAchievementFileDiscovery(state.Game, out _);
             var equivalent =
                 preservePrimeWhenEquivalent &&
@@ -1551,6 +1553,13 @@ namespace PlayniteAchievements.Services
                     token.ThrowIfCancellationRequested();
                     var batch = providerGroup.ToList();
                     using var pollingDiagnostics = PollingDebugLog.BeginPoll(string.Join(",", batch.Select(state => state.Game.Id)));
+                    // Fork hook: null leaves the upstream batch completely unchanged.
+                    var customPolling = PrepareSantodanLocalPolling(batch);
+                    if (customPolling != null)
+                    {
+                        batch = customPolling.Games;
+                        if (batch.Count == 0) continue;
+                    }
                     var beforeByGame = batch.ToDictionary(
                         state => state.Game.Id,
                         state => _cacheManager?.LoadGameData(state.Game.Id.ToString()));
@@ -1575,6 +1584,7 @@ namespace PlayniteAchievements.Services
                     }
                     try
                     {
+                    using (SantodanPollingScope.Enter(customPolling != null))
                     using (RealtimePollingLogScope.Enter())
                     using (localProvider?.BeginRealtimeLogThrottle())
                     {
@@ -1621,6 +1631,7 @@ namespace PlayniteAchievements.Services
 
                         var before = beforeByGame[state.Game.Id];
                         var after = _cacheManager?.LoadGameData(state.Game.Id.ToString());
+                        CompleteSantodanLocalPolling(customPolling, state, before, after);
                         PollingDebugLog.Write("game=" + state.Game.Id + " unlockedBefore=" +
                             (before?.Achievements?.Count(item => item?.Unlocked == true) ?? 0) + " unlockedAfter=" +
                             (after?.Achievements?.Count(item => item?.Unlocked == true) ?? 0));

@@ -129,6 +129,7 @@ namespace PlayniteAchievements.Views
             // Playnite does not reliably set DataContext for settings views.
             // Bind directly to the settings model so XAML uses {Binding SomeSetting}.
             DataContext = _settingsViewModel.Settings;
+            ForkPerformanceSettingsContent.Content = new ForkPerformanceSettingsSection();
             ForkGeneralSettingsContent.Content = new ForkGeneralSettingsSection(
                 _settingsViewModel.Settings, _plugin);
             if (FriendsSettingsContent != null)
@@ -625,11 +626,14 @@ namespace PlayniteAchievements.Views
             {
                 case "Santodan-Fork":
                 case "ForkGeneral":
+                case "ForkPerformance":
                 case "ForkPlatforms":
                 case "AchievementNotifications":
                 case "ForkThemeMigration":
                     SettingsTabControl.SelectedItem = SantodanForkTab;
-                    ForkSettingsTabControl.SelectedItem = tabKey == "ForkPlatforms"
+                    ForkSettingsTabControl.SelectedItem = tabKey == "ForkPerformance"
+                        ? ForkPerformanceTab
+                        : tabKey == "ForkPlatforms"
                         ? ForkPlatformsTab
                         : tabKey == "AchievementNotifications"
                         ? AchievementNotificationsTab
