@@ -75,6 +75,11 @@
          after it closed. Make the closed card exactly the circle: the extra space then only exists while the
          open/close animation is widening or narrowing the card. */
       body[pa-xbox] .wrapper#achcont { --start: var(--notifyheight); }
+      /* The card's background spans every grid column of the card (the emblem, the text and the room for the right-hand
+         icon), and the card itself is not clipped (the laurel hangs below it), so while the card was still only the
+         circle its background stuck out to the right by the width of the columns that have no room yet. Pin the
+         background to the card's own box so it is exactly as wide as the card at every moment of the animation. */
+      body[pa-xbox] .wrapper#bg { position: absolute; inset: 0; grid-column: auto; grid-row: auto; }
 
       /* The card is fitted to its text (see paFitXbox); the window stays at the widest size, so a
          shorter card is anchored to the side the notification is positioned on. */
@@ -1190,61 +1195,60 @@
          opened: the Rare laurel as soon as the card is open, the Mythic one 2.5 s after the notification started
          (or when the card is open, if that is later), the same cues the official patch uses. Setting the source
          then also starts the gif from its first frame. */
-      /* The empty middle of each laurel gif (the V between the two branches), measured on the gifs: the gif's size, the
-         column its two branches are centred on, the row the bubble is centred on and how wide the gap is at some rows. */
-      const PA_LAUREL_HOLLOW = {
-        rare:   { size: 120, cx: 50,  cy: 74,  gap: [[63, 81], [67, 57], [71, 49], [75, 35], [79, 23], [83, 15]] },
-        mythic: { size: 160, cx: 68,  cy: 100, gap: [[91, 72], [95, 61], [99, 51], [103, 39], [107, 28], [111, 20]] },
+      /* The rarity percentage as a bubble on the bottom edge of the emblem circle, in the middle: with a laurel that is
+         the small opening where the laurel's two branches meet (measured on both gifs: it sits on the circle's bottom
+         edge, within 2 px of the circle's centre line), without one it is just the bottom of the circle. The bubble
+         takes the card's colour, font and text colour. It is a child of the icon wrapper, so it scales and fades with it,
+         and its size follows the wrapper, so it is the same at every card size. */
+      const PA_LAUREL_JOIN = {
+        // the gif's size and the column / row where its two branches meet
+        rare:   { size: 120, cx: 50, cy: 91 },
+        mythic: { size: 160, cx: 68, cy: 119 },
       };
 
-      function paLaurelGap(table, row) {
-        if (row <= table[0][0]) return table[0][1];
-        for (let i = 1; i < table.length; i++) {
-          if (row <= table[i][0]) {
-            const [r0, g0] = table[i - 1], [r1, g1] = table[i];
-            return g0 + (g1 - g0) * ((row - r0) / (r1 - r0));
-          }
-        }
-        return table[table.length - 1][1];
-      }
-
-      /* The rarity percentage as a bubble in the hollow of the laurel. It uses the same maths as the laurel's CSS
-         (140% of the icon wrapper, left 50% shifted by 41%, hung 19 units below the wrapper, 1.10x wide), so it sits in
-         the same place at every card size, and it is a child of the icon wrapper so it scales and fades with it. */
-      function paBuildLaurelPill(payload, wrapper) {
+      function paBuildPercentBubble(payload, wrapper) {
         const xb = payload.paXbox;
         document.getElementById("pa-laurel-pill")?.remove();
         const percent = Number(xb.laurelPercent);
         if (xb.laurelPercent === null || xb.laurelPercent === undefined || !Number.isFinite(percent)) return null;
-        const hollow = PA_LAUREL_HOLLOW[xb.laurelKind === "mythic" ? "mythic" : "rare"];
         const W = wrapper.offsetWidth;
         if (!(W > 0)) return null;
         const sc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--scale")) || 1;
-        const boxW = W * 1.4;
-        const ky = boxW / hollow.size, kx = ky * 1.10;
-        const boxCenterX = W * 0.5 - 0.41 * boxW + boxW / 2;
-        const boxTop = W + 19 * sc - boxW;
+        // the bottom edge of the emblem circle (the card-height disc is 10 units taller than the wrapper)
+        let cx = W / 2, cy = W + 5 * sc;
+        if (xb.laurel === true && xb.laurelPath) {
+          const join = PA_LAUREL_JOIN[xb.laurelKind === "mythic" ? "mythic" : "rare"];
+          const boxW = W * 1.4, k = boxW / join.size;
+          cx = W * 0.5 - 0.41 * boxW + boxW / 2 + (join.cx - join.size / 2) * k * 1.10;
+          cy = W + 19 * sc - boxW + join.cy * k;
+        }
         const pill = document.createElement("div");
         pill.id = "pa-laurel-pill";
         pill.textContent = paFormatPercent(percent);
-        const height = Math.round(W * 0.118);
+        const height = Math.round(W * 0.175);
         pill.style.height = height + "px";
-        pill.style.fontSize = (height * 0.62).toFixed(2) + "px";
-        pill.style.padding = "0 " + (height * 0.42).toFixed(2) + "px";
+        pill.style.fontSize = (height * 0.6).toFixed(2) + "px";
+        pill.style.padding = "0 " + (height * 0.45).toFixed(2) + "px";
         wrapper.appendChild(pill);
-        // never wider than the gap at the bubble's lower edge
-        const bottomRow = hollow.cy + (height / ky) / 2;
-        const allowed = paLaurelGap(hollow.gap, bottomRow) * kx - 2;
-        const natural = pill.offsetWidth;
-        if (natural > allowed && allowed > 0) {
-          const f = Math.max(0.6, allowed / natural);
-          pill.style.fontSize = (height * 0.62 * f).toFixed(2) + "px";
-          pill.style.padding = "0 " + (height * 0.42 * f).toFixed(2) + "px";
-        }
         const width = pill.offsetWidth;
-        pill.style.left = (boxCenterX + (hollow.cx - hollow.size / 2) * kx - width / 2).toFixed(2) + "px";
-        pill.style.top = (boxTop + hollow.cy * ky - height / 2).toFixed(2) + "px";
+        pill.style.left = (cx - width / 2).toFixed(2) + "px";
+        pill.style.top = (cy - height / 2).toFixed(2) + "px";
         return pill;
+      }
+
+      /* The bubble without a laurel (the plain Xbox theme): it appears when the card has opened, like the laurel. */
+      function paBuildBubbleOnly(payload) {
+        const wrapper = document.getElementById("achiconwrapper");
+        if (!wrapper) return;
+        const pill = paBuildPercentBubble(payload, wrapper);
+        if (!pill) return;
+        window.__paStartLaurel = () => {
+          window.__paStartLaurel = null;
+          const root = getComputedStyle(document.documentElement);
+          const t = parseFloat(root.getPropertyValue("--transition")) || 150;
+          const transMs = /ms\s*$/.test(root.getPropertyValue("--transition")) ? t : t * 1000;
+          setTimeout(() => { if (pill.isConnected) pill.classList.add("show"); }, Math.round(transMs * 8) + 30);
+        };
       }
 
       function paBuildLaurelImage(payload) {
@@ -1255,15 +1259,20 @@
         const img = document.createElement("img");
         img.id = "pa-laurel-img";
         img.draggable = false;
-        // The laurel's stem runs along the emblem's pale ring and the two blend into each other, which looks as if the
-        // ring cuts into the leaves. A thin dark rim in a shade of the card's colour keeps the leaves separate from it.
-        const sec = paParseColor(getComputedStyle(document.documentElement).getPropertyValue("--secondarycolor"));
-        const rim = paRgb(paMix(sec, [0, 0, 0], 0.62));
-        const rimShadow = `drop-shadow(0 0 0.6px ${rim}) drop-shadow(0 0 1.2px ${rim}) drop-shadow(0 1px 3px rgba(0,0,0,0.5))`;
-        img.style.filter = (xb.tint !== false && document.getElementById("pa-emblem-tint"))
-          ? `url(#pa-emblem-tint) ${rimShadow}` : rimShadow;
+        // Optional dark rim around the leaves (a setting): the laurel's stem runs along the emblem's pale ring and the two
+        // can blend into each other; a thin rim in a shade of the card's colour keeps them apart.
+        let rimShadow = "";
+        if (xb.laurelRim === true) {
+          const sec = paParseColor(getComputedStyle(document.documentElement).getPropertyValue("--secondarycolor"));
+          const rim = paRgb(paMix(sec, [0, 0, 0], 0.62));
+          rimShadow = ` drop-shadow(0 0 0.6px ${rim}) drop-shadow(0 0 1.2px ${rim}) drop-shadow(0 1px 3px rgba(0,0,0,0.5))`;
+        }
+        // Without the rim the laurel keeps the soft shadow it had before.
+        const softShadow = " drop-shadow(0 1px 4px rgba(0,0,0,0.6))";
+        img.style.filter = ((xb.tint !== false && document.getElementById("pa-emblem-tint")) ? "url(#pa-emblem-tint)" : "") +
+          (xb.laurelRim === true ? rimShadow : softShadow);
         wrapper.appendChild(img);
-        const pill = paBuildLaurelPill(payload, wrapper);
+        const pill = paBuildPercentBubble(payload, wrapper);
         const mythic = xb.laurelKind === "mythic";
         window.__paStartLaurel = () => {
           window.__paStartLaurel = null;
@@ -1417,6 +1426,7 @@
               if (xb && xb.emblem === true && xb.laurel === true) {
                 if (xb.laurelPath) paBuildLaurelImage(payload); else paBuildLaurel();
               }
+              if (xb && xb.emblem === true && !(xb.laurel === true && xb.laurelPath)) paBuildBubbleOnly(payload);
             } catch (e) {}
             try { paFitXbox(payload); } catch (e) {}
             notifyReady();

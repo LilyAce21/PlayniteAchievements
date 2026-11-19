@@ -2833,8 +2833,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                                <TextBlock Text="Rarity percent bubble in the laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble in the middle of the laurel, in the card's colours. It needs the laurel to be on for this tier and replaces the other two percentage places."/>
+                                                <TextBlock Text="Rarity percent bubble on the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble centred on the bottom edge of the emblem circle (in the opening of the laurel when there is one), in the card's colours. It replaces the other two percentage places."/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxLaurelPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Dark rim around the laurel leaves" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="A thin dark outline that keeps the laurel apart from the emblem ring. Off is the original look."/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxLaurelRim, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
@@ -2972,8 +2980,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                                <TextBlock Text="Rarity percent bubble in the laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble in the middle of the laurel, in the card's colours. It needs the laurel to be on for this tier and replaces the other two percentage places."/>
+                                                <TextBlock Text="Rarity percent bubble on the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble centred on the bottom edge of the emblem circle (in the opening of the laurel when there is one), in the card's colours. It replaces the other two percentage places."/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxLaurelPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Dark rim around the laurel leaves" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="A thin dark outline that keeps the laurel apart from the emblem ring. Off is the original look."/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxLaurelRim, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
@@ -3171,8 +3187,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                                <TextBlock Text="Rarity percent bubble in the laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble in the middle of the laurel, in the card's colours. It needs the laurel to be on for this tier and replaces the other two percentage places."/>
+                                                <TextBlock Text="Rarity percent bubble on the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble centred on the bottom edge of the emblem circle (in the opening of the laurel when there is one), in the card's colours. It replaces the other two percentage places."/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxLaurelPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Dark rim around the laurel leaves" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="A thin dark outline that keeps the laurel apart from the emblem ring. Off is the original look."/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxLaurelRim, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
@@ -3370,8 +3394,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                                <TextBlock Text="Rarity percent bubble in the laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble in the middle of the laurel, in the card's colours. It needs the laurel to be on for this tier and replaces the other two percentage places."/>
+                                                <TextBlock Text="Rarity percent bubble on the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble centred on the bottom edge of the emblem circle (in the opening of the laurel when there is one), in the card's colours. It replaces the other two percentage places."/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxLaurelPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Dark rim around the laurel leaves" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="A thin dark outline that keeps the laurel apart from the emblem ring. Off is the original look."/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxLaurelRim, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
@@ -3569,8 +3601,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                                <TextBlock Text="Rarity percent bubble in the laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble in the middle of the laurel, in the card's colours. It needs the laurel to be on for this tier and replaces the other two percentage places."/>
+                                                <TextBlock Text="Rarity percent bubble on the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble centred on the bottom edge of the emblem circle (in the opening of the laurel when there is one), in the card's colours. It replaces the other two percentage places."/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxLaurelPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Dark rim around the laurel leaves" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="A thin dark outline that keeps the laurel apart from the emblem ring. Off is the original look."/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxLaurelRim, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
@@ -3768,8 +3808,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                                <TextBlock Text="Rarity percent bubble in the laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble in the middle of the laurel, in the card's colours. It needs the laurel to be on for this tier and replaces the other two percentage places."/>
+                                                <TextBlock Text="Rarity percent bubble on the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble centred on the bottom edge of the emblem circle (in the opening of the laurel when there is one), in the card's colours. It replaces the other two percentage places."/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxLaurelPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Dark rim around the laurel leaves" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="A thin dark outline that keeps the laurel apart from the emblem ring. Off is the original look."/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxLaurelRim, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
@@ -3967,8 +4015,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
-                                                <TextBlock Text="Rarity percent bubble in the laurel" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble in the middle of the laurel, in the card's colours. It needs the laurel to be on for this tier and replaces the other two percentage places."/>
+                                                <TextBlock Text="Rarity percent bubble on the emblem" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="Draws the rarity percentage in a bubble centred on the bottom edge of the emblem circle (in the opening of the laurel when there is one), in the card's colours. It replaces the other two percentage places."/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxLaurelPercent, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
+                                                    <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
+                                                    <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Dark rim around the laurel leaves" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}" ToolTip="A thin dark outline that keeps the laurel apart from the emblem ring. Off is the original look."/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxLaurelRim, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
@@ -4068,9 +4124,12 @@
                                     <CheckBox Content="Keep the theme's own rarity percentage (no rarity bubble over the emblem)"
                                               IsChecked="{Binding OfficialSanXboxKeepThemePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
                                               ToolTip="On: the percentage stays where the .san puts it. Off: the plugin's rarity bubble is drawn under the achievement icon instead."/>
-                                    <CheckBox Content="Show the rarity percentage in a bubble in the middle of the laurel"
+                                    <CheckBox Content="Show the rarity percentage in a bubble on the emblem (in the laurel opening, or on the circle edge without a laurel)"
                                               IsChecked="{Binding OfficialSanXboxLaurelPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
-                                              ToolTip="Needs the laurel. The bubble takes the card's colours and the text uses the card's font. It replaces the percentage in the header text and the bubble under the icon."/>
+                                              ToolTip="The bubble takes the card's colours and the text uses the card's font. It replaces the percentage in the header text and the bubble under the icon."/>
+                                    <CheckBox Content="Dark rim around the laurel leaves (keeps them apart from the emblem ring)"
+                                              IsChecked="{Binding OfficialSanXboxLaurelRim, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
+                                              ToolTip="Off is the original look."/>
                                     <CheckBox Content="Show a trophy before the 'Achievement unlocked' text"
                                               IsChecked="{Binding OfficialSanXboxInlineTrophy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
                                     <CheckBox Content="Unlock text by rarity (Rare / Ultra-Rare / Mythic Achievement unlocked)"
