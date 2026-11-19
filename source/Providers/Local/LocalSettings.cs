@@ -510,6 +510,7 @@ namespace PlayniteAchievements.Providers.Local
         private bool _enableActiveGameMonitoring;
         private bool _showOverlayOnActiveGameMonitor = false;
         private bool _enableOverlayDebugLogging;
+        private bool _enablePollingDebugLogging;
         private OfficialSanScoreFallback _officialSanXboxScoreFallback = OfficialSanScoreFallback.Collection;
 
         public bool UseOfficialSanTemplate
@@ -648,6 +649,12 @@ namespace PlayniteAchievements.Providers.Local
         {
             get => _enableOverlayDebugLogging;
             set => SetValue(ref _enableOverlayDebugLogging, value);
+        }
+
+        public bool EnablePollingDebugLogging
+        {
+            get => _enablePollingDebugLogging;
+            set => SetValue(ref _enablePollingDebugLogging, value);
         }
 
         /// <summary>

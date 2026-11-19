@@ -333,6 +333,7 @@ namespace PlayniteAchievements.Providers.Local
 
         public async Task<GameAchievementData> GetAchievementsAsync(Game game, RefreshRequest request)
         {
+            using var pollingStage = PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.fetch-and-correlate");
             var readClock = System.Diagnostics.Stopwatch.StartNew();
             long tResolved = -1, tSchema = -1, tSteamCaches = -1, tLoaded = -1;
             if (TryResolveNemirtingasPaths(game, out var epicSchemaPath, out var epicSavePath))
@@ -7963,12 +7964,20 @@ namespace PlayniteAchievements.Providers.Local
 
         private async Task<Dictionary<string, LocalEntry>> LoadLocalEntriesAsync(string jsonPath, IEnumerable<string> iniPaths)
         {
+            using var pollingStage = PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.read-parse");
+            PlayniteAchievements.Services.Logging.PollingDebugLog.ObserveFile(jsonPath);
             var merged = new Dictionary<string, LocalEntry>(StringComparer.OrdinalIgnoreCase);
 
             if (!string.IsNullOrWhiteSpace(jsonPath) && File.Exists(jsonPath))
             {
-                var json = await Task.Run(() => File.ReadAllText(jsonPath)).ConfigureAwait(false);
-                var jsonEntries = JsonConvert.DeserializeObject<Dictionary<string, LocalEntry>>(json);
+                var json = await Task.Run(() =>
+                {
+                    using var fileStage = PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.json-read");
+                    return File.ReadAllText(jsonPath);
+                }).ConfigureAwait(false);
+                Dictionary<string, LocalEntry> jsonEntries;
+                using (PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.json-parse"))
+                    jsonEntries = JsonConvert.DeserializeObject<Dictionary<string, LocalEntry>>(json);
                 if (jsonEntries != null)
                 {
                     var jsonDirectory = Path.GetDirectoryName(jsonPath);
@@ -7988,8 +7997,15 @@ namespace PlayniteAchievements.Providers.Local
                     continue;
                 }
 
-                var ini = await Task.Run(() => File.ReadAllLines(iniPath)).ConfigureAwait(false);
-                var iniEntries = ParseIniEntries(ini);
+                PlayniteAchievements.Services.Logging.PollingDebugLog.ObserveFile(iniPath);
+                var ini = await Task.Run(() =>
+                {
+                    using var fileStage = PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.ini-read");
+                    return File.ReadAllLines(iniPath);
+                }).ConfigureAwait(false);
+                Dictionary<string, LocalEntry> iniEntries;
+                using (PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.ini-parse"))
+                    iniEntries = ParseIniEntries(ini);
                 var iniDirectory = Path.GetDirectoryName(iniPath);
                 foreach (var entry in iniEntries)
                 {
@@ -8565,6 +8581,7 @@ namespace PlayniteAchievements.Providers.Local
             out bool isOverridden,
             out bool isAmbiguous)
         {
+            using var pollingStage = PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.folder-discovery");
             folderPath = null;
             candidateFolders = Array.Empty<string>();
             isOverridden = false;
