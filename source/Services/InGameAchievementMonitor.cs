@@ -1466,8 +1466,9 @@ namespace PlayniteAchievements.Services
 
             if (shouldLogConfigured)
             {
+                var providerKeyForLog = provider?.ProviderKey ?? "none";
                 ForkLog.Wrap(_logger)?.Debug(
-                    $"[InGameMonitor] Configured game={state.Game.Name}, provider={provider?.ProviderKey ?? \"none\"}, " +
+                    $"[InGameMonitor] Configured game={state.Game.Name}, provider={providerKeyForLog}, " +
                     $"prongs={DescribeProngs(state)}, " +
                     $"targets={nextTargets.Count}.");
             }
