@@ -116,6 +116,7 @@ namespace PlayniteAchievements.Views.Settings.Display
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Rarity_Rare"), o => o.Rare, (o, v) => o.Rare = v);
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Rarity_UltraRare"), o => o.UltraRare, (o, v) => o.UltraRare = v);
             AddIconRow("Completed", o => o.Completed, (o, v) => o.Completed = v);
+            AddIconRow("Mythic Completed", o => o.Mythic, (o, v) => o.Mythic = v);
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Bronze"), o => o.TrophyBronze, (o, v) => o.TrophyBronze = v);
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Silver"), o => o.TrophySilver, (o, v) => o.TrophySilver = v);
             AddIconRow(ResourceProvider.GetString("LOCPlayAch_Trophy_Gold"), o => o.TrophyGold, (o, v) => o.TrophyGold = v);

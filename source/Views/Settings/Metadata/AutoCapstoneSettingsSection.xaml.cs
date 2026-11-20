@@ -86,6 +86,49 @@ namespace PlayniteAchievements.Views.Settings.Metadata
             set => SetValue(CategoryTagsTextProperty, value);
         }
 
+        private void HideAllLockedCapstones_Click(object sender, RoutedEventArgs e)
+        {
+            var dataService = _plugin.AchievementDataService;
+            var overrides = _plugin.AchievementOverridesService;
+            if (dataService == null || overrides == null)
+            {
+                return;
+            }
+
+            LockedCapstoneHider.Result result = null;
+            try
+            {
+                var options = new GlobalProgressOptions(
+                    ResourceProvider.GetString("LOCPlayAch_Settings_HideAllLockedCapstones_Progress"), false)
+                {
+                    IsIndeterminate = false
+                };
+                _plugin.PlayniteApi.Dialogs.ActivateGlobalProgress(progress =>
+                {
+                    var ids = dataService.GetCachedGameIds() ?? new List<string>();
+                    progress.ProgressMaxValue = Math.Max(1, ids.Count);
+                    result = LockedCapstoneHider.HideAllLocked(
+                        ids,
+                        gameId => dataService.GetGameAchievementData(gameId),
+                        overrides,
+                        (done, total) => progress.CurrentProgressValue = done);
+                }, options);
+
+                _plugin.PlayniteApi.Dialogs.ShowMessage(
+                    string.Format(
+                        ResourceProvider.GetString("LOCPlayAch_Settings_HideAllLockedCapstones_Done"),
+                        result?.CapstonesHidden ?? 0,
+                        result?.GamesChanged ?? 0),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"));
+            }
+            catch (Exception ex)
+            {
+                _plugin.PlayniteApi.Dialogs.ShowErrorMessage(
+                    string.Format(ResourceProvider.GetString("LOCPlayAch_Status_Failed"), ex.Message),
+                    ResourceProvider.GetString("LOCPlayAch_Title_PluginName"));
+            }
+        }
+
         private void GameTagsButton_Click(object sender, RoutedEventArgs e) => OpenTagMenu(sender as Button, wholeGame: true);
 
         private void CategoryTagsButton_Click(object sender, RoutedEventArgs e) => OpenTagMenu(sender as Button, wholeGame: false);

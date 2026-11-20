@@ -250,6 +250,17 @@
                                  HorizontalAlignment="Left"
                                  TextAlignment="Right"/>
                     </controls:SettingRow>
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_ProgressTopDetail}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_ProgressTopDetail_Help}">
+                        <ComboBox SelectedValue="{Binding Persisted.ProgressTopDetail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  SelectedValuePath="Tag"
+                                  MinWidth="140">
+                            <ComboBoxItem Content="{DynamicResource LOCPlayAch_Common_None}" Tag="{x:Static settings:ProgressTopDetail.None}"/>
+                            <ComboBoxItem Content="{DynamicResource LOCPlayAch_Column_Rarity}" Tag="{x:Static settings:ProgressTopDetail.Rarity}"/>
+                            <ComboBoxItem Content="{DynamicResource LOCPlayAch_Column_Trophy}" Tag="{x:Static settings:ProgressTopDetail.Trophy}"/>
+                            <ComboBoxItem Content="{DynamicResource LOCPlayAch_Column_Points}" Tag="{x:Static settings:ProgressTopDetail.Points}"/>
+                        </ComboBox>
+                    </controls:SettingRow>
                     <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_SoftGlowTiers}"
                                          Hint="{DynamicResource LOCPlayAch_Settings_GlowTiers_Help}">
                         <Button x:Name="SoftGlowTiersButton"

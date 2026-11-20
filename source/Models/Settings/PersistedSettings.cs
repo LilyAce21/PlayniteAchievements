@@ -257,6 +257,7 @@ namespace PlayniteAchievements.Models.Settings
         private CategoryColumnDisplay _categoryColumnDisplay = CategoryColumnDisplay.Subcategory;
         private List<ProgressDetailEntry> _progressDetails = ProgressDetailOrder.Default();
         private int _progressDetailShownCount = ProgressDetailOrder.MinShownCount;
+        private ProgressTopDetail _progressTopDetail = ProgressTopDetail.None;
         private FriendNameDisplayMode _friendNameDisplayMode = FriendNameDisplayMode.PersonaAndNickname;
         private bool _enableAchievementCompactListControl = true;
         private bool _enableAchievementDataGridControl = true;
@@ -2864,6 +2865,16 @@ namespace PlayniteAchievements.Models.Settings
         }
 
         /// <summary>
+        /// The detail style a game's progress column shows on its own row above the bar, mirroring
+        /// the row beneath it. That style is left out of the row beneath the bar.
+        /// </summary>
+        public ProgressTopDetail ProgressTopDetail
+        {
+            get => _progressTopDetail;
+            set => SetValue(ref _progressTopDetail, value);
+        }
+
+        /// <summary>
         /// How friend names combine the provider profile name and the provider-assigned nickname.
         /// A manual plugin rename always takes precedence over this mode.
         /// </summary>
@@ -3805,6 +3816,7 @@ namespace PlayniteAchievements.Models.Settings
                 CategoryColumnDisplay = this.CategoryColumnDisplay,
                 ProgressDetails = ProgressDetailOrder.Normalize(this.ProgressDetails),
                 ProgressDetailShownCount = this.ProgressDetailShownCount,
+                ProgressTopDetail = this.ProgressTopDetail,
                 FriendNameDisplayMode = this.FriendNameDisplayMode,
                 EnableAchievementCompactListControl = this.EnableAchievementCompactListControl,
                 EnableAchievementDataGridControl = this.EnableAchievementDataGridControl,
@@ -3952,6 +3964,7 @@ namespace PlayniteAchievements.Models.Settings
             IconScaleMode = defaults.IconScaleMode;
             CategoryColumnDisplay = defaults.CategoryColumnDisplay;
             ProgressDetailShownCount = defaults.ProgressDetailShownCount;
+            ProgressTopDetail = defaults.ProgressTopDetail;
             FriendNameDisplayMode = defaults.FriendNameDisplayMode;
 
             EnableAchievementCompactListControl = defaults.EnableAchievementCompactListControl;

@@ -975,6 +975,8 @@
     <sys:String x:Key="LOCPlayAch_Settings_AchievementStyles">Achievement styles</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_AchievementStyles_Help">Drag to choose which comes first on progress bars, badges and the Completions pie. Rarity is always on.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_ProgressBarDetailCount">Progress bar details per game</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ProgressTopDetail">Detail above the progress bar</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_ProgressTopDetail_Help">Shows one detail style (rarity icons, trophies or points) on its own row above the bar, laid out like the row below it. The style shown above is left out of the row below. With rarity above, a game that shows both points and trophies below centers the trophies between the completion badge and the points.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CategoryCompletionBadge">Category completion badge</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CategoryCompletionBadgeMode_First">First</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_CategoryColumn">Category column</sys:String>
@@ -2156,6 +2158,11 @@ This resets all local earned states in that file to locked.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_GridVerticalAlignment_Bottom">Bottom</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_GridVerticalAlignment_Center">Center</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_GridVerticalAlignment_Top">Top</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_HideAllLockedCapstones">Hide All Locked Capstones</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_HideAllLockedCapstones_Button">Hide Locked Capstones</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_HideAllLockedCapstones_Description">Hides every capstone achievement that is still locked, in every game with cached achievements. A hidden capstone shows its title and description again once it unlocks. Run it again after a refresh to catch new ones.</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_HideAllLockedCapstones_Progress">Hiding locked capstones...</sys:String>
+    <sys:String x:Key="LOCPlayAch_Settings_HideAllLockedCapstones_Done">Hid {0} locked capstone(s) across {1} game(s).</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_HideLockedPlayStationAutoCapstones">Hide Locked PlayStation Auto Capstones</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_HideLockedPlayStationAutoCapstones_Description">Keeps an auto capstone hidden while it is locked when it uses a PlayStation metadata platinum, so its title and description stay a surprise until it unlocks.</sys:String>
     <sys:String x:Key="LOCPlayAch_Settings_Hoyoverse_Instructions_Step1Prefix">1. Open the </sys:String>

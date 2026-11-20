@@ -11,7 +11,9 @@ namespace PlayniteAchievements.Views.Converters
     /// pull the bar off the stack's midpoint by half of their occupied heights; translating the
     /// stack by half the difference puts the bar back on the cell's midline.
     /// Bindings: [0] stack VerticalAlignment, [1] name row IsVisible, [2] name row ActualHeight,
-    /// [3] name row Margin, [4] footer IsVisible, [5] footer ActualHeight, [6] footer Margin.
+    /// [3] name row Margin, [4] footer IsVisible, [5] footer ActualHeight, [6] footer Margin and,
+    /// optionally, [7] top detail row IsVisible, [8] its ActualHeight, [9] its Margin (it sits
+    /// above the bar, so it counts with the name row).
     /// IsVisible gates each row's contribution because collapsing skips the arrange pass, so an
     /// ActualHeight binding alone keeps reporting the pre-collapse height.
     /// </summary>
@@ -27,6 +29,11 @@ namespace PlayniteAchievements.Views.Converters
             }
 
             var above = OccupiedHeight(values[1], values[2], values[3]);
+            if (values.Length >= 10)
+            {
+                above += OccupiedHeight(values[7], values[8], values[9]);
+            }
+
             var below = OccupiedHeight(values[4], values[5], values[6]);
             return Math.Round((below - above) / 2d);
         }

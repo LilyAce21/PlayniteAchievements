@@ -643,6 +643,9 @@
                                                         <Binding ElementName="ProgressFooter" Path="IsVisible"/>
                                                         <Binding ElementName="ProgressFooter" Path="ActualHeight"/>
                                                         <Binding ElementName="ProgressFooter" Path="Margin"/>
+                                                        <Binding ElementName="ProgressHeader" Path="IsVisible"/>
+                                                        <Binding ElementName="ProgressHeader" Path="ActualHeight"/>
+                                                        <Binding ElementName="ProgressHeader" Path="Margin"/>
                                                     </MultiBinding>
                                                 </TranslateTransform.Y>
                                             </TranslateTransform>
@@ -650,6 +653,26 @@
                                         <TextBlock x:Name="ProgressNameText"
                                                    Text="{Binding GameName}"
                                                    Style="{StaticResource OverviewProgressNameTextStyle}"/>
+                                        <Grid x:Name="ProgressHeader"
+                                              Style="{StaticResource OverviewProgressHeaderStyle}">
+                                            <ContentControl Content="{Binding}"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            VerticalContentAlignment="Center">
+                                                <ContentControl.Style>
+                                                    <Style TargetType="ContentControl">
+                                                        <Setter Property="ContentTemplate" Value="{StaticResource ProgressHeaderRightTemplate}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridCell}}, Path=Column.(helpers:DataGridAlignmentBehavior.CellHorizontalAlignment)}" Value="Center">
+                                                                <Setter Property="ContentTemplate" Value="{StaticResource ProgressHeaderCenterTemplate}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridCell}}, Path=Column.(helpers:DataGridAlignmentBehavior.CellHorizontalAlignment)}" Value="Left">
+                                                                <Setter Property="ContentTemplate" Value="{StaticResource ProgressHeaderLeftTemplate}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ContentControl.Style>
+                                            </ContentControl>
+                                        </Grid>
                                         <Grid>
                                             <ProgressBar Value="{Binding Progression, Mode=OneWay}"
                                                          Style="{StaticResource OverviewProgressBarStyle}"/>

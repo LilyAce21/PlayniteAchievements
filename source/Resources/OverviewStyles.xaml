@@ -261,6 +261,25 @@
         </Style.Triggers>
     </Style>
 
+    <!-- The row above the progress bar mirrors the footer below it: same spacing, size and
+         alignment logic, margin on the opposite side. It shows the one style chosen for it
+         (ProgressTopDetailStyles) and follows the same per-surface toggle as the footer. -->
+    <Style x:Key="OverviewProgressHeaderStyle" TargetType="Grid">
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="Margin" Value="0,0,0,7"/>
+        <Setter Property="MinHeight" Value="{StaticResource PlayAch.Size.Icon.Tiny}"/>
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Style.Triggers>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding ShowProgressTopDetail, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}" Value="True"/>
+                    <Condition Binding="{Binding ShowRarityBadgesBelowProgress, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}" Value="True"/>
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Visibility" Value="Visible"/>
+            </MultiDataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="OverviewMiniBadgeImageStyle" TargetType="Image" BasedOn="{StaticResource RarityIcon}">
         <Setter Property="Effect" Value="{StaticResource BadgeShadow}"/>
         <Setter Property="Width" Value="{StaticResource PlayAch.Size.Icon.Tiny}"/>
@@ -333,6 +352,7 @@
             <controls:ProgressDetailStrip Grid.Column="1"
                                          HorizontalAlignment="Right"
                                          VerticalAlignment="Center"
+                                         CenterTrophiesBetween="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          DetailOrder="{Binding ProgressDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ShownCount="{Binding ProgressDetailShownCount, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
@@ -374,6 +394,7 @@
                                          HorizontalAlignment="Left"
                                          VerticalAlignment="Center"
                                          Reversed="True"
+                                         CenterTrophiesBetween="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          DetailOrder="{Binding ProgressDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ShownCount="{Binding ProgressDetailShownCount, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
@@ -382,6 +403,34 @@
             <TextBlock Text="{Binding CompletionCountText}" Style="{StaticResource OverviewCompletedFooterTextStyle}"/>
             </StackPanel>
         </Grid>
+    </DataTemplate>
+
+    <!-- Header-row templates, one per cell alignment like the footer's: the strip alone, in the
+         same order (descending when right-aligned, ascending when left-aligned or centered). -->
+    <DataTemplate x:Key="ProgressHeaderRightTemplate">
+        <controls:ProgressDetailStrip HorizontalAlignment="Right"
+                                         VerticalAlignment="Center"
+                                         DetailOrder="{Binding ProgressTopDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
+                                         ShownCount="1"
+                                         ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ProgressHeaderCenterTemplate">
+        <controls:ProgressDetailStrip HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"
+                                         Reversed="True"
+                                         DetailOrder="{Binding ProgressTopDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
+                                         ShownCount="1"
+                                         ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ProgressHeaderLeftTemplate">
+        <controls:ProgressDetailStrip HorizontalAlignment="Left"
+                                         VerticalAlignment="Center"
+                                         Reversed="True"
+                                         DetailOrder="{Binding ProgressTopDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
+                                         ShownCount="1"
+                                         ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
     </DataTemplate>
 
     <Style x:Key="OverviewChartColumnSeriesStyle" TargetType="lvc:ColumnSeries" BasedOn="{StaticResource PlayAch.ChartColumnSeriesStyle}"/>

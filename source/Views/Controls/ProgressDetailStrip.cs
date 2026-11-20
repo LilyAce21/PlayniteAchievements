@@ -173,6 +173,27 @@ namespace PlayniteAchievements.Views.Controls
             set => SetValue(ReversedProperty, value);
         }
 
+        public static readonly DependencyProperty CenterTrophiesBetweenProperty =
+            DependencyProperty.Register(
+                nameof(CenterTrophiesBetween),
+                typeof(bool),
+                typeof(ProgressDetailStrip),
+                new FrameworkPropertyMetadata(
+                    false,
+                    FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
+        /// <summary>
+        /// When the row shows both points and trophies, spreads them across the strip's width:
+        /// the points at the outer edge (right, or left when <see cref="Reversed"/>) and the
+        /// trophies centered in the space between that edge and the strip's other end, where the
+        /// completion badge sits beside it. Needs a finite width; otherwise the row stays packed.
+        /// </summary>
+        public bool CenterTrophiesBetween
+        {
+            get => (bool)GetValue(CenterTrophiesBetweenProperty);
+            set => SetValue(CenterTrophiesBetweenProperty, value);
+        }
+
         // The icons render through this child so one shadow surface covers all of them, the way
         // each Image used to carry its own; the counts draw shadow-free in OnRender as before.
         private readonly DrawingVisual _iconVisual = new DrawingVisual();
@@ -492,6 +513,11 @@ namespace PlayniteAchievements.Views.Controls
             DropOverflowingGroups(availableSize.Width);
             var last = _layout[_layout.Count - 1];
             var width = last.Left + last.Width;
+            if (CenterTrophiesBetween && TrySpreadTrophies(availableSize.Width))
+            {
+                width = availableSize.Width;
+            }
+
             var height = _iconSize;
             // An enlarged trophy grows upward from the shared bottom edge, so reserve the extra
             // height above and below to keep the other icons vertically centered.
@@ -507,6 +533,90 @@ namespace PlayniteAchievements.Views.Controls
             }
 
             return new Size(width, height);
+        }
+
+        // Moves the points group to the outer edge and centers the trophy group in the strip, when
+        // the row has exactly those two groups and they fit without touching. Returns whether it
+        // moved anything; the packed layout is left alone otherwise.
+        private bool TrySpreadTrophies(double availableWidth)
+        {
+            if (double.IsInfinity(availableWidth) || double.IsNaN(availableWidth))
+            {
+                return false;
+            }
+
+            var pointsGroup = -1;
+            var trophyGroup = -1;
+            var groupCount = 0;
+            foreach (var entry in _layout)
+            {
+                groupCount = Math.Max(groupCount, entry.Group + 1);
+                if (Array.IndexOf(PointsSpecs, entry.Spec) >= 0)
+                {
+                    pointsGroup = entry.Group;
+                }
+                else if (Array.IndexOf(TrophySpecs, entry.Spec) >= 0)
+                {
+                    trophyGroup = entry.Group;
+                }
+            }
+
+            if (groupCount != 2 || pointsGroup < 0 || trophyGroup < 0)
+            {
+                return false;
+            }
+
+            double Extent(int group, out double left)
+            {
+                var min = double.MaxValue;
+                var max = 0d;
+                foreach (var entry in _layout)
+                {
+                    if (entry.Group == group)
+                    {
+                        min = Math.Min(min, entry.Left);
+                        max = Math.Max(max, entry.Left + entry.Width);
+                    }
+                }
+
+                left = min;
+                return max - min;
+            }
+
+            var pointsWidth = Extent(pointsGroup, out var pointsLeftNow);
+            var trophyWidth = Extent(trophyGroup, out var trophyLeftNow);
+            var pointsLeft = Reversed ? 0d : availableWidth - pointsWidth;
+            var trophyLeft = (availableWidth - trophyWidth) / 2d;
+            if (Reversed)
+            {
+                trophyLeft = Math.Max(trophyLeft, pointsWidth + GroupGap);
+            }
+            else
+            {
+                trophyLeft = Math.Min(trophyLeft, pointsLeft - trophyWidth - GroupGap);
+            }
+
+            if (trophyLeft < 0 || trophyLeft + trophyWidth > availableWidth)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < _layout.Count; i++)
+            {
+                var entry = _layout[i];
+                if (entry.Group == pointsGroup)
+                {
+                    entry.Left += pointsLeft - pointsLeftNow;
+                }
+                else if (entry.Group == trophyGroup)
+                {
+                    entry.Left += trophyLeft - trophyLeftNow;
+                }
+
+                _layout[i] = entry;
+            }
+
+            return true;
         }
 
         // Removes whole trailing groups until the rest fits; the first group stays even when it

@@ -60,6 +60,15 @@
                         <CheckBox IsChecked="{Binding Persisted.HideLockedPlayStationAutoCapstones}"/>
                     </controls:SettingRow>
 
+                    <!-- A one-off action, not a setting: hides every capstone that is locked right now. -->
+                    <controls:SettingRow Label="{DynamicResource LOCPlayAch_Settings_HideAllLockedCapstones}"
+                                         Hint="{DynamicResource LOCPlayAch_Settings_HideAllLockedCapstones_Description}">
+                        <Button Content="{DynamicResource LOCPlayAch_Settings_HideAllLockedCapstones_Button}"
+                                Click="HideAllLockedCapstones_Click"
+                                HorizontalAlignment="Left"
+                                Padding="{StaticResource PlayAch.Thickness.ButtonPadding}"/>
+                    </controls:SettingRow>
+
                     <TextBlock Text="{DynamicResource LOCPlayAch_Settings_AutoCapstoneText_Hint}"
                                Style="{StaticResource MutedTextStyle}"
                                Margin="{StaticResource PlayAch.Thickness.Bottom.Sm}"

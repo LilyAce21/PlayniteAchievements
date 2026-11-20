@@ -564,6 +564,54 @@ namespace PlayniteAchievements.Views.Controls
             private set => SetValue(ProgressDetailStylesProperty, value);
         }
 
+        public static readonly DependencyProperty ProgressTopDetailStylesProperty =
+            DependencyProperty.Register(
+                nameof(ProgressTopDetailStyles),
+                typeof(IReadOnlyList<ProgressDetailStyle>),
+                typeof(GameSummariesGridControl),
+                new PropertyMetadata(null));
+
+        /// <summary>
+        /// The single style shown on the row above the progress bar (empty when that row is off);
+        /// consumed by the header's ProgressDetailStrip.
+        /// </summary>
+        public IReadOnlyList<ProgressDetailStyle> ProgressTopDetailStyles
+        {
+            get => (IReadOnlyList<ProgressDetailStyle>)GetValue(ProgressTopDetailStylesProperty);
+            private set => SetValue(ProgressTopDetailStylesProperty, value);
+        }
+
+        public static readonly DependencyProperty ShowProgressTopDetailProperty =
+            DependencyProperty.Register(
+                nameof(ShowProgressTopDetail),
+                typeof(bool),
+                typeof(GameSummariesGridControl),
+                new PropertyMetadata(false));
+
+        /// <summary>Whether the row above the progress bar is on.</summary>
+        public bool ShowProgressTopDetail
+        {
+            get => (bool)GetValue(ShowProgressTopDetailProperty);
+            private set => SetValue(ShowProgressTopDetailProperty, value);
+        }
+
+        public static readonly DependencyProperty ProgressDetailCenterTrophiesProperty =
+            DependencyProperty.Register(
+                nameof(ProgressDetailCenterTrophies),
+                typeof(bool),
+                typeof(GameSummariesGridControl),
+                new PropertyMetadata(false));
+
+        /// <summary>
+        /// True when rarity is on the top row: a footer showing both points and trophies then
+        /// centers the trophies between the completion badge and the points.
+        /// </summary>
+        public bool ProgressDetailCenterTrophies
+        {
+            get => (bool)GetValue(ProgressDetailCenterTrophiesProperty);
+            private set => SetValue(ProgressDetailCenterTrophiesProperty, value);
+        }
+
         public static readonly DependencyProperty ProgressDetailShownCountProperty =
             DependencyProperty.Register(
                 nameof(ProgressDetailShownCount),
@@ -1740,6 +1788,7 @@ namespace PlayniteAchievements.Views.Controls
 
             if (string.IsNullOrEmpty(e.PropertyName) ||
                 e.PropertyName == nameof(PersistedSettings.ProgressDetails) ||
+                e.PropertyName == nameof(PersistedSettings.ProgressTopDetail) ||
                 e.PropertyName == nameof(PersistedSettings.ProgressDetailShownCount))
             {
                 UpdateProgressDetails(PlayniteAchievementsPlugin.Instance?.Settings);
@@ -1797,7 +1846,14 @@ namespace PlayniteAchievements.Views.Controls
         private void UpdateProgressDetails(PlayniteAchievementsSettings settings)
         {
             var details = settings?.Persisted?.ProgressDetails ?? ProgressDetailOrder.Default();
-            ProgressDetailStyles = ProgressDetailOrder.EnabledStyles(details);
+            var top = ProgressDetailOrder.TopDetailStyle(settings?.Persisted?.ProgressTopDetail ?? ProgressTopDetail.None);
+            var enabled = ProgressDetailOrder.EnabledStyles(details);
+            // The style on the top row is left out of the footer, which also lets the footer's
+            // leading style (and so the finish badge) follow what is actually shown beneath.
+            ProgressDetailStyles = top.HasValue ? enabled.Where(style => style != top.Value).ToList() : enabled;
+            ProgressTopDetailStyles = top.HasValue ? new List<ProgressDetailStyle> { top.Value } : new List<ProgressDetailStyle>();
+            ShowProgressTopDetail = top.HasValue;
+            ProgressDetailCenterTrophies = top == ProgressDetailStyle.Rarity;
             ProgressDetailShownCount = ProgressDetailOrder.ClampShownCount(
                 settings?.Persisted?.ProgressDetailShownCount ?? ProgressDetailOrder.MinShownCount);
         }

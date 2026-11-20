@@ -508,7 +508,7 @@ namespace PlayniteAchievements.Models.Achievements
             "BadgeRarityUncommon", "BadgeSilverSquare", "BadgeSilverHexagon", "ScoreBadgeSilverSquare", "ScoreBadgeSilverHexagon",
             "BadgeRarityRare", "BadgeGoldPentagon", "BadgeGoldHexagon", "ScoreBadgeGoldPentagon", "ScoreBadgeGoldHexagon",
             "BadgeRarityUltraRare", "BadgePlatinumHexagon", "ScoreBadgePlatinumHexagon",
-            "BadgeRarityCompleted", "BadgeCompletedGame", "ScoreBadgeCompletedGame",
+            "BadgeRarityCompleted", "BadgeCompletedGame", "ScoreBadgeCompletedGame", "BadgeRarityMythic",
             "TrophyBronze", "TrophySilver", "TrophyGold", "TrophyPlatinum", "CapstonePlatinum"
         };
 
@@ -582,6 +582,7 @@ namespace PlayniteAchievements.Models.Achievements
             Apply(overrides.Rare, "BadgeRarityRare", "BadgeGoldPentagon", "BadgeGoldHexagon", "ScoreBadgeGoldPentagon", "ScoreBadgeGoldHexagon");
             Apply(overrides.UltraRare, "BadgeRarityUltraRare", "BadgePlatinumHexagon", "ScoreBadgePlatinumHexagon");
             Apply(overrides.Completed, "BadgeRarityCompleted", "BadgeCompletedGame", "ScoreBadgeCompletedGame");
+            Apply(overrides.Mythic, "BadgeRarityMythic");
             Apply(overrides.TrophyBronze, "TrophyBronze");
             Apply(overrides.TrophySilver, "TrophySilver");
             Apply(overrides.TrophyGold, "TrophyGold");

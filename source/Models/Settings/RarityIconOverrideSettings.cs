@@ -13,6 +13,7 @@ namespace PlayniteAchievements.Models.Settings
         private string _rare;
         private string _ultraRare;
         private string _completed;
+        private string _mythic;
         private string _trophyBronze;
         private string _trophySilver;
         private string _trophyGold;
@@ -24,6 +25,9 @@ namespace PlayniteAchievements.Models.Settings
         public string Rare { get => _rare; set => SetValue(ref _rare, Norm(value)); }
         public string UltraRare { get => _ultraRare; set => SetValue(ref _ultraRare, Norm(value)); }
         public string Completed { get => _completed; set => SetValue(ref _completed, Norm(value)); }
+
+        /// <summary>Image for the mythic completion badge (shown when points lead and every point is earned).</summary>
+        public string Mythic { get => _mythic; set => SetValue(ref _mythic, Norm(value)); }
         public string TrophyBronze { get => _trophyBronze; set => SetValue(ref _trophyBronze, Norm(value)); }
         public string TrophySilver { get => _trophySilver; set => SetValue(ref _trophySilver, Norm(value)); }
         public string TrophyGold { get => _trophyGold; set => SetValue(ref _trophyGold, Norm(value)); }
@@ -47,6 +51,7 @@ namespace PlayniteAchievements.Models.Settings
                 Rare = Rare,
                 UltraRare = UltraRare,
                 Completed = Completed,
+                Mythic = Mythic,
                 TrophyBronze = TrophyBronze,
                 TrophySilver = TrophySilver,
                 TrophyGold = TrophyGold,

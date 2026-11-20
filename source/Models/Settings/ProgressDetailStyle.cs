@@ -19,6 +19,25 @@ namespace PlayniteAchievements.Models.Settings
     }
 
     /// <summary>
+    /// Which detail style, if any, the progress column shows on its own row above the bar. The
+    /// style shown there is left out of the row beneath the bar.
+    /// </summary>
+    public enum ProgressTopDetail
+    {
+        /// <summary>No row above the bar.</summary>
+        None = 0,
+
+        /// <summary>Unlocked counts per rarity tier.</summary>
+        Rarity = 1,
+
+        /// <summary>Unlocked counts per PlayStation trophy grade.</summary>
+        Trophy = 2,
+
+        /// <summary>Earned points of the game's points family, with that family's platform icon.</summary>
+        Points = 3
+    }
+
+    /// <summary>
     /// One row of the progress details priority list: a style and whether it is enabled.
     /// </summary>
     public sealed class ProgressDetailEntry
@@ -93,6 +112,22 @@ namespace PlayniteAchievements.Models.Settings
             }
 
             return result;
+        }
+
+        /// <summary>The style a top-row choice stands for, or null for <see cref="ProgressTopDetail.None"/>.</summary>
+        public static ProgressDetailStyle? TopDetailStyle(ProgressTopDetail top)
+        {
+            switch (top)
+            {
+                case ProgressTopDetail.Rarity:
+                    return ProgressDetailStyle.Rarity;
+                case ProgressTopDetail.Trophy:
+                    return ProgressDetailStyle.Trophy;
+                case ProgressTopDetail.Points:
+                    return ProgressDetailStyle.Points;
+                default:
+                    return null;
+            }
         }
 
         /// <summary>The enabled styles in priority order.</summary>
