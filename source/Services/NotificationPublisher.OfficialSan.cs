@@ -406,6 +406,13 @@ namespace PlayniteAchievements.Services
                     RarityTierExtensions.TryParse(current.RarityTier, out tier);
                 }
 
+                // Registered now, before the card exists, so the toast pipeline (told of the unlock
+                // right after this call) can bind its capture surface to it. Only when a screenshot
+                // or clip is owed the card; otherwise nothing is ever recorded.
+                var captureTap = current.RecordForCapture && game != null
+                    ? SanCaptureTap.Create(game.Id, name, _logger)
+                    : null;
+
                 var ticket = new SanNotificationScheduler.Ticket
                 {
                     Game = safeGameName,
@@ -416,17 +423,27 @@ namespace PlayniteAchievements.Services
                         : current.IsCapstone
                             ? SanNotificationScheduler.TicketKind.Capstone
                             : SanNotificationScheduler.TicketKind.Normal,
-                    Start = release => TryShowOfficialSanNotification(
-                        safeGameName,
-                        name,
-                        current.IconPath,
-                        providerKey,
-                        settings,
-                        game,
-                        current.Description,
-                        current.Rarity,
-                        current.Trophy,
-                        onSlotReleased: release)
+                    Start = release =>
+                    {
+                        var shown = TryShowOfficialSanNotification(
+                            safeGameName,
+                            name,
+                            current.IconPath,
+                            providerKey,
+                            settings,
+                            game,
+                            current.Description,
+                            current.Rarity,
+                            current.Trophy,
+                            onSlotReleased: release,
+                            captureTap: captureTap);
+                        if (!shown)
+                        {
+                            captureTap?.MarkFailed();
+                        }
+
+                        return shown;
+                    }
                 };
 
                 RunOnUiThread(() =>
@@ -847,7 +864,8 @@ namespace PlayniteAchievements.Services
             string achievementTrophy,
             string forcedProfileKey = null,
             bool? forcedAlt = null,
-            Action onSlotReleased = null)
+            Action onSlotReleased = null,
+            SanCaptureTap captureTap = null)
         {
             if (settings == null || !settings.UseOfficialSanTemplate)
             {
@@ -1201,6 +1219,7 @@ namespace PlayniteAchievements.Services
 
                 window.Closed += (_, __) =>
                 {
+                    captureTap?.Stop();
                     if (liveBackdrop != null)
                     {
                         try
@@ -1240,6 +1259,26 @@ namespace PlayniteAchievements.Services
                     started = true;
                     ForkLog.Wrap(_logger)?.Info($"[OfficialSan] '{achievementName}' on screen {showStopwatch.ElapsedMilliseconds} ms after the unlock reached the notifier ({(warm != null ? "warm" : "cold")}).");
                     try { readyFallback?.Stop(); } catch { }
+
+                    // The card's first visible frame: the capture pipeline's unlock-moment pop-up.
+                    // The page animates in --transition steps and has finished opening after eight, so
+                    // the screenshot takes the card a little after that.
+                    if (captureTap != null)
+                    {
+                        try
+                        {
+                            var requestedTransition = Math.Max(50.0, theme.Customisation?["transition"]?.Value<double?>() ?? 150.0);
+                            var transitionMs = Math.Max(50.0, Math.Min(requestedTransition, Math.Floor(displaySeconds * 1000.0 / 16.0)));
+                            captureTap.Start(
+                                webView, windowWidth, windowHeight, theme.Offset * scale,
+                                displaySeconds * 1000.0, Math.Max(900.0, transitionMs * 9.0));
+                        }
+                        catch (Exception ex)
+                        {
+                            captureTap.MarkFailed();
+                            ForkLog.Wrap(_logger)?.Debug(ex, "[OfficialSan] The capture tap could not start.");
+                        }
+                    }
 
                     var reflow = reflowOthers;
                     reflowOthers = null;

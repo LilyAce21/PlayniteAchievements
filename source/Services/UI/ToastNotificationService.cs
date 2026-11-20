@@ -42,6 +42,9 @@ namespace PlayniteAchievements.Services.UI
         // depict the true unlock moment instead of the instant the toast fired.
         private readonly Func<AchievementUnlockedEventArgs, int, System.Drawing.Bitmap> _captureAnchorFrame;
         private readonly Services.Sound.UnlockSoundService _unlockSounds;
+        // Supplies the capture surface for a SAN notification (the tapped live card). Null leaves
+        // every wave on the native card.
+        private readonly Func<AchievementUnlockedEventArgs, FrameworkElement> _createCustomCaptureContent;
         private readonly UnlockScreenshotService _screenshotService;
         private readonly ScreenshotFrameCompositor _frameCompositor;
         private readonly AchievementToastTemplateResolver _templateResolver;
@@ -226,7 +229,8 @@ namespace PlayniteAchievements.Services.UI
             GameCustomDataStore gameCustomDataStore = null,
             Func<AchievementUnlockedEventArgs, bool> needsOverlayTrack = null,
             Func<AchievementUnlockedEventArgs, int, System.Drawing.Bitmap> captureAnchorFrame = null,
-            Services.Sound.UnlockSoundService unlockSounds = null)
+            Services.Sound.UnlockSoundService unlockSounds = null,
+            Func<AchievementUnlockedEventArgs, FrameworkElement> createCustomCaptureContent = null)
         {
             _api = api;
             _settings = settings;
@@ -238,6 +242,7 @@ namespace PlayniteAchievements.Services.UI
             _needsOverlayTrack = needsOverlayTrack;
             _captureAnchorFrame = captureAnchorFrame;
             _unlockSounds = unlockSounds;
+            _createCustomCaptureContent = createCustomCaptureContent;
             _screenshotService = new UnlockScreenshotService(logger);
             _frameCompositor = new ScreenshotFrameCompositor(logger);
             _templateResolver = new AchievementToastTemplateResolver(
@@ -412,6 +417,38 @@ namespace PlayniteAchievements.Services.UI
         }
 
         /// <summary>
+        /// Whether this unlock owes a card to a screenshot variant or a clip overlay track — the
+        /// part of <see cref="ShouldProcess"/> that does not depend on a toast showing. A SAN
+        /// notification asks this before it is shown, to decide whether to record itself for the
+        /// capture pipeline at all; when nothing is owed no frame is ever captured.
+        /// </summary>
+        internal bool WouldCaptureNotification(AchievementUnlockedEventArgs args)
+        {
+            if (args == null || args.IsPreview || args.IsFriendUnlock || args.IsProgressUpdate)
+            {
+                return false;
+            }
+
+            if (NeedsOverlayTrack(args))
+            {
+                return true;
+            }
+
+            var persisted = ResolveEffectiveScreenshotSettings();
+            var gameData = LoadGameData(args.PlayniteGameId);
+            if (string.IsNullOrWhiteSpace(persisted?.UnlockScreenshotDirectory) &&
+                string.IsNullOrWhiteSpace(gameData?.CaptureOverride?.CaptureDirectory))
+            {
+                return false;
+            }
+
+            return UnlockScreenshotVariantPolicy.Resolve(
+                ResolveRarity(args), IsCompletionUnlock(args), args.ProviderKey, persisted, gameData,
+                bypassRarity: args.IsTestFire)
+                != ScreenshotVariants.None;
+        }
+
+        /// <summary>
         /// Whether an unlock enters the wave pipeline at all. It qualifies if it shows a
         /// notification, or (own unlocks only) if it owes notification imagery to something that
         /// is not the screen: a screenshot variant, or a clip overlay track. A wave with no
@@ -482,6 +519,60 @@ namespace PlayniteAchievements.Services.UI
         private PersistedSettings ResolveEffectiveScreenshotSettings()
         {
             return _settings?.Persisted;
+        }
+
+        private const int SanCaptureReadyGraceMs = 1500;
+
+        /// <summary>
+        /// Waits (bounded) for each SAN capture surface's first recorded frame and shows it, so the
+        /// render that primes the track sees the card's first visible frame. A surface whose card
+        /// never recorded is dropped, which sends that item back to the native card — the behavior
+        /// before this existed.
+        /// </summary>
+        private async Task PrepareSanCaptureAsync(IReadOnlyList<AchievementToastViewModel> cardItems)
+        {
+            var hosts = cardItems.Where(vm => vm.CustomCaptureContent is SanCaptureHost).ToList();
+            if (hosts.Count == 0)
+            {
+                return;
+            }
+
+            await Task.WhenAny(
+                    Task.WhenAll(hosts.Select(vm => ((SanCaptureHost)vm.CustomCaptureContent).FirstFrameReady)),
+                    Task.Delay(SanCaptureReadyGraceMs))
+                .ConfigureAwait(true);
+
+            foreach (var vm in hosts)
+            {
+                var host = (SanCaptureHost)vm.CustomCaptureContent;
+                var ready = host.FirstFrameReady;
+                if (ready.IsCompleted && ready.Status == TaskStatus.RanToCompletion && ready.Result)
+                {
+                    host.ApplySize();
+                    host.Present(0);
+                    continue;
+                }
+
+                _logger?.Info("[Toast] SAN card has no recorded frame; this wave uses the native card for the capture.");
+                vm.CustomCaptureContent = null;
+                host.Dispose();
+            }
+        }
+
+        private static void DisposeCaptureContent(IEnumerable<AchievementToastViewModel> items)
+        {
+            if (items == null)
+            {
+                return;
+            }
+
+            foreach (var vm in items)
+            {
+                if (vm?.CustomCaptureContent is SanCaptureHost host)
+                {
+                    try { host.Dispose(); } catch { }
+                }
+            }
         }
 
         private static DataTemplate CreateCustomCaptureTemplate()
@@ -592,8 +683,19 @@ namespace PlayniteAchievements.Services.UI
                 NotifyReadyAtUtc = notifyReadyAtUtc,
             };
             // A suppressed toast is only a hidden surface that the screenshot/recording pipeline
-            // samples. It uses the regular (upstream) toast template; the Santodan-fork overlay content
-            // is no longer rendered anywhere.
+            // samples. It uses the regular (upstream) toast template unless the SAN notification
+            // that was shown for this unlock supplies its own capture surface (the tapped live card).
+            if (args.SuppressStandardToast && !args.IsPreview)
+            {
+                try
+                {
+                    vm.CustomCaptureContent = _createCustomCaptureContent?.Invoke(args);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Debug(ex, "SAN capture surface could not be created; using the native card.");
+                }
+            }
 
             if (merged != null)
             {
@@ -1745,6 +1847,9 @@ namespace PlayniteAchievements.Services.UI
                 {
                     continue;
                 }
+
+                // A SAN capture surface replays the live card on the sampler's own clock.
+                (vm.CustomCaptureContent as SanCaptureHost)?.AdvanceTo(elapsedMs);
 
                 var scratch = GetCardScratch(vm);
                 var glowScale = ComputeGlowScale(scratch, hostOpacity);
@@ -2907,6 +3012,18 @@ namespace PlayniteAchievements.Services.UI
                 return;
             }
 
+            // A SAN capture surface needs the live card's first recorded frame before the wave
+            // renders anything. Bounded like the image preparation above; a card that never
+            // recorded (renderer failed, queued behind another card) drops back to the native card.
+            await PrepareSanCaptureAsync(cardItems).ConfigureAwait(true);
+            if (_disposed)
+            {
+                DisposeCaptureTask(baseCaptureTask);
+                DisposeCaptureTask(delayedCaptureTask);
+                DisposeAnchorFramesTask(anchorFramesTask);
+                return;
+            }
+
             var template = cardItems.All(vm => vm.CustomCaptureContent != null)
                 ? CreateCustomCaptureTemplate()
                 : ToastSurfaceFactory.ResolveToastTemplate(
@@ -3198,6 +3315,13 @@ namespace PlayniteAchievements.Services.UI
                 // close to the corner. Before ReserveSlideTravel, whose travel distance is the
                 // card surface's laid-out height.
                 _activeCardInset = ToastSurfaceFactory.ApplyMeasuredCardGaps(items);
+                // The SAN card's transparent margin sits inside its capture surface, behind a
+                // template that wraps it, so it cannot be measured; the tap knows it. Without this the
+                // visible card would sit that margin further from the corner than a native card does.
+                if (cardItems.Count > 0 && cardItems[0].CustomCaptureContent is SanCaptureHost sanHost)
+                {
+                    _activeCardInset = sanHost.CardInset;
+                }
 
                 // Reserve the slide's travel now that the card has its final laid-out size, so the
                 // window is large enough to hold the card at both ends of the slide. Placed between the
@@ -3516,6 +3640,15 @@ namespace PlayniteAchievements.Services.UI
                 }
 
                 var durationMs = EffectiveDurationSeconds() * 1000;
+                // A SAN card plays for its own display time; never cut it short of that.
+                foreach (var sanItem in cardItems)
+                {
+                    if (sanItem.CustomCaptureContent is SanCaptureHost sanDuration)
+                    {
+                        durationMs = Math.Max(durationMs, sanDuration.TotalDurationMs);
+                    }
+                }
+
                 var remainingMs = Math.Max(0, durationMs - captureDelayMs);
                 try
                 {
@@ -3692,6 +3825,7 @@ namespace PlayniteAchievements.Services.UI
                 _preHeldPulses = null;
                 _mainRaysHiddenAhead = null;
                 holdLayers?.Dispose();
+                DisposeCaptureContent(cardItems);
                 _activeCardSurface = null;
                 _trackRenderScratch = null;
                 _activeSlideHost = null;

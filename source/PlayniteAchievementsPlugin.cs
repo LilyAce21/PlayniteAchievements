@@ -694,6 +694,32 @@ namespace PlayniteAchievements
                 .Contains(args.PlayniteGameId) != true;
         }
 
+        /// <summary>
+        /// The screenshot/clip surface for an unlock whose SAN card is recording itself: the tapped
+        /// live card, or null (the native card) when that card is not recording. Built on the UI
+        /// thread, where WPF elements must live.
+        /// </summary>
+        private static System.Windows.FrameworkElement CreateSanCaptureContent(AchievementUnlockedEventArgs e)
+        {
+            if (e == null)
+            {
+                return null;
+            }
+
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+            {
+                return dispatcher.Invoke(() => CreateSanCaptureContent(e));
+            }
+
+            // Same name the notification was shown under (see HandlePolledAchievementUnlocked).
+            var name = string.IsNullOrWhiteSpace(e.DisplayName ?? e.ApiName) && e.IsGameCompleted
+                ? "100% Completed"
+                : e.DisplayName ?? e.ApiName;
+            var tap = Services.UI.SanCaptureTap.Claim(e.PlayniteGameId, name);
+            return tap != null ? new Services.UI.SanCaptureHost(tap) : null;
+        }
+
         private void HandlePolledAchievementUnlocked(AchievementUnlockedEventArgs args)
         {
             if (UsesCustomAchievementNotification(args))
@@ -733,7 +759,9 @@ namespace PlayniteAchievements
                                 RarityTier = args.RarityTier,
                                 GlobalPercent = args.GlobalPercent,
                                 GameIconPath = args.GameIconPath,
-                                GameCoverPath = args.GameCoverPath
+                                GameCoverPath = args.GameCoverPath,
+                                // The SAN card records itself only when a screenshot or clip owes it.
+                                RecordForCapture = _toastNotifications?.WouldCaptureNotification(args) == true
                             }
                         },
                         notificationProviderKey: args.ProviderKey,
@@ -1399,7 +1427,8 @@ namespace PlayniteAchievements
                         // the field is assigned.
                         e => _unlockRecordings?.WouldRequestClip(e) ?? false,
                         (e, capHeight) => _unlockRecordings?.TryCaptureAnchorFrame(e, capHeight),
-                        _unlockSounds);
+                        _unlockSounds,
+                        createCustomCaptureContent: CreateSanCaptureContent);
                     _unlockRecordings = new Services.Recording.UnlockRecordingService(
                         PlayniteApi,
                         settings,

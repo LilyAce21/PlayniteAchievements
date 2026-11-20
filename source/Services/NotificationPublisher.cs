@@ -1238,6 +1238,12 @@ namespace PlayniteAchievements.Services
 
         public double? GlobalPercent { get; set; }
 
+        /// <summary>
+        /// Set when a screenshot or clip is owed this unlock's notification, so the SAN card records
+        /// itself for the capture pipeline. Off, nothing is ever recorded.
+        /// </summary>
+        public bool RecordForCapture { get; set; }
+
         public string GameIconPath { get; set; }
 
         public string GameCoverPath { get; set; }
