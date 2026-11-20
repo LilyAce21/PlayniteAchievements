@@ -18,6 +18,7 @@ using HtmlAgilityPack;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PlayniteAchievements.Providers.Metadata;
 using PlayniteAchievements.Common;
 using PlayniteAchievements.Providers.Steam;
 using PlayniteAchievements.Providers.Steam.Models;

@@ -143,7 +143,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                         ThemeYamlVersionReader.TryReadThemeName(themeDir, out displayName);
 
                         // Check if theme contains legacy references that still need migration.
-                        var (needsMigration, couldNotScan, hasNativePlayniteAchievementsSupport, hasLegacyPlayniteAchievementsReference) = ScanTheme(themeDir, _logger);
+                        var (needsMigration, couldNotScan, hasNativePlayniteAchievementsSupport, hasLegacyPlayniteAchievementsReference) = ScanTheme(themeDir, _logger, _useForkContentCache);
 
                         // A theme that already targets PlayniteAchievements through legacy controls can be modernized.
                         // Fullscreen themes only support Limited migration, which has nothing to change for them.
@@ -294,7 +294,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
         /// Scans a theme directory for migratable legacy references, native PlayniteAchievements
         /// support, and legacy PlayniteAchievements controls or bindings.
         /// </summary>
-        internal static (bool needsMigration, bool couldNotScan, bool hasNativePlayniteAchievementsSupport, bool hasLegacyPlayniteAchievementsReference) ScanTheme(string themePath, ILogger logger)
+        internal static (bool needsMigration, bool couldNotScan, bool hasNativePlayniteAchievementsSupport, bool hasLegacyPlayniteAchievementsReference) ScanTheme(string themePath, ILogger logger, Func<bool> useForkContentCache = null)
         {
             int filesRead = 0;
             int filesSkipped = 0;
@@ -350,7 +350,7 @@ namespace PlayniteAchievements.Services.ThemeMigration
                     {
                         var content = File.ReadAllText(file);
                         filesRead++;
-                        var analysis = AnalyzeThemeContentForCaller(content);
+                        var analysis = AnalyzeThemeContentForCaller(content, useForkContentCache);
 
                         if (analysis.native)
                         {

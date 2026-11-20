@@ -23,7 +23,8 @@ namespace PlayniteAchievements.Providers.Metadata
                 if (apiName != null && cachedByName.TryGetValue(apiName, out var cached))
                 {
                     item.Category = cached.Category;
-                    item.CategoryType = cached.CategoryType;
+                    item.CategoryKind = cached.CategoryKind;
+                    item.Tags = cached.Tags;
                 }
             }
         }

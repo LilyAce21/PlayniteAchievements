@@ -4584,8 +4584,7 @@ namespace PlayniteAchievements.ViewModels
             ForkLog.Wrap(_logger)?.Debug(
                 $"[OverviewSort] context={context} mode={persisted.DefaultAchievementSortMode} " +
                 $"recentPath='{_recentSortPath ?? "<source>"}' recentSource={persisted.RecentAchievementsCustomSortUsesSourceOrder} " +
-                $"selectedPath='{_selectedGameSortPath ?? "<source>"}' selectedSource={persisted.SidebarSelectedGameCustomSortUsesSourceOrder} " +
-                $"displaySelectedMode={persisted.OverviewSelectedGameGridSortMode}");
+                $"selectedPath='{_selectedGameSortPath ?? "<source>"}' selectedSource={persisted.SidebarSelectedGameCustomSortUsesSourceOrder}");
         }
 
         public void ApplyDefaultSidebarAllSort()

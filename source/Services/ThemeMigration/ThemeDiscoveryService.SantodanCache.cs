@@ -46,9 +46,9 @@ namespace PlayniteAchievements.Services.ThemeMigration
             }
         }
 
-        private (bool migratable, bool native) AnalyzeThemeContentForCaller(string content)
+        private static (bool migratable, bool native) AnalyzeThemeContentForCaller(string content, Func<bool> useForkContentCache)
         {
-            return _useForkContentCache?.Invoke() == true
+            return useForkContentCache?.Invoke() == true
                 ? AnalyzeThemeContent(content)
                 : (ContainsMigratableReference(content), ContainsNativePlayniteAchievementsSupport(content));
         }

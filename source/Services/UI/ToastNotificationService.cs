@@ -909,6 +909,7 @@ namespace PlayniteAchievements.Services.UI
             // to the plain base clone.
             var itemsControl = _activeCardSurface;
             var overlays = new List<(AchievementToastViewModel Vm, System.Drawing.Bitmap Overlay, System.Drawing.Rectangle Rect, ToastBlurPatch Blur)>();
+            var sanCaptures = new Dictionary<AchievementToastViewModel, Task<System.Windows.Media.Imaging.BitmapSource>>();
             foreach (var vm in withToastVms)
             {
                 System.Drawing.Bitmap overlay = null;
@@ -920,26 +921,16 @@ namespace PlayniteAchievements.Services.UI
                     if (container != null)
                     {
                         overlay = TryRenderToastItemOverlay(window, container, vm, out var physSize);
+                        // Fork: SAN cards are browser-rendered. Start the capture now, while the
+                        // window is alive and laid out, but do not wait for it here: the blit step
+                        // awaits it, which keeps this render step synchronous like upstream's.
+                        Task<System.Windows.Media.Imaging.BitmapSource> sanCapture = null;
                         if (vm.CustomCaptureContent?.Tag is Func<Task<System.Windows.Media.Imaging.BitmapSource>> captureSanScreenshot)
                         {
-                            var browserFrame = await captureSanScreenshot();
-                            if (browserFrame != null)
-                            {
-                                using (var stream = new System.IO.MemoryStream())
-                                {
-                                    var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                                    encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(browserFrame));
-                                    encoder.Save(stream);
-                                    stream.Position = 0;
-                                    using (var decoded = new System.Drawing.Bitmap(stream))
-                                    {
-                                        overlay?.Dispose();
-                                        overlay = new System.Drawing.Bitmap(decoded);
-                                    }
-                                }
-                            }
+                            sanCapture = captureSanScreenshot();
+                            sanCaptures[vm] = sanCapture;
                         }
-                        if (overlay != null)
+                        if (overlay != null || sanCapture != null)
                         {
                             ToastWindowPlacer.ComputeCorner(
                                 anchorPhys, physSize.Width, physSize.Height, _activeMonitorScale,
@@ -957,7 +948,27 @@ namespace PlayniteAchievements.Services.UI
                 overlays.Add((vm, overlay, rect, blur));
             }
 
-            return new WaveToastOverlays { Items = overlays, CapturePhys = capturePhys };
+            return new WaveToastOverlays { Items = overlays, CapturePhys = capturePhys, SanCaptures = sanCaptures };
+        }
+
+        private static System.Drawing.Bitmap ConvertBitmapSourceToDrawingBitmap(System.Windows.Media.Imaging.BitmapSource source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            using (var stream = new System.IO.MemoryStream())
+            {
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(source));
+                encoder.Save(stream);
+                stream.Position = 0;
+                using (var decoded = new System.Drawing.Bitmap(stream))
+                {
+                    return new System.Drawing.Bitmap(decoded);
+                }
+            }
         }
 
         /// <summary>
@@ -968,6 +979,8 @@ namespace PlayniteAchievements.Services.UI
         {
             public List<(AchievementToastViewModel Vm, System.Drawing.Bitmap Overlay, System.Drawing.Rectangle Rect, ToastBlurPatch Blur)> Items;
             public System.Drawing.Rectangle CapturePhys;
+            // Fork: pending browser captures of SAN cards, awaited and swapped in by the blit step.
+            public Dictionary<AchievementToastViewModel, Task<System.Windows.Media.Imaging.BitmapSource>> SanCaptures;
         }
 
         /// <summary>
@@ -1001,6 +1014,33 @@ namespace PlayniteAchievements.Services.UI
                     catch (Exception ex)
                     {
                         _logger?.Debug(ex, "Earlier with-notification composite failed; continuing with this set.");
+                    }
+                }
+
+                if (rendered.SanCaptures != null && rendered.SanCaptures.Count > 0)
+                {
+                    for (var i = 0; i < overlays.Count; i++)
+                    {
+                        if (!rendered.SanCaptures.TryGetValue(overlays[i].Vm, out var sanTask))
+                        {
+                            continue;
+                        }
+
+                        rendered.SanCaptures.Remove(overlays[i].Vm);
+                        try
+                        {
+                            var browserFrame = await sanTask.ConfigureAwait(true);
+                            var converted = ConvertBitmapSourceToDrawingBitmap(browserFrame);
+                            if (converted != null)
+                            {
+                                overlays[i].Overlay?.Dispose();
+                                overlays[i] = (overlays[i].Vm, converted, overlays[i].Rect, overlays[i].Blur);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.Debug(ex, "SAN card capture failed; using the rendered card.");
+                        }
                     }
                 }
 
