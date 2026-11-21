@@ -159,6 +159,52 @@ namespace PlayniteAchievements.Services
             }
         }
 
+        private static PlayniteAchievements.Models.Settings.ToastScreenCorner ToCaptureCorner(LocalUnlockOverlayPosition position)
+        {
+            switch (position)
+            {
+                case LocalUnlockOverlayPosition.TopLeft: return PlayniteAchievements.Models.Settings.ToastScreenCorner.TopLeft;
+                case LocalUnlockOverlayPosition.TopCenter: return PlayniteAchievements.Models.Settings.ToastScreenCorner.TopCenter;
+                case LocalUnlockOverlayPosition.BottomLeft: return PlayniteAchievements.Models.Settings.ToastScreenCorner.BottomLeft;
+                case LocalUnlockOverlayPosition.BottomCenter: return PlayniteAchievements.Models.Settings.ToastScreenCorner.BottomCenter;
+                case LocalUnlockOverlayPosition.BottomRight: return PlayniteAchievements.Models.Settings.ToastScreenCorner.BottomRight;
+                default: return PlayniteAchievements.Models.Settings.ToastScreenCorner.TopRight;
+            }
+        }
+
+        /// <summary>
+        /// How much of each edge of the live window's monitor the work area gives up, in physical
+        /// pixels: the taskbar, or any other reserved strip. The live card sits against the work
+        /// area, so a game that fills the monitor shows it that far in from the screen edge.
+        /// </summary>
+        private static void ReadMonitorEdgeReserve(Window window, out double left, out double top, out double right, out double bottom)
+        {
+            left = top = right = bottom = 0;
+            try
+            {
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+                var monitor = MonitorFromWindow(hwnd, MonitorDefaultToPrimary);
+                if (monitor == IntPtr.Zero)
+                {
+                    return;
+                }
+
+                var info = new MonitorInfo { Size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MonitorInfo)) };
+                if (!GetMonitorInfo(monitor, ref info))
+                {
+                    return;
+                }
+
+                left = Math.Max(0, info.Work.Left - info.Monitor.Left);
+                top = Math.Max(0, info.Work.Top - info.Monitor.Top);
+                right = Math.Max(0, info.Monitor.Right - info.Work.Right);
+                bottom = Math.Max(0, info.Monitor.Bottom - info.Work.Bottom);
+            }
+            catch
+            {
+            }
+        }
+
         /// <summary>Time SAN needs to animate a card out after its display time ends.</summary>
         private const double SanExitAnimationMs = 700;
 
@@ -1269,9 +1315,20 @@ namespace PlayniteAchievements.Services
                         {
                             var requestedTransition = Math.Max(50.0, theme.Customisation?["transition"]?.Value<double?>() ?? 150.0);
                             var transitionMs = Math.Max(50.0, Math.Min(requestedTransition, Math.Floor(displaySeconds * 1000.0 / 16.0)));
+                            // Where the live card sits, so the screenshot and clip put the card in the same
+                            // corner, the same distance from the screen edge (the taskbar side keeps
+                            // its reserved strip, as the live card does).
+                            var liveCorner = ToCaptureCorner(position);
+                            ReadMonitorEdgeReserve(window, out var edgeLeft, out var edgeTop, out var edgeRight, out var edgeBottom);
+                            var liveHorizontal = liveCorner.Horizontal();
+                            var liveGapX = liveHorizontal == PlayniteAchievements.Models.Settings.ToastHorizontalAlignment.Center
+                                ? 0.0
+                                : liveHorizontal == PlayniteAchievements.Models.Settings.ToastHorizontalAlignment.Right ? edgeRight : edgeLeft;
+                            var liveGapY = liveCorner.IsBottom() ? edgeBottom : edgeTop;
                             captureTap.Start(
                                 webView, windowWidth, windowHeight, theme.Offset * scale,
-                                displaySeconds * 1000.0, Math.Max(900.0, transitionMs * 9.0));
+                                displaySeconds * 1000.0, Math.Max(900.0, transitionMs * 9.0),
+                                liveCorner, liveGapX, liveGapY);
                         }
                         catch (Exception ex)
                         {

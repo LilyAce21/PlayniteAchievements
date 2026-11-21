@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
@@ -9,6 +10,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 using Playnite.SDK;
+using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Capture;
 
 namespace PlayniteAchievements.Services.UI
@@ -132,10 +134,18 @@ namespace PlayniteAchievements.Services.UI
         private byte[] _xorScratch;
         private int _framesSinceKeyframe;
 
+        // PNG buffers are recycled: a capture is up to a couple of MB, and a fresh one per frame
+        // would put 25+ large-object allocations a second into Playnite's heap. The last frame's
+        // encoded bytes are kept so an unchanged card is recognized before it is decoded at all.
+        private readonly Stack<MemoryStream> _freeStreams = new Stack<MemoryStream>();
+        private MemoryStream _lastPng;
+        private int _summarized;
+
         // Diagnostics.
         private int _captured;
         private int _skippedBusy;
         private int _identical;
+        private int _pngIdentical;
         private int _stored;
         private double _captureMsTotal;
         private double _captureMsMax;
@@ -175,6 +185,21 @@ namespace PlayniteAchievements.Services.UI
         /// <summary>The theme's transparent margin around the card body, in DIPs.</summary>
         public double InsetDip { get; private set; }
 
+        /// <summary>Whether the corner and edge gap the live card used are known.</summary>
+        public bool HasLivePlacement { get; private set; }
+
+        /// <summary>The screen corner the live card was placed in.</summary>
+        public ToastScreenCorner LiveCorner { get; private set; }
+
+        /// <summary>
+        /// Physical pixels between the monitor edge and the live card's window on the horizontal
+        /// axis (the taskbar or other reserved strip), for the corner's own side; zero when centered.
+        /// </summary>
+        public double LiveGapPhysX { get; private set; }
+
+        /// <summary>The same, vertically, for the corner's own side.</summary>
+        public double LiveGapPhysY { get; private set; }
+
         /// <summary>How long a wave must keep sampling to cover the whole card: display, exit, slack.</summary>
         public int TotalDurationMs => (int)Math.Ceiling(DisplayMs + 700 + 300);
 
@@ -184,7 +209,8 @@ namespace PlayniteAchievements.Services.UI
         /// </summary>
         public void Start(
             WebView2 view, double windowDipWidth, double windowDipHeight, double insetDip,
-            double displayMs, double settleMs)
+            double displayMs, double settleMs,
+            ToastScreenCorner? liveCorner = null, double liveGapPhysX = 0, double liveGapPhysY = 0)
         {
             if (_started || _disposed || view == null)
             {
@@ -196,6 +222,14 @@ namespace PlayniteAchievements.Services.UI
             WindowDipWidth = windowDipWidth;
             WindowDipHeight = windowDipHeight;
             InsetDip = Math.Max(0, insetDip);
+            if (liveCorner.HasValue)
+            {
+                HasLivePlacement = true;
+                LiveCorner = liveCorner.Value;
+                LiveGapPhysX = Math.Max(0, liveGapPhysX);
+                LiveGapPhysY = Math.Max(0, liveGapPhysY);
+            }
+
             DisplayMs = Math.Max(1000, displayMs);
             SettleMs = Math.Max(0, Math.Min(settleMs, DisplayMs * 0.5));
             _cts = new CancellationTokenSource();
@@ -262,9 +296,18 @@ namespace PlayniteAchievements.Services.UI
                     }
                     else
                     {
-                        var png = new MemoryStream();
+                        var png = RentStream();
                         var tMs = startedAt.TotalMilliseconds;
-                        await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, png);
+                        try
+                        {
+                            await core.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, png);
+                        }
+                        catch
+                        {
+                            ReleaseStream(png);
+                            throw;
+                        }
+
                         var tookMs = (_clock.Elapsed - startedAt).TotalMilliseconds;
                         _captured++;
                         _captureMsTotal += tookMs;
@@ -369,6 +412,10 @@ namespace PlayniteAchievements.Services.UI
                     {
                         Process(job);
                     }
+                    else
+                    {
+                        job.Png.Dispose();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -377,7 +424,6 @@ namespace PlayniteAchievements.Services.UI
                 }
                 finally
                 {
-                    job.Png.Dispose();
                     var ms = sw.Elapsed.TotalMilliseconds;
                     _processMsTotal += ms;
                     if (ms > _processMsMax)
@@ -394,18 +440,55 @@ namespace PlayniteAchievements.Services.UI
             }
         }
 
+        /// <summary>Owns <paramref name="job"/>'s stream: it becomes the reference frame or goes back to the pool.</summary>
         private void Process(Job job)
         {
-            if (!TryDecode(job.Png, ref _scratch, out var width, out var height))
+            var png = job.Png;
+            var keep = false;
+            try
+            {
+                // The same pixels encode to the same bytes, so a card that has not changed since the
+                // last frame is recognized here, before the (much dearer) decode.
+                if (_lastPng != null && SameBytes(_lastPng, png))
+                {
+                    _pngIdentical++;
+                    _identical++;
+                    return;
+                }
+
+                keep = ProcessDecoded(job, png);
+            }
+            finally
+            {
+                if (keep)
+                {
+                    var previous = _lastPng;
+                    _lastPng = png;
+                    if (previous != null)
+                    {
+                        ReleaseStream(previous);
+                    }
+                }
+                else
+                {
+                    ReleaseStream(png);
+                }
+            }
+        }
+
+        /// <summary>Decodes and stores a frame. True when the frame should stay the reference for the next comparison.</summary>
+        private bool ProcessDecoded(Job job, MemoryStream png)
+        {
+            if (!TryDecode(png, ref _scratch, out var width, out var height))
             {
                 _failures++;
-                return;
+                return false;
             }
 
             if (_lastRaw != null && RawEquals(_lastRaw, _scratch))
             {
                 _identical++;
-                return;
+                return true;
             }
 
             var canDelta = _lastRaw != null &&
@@ -419,11 +502,7 @@ namespace PlayniteAchievements.Services.UI
                     _xorScratch = new byte[_scratch.Length];
                 }
 
-                for (var i = 0; i < _scratch.Length; i++)
-                {
-                    _xorScratch[i] = (byte)(_scratch[i] ^ _lastRaw[i]);
-                }
-
+                XorInto(_scratch, _lastRaw, _xorScratch);
                 payload = _xorScratch;
             }
 
@@ -432,7 +511,7 @@ namespace PlayniteAchievements.Services.UI
             {
                 if (_disposed)
                 {
-                    return;
+                    return false;
                 }
 
                 _track.Frames.Add(frame);
@@ -465,6 +544,55 @@ namespace PlayniteAchievements.Services.UI
             {
                 _firstFrame.TrySetResult(true);
             }
+
+            return true;
+        }
+
+        private MemoryStream RentStream()
+        {
+            lock (_queueLock)
+            {
+                if (_freeStreams.Count > 0)
+                {
+                    var reused = _freeStreams.Pop();
+                    reused.SetLength(0);
+                    reused.Position = 0;
+                    return reused;
+                }
+            }
+
+            return new MemoryStream(512 * 1024);
+        }
+
+        private void ReleaseStream(MemoryStream stream)
+        {
+            if (stream == null)
+            {
+                return;
+            }
+
+            lock (_queueLock)
+            {
+                if (!_disposed && _freeStreams.Count < 4)
+                {
+                    _freeStreams.Push(stream);
+                    return;
+                }
+            }
+
+            stream.Dispose();
+        }
+
+        private static bool SameBytes(MemoryStream a, MemoryStream b)
+        {
+            if (a.Length != b.Length)
+            {
+                return false;
+            }
+
+            var length = (int)a.Length;
+            return new ReadOnlySpan<byte>(a.GetBuffer(), 0, length)
+                .SequenceEqual(new ReadOnlySpan<byte>(b.GetBuffer(), 0, length));
         }
 
         /// <summary>
@@ -513,15 +641,26 @@ namespace PlayniteAchievements.Services.UI
                 return false;
             }
 
-            for (var i = 0; i < a.Length; i++)
+            return new ReadOnlySpan<byte>(a).SequenceEqual(new ReadOnlySpan<byte>(b));
+        }
+
+        /// <summary><paramref name="destination"/> = <paramref name="a"/> XOR <paramref name="b"/>, eight bytes at a time.</summary>
+        private static void XorInto(byte[] a, byte[] b, byte[] destination)
+        {
+            var length = a.Length;
+            var wordBytes = length & ~7;
+            var wa = MemoryMarshal.Cast<byte, ulong>(new ReadOnlySpan<byte>(a, 0, wordBytes));
+            var wb = MemoryMarshal.Cast<byte, ulong>(new ReadOnlySpan<byte>(b, 0, wordBytes));
+            var wd = MemoryMarshal.Cast<byte, ulong>(new Span<byte>(destination, 0, wordBytes));
+            for (var i = 0; i < wd.Length; i++)
             {
-                if (a[i] != b[i])
-                {
-                    return false;
-                }
+                wd[i] = wa[i] ^ wb[i];
             }
 
-            return true;
+            for (var i = wordBytes; i < length; i++)
+            {
+                destination[i] = (byte)(a[i] ^ b[i]);
+            }
         }
 
         // ---- replay (UI thread) -----------------------------------------------------------
@@ -608,7 +747,8 @@ namespace PlayniteAchievements.Services.UI
 
         private void LogSummary()
         {
-            if (_captured == 0)
+            // Reached from both the capture loop's end and the worker's exit; once is enough.
+            if (_captured == 0 || Interlocked.Exchange(ref _summarized, 1) != 0)
             {
                 return;
             }
@@ -622,7 +762,7 @@ namespace PlayniteAchievements.Services.UI
             _logger?.Info(
                 $"[SanTap] '{_name}': {_captured} captures over {_clock.Elapsed.TotalSeconds:0.0}s " +
                 $"(capture avg {_captureMsTotal / _captured:0.0} ms, max {_captureMsMax:0.0} ms), " +
-                $"{_stored} stored, {_identical} identical, {_skippedBusy} skipped (worker busy), {_failures} failed; " +
+                $"{_stored} stored, {_identical} identical ({_pngIdentical} without decoding), {_skippedBusy} skipped (worker busy), {_failures} failed; " +
                 $"worker avg {(_processMsTotal / Math.Max(1, _captured - _skippedBusy)):0.0} ms, max {_processMsMax:0.0} ms; " +
                 $"stored {bytes / 1024} KB compressed.");
         }
@@ -646,6 +786,11 @@ namespace PlayniteAchievements.Services.UI
                 }
 
                 _pendingJobs = 0;
+                while (_freeStreams.Count > 0)
+                {
+                    _freeStreams.Pop().Dispose();
+                }
+
                 Monitor.PulseAll(_queueLock);
             }
 

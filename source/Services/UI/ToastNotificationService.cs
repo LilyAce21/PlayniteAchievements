@@ -90,6 +90,12 @@ namespace PlayniteAchievements.Services.UI
         // The corner the current wave uses, resolved once per wave (theme override or plugin
         // setting). Read by the per-frame positioning path so it isn't re-resolved every frame.
         private ToastScreenCorner _activePosition = ToastScreenCorner.BottomRight;
+        // The live SAN card's corner and edge reserve (physical pixels), when the wave's capture
+        // surface knows them: the capture then sits where the player saw the card, not at the
+        // capture-position setting. Per wave; null otherwise.
+        private ToastScreenCorner? _activeLiveCorner;
+        private double _activeLiveGapPhysX;
+        private double _activeLiveGapPhysY;
         private bool _activeUsesCustomCapture;
         // The transparent room the wave's stack reserves outside its card bodies, measured from
         // the laid-out cards once per wave (ToastSurfaceFactory.ApplyMeasuredCardGaps).
@@ -2847,6 +2853,7 @@ namespace PlayniteAchievements.Services.UI
 
             var waveIsTestFire = wave[0].IsTestFire;
             _activeUsesCustomCapture = wave[0].SuppressStandardToast;
+            _activeLiveCorner = null;
             _activeToastThemeStylingEnabled = wave[0].ToastUseThemeStyling;
             // A wave never mixes games, so its first item's game owns the wave's capture settings.
             _activeWaveCaptures = LoadGameData(wave[0].PlayniteGameId)?.CaptureOverride;
@@ -3022,6 +3029,17 @@ namespace PlayniteAchievements.Services.UI
                 DisposeCaptureTask(delayedCaptureTask);
                 DisposeAnchorFramesTask(anchorFramesTask);
                 return;
+            }
+
+            // The live card's corner and edge reserve, once its card has recorded: the capture
+            // follows where the player saw it. Resolved again here because the position was first
+            // read at the top of the wave, before the card was necessarily on screen.
+            if (cardItems.Count > 0 && cardItems[0].CustomCaptureContent is SanCaptureHost placedHost && placedHost.HasLivePlacement)
+            {
+                _activeLiveCorner = placedHost.LiveCorner;
+                _activeLiveGapPhysX = placedHost.LiveGapPhysX;
+                _activeLiveGapPhysY = placedHost.LiveGapPhysY;
+                _activePosition = EffectivePosition(wave[0].MotionSurface);
             }
 
             var template = cardItems.All(vm => vm.CustomCaptureContent != null)
@@ -3318,7 +3336,7 @@ namespace PlayniteAchievements.Services.UI
                 // The SAN card's transparent margin sits inside its capture surface, behind a
                 // template that wraps it, so it cannot be measured; the tap knows it. Without this the
                 // visible card would sit that margin further from the corner than a native card does.
-                if (cardItems.Count > 0 && cardItems[0].CustomCaptureContent is SanCaptureHost sanHost)
+                if (!_activeLiveCorner.HasValue && cardItems.Count > 0 && cardItems[0].CustomCaptureContent is SanCaptureHost sanHost)
                 {
                     _activeCardInset = sanHost.CardInset;
                 }
@@ -4588,6 +4606,15 @@ namespace PlayniteAchievements.Services.UI
         // position sits against neither horizontal edge, so it has no horizontal gap.
         private double EffectiveGapDipX()
         {
+            if (_activeUsesCustomCapture && _activeLiveCorner.HasValue)
+            {
+                // The live window sat flush against the work area, so the gap is only what the work
+                // area gave up on that side (the taskbar), in this wave's DIPs.
+                return Horizontal() == ToastHorizontalAlignment.Center
+                    ? 0
+                    : _activeLiveGapPhysX / Math.Max(1.0, _activeMonitorScale);
+            }
+
             switch (Horizontal())
             {
                 case ToastHorizontalAlignment.Right:
@@ -4601,6 +4628,11 @@ namespace PlayniteAchievements.Services.UI
 
         private double EffectiveGapDipY()
         {
+            if (_activeUsesCustomCapture && _activeLiveCorner.HasValue)
+            {
+                return _activeLiveGapPhysY / Math.Max(1.0, _activeMonitorScale);
+            }
+
             return CornerGapDip - (AlignBottom() ? _activeCardInset.Bottom : _activeCardInset.Top);
         }
 
@@ -6500,8 +6532,13 @@ namespace PlayniteAchievements.Services.UI
             if (_activeUsesCustomCapture)
             {
                 // A custom (SAN) notification is what the player sees; this toast only exists so the
-                // screenshot and clip pipelines have a card to capture, so its corner is the official
-                // capture-position setting.
+                // screenshot and clip pipelines have a card to capture. Its corner is where the live
+                // card was drawn when that is known, otherwise the official capture-position setting.
+                if (_activeLiveCorner.HasValue)
+                {
+                    return _activeLiveCorner.Value;
+                }
+
                 return _settings?.Persisted?.CaptureNotificationPosition ?? ToastScreenCorner.BottomRight;
             }
 

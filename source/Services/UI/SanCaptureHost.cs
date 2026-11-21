@@ -64,6 +64,18 @@ namespace PlayniteAchievements.Services.UI
         /// <summary>The theme's transparent margin around the card body, as the placement's card inset.</summary>
         public Thickness CardInset => new Thickness(_tap.InsetDip);
 
+        /// <summary>Whether the live card's corner and edge gap are known.</summary>
+        public bool HasLivePlacement => _tap.HasLivePlacement;
+
+        /// <summary>The corner the live card was placed in.</summary>
+        public PlayniteAchievements.Models.Settings.ToastScreenCorner LiveCorner => _tap.LiveCorner;
+
+        /// <summary>Monitor-edge reserve (taskbar), physical pixels, horizontally on the corner's side.</summary>
+        public double LiveGapPhysX => _tap.LiveGapPhysX;
+
+        /// <summary>Monitor-edge reserve (taskbar), physical pixels, vertically on the corner's side.</summary>
+        public double LiveGapPhysY => _tap.LiveGapPhysY;
+
         /// <summary>How long a wave must sample to cover the whole card.</summary>
         public int TotalDurationMs => _tap.TotalDurationMs;
 
