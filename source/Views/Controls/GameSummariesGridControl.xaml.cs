@@ -604,7 +604,8 @@ namespace PlayniteAchievements.Views.Controls
 
         /// <summary>
         /// True when rarity is on the top row: a footer showing both points and trophies then
-        /// centers the trophies between the completion badge and the points.
+        /// centers the trophies between the completion badge and the points, and a game with
+        /// neither shows its rarity icons in the footer instead.
         /// </summary>
         public bool ProgressDetailCenterTrophies
         {

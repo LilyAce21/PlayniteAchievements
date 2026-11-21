@@ -353,6 +353,7 @@
                                          HorizontalAlignment="Right"
                                          VerticalAlignment="Center"
                                          CenterTrophiesBetween="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
+                                         RarityFallsBackToFooter="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          DetailOrder="{Binding ProgressDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ShownCount="{Binding ProgressDetailShownCount, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
@@ -370,6 +371,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <controls:ProgressDetailStrip Grid.Column="0"
+                                         RarityFallsBackToFooter="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          VerticalAlignment="Center"
                                          Reversed="True"
                                          DetailOrder="{Binding ProgressDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
@@ -395,6 +397,7 @@
                                          VerticalAlignment="Center"
                                          Reversed="True"
                                          CenterTrophiesBetween="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
+                                         RarityFallsBackToFooter="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          DetailOrder="{Binding ProgressDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ShownCount="{Binding ProgressDetailShownCount, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
@@ -412,6 +415,7 @@
                                          VerticalAlignment="Center"
                                          DetailOrder="{Binding ProgressTopDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ShownCount="1"
+                                         YieldsRarityToFooter="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
     </DataTemplate>
 
@@ -421,6 +425,7 @@
                                          Reversed="True"
                                          DetailOrder="{Binding ProgressTopDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ShownCount="1"
+                                         YieldsRarityToFooter="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
     </DataTemplate>
 
@@ -430,6 +435,7 @@
                                          Reversed="True"
                                          DetailOrder="{Binding ProgressTopDetailStyles, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ShownCount="1"
+                                         YieldsRarityToFooter="{Binding ProgressDetailCenterTrophies, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"
                                          ColorByRarity="{Binding ColorRarityColumnsByRarity, RelativeSource={RelativeSource AncestorType=controls:GameSummariesGridControl}}"/>
     </DataTemplate>
 

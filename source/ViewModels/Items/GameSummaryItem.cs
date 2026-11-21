@@ -287,6 +287,16 @@ namespace PlayniteAchievements.ViewModels.Items
         }
 
         /// <summary>
+        /// Whether the row has any trophy or points data to show: trophy totals, a platinum that is
+        /// the game's capstone (a PlayStation metadata platinum), or a points family. A row without
+        /// any falls back to rarity icons when those are assigned to the row above the bar.
+        /// </summary>
+        public bool HasTrophyOrPointsData =>
+            HasProgressDetail(ProgressDetailStyle.Trophy) ||
+            HasProgressDetail(ProgressDetailStyle.Points) ||
+            (IsPlatinumFinish && TrophyPlatinumTotal > 0);
+
+        /// <summary>
         /// What the finish badge shows under the enabled progress detail styles, in priority
         /// order: the leading detail is the first style this row has data for, the same one its
         /// detail strip shows first. A platinum finish counts as trophy data here even when it is

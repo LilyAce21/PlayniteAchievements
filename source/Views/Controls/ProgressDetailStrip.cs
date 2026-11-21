@@ -173,6 +173,44 @@ namespace PlayniteAchievements.Views.Controls
             set => SetValue(ReversedProperty, value);
         }
 
+        public static readonly DependencyProperty RarityFallsBackToFooterProperty =
+            DependencyProperty.Register(
+                nameof(RarityFallsBackToFooter),
+                typeof(bool),
+                typeof(ProgressDetailStrip),
+                new FrameworkPropertyMetadata(
+                    false,
+                    FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
+        /// <summary>
+        /// For the footer when rarity is assigned to the row above the bar: a game with no trophy
+        /// or points data shows its rarity icons here instead, since the row above steps aside.
+        /// </summary>
+        public bool RarityFallsBackToFooter
+        {
+            get => (bool)GetValue(RarityFallsBackToFooterProperty);
+            set => SetValue(RarityFallsBackToFooterProperty, value);
+        }
+
+        public static readonly DependencyProperty YieldsRarityToFooterProperty =
+            DependencyProperty.Register(
+                nameof(YieldsRarityToFooter),
+                typeof(bool),
+                typeof(ProgressDetailStrip),
+                new FrameworkPropertyMetadata(
+                    false,
+                    FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+
+        /// <summary>
+        /// For the row above the bar: draws nothing for a game with no trophy or points data, whose
+        /// rarity icons the footer shows instead (<see cref="RarityFallsBackToFooter"/>).
+        /// </summary>
+        public bool YieldsRarityToFooter
+        {
+            get => (bool)GetValue(YieldsRarityToFooterProperty);
+            set => SetValue(YieldsRarityToFooterProperty, value);
+        }
+
         public static readonly DependencyProperty CenterTrophiesBetweenProperty =
             DependencyProperty.Register(
                 nameof(CenterTrophiesBetween),
@@ -352,8 +390,25 @@ namespace PlayniteAchievements.Views.Controls
                 return groups;
             }
 
+            var noMetadata = (YieldsRarityToFooter || RarityFallsBackToFooter) && !item.HasTrophyOrPointsData;
+            if (YieldsRarityToFooter && noMetadata)
+            {
+                return groups;
+            }
+
+            IEnumerable<ProgressDetailStyle> styles = order;
+            if (RarityFallsBackToFooter && noMetadata && !order.Contains(ProgressDetailStyle.Rarity))
+            {
+                styles = order.Concat(new[] { ProgressDetailStyle.Rarity });
+            }
+
+            // A platinum that is the game's capstone normally moves to the finish badge. When points
+            // lead the row the badge is not a platinum, so that trophy has to show in the trophy group.
+            var platinumStaysInRow = item.IsPlatinumFinish && item.TrophyPlatinumTotal > 0 &&
+                                     item.CompletionBadgeFor(order) != CompletionBadgeKind.Platinum;
+
             var limit = ProgressDetailOrder.ClampShownCount(ShownCount);
-            foreach (var style in order)
+            foreach (var style in styles)
             {
                 if (groups.Count >= limit)
                 {
@@ -361,7 +416,8 @@ namespace PlayniteAchievements.Views.Controls
                 }
 
                 var specs = SpecsFor(style);
-                if (specs != null && item.HasProgressDetail(style))
+                if (specs != null &&
+                    (item.HasProgressDetail(style) || (style == ProgressDetailStyle.Trophy && platinumStaysInRow)))
                 {
                     groups.Add(specs);
                 }

@@ -239,6 +239,12 @@ namespace PlayniteAchievements.Models.Settings
             target.SilverIconScalePercent = source.SilverIconScalePercent;
             target.BronzeIconScalePercent = source.BronzeIconScalePercent;
             target.UltraRareIconScalePercent = source.UltraRareIconScalePercent;
+            target.CommonIconScalePercent = source.CommonIconScalePercent;
+            target.UncommonIconScalePercent = source.UncommonIconScalePercent;
+            target.RareIconScalePercent = source.RareIconScalePercent;
+            target.CompletedIconScalePercent = source.CompletedIconScalePercent;
+            target.MythicIconScalePercent = source.MythicIconScalePercent;
+            target.CapstonePlatinumIconScalePercent = source.CapstonePlatinumIconScalePercent;
             target.ProviderColorOverrides = source.ProviderColorOverrides != null
                 ? new Dictionary<string, string>(
                     source.ProviderColorOverrides,

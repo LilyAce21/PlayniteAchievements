@@ -227,6 +227,12 @@ namespace PlayniteAchievements.Models.Settings
         private int _silverIconScalePercent = 100;
         private int _bronzeIconScalePercent = 100;
         private int _ultraRareIconScalePercent = 100;
+        private int? _commonIconScalePercent;
+        private int? _uncommonIconScalePercent;
+        private int? _rareIconScalePercent;
+        private int? _completedIconScalePercent;
+        private int? _mythicIconScalePercent;
+        private int? _capstonePlatinumIconScalePercent;
         private Dictionary<string, string> _providerColorOverrides =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private bool _includeUnplayedGames = true;
@@ -2537,6 +2543,67 @@ namespace PlayniteAchievements.Models.Settings
             set => SetValue(ref _bronzeIconScalePercent, Math.Max(50, Math.Min(200, value)));
         }
 
+
+        /// <summary>
+        /// Size of the Common rarity icon in small views, as a percentage of the normal icon size. Until it is
+        /// set, it keeps the size the Bronze icon size setting gave it before icons had their own sliders.
+        /// </summary>
+        public int CommonIconScalePercent
+        {
+            get => _commonIconScalePercent ?? BronzeIconScalePercent;
+            set => SetValue(ref _commonIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>
+        /// Size of the Uncommon rarity icon in small views, as a percentage of the normal icon size. Until it is
+        /// set, it keeps the size the Silver icon size setting gave it before icons had their own sliders.
+        /// </summary>
+        public int UncommonIconScalePercent
+        {
+            get => _uncommonIconScalePercent ?? SilverIconScalePercent;
+            set => SetValue(ref _uncommonIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>
+        /// Size of the Rare rarity icon in small views, as a percentage of the normal icon size. Until it is
+        /// set, it keeps the size the Gold icon size setting gave it before icons had their own sliders.
+        /// </summary>
+        public int RareIconScalePercent
+        {
+            get => _rareIconScalePercent ?? GoldIconScalePercent;
+            set => SetValue(ref _rareIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>
+        /// Size of the plain completed badge in small views, as a percentage of the normal icon size. Until it is
+        /// set, it keeps the size the Platinum icon size setting gave it before icons had their own sliders.
+        /// </summary>
+        public int CompletedIconScalePercent
+        {
+            get => _completedIconScalePercent ?? PlatinumIconScalePercent;
+            set => SetValue(ref _completedIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>
+        /// Size of the mythic completion badge in small views, as a percentage of the normal icon size. Until it is
+        /// set, it keeps the size the default (100) setting gave it before icons had their own sliders.
+        /// </summary>
+        public int MythicIconScalePercent
+        {
+            get => _mythicIconScalePercent ?? 100;
+            set => SetValue(ref _mythicIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
+        /// <summary>
+        /// Size of the capstone platinum image on the finish badge in small views, as a percentage of the normal icon size. Until it is
+        /// set, it keeps the size the Platinum icon size setting gave it before icons had their own sliders.
+        /// </summary>
+        public int CapstonePlatinumIconScalePercent
+        {
+            get => _capstonePlatinumIconScalePercent ?? PlatinumIconScalePercent;
+            set => SetValue(ref _capstonePlatinumIconScalePercent, Math.Max(50, Math.Min(200, value)));
+        }
+
         /// <summary>
         /// User-selected provider colors keyed by provider key. Providers without an entry use
         /// the brand color supplied by their IDataProvider implementation.
@@ -3784,6 +3851,12 @@ namespace PlayniteAchievements.Models.Settings
                 SilverIconScalePercent = this.SilverIconScalePercent,
                 BronzeIconScalePercent = this.BronzeIconScalePercent,
                 UltraRareIconScalePercent = this.UltraRareIconScalePercent,
+                CommonIconScalePercent = this.CommonIconScalePercent,
+                UncommonIconScalePercent = this.UncommonIconScalePercent,
+                RareIconScalePercent = this.RareIconScalePercent,
+                CompletedIconScalePercent = this.CompletedIconScalePercent,
+                MythicIconScalePercent = this.MythicIconScalePercent,
+                CapstonePlatinumIconScalePercent = this.CapstonePlatinumIconScalePercent,
                 ProviderColorOverrides = this.ProviderColorOverrides != null
                     ? new Dictionary<string, string>(
                         this.ProviderColorOverrides,
@@ -3938,6 +4011,12 @@ namespace PlayniteAchievements.Models.Settings
             SilverIconScalePercent = defaults.SilverIconScalePercent;
             BronzeIconScalePercent = defaults.BronzeIconScalePercent;
             UltraRareIconScalePercent = defaults.UltraRareIconScalePercent;
+            CommonIconScalePercent = defaults.CommonIconScalePercent;
+            UncommonIconScalePercent = defaults.UncommonIconScalePercent;
+            RareIconScalePercent = defaults.RareIconScalePercent;
+            CompletedIconScalePercent = defaults.CompletedIconScalePercent;
+            MythicIconScalePercent = defaults.MythicIconScalePercent;
+            CapstonePlatinumIconScalePercent = defaults.CapstonePlatinumIconScalePercent;
             ProviderColorOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             ResourceOverrides = CreateDefaultResourceOverrides();
 

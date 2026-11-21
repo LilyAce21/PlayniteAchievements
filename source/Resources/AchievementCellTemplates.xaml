@@ -45,6 +45,8 @@
             <Trigger Property="helpers:CompletionBadge.Kind" Value="Mythic">
                 <Setter Property="Source" Value="{DynamicResource BadgeRarityMythic}"/>
                 <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Badge_Mythic}"/>
+                <Setter Property="RenderTransformOrigin" Value="0.5,1"/>
+                <Setter Property="RenderTransform" Value="{Binding Converter={StaticResource PlatinumIconTransform}, ConverterParameter=BadgeRarityMythic}"/>
             </Trigger>
         </Style.Triggers>
     </Style>

@@ -776,7 +776,13 @@ namespace PlayniteAchievements.Models.Achievements
                    string.Equals(propertyName, nameof(PersistedSettings.GoldIconScalePercent), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.SilverIconScalePercent), StringComparison.Ordinal) ||
                    string.Equals(propertyName, nameof(PersistedSettings.BronzeIconScalePercent), StringComparison.Ordinal) ||
-                   string.Equals(propertyName, nameof(PersistedSettings.UltraRareIconScalePercent), StringComparison.Ordinal);
+                   string.Equals(propertyName, nameof(PersistedSettings.UltraRareIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.CommonIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.UncommonIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.RareIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.CompletedIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.MythicIconScalePercent), StringComparison.Ordinal) ||
+                   string.Equals(propertyName, nameof(PersistedSettings.CapstonePlatinumIconScalePercent), StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -795,38 +801,49 @@ namespace PlayniteAchievements.Models.Achievements
             switch (iconKey)
             {
                 case "TrophyPlatinum":
+                    percent = settings.PlatinumIconScalePercent;
+                    break;
+                // Each icon has its own size setting: the capstone platinum, the plain completed
+                // badge and the mythic badge no longer share the Platinum trophy's.
                 case "CapstonePlatinum":
-                // The plain "100% completed" badge (no capstone) is the game's platinum stand-in in the
-                // completion bar, pie chart and showcase, so it follows the Platinum icon size too.
+                    percent = settings.CapstonePlatinumIconScalePercent;
+                    break;
                 case "BadgeCompletedGame":
                 case "BadgeRarityCompleted":
                 case "ScoreBadgeCompletedGame":
-                    percent = settings.PlatinumIconScalePercent;
+                    percent = settings.CompletedIconScalePercent;
                     break;
-                // In trophy mode the rarity tiers are drawn as trophies (Ultra Rare = blue, Rare = gold,
-                // Uncommon = silver, Common = bronze), so each tier shares its trophy's size setting.
+                case "BadgeRarityMythic":
+                    percent = settings.MythicIconScalePercent;
+                    break;
                 case "BadgeRarityUltraRare":
                 case "BadgePlatinumHexagon":
                 case "ScoreBadgePlatinumHexagon":
                     percent = settings.UltraRareIconScalePercent;
                     break;
                 case "TrophyGold":
-                case "BadgeRarityRare":
-                case "BadgeGoldPentagon":
-                case "BadgeGoldHexagon":
                     percent = settings.GoldIconScalePercent;
                     break;
                 case "TrophySilver":
-                case "BadgeRarityUncommon":
-                case "BadgeSilverSquare":
-                case "BadgeSilverHexagon":
                     percent = settings.SilverIconScalePercent;
                     break;
                 case "TrophyBronze":
+                    percent = settings.BronzeIconScalePercent;
+                    break;
+                case "BadgeRarityRare":
+                case "BadgeGoldPentagon":
+                case "BadgeGoldHexagon":
+                    percent = settings.RareIconScalePercent;
+                    break;
+                case "BadgeRarityUncommon":
+                case "BadgeSilverSquare":
+                case "BadgeSilverHexagon":
+                    percent = settings.UncommonIconScalePercent;
+                    break;
                 case "BadgeRarityCommon":
                 case "BadgeBronzeTriangle":
                 case "BadgeBronzeHexagon":
-                    percent = settings.BronzeIconScalePercent;
+                    percent = settings.CommonIconScalePercent;
                     break;
                 default:
                     return 1.0;
