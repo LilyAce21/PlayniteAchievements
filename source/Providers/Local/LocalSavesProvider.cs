@@ -972,6 +972,11 @@ namespace PlayniteAchievements.Providers.Local
                 return null;
             }
 
+            // The first live read of a session otherwise pays for finding the game's save folder (about
+            // 600 ms against about 10 ms once it is known), which lands on the first unlock's
+            // notification. Do that search now, off the game's critical path.
+            WarmLiveReadCaches(game);
+
             // Every file that can carry an unlock (Goldberg/emulator achievement files, Steam's local
             // stats bins) is watched, so the in-game monitor reads the moment one changes instead of
             // waiting for its next refresh.
@@ -986,6 +991,60 @@ namespace PlayniteAchievements.Providers.Local
                 PollInterval = TimeSpan.FromSeconds(30),
                 State = game.Id
             };
+        }
+
+        private readonly Dictionary<Guid, DateTime> _liveReadWarmedUtc = new Dictionary<Guid, DateTime>();
+
+        /// <summary>
+        /// Resolves the game's save folder and the achievement files inside it on a background
+        /// thread, so the first unlock's read finds the folder cache populated. It is the same search
+        /// that read performs, run once per game launch ahead of time, and it leaves the same cache
+        /// entry behind; nothing is read, parsed or written.
+        /// </summary>
+        private void WarmLiveReadCaches(Game game)
+        {
+            if (game == null || game.Id == Guid.Empty)
+            {
+                return;
+            }
+
+            lock (_liveReadWarmedUtc)
+            {
+                // Registration can repeat for one launch; once every few minutes is plenty.
+                if (_liveReadWarmedUtc.TryGetValue(game.Id, out var warmedAt) &&
+                    DateTime.UtcNow - warmedAt < TimeSpan.FromMinutes(5))
+                {
+                    return;
+                }
+
+                _liveReadWarmedUtc[game.Id] = DateTime.UtcNow;
+            }
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    var clock = System.Diagnostics.Stopwatch.StartNew();
+                    var appId = GetAppId(game, out _);
+                    if (!TryResolveLocalFolder(game, appId, out var folderPath, out _, out _, out _) ||
+                        string.IsNullOrWhiteSpace(folderPath))
+                    {
+                        return;
+                    }
+
+                    ResolveAchievementFilePath(folderPath, "achievements.json");
+                    foreach (var iniFileName in LocalAchievementIniFileNames)
+                    {
+                        ResolveAchievementFilePath(folderPath, iniFileName);
+                    }
+
+                    Log($"WARM: game={game.Name} save folder resolved in {clock.ElapsedMilliseconds}ms ahead of the first live read.");
+                }
+                catch (Exception ex)
+                {
+                    Log($"WARM FAILED: game='{game.Name}' msg={ex.Message}");
+                }
+            });
         }
 
         private readonly Dictionary<Guid, KeyValuePair<string, InGameProgressQueryResult>> _liveProgressCache =
