@@ -84,6 +84,10 @@
       /* The card is fitted to its text (see paFitXbox); the window stays at the widest size, so a
          shorter card is anchored to the side the notification is positioned on. */
       body[pa-fit] .wrapper#outerwrapper { width: var(--pa-fullwidth); }
+      /* The preset starts and ends the card at 16.6% of its container, which is the emblem circle only at the
+         original 300 unit width. The card is wider than that now (icon space, end space, text fit), so start and
+         end at exactly the circle's width: nothing but the circle shows before the card opens or after it closes. */
+      body[pa-xbox] .wrapper#achcont { --start: var(--notifyheight); }
       /* No achievement icon on the right (100% completion): keep the text off the rounded end, with the same
          space after it as there is between the emblem and the text. */
       body[pa-xbox]:not([rightachicon]) .wrapper#achcontent { margin-inline-end: var(--pa-gap, 0px); }
