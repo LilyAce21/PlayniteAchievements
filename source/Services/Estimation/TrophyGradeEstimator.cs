@@ -52,10 +52,11 @@ namespace PlayniteAchievements.Services.Estimation
         private const int MinNativesForFit = 4;
 
         /// <summary>
-        /// From this many trophies on, gold is reserved for true capstones: the capstone itself, a
-        /// true ending, or the last step of a real ladder. A "hard challenge" no longer earns it,
-        /// because in huge undifferentiated lists (Geometry Dash, Cookie Clicker) the model rates
-        /// far too many items as hard.
+        /// From this many trophies on, gold is reserved for true capstones: the capstone itself (end
+        /// of the story and similar beats), a true ending, or the last step of a real ladder. A hard
+        /// challenge only counts at the extreme end of difficulty (5), because in huge
+        /// undifferentiated lists (Geometry Dash, Cookie Clicker) the model rates far too many
+        /// items as hard.
         /// </summary>
         internal const int LargeListThreshold = 100;
 
@@ -200,7 +201,7 @@ namespace PlayniteAchievements.Services.Estimation
                 string reason = null;
                 if (s.IsCapstone) reason = "capstone";
                 else if (s.Kind == AchievementKind.TrueEnding) reason = "true ending";
-                else if (!largeList && (s.Difficulty >= 5 || (s.Kind == AchievementKind.Challenge && s.Difficulty >= 4))) reason = "hard challenge";
+                else if (s.Difficulty >= 5 || (!largeList && s.Kind == AchievementKind.Challenge && s.Difficulty >= 4)) reason = "hard challenge";
                 else if (!string.IsNullOrWhiteSpace(s.SeriesId) &&
                          seriesLast.TryGetValue(s.SeriesId, out var last) &&
                          string.Equals(last, s.ApiName, StringComparison.OrdinalIgnoreCase) &&
@@ -226,20 +227,37 @@ namespace PlayniteAchievements.Services.Estimation
         }
 
         /// <summary>
-        /// The budget target for a list of this size: the native budget, never below the per-trophy
-        /// floor, never above what an all-gold list could reach. Null when the floor already
-        /// exceeds the budget (long lists), where thresholds alone decide.
+        /// The budget target for a list of this size, one continuous curve: the native budget for
+        /// small lists, and for longer ones the all-bronze floor plus a headroom that fades smoothly
+        /// to nothing. The target therefore rises with the list, no trophies are dropped, and the
+        /// share of silver and gold tightens gradually toward a bronze-dominant mix, with no cliff
+        /// at the point where the floor overtakes the budget. Never more than an all-gold list.
         /// </summary>
-        internal static int? BudgetTarget(int count, EstimationSettings settings)
+        internal static int BudgetTarget(int count, EstimationSettings settings)
         {
-            if (count <= 0) return null;
+            if (count <= 0) return 0;
+
+            var start = settings.TrophyHeadroomStart;
+            var end = Math.Max(start + 1, settings.TrophyHeadroomEnd);
+            var t = ValueScoring.Clamp01((count - start) / (double)(end - start));
+            var fade = t * t * (3 - 2 * t); // smoothstep: flat at both ends
+
             var floorTotal = settings.TrophyFloorPerTrophy * count;
-            if (floorTotal >= settings.TrophyBudget) return null;
-            return Math.Min(settings.TrophyBudget, GoldPoints * count);
+            var curve = floorTotal * (1 + settings.TrophyHeadroomAtStart * (1 - fade));
+
+            var target = Math.Max(settings.TrophyBudget, (int)Math.Round(curve));
+            return Math.Min(target, GoldPoints * count);
         }
 
         private static double Tolerance(BudgetPreset preset) => preset == BudgetPreset.Native ? 0.03 : 0.50;
 
+        /// <summary>
+        /// Brings the list's total into the budget band. The budget only nudges: when the value-based
+        /// grades already sit inside the band nothing changes. Outside it, the mix the scores
+        /// suggested is scaled to the band (a list keeps its shape, with a real middle of silvers,
+        /// instead of collapsing into gold and bronze), and grades are then handed out in merit
+        /// order: trophies with a stated gold reason first, then by value.
+        /// </summary>
         private static void ApplyBudget(
             List<AchievementScore> targets,
             Dictionary<string, double> scoreByName,
@@ -247,71 +265,69 @@ namespace PlayniteAchievements.Services.Estimation
             Dictionary<string, string> reasons,
             EstimationSettings settings)
         {
-            var target = BudgetTarget(targets.Count, settings);
-            if (target == null) return;
+            var n = targets.Count;
+            var target = BudgetTarget(n, settings);
+            var largeList = n >= LargeListThreshold;
 
             var tolerance = Tolerance(settings.Preset);
-            var low = target.Value * (1 - tolerance);
-            var high = target.Value * (1 + tolerance);
+            var low = target * (1 - tolerance);
+            var high = target * (1 + tolerance);
 
-            // Highest score first. Promotions walk down this list, demotions walk up it, so the
-            // grade order always follows the value order.
-            var byScoreDesc = targets
-                .OrderByDescending(s => scoreByName[s.ApiName])
+            var total = grades.Values.Sum(PointsOf);
+            if (total >= low && total <= high) return;
+
+            var goal = total < low ? low : high;
+            var floor = BronzePoints * n;
+            var extra = Math.Max(0.0, goal - floor);
+
+            var reasonsByName = GoldReasons(targets, largeList);
+            double Merit(AchievementScore s) => (reasonsByName.ContainsKey(s.ApiName) ? 10.0 : 0.0) + scoreByName[s.ApiName];
+            var byMerit = targets
+                .OrderByDescending(Merit)
                 .ThenBy(s => s.ApiName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            int Total() => grades.Values.Sum(PointsOf);
+            // The shape the scores suggested: how many golds and silvers, and how much each adds above bronze.
+            var gold0 = grades.Values.Count(g => g == TrophyGrade.Gold);
+            var silver0 = grades.Values.Count(g => g == TrophyGrade.Silver);
+            if (gold0 + silver0 == 0) { gold0 = 1; silver0 = 3; } // nothing to scale: seed a typical shape
+            var extra0 = (GoldPoints - BronzePoints) * gold0 + (SilverPoints - BronzePoints) * silver0;
+            var factor = extra / extra0;
 
-            var guard = targets.Count * 4 + 8;
-            while (guard-- > 0)
+            // Golds are capped by stated reasons where a reason is required (large lists, value-based preset).
+            var goldCap = largeList || settings.Preset == BudgetPreset.ValueBased
+                ? reasonsByName.Count
+                : n;
+
+            var bestGold = 0;
+            var bestSilver = 0;
+            var bestError = double.MaxValue;
+            // Golds are the rarest, best-justified grade. When the budget is squeezed they scale with
+            // the square root of the factor, so a tight list gives up silvers before it gives up
+            // golds; when the budget is generous (small lists) they scale fully with it.
+            var goldIdeal = gold0 * (factor < 1 ? Math.Sqrt(factor) : factor);
+            var scaledGold = (int)Math.Round(goldIdeal);
+            for (var g = Math.Max(0, scaledGold - 3); g <= Math.Min(Math.Min(n, goldCap), scaledGold + 3); g++)
             {
-                var total = Total();
-                if (total >= low && total <= high) break;
+                var silvers = (int)Math.Round((extra - (GoldPoints - BronzePoints) * g) / (SilverPoints - BronzePoints));
+                silvers = Math.Max(0, Math.Min(n - g, silvers));
 
-                if (total < low)
-                {
-                    // Raise the highest-scoring trophy that can still rise.
-                    var candidate = byScoreDesc.FirstOrDefault(s => grades[s.ApiName] != TrophyGrade.Gold &&
-                                                                  CanPromote(s, grades[s.ApiName], settings));
-                    if (candidate == null) break;
-
-                    var next = (TrophyGrade)((int)grades[candidate.ApiName] + 1);
-                    var gain = PointsOf(next) - PointsOf(grades[candidate.ApiName]);
-                    if (Math.Abs(total + gain - target.Value) >= Math.Abs(total - target.Value)) break;
-
-                    grades[candidate.ApiName] = next;
-                    reasons[candidate.ApiName] = "budget";
-                }
-                else
-                {
-                    var candidate = byScoreDesc.AsEnumerable().Reverse()
-                        .FirstOrDefault(s => grades[s.ApiName] != TrophyGrade.Bronze);
-                    if (candidate == null) break;
-
-                    var next = (TrophyGrade)((int)grades[candidate.ApiName] - 1);
-                    var loss = PointsOf(grades[candidate.ApiName]) - PointsOf(next);
-                    if (Math.Abs(total - loss - target.Value) >= Math.Abs(total - target.Value)) break;
-
-                    grades[candidate.ApiName] = next;
-                    reasons[candidate.ApiName] = "budget";
-                }
-            }
-        }
-
-        /// <summary>
-        /// Native preset: the budget may promote anything, because real small lists really are
-        /// gold-heavy. Value-based preset: promotion to gold still needs a stated reason.
-        /// </summary>
-        private static bool CanPromote(AchievementScore s, TrophyGrade current, EstimationSettings settings)
-        {
-            if (current == TrophyGrade.Silver && settings.Preset == BudgetPreset.ValueBased)
-            {
-                var reasons = GoldReasons(new[] { s });
-                return reasons.ContainsKey(s.ApiName);
+                var points = floor + (GoldPoints - BronzePoints) * g + (SilverPoints - BronzePoints) * silvers;
+                var error = Math.Abs(points - goal) + 0.001 * Math.Abs(g - goldIdeal);
+                if (error < bestError) { bestError = error; bestGold = g; bestSilver = silvers; }
             }
 
-            return true;
+            for (var i = 0; i < n; i++)
+            {
+                var s = byMerit[i];
+                var grade = i < bestGold ? TrophyGrade.Gold : i < bestGold + bestSilver ? TrophyGrade.Silver : TrophyGrade.Bronze;
+                if (grade == grades[s.ApiName]) continue;
+
+                grades[s.ApiName] = grade;
+                reasons[s.ApiName] = grade == TrophyGrade.Gold && reasonsByName.TryGetValue(s.ApiName, out var why)
+                    ? "budget: " + why
+                    : "budget";
+            }
         }
 
         // ---------------------------------------------------------------------------------

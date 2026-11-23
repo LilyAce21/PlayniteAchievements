@@ -116,7 +116,7 @@ namespace PlayniteAchievements.Services.Estimation.Tests
 
                     // The one allowed inversion: the lower item is gold because it has a stated reason
                     // (gold requires one) while the higher item has none and drops to silver.
-                    var allowed = gb.Grade == TrophyGrade.Gold && gb.Reason != "budget" && gb.Reason != "value";
+                    var allowed = gb.Reason != "budget" && gb.Reason != "value" && gb.Reason != "no gold reason";
                     Assert.IsTrue(allowed, a.ApiName + " (" + value[a.ApiName] + ", " + ga.Grade + ") vs " + b.ApiName + " (" + value[b.ApiName] + ", " + gb.Grade + ", " + gb.Reason + ")");
                 }
             }
@@ -134,13 +134,81 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         }
 
         [TestMethod]
-        public void Trophies_LargeListIsBronzeDominantWithGoldOnlyForCapstones()
+        public void Trophies_LargeListIsBronzeDominantWithGoldOnlyForRealCapstones()
         {
-            var scores = Spread(300);
-            var estimates = TrophyGradeEstimator.Estimate(new TrophyEstimationInput { Scores = scores });
+            // 300 mostly easy achievements, one end-of-story capstone, one extreme challenge, and a
+            // pile of merely "hard" challenges that must not earn gold at this size.
+            var scores = Enumerable.Range(0, 300)
+                .Select(i => Score("lvl" + i, difficulty: 1 + i % 3, kind: AchievementKind.Collectible, phase: GamePhase.Mid))
+                .ToList();
+            scores[299] = Score("lvl299", difficulty: 4, kind: AchievementKind.StoryMilestone, phase: GamePhase.Late, capstone: true);
+            scores[298] = Score("lvl298", difficulty: 5, kind: AchievementKind.Challenge, phase: GamePhase.Late);
+            for (var i = 200; i < 230; i++) scores[i] = Score("lvl" + i, difficulty: 4, kind: AchievementKind.Challenge, phase: GamePhase.Late);
 
-            Assert.IsTrue(estimates.Count(e => e.Grade == TrophyGrade.Bronze) > estimates.Count / 2);
-            Assert.IsTrue(estimates.Count(e => e.Grade == TrophyGrade.Gold) <= 3);
+            var estimates = TrophyGradeEstimator.Estimate(new TrophyEstimationInput { Scores = scores }).ToDictionary(e => e.ApiName);
+
+            Assert.IsTrue(estimates.Values.Count(e => e.Grade == TrophyGrade.Bronze) > 150);
+            Assert.AreEqual(TrophyGrade.Gold, estimates["lvl299"].Grade);
+            // The budget at this size leaves room for about one gold; the capstone gets it and the
+            // extreme challenge is next in line.
+            Assert.IsTrue(estimates["lvl298"].Grade >= TrophyGrade.Silver);
+            Assert.IsTrue(Enumerable.Range(200, 30).All(i => estimates["lvl" + i].Grade != TrophyGrade.Gold));
+        }
+
+        [TestMethod]
+        public void Trophies_SmallListGoldsGoToTheBestJustifiedTrophies()
+        {
+            // 17 strong bosses with no special reason, plus a capstone, a true ending and an extreme
+            // challenge whose raw value scores are lower. The budget needs about ten golds.
+            var scores = Enumerable.Range(0, 17)
+                .Select(i => Score("boss" + i, difficulty: 4, kind: AchievementKind.Boss, phase: GamePhase.Late))
+                .ToList();
+            scores.Add(Score("capstone", difficulty: 1, kind: AchievementKind.Tutorial, phase: GamePhase.Early, capstone: true));
+            scores.Add(Score("ending", difficulty: 1, kind: AchievementKind.TrueEnding, phase: GamePhase.Early));
+            scores.Add(Score("extreme", difficulty: 5, kind: AchievementKind.Optional, phase: GamePhase.Early));
+
+            var estimates = TrophyGradeEstimator.Estimate(new TrophyEstimationInput { Scores = scores }).ToDictionary(e => e.ApiName);
+
+            Assert.AreEqual(TrophyGrade.Gold, estimates["capstone"].Grade);
+            Assert.AreEqual(TrophyGrade.Gold, estimates["ending"].Grade);
+            Assert.AreEqual(TrophyGrade.Gold, estimates["extreme"].Grade);
+            Assert.IsTrue(estimates["capstone"].Reason.Contains("capstone"));
+        }
+
+        [TestMethod]
+        public void Trophies_SilverAndGoldShareTightensSmoothlyWithListSize()
+        {
+            double Share(int n)
+            {
+                var estimates = TrophyGradeEstimator.Estimate(new TrophyEstimationInput { Scores = Spread(n) });
+                return estimates.Count(e => e.Grade != TrophyGrade.Bronze) / (double)n;
+            }
+
+            var previous = Share(70);
+            for (var n = 90; n <= 200; n += 20)
+            {
+                var share = Share(n);
+                Assert.IsTrue(share <= previous + 0.03, "share rose from " + previous + " to " + share + " at n=" + n);
+                Assert.IsTrue(previous - share <= 0.20, "share fell off a cliff from " + previous + " to " + share + " at n=" + n);
+                previous = share;
+            }
+        }
+
+        [TestMethod]
+        public void Trophies_BudgetTargetIsContinuousAndRisesWithTheList()
+        {
+            var settings = new EstimationSettings();
+            var previous = TrophyGradeEstimator.BudgetTarget(1, settings);
+            for (var n = 2; n <= 400; n++)
+            {
+                var target = TrophyGradeEstimator.BudgetTarget(n, settings);
+                Assert.IsTrue(target >= previous, "target fell at n=" + n);
+                Assert.IsTrue(target - previous <= 90, "target jumped by " + (target - previous) + " at n=" + n);
+                previous = target;
+            }
+
+            Assert.AreEqual(1000, TrophyGradeEstimator.BudgetTarget(30, settings));
+            Assert.AreEqual(15 * 400, TrophyGradeEstimator.BudgetTarget(400, settings));
         }
 
         [TestMethod]
