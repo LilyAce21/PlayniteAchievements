@@ -892,27 +892,6 @@ namespace PlayniteAchievements.Services
                 : settings.OfficialSanXboxScoreFallback == OfficialSanScoreFallback.None ? "none" : "collection";
         }
 
-        /// <summary>
-        /// Extra room (in theme units) the right-hand achievement icon needs before the card's rounded end so that
-        /// its corners stay inside the curve with the same clearance it has above and below (the host page does the
-        /// same maths with the real sizes). 100 is a full circle and needs none; the radius is roundness / 6 units.
-        /// </summary>
-        private static double XboxIconEndExtraUnits(double height, double roundness)
-        {
-            if (roundness >= 100)
-            {
-                return 0;
-            }
-
-            var size = Math.Max(1, height - 10);
-            var clearance = (height - size) / 2;
-            var cardRadius = height / 2;
-            var radius = Math.Min(size / 2, Math.Max(0, roundness) / 6);
-            var inner = Math.Pow(cardRadius - clearance - radius, 2) - Math.Pow(size / 2 - radius, 2);
-            var distance = Math.Max(clearance, cardRadius - radius - Math.Sqrt(Math.Max(0, inner)));
-            return Math.Max(0, distance - clearance);
-        }
-
         private static bool IsMythicTheme(OfficialSanTheme theme)
         {
             var dir = string.IsNullOrWhiteSpace(theme?.CacheDir) ? string.Empty : Path.GetFileName(theme.CacheDir.TrimEnd('\\', '/'));
@@ -1002,9 +981,7 @@ namespace PlayniteAchievements.Services
                 {
                     // The icon square sits beside the text, so widen the card (and with it the window)
                     // by its width plus margin; the text area stays as wide as the theme designed it.
-                    var rightIconUnits = xboxRightIcon
-                        ? Math.Max(0, theme.BaseHeight - 10) + 7 + XboxIconEndExtraUnits(theme.BaseHeight, theme.Customisation["iconroundness"]?.Value<double?>() ?? 0)
-                        : 0;
+                    var rightIconUnits = xboxRightIcon ? Math.Max(0, theme.BaseHeight - 10) + 7 : 0;
 
                     // The card is as wide as the theme says, so long text would be cut off. Estimate the
                     // width the text needs (about 0.62 em per character; the description wraps to two
