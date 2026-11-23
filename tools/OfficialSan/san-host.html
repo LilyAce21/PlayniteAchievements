@@ -30,7 +30,7 @@
         place-self: center;
         width: var(--rsize);
         height: var(--rsize);
-        margin-inline: var(--pa-gap, calc(2px * var(--scale))) calc(5px * var(--scale));
+        margin-inline: var(--pa-gap, calc(2px * var(--scale))) var(--pa-iconend, calc(5px * var(--scale)));
         border-radius: var(--iconroundness, 50%);
         overflow: hidden;
         opacity: 0;
@@ -1339,6 +1339,20 @@
           const firstText = document.getElementById("unlockmsg") || document.getElementById("title") || content;
           const gap = Math.max(0, firstText.getBoundingClientRect().left - wrap.getBoundingClientRect().right);
           root.style.setProperty("--pa-gap", gap + "px");
+
+          // Right-hand icon: the card's end is a half circle, so a squarer icon needs more room before that
+          // curve or its corners poke out. Keep the icon's corner inside the curve with the same clearance the
+          // icon has above and below it.
+          const ri = document.getElementById("rightachicon");
+          if (xb.rightIcon === true && ri && ri.offsetWidth > 0) {
+            const s = ri.offsetWidth;
+            const rad = getComputedStyle(ri).borderTopLeftRadius || "0px";
+            const r = Math.min(s / 2, rad.endsWith("%") ? s * parseFloat(rad) / 100 : parseFloat(rad) || 0);
+            const R = h / 2, c = Math.max(0, (h - s) / 2);
+            const inner = Math.pow(R - c - r, 2) - Math.pow(s / 2 - r, 2);
+            const d = Math.max(c, R - r - Math.sqrt(Math.max(0, inner)));
+            root.style.setProperty("--pa-iconend", d + "px");
+          }
           const chrome = card.getBoundingClientRect().width - firstText.getBoundingClientRect().width;
 
           const natural = (id) => {
