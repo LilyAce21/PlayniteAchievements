@@ -188,6 +188,22 @@ namespace PlayniteAchievements.Models.Achievements
         public AchievementLayerValues CustomLayer { get; set; }
 
         /// <summary>
+        /// Runtime-only: the estimated layer, the lowest of all. It can carry only Points (an
+        /// estimated Gamerscore) and TrophyType (an estimated PSN grade), and fills a field only
+        /// when no other layer supplies it, set or cleared. Native values always win.
+        /// </summary>
+        [IgnoreDataMember]
+        public AchievementLayerValues EstimatedLayer { get; set; }
+
+        /// <summary>Runtime-only: <see cref="Points"/> is the estimated layer's, not a native value.</summary>
+        [IgnoreDataMember]
+        public bool IsPointsEstimated { get; set; }
+
+        /// <summary>Runtime-only: <see cref="TrophyType"/> is the estimated layer's, not a native value.</summary>
+        [IgnoreDataMember]
+        public bool IsTrophyTypeEstimated { get; set; }
+
+        /// <summary>
         /// Runtime-only category art path for theme/display bindings: custom override when
         /// set, otherwise the provider default. Null when neither exists; consumers choose
         /// the game icon/cover fallback.

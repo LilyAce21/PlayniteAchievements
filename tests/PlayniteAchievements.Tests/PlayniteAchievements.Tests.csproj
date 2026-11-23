@@ -261,6 +261,8 @@
     <Compile Include="..\..\source\Services\Achievements\LayerResolver.cs" Link="Source\Services\Achievements\LayerResolver.cs" />
     <Compile Include="..\..\source\Services\Achievements\AchievementLayers.cs" Link="Source\Services\Achievements\AchievementLayers.cs" />
     <Compile Include="..\..\source\Services\Database\AchievementLayerSql.cs" Link="Source\Services\Database\AchievementLayerSql.cs" />
+    <Compile Include="..\..\source\Services\Database\AchievementEstimatedLayerSql.cs" Link="Source\Services\Database\AchievementEstimatedLayerSql.cs" />
+    <Compile Include="..\..\source\Services\Database\EstimatedLayerWriter.cs" Link="Source\Services\Database\EstimatedLayerWriter.cs" />
     <Compile Include="..\..\source\Services\Database\SqlNadoSchemaManager.cs" Link="Source\Services\Database\SqlNadoSchemaManager.cs" />
     <Compile Include="..\..\source\Services\Database\Rows\CacheMetadataRow.cs" Link="Source\Services\Database\Rows\CacheMetadataRow.cs" />
     <Compile Include="..\..\source\Services\Achievements\AchievementTagRegistry.cs" Link="Source\Services\Achievements\AchievementTagRegistry.cs" />

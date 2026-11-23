@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -346,6 +347,141 @@ namespace PlayniteAchievements.SqlNado.Tests
             path,
             SQLiteOpenOptions.SQLITE_OPEN_READWRITE | SQLiteOpenOptions.SQLITE_OPEN_CREATE | SQLiteOpenOptions.SQLITE_OPEN_FULLMUTEX);
 
+        private sealed class EstimatedRow
+        {
+            public string ApiName { get; set; }
+            public int? Points { get; set; }
+            public long PointsIsEstimated { get; set; }
+            public string TrophyType { get; set; }
+            public long TrophyTypeIsEstimated { get; set; }
+        }
+
+        private static void WriteEstimate(SQLiteDatabase db, string apiName, int? points, string trophyType)
+        {
+            EstimatedLayerWriter.Write(db, Guid.Parse(GameId), "test-model", new[]
+            {
+                new EstimatedValueRow { ApiName = apiName, Points = points, TrophyType = trophyType, Confidence = 0.9 }
+            });
+        }
+
+        private static List<EstimatedRow> EstimatedRows(SQLiteDatabase db) =>
+            db.Load<EstimatedRow>("SELECT * FROM " + AchievementLayerSql.ViewName + " ORDER BY Id;").ToList();
+
+        [TestMethod]
+        public void Estimated_FillsOnlySlotsNoOtherLayerSupplies()
+        {
+            WithDatabase(db =>
+            {
+                Definition(db, "plain", "Own", "Desc", null, "Default", null, null, null, "Common");
+                Definition(db, "native", "Own", "Desc", 50, "Default", null, null, null, "Common");
+                Definition(db, "borrowed", "Own", "Desc", null, "Default", null, null, null, "Common");
+                Definition(db, "cleared", "Own", "Desc", null, "Default", null, null, null, "Common");
+                Definition(db, "custom", "Own", "Desc", null, "Default", null, null, null, "Common");
+                Metadata(db, "borrowed", points: 25);
+                Metadata(db, "cleared", cleared: AchievementField.Points);
+                db.ExecuteNonQuery(
+                    @"INSERT INTO AchievementOverrides (PlayniteGameId, ApiName, Points, UpdatedUtc) VALUES (?, 'custom', 75, '');",
+                    GameId);
+
+                foreach (var api in new[] { "plain", "native", "borrowed", "cleared", "custom" })
+                {
+                    WriteEstimate(db, api, 100, "gold");
+                }
+
+                var rows = EstimatedRows(db).ToDictionary(row => row.ApiName);
+                Assert.AreEqual(100, rows["plain"].Points);
+                Assert.AreEqual(1, rows["plain"].PointsIsEstimated);
+                Assert.AreEqual("gold", rows["plain"].TrophyType);
+                Assert.AreEqual(1, rows["plain"].TrophyTypeIsEstimated);
+
+                Assert.AreEqual(50, rows["native"].Points, "the platform's value wins");
+                Assert.AreEqual(25, rows["borrowed"].Points, "a metadata source's value wins");
+                Assert.IsNull(rows["cleared"].Points, "a cleared slot stays empty");
+                Assert.AreEqual(75, rows["custom"].Points, "the user's value wins");
+                Assert.IsTrue(new[] { "native", "borrowed", "cleared", "custom" }.All(api => rows[api].PointsIsEstimated == 0));
+            });
+        }
+
+        [TestMethod]
+        public void Estimated_NeverWritesOverNativeOrStoresPlatinum()
+        {
+            WithDatabase(db =>
+            {
+                Definition(db, "a", "Own", "Desc", null, "Default", null, null, null, "Common");
+                db.ExecuteNonQuery("UPDATE PlatformDefinitions SET TrophyType = 'silver' WHERE ApiName = 'a';");
+
+                WriteEstimate(db, "a", null, "gold");
+                WriteEstimate(db, "a", null, "platinum");
+
+                Assert.AreEqual(0, db.ExecuteScalar<long>("SELECT COUNT(1) FROM AchievementEstimatedLayer;"));
+                Assert.AreEqual("silver", db.ExecuteScalar<string>("SELECT TrophyType FROM PlatformDefinitions WHERE ApiName = 'a';"));
+            });
+        }
+
+        [TestMethod]
+        public void Estimated_IsDiscardedWhenNativeDataArrives()
+        {
+            WithDatabase(db =>
+            {
+                Definition(db, "late", "Own", "Desc", null, "Default", null, null, null, "Common");
+                WriteEstimate(db, "late", 100, "bronze");
+
+                db.ExecuteNonQuery("UPDATE PlatformDefinitions SET Points = 40, TrophyType = 'gold' WHERE ApiName = 'late';");
+                EstimatedLayerWriter.PurgeSuperseded(db);
+
+                Assert.AreEqual(0, db.ExecuteScalar<long>("SELECT COUNT(1) FROM AchievementEstimatedLayer;"));
+                var row = EstimatedRows(db).Single();
+                Assert.AreEqual(40, row.Points);
+                Assert.AreEqual("gold", row.TrophyType);
+                Assert.AreEqual(0, row.PointsIsEstimated);
+            });
+        }
+
+        [TestMethod]
+        public void Estimated_ClearAllRemovesOnlyGeneratedValues()
+        {
+            WithDatabase(db =>
+            {
+                Definition(db, "plain", "Own", "Desc", null, "Default", null, null, null, "Common");
+                Definition(db, "native", "Own", "Desc", 50, "Default", null, null, null, "Common");
+                Metadata(db, "native", displayName: "Borrowed");
+                WriteEstimate(db, "plain", 100, "gold");
+
+                Assert.AreEqual(1, EstimatedLayerWriter.ClearAll(db));
+
+                Assert.AreEqual(0, db.ExecuteScalar<long>("SELECT COUNT(1) FROM AchievementEstimatedLayer;"));
+                Assert.AreEqual(2, db.ExecuteScalar<long>("SELECT COUNT(1) FROM PlatformDefinitions;"));
+                Assert.AreEqual(1, db.ExecuteScalar<long>("SELECT COUNT(1) FROM AchievementMetadataLayer;"));
+                Assert.AreEqual(50, db.ExecuteScalar<long>("SELECT Points FROM PlatformDefinitions WHERE ApiName = 'native';"));
+                Assert.IsNull(EstimatedRows(db).Single(row => row.ApiName == "plain").Points);
+            });
+        }
+
+        [TestMethod]
+        public void Estimated_ResolverFallsBackOnlyWhenNoLayerSuppliesTheField()
+        {
+            var row = new AchievementDetail
+            {
+                ApiName = "x",
+                PlatformLayer = new AchievementLayerValues(displayName: "X"),
+                EstimatedLayer = new AchievementLayerValues(points: 100, trophyType: "gold")
+            };
+            AchievementLayers.Resolve(row);
+            Assert.AreEqual(100, row.Points);
+            Assert.AreEqual("gold", row.TrophyType);
+            Assert.IsTrue(row.IsPointsEstimated && row.IsTrophyTypeEstimated);
+
+            row.MetadataLayer = new AchievementLayerValues(points: 25, cleared: AchievementField.TrophyType);
+            AchievementLayers.Resolve(row);
+            Assert.AreEqual(25, row.Points);
+            Assert.IsNull(row.TrophyType, "a cleared field stays cleared");
+            Assert.IsFalse(row.IsPointsEstimated || row.IsTrophyTypeEstimated);
+
+            // An estimate is never captured as the platform's own value.
+            var copy = new AchievementDetail { ApiName = "x", Points = 100, IsPointsEstimated = true };
+            Assert.IsNull(AchievementLayers.PlatformOf(copy).Points);
+        }
+
         private static void Definition(
             SQLiteDatabase db, string apiName, string name, string description, int? points,
             string category, string kind, string tags, double? percent, string rarity)
@@ -447,6 +583,8 @@ namespace PlayniteAchievements.SqlNado.Tests
                         UNIQUE (PlayniteGameId, ApiName));");
                     db.ExecuteNonQuery(AchievementLayerSql.CreateTableSql);
                     db.ExecuteNonQuery(AchievementLayerSql.CreateTriggerSql);
+                    db.ExecuteNonQuery(AchievementEstimatedLayerSql.CreateTableSql);
+                    db.ExecuteNonQuery(AchievementEstimatedLayerSql.CreateTriggerSql);
                     db.ExecuteNonQuery(AchievementLayerSql.CreateGameStateTableSql);
                     db.ExecuteNonQuery(AchievementLayerSql.CreateCategoriesTableSql);
                     db.ExecuteNonQuery(AchievementLayerSql.CreateCapturesTableSql);

@@ -26,8 +26,9 @@ namespace PlayniteAchievements.Services.Achievements
                 row.Description,
                 row.UnlockedIconPath,
                 row.LockedIconPath,
-                row.Points,
-                row.TrophyType,
+                // An estimate is never the platform's own value, whatever carried it here.
+                row.IsPointsEstimated ? null : row.Points,
+                row.IsTrophyTypeEstimated ? null : row.TrophyType,
                 row.ProviderCategory ?? row.Category,
                 row.ProviderCategoryKind ?? row.CategoryKind,
                 row.ProviderTags ?? row.Tags,
@@ -50,6 +51,27 @@ namespace PlayniteAchievements.Services.Achievements
             row.LockedIconPath = values.LockedIconPath;
             row.Points = values.Points;
             row.TrophyType = values.TrophyType;
+
+            // The estimated layer is the last resort: it fills a slot only when no layer supplied
+            // it (a cleared slot counts as supplied), so native and user values always win.
+            row.IsPointsEstimated = false;
+            row.IsTrophyTypeEstimated = false;
+            var estimated = row.EstimatedLayer;
+            if (estimated != null)
+            {
+                if (resolved.OriginOf(AchievementField.Points) == DataLayer.None && estimated.Points.HasValue)
+                {
+                    row.Points = estimated.Points;
+                    row.IsPointsEstimated = true;
+                }
+
+                if (resolved.OriginOf(AchievementField.TrophyType) == DataLayer.None && !string.IsNullOrWhiteSpace(estimated.TrophyType))
+                {
+                    row.TrophyType = estimated.TrophyType;
+                    row.IsTrophyTypeEstimated = true;
+                }
+            }
+
             row.Category = values.Category;
             row.CategoryKind = values.CategoryKind;
             row.Tags = values.Tags;

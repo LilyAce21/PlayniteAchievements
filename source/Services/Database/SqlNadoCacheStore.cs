@@ -110,6 +110,8 @@ namespace PlayniteAchievements.Services.Database
                         m.Rarity AS M_Rarity,
                         m.MetadataOrder AS M_MetadataOrder,
                         m.Cleared AS M_Cleared,
+                        e.Points AS E_Points,
+                        e.TrophyType AS E_TrophyType,
                         ua.Unlocked AS Unlocked,
                         ua.UnlockTimeUtc AS UnlockTimeUtc,
                         ua.ProgressNum AS ProgressNum,
@@ -212,6 +214,8 @@ namespace PlayniteAchievements.Services.Database
             public string M_Rarity { get; set; }
             public int? M_MetadataOrder { get; set; }
             public long? M_Cleared { get; set; }
+            public int? E_Points { get; set; }
+            public string E_TrophyType { get; set; }
             public long? Unlocked { get; set; }
             public string UnlockTimeUtc { get; set; }
             public int? ProgressNum { get; set; }
@@ -720,6 +724,7 @@ namespace PlayniteAchievements.Services.Database
                         " + AchievementDetailColumnsSql + @"
                       FROM PlatformDefinitions ad
                       LEFT JOIN AchievementMetadataLayer m ON m.AchievementDefinitionId = ad.Id
+                      LEFT JOIN AchievementEstimatedLayer e ON e.AchievementDefinitionId = ad.Id
                       LEFT JOIN UserAchievements ua
                         ON ua.AchievementDefinitionId = ad.Id
                        AND ua.UserGameProgressId = ?
@@ -858,6 +863,7 @@ namespace PlayniteAchievements.Services.Database
                   FROM LatestProgress lp
                   INNER JOIN PlatformDefinitions ad ON ad.GameId = lp.GameId
                   LEFT JOIN AchievementMetadataLayer m ON m.AchievementDefinitionId = ad.Id
+                  LEFT JOIN AchievementEstimatedLayer e ON e.AchievementDefinitionId = ad.Id
                   LEFT JOIN UserAchievements ua
                     ON ua.AchievementDefinitionId = ad.Id
                    AND ua.UserGameProgressId = lp.UserGameProgressId
@@ -943,6 +949,12 @@ namespace PlayniteAchievements.Services.Database
                     row.M_Rarity == null ? (RarityTier?)null : ParseStoredRarity(row.M_Rarity),
                     row.M_MetadataOrder,
                     cleared: (AchievementField)(row.M_Cleared ?? 0));
+            }
+
+            // The estimated layer sits below the others and fills only a slot none of them supplies.
+            if (row.E_Points.HasValue || !string.IsNullOrWhiteSpace(row.E_TrophyType))
+            {
+                detail.EstimatedLayer = new AchievementLayerValues(points: row.E_Points, trophyType: row.E_TrophyType);
             }
 
             AchievementLayers.Resolve(detail);
@@ -5869,6 +5881,30 @@ namespace PlayniteAchievements.Services.Database
             });
             clearedUnmapped = unmapped;
             return result;
+        }
+
+        /// <summary>
+        /// Stores generated trophy grades and Gamerscore for a game's achievements. Only slots no
+        /// other layer supplies are written. Returns how many values were stored.
+        /// </summary>
+        public int WriteEstimatedValues(Guid playniteGameId, string model, IReadOnlyList<EstimatedValueRow> rows)
+        {
+            return WithDb(db => EstimatedLayerWriter.Write(db, playniteGameId, model, rows));
+        }
+
+        /// <summary>Drops estimates that native or user data has since superseded.</summary>
+        public void PurgeSupersededEstimates()
+        {
+            WithDb(db => EstimatedLayerWriter.PurgeSuperseded(db));
+        }
+
+        /// <summary>
+        /// Deletes every generated value and nothing else: native data, metadata and the user's
+        /// overrides are in other tables. Returns how many rows were deleted.
+        /// </summary>
+        public long ClearEstimatedValues()
+        {
+            return WithDb(db => EstimatedLayerWriter.ClearAll(db));
         }
 
         public void RemoveGameData(Guid playniteGameId)

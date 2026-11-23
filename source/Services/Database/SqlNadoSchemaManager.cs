@@ -35,6 +35,7 @@ namespace PlayniteAchievements.Services.Database
         /// </summary>
         internal static readonly IReadOnlyList<string> PlatformAndMetadataTables = new[]
         {
+            AchievementEstimatedLayerSql.TableName,
             "AchievementMetadataLayer",
             "MetadataApplied",
             "MetadataCoverage",
@@ -429,6 +430,8 @@ namespace PlayniteAchievements.Services.Database
         {
             ExecuteSafe(db, AchievementLayerSql.CreateTableSql);
             ExecuteSafe(db, AchievementLayerSql.CreateTriggerSql);
+            ExecuteSafe(db, AchievementEstimatedLayerSql.CreateTableSql);
+            ExecuteSafe(db, AchievementEstimatedLayerSql.CreateTriggerSql);
             ExecuteSafe(db, AchievementLayerSql.CreateGameStateTableSql);
             ExecuteSafe(db, "DROP TABLE IF EXISTS AchievementCategoryKinds;");
             ExecuteSafe(db, AchievementLayerSql.CreateCategoriesTableSql);

@@ -120,7 +120,7 @@ namespace PlayniteAchievements.Services.Database
                 " + Pick("Description", AchievementField.Description, custom: true) + @",
                 " + Pick("UnlockedIconPath", AchievementField.UnlockedIcon, custom: true) + @",
                 " + Pick("LockedIconPath", AchievementField.LockedIcon, custom: true) + @",
-                " + Pick("Points", AchievementField.Points, custom: true) + @",
+                " + Pick("Points", AchievementField.Points, custom: true, estimated: true) + @",
                 ad.ScaledPoints AS ScaledPoints,
                 COALESCE(" + Value("Category", AchievementField.Category, custom: true) + @", 'Default') AS Category,
                 COALESCE(" + Value("Category", AchievementField.Category) + @", 'Default') AS ProviderCategory,
@@ -128,7 +128,7 @@ namespace PlayniteAchievements.Services.Database
                 CASE WHEN " + StoredKind + @" IS NULL THEN " + Value("CategoryKind", AchievementField.CategoryKind) + @"
                      WHEN " + StoredKind + @" = 'None' THEN NULL
                      ELSE " + StoredKind + @" END AS CategoryKind,
-                " + Pick("TrophyType", AchievementField.TrophyType, custom: true) + @",
+                " + Pick("TrophyType", AchievementField.TrophyType, custom: true, estimated: true) + @",
                 COALESCE(c.Hidden, ad.Hidden) AS Hidden,
                 CASE WHEN COALESCE(gs.CapstonesMaterialized, 0) = 1 THEN COALESCE(c.CapstoneAssigned, 0)
                      ELSE ad.IsCapstone END AS IsCapstone,
@@ -148,11 +148,14 @@ namespace PlayniteAchievements.Services.Database
                 c.GoalOrder AS GoalOrder,
                 c.CustomOrder AS CustomOrder,
                 k.SortIndex AS CategoryOrder,
-                k.ImagePath AS CategoryArtPath";
+                k.ImagePath AS CategoryArtPath,
+                " + EstimatedFlag("Points", AchievementField.Points) + @" AS PointsIsEstimated,
+                " + EstimatedFlag("TrophyType", AchievementField.TrophyType) + @" AS TrophyTypeIsEstimated";
 
         private static readonly string FromClause = @"
               FROM PlatformDefinitions ad
               LEFT JOIN AchievementMetadataLayer m ON m.AchievementDefinitionId = ad.Id
+              LEFT JOIN AchievementEstimatedLayer e ON e.AchievementDefinitionId = ad.Id
               LEFT JOIN Games g ON g.Id = ad.GameId
               LEFT JOIN AchievementOverrides c ON c.PlayniteGameId = g.PlayniteGameId AND c.ApiName = ad.ApiName AND c.IsAuthored = 0
               LEFT JOIN GameCustomState gs ON gs.PlayniteGameId = g.PlayniteGameId
@@ -177,7 +180,8 @@ namespace PlayniteAchievements.Services.Database
             "Id", "GameId", "ApiName", "DisplayName", "Description", "UnlockedIconPath", "LockedIconPath", "Points",
             "ScaledPoints", "Category", "ProviderCategory", "Tags", "CategoryKind", "TrophyType", "Hidden", "IsCapstone",
             "GlobalPercentUnlocked", "Rarity", "ProgressMax", "MetadataOrder", "CreatedUtc", "UpdatedUtc", "IsFiltered",
-            "IsSummaryFiltered", "Note", "IsGoal", "GoalOrder", "CustomOrder", "CategoryOrder", "CategoryArtPath"
+            "IsSummaryFiltered", "Note", "IsGoal", "GoalOrder", "CustomOrder", "CategoryOrder", "CategoryArtPath",
+            "PointsIsEstimated", "TrophyTypeIsEstimated"
         };
 
         /// <summary>How an authored achievement's mirror row fills each public column.</summary>
@@ -193,6 +197,8 @@ namespace PlayniteAchievements.Services.Database
             ["MetadataOrder"] = "NULL",
             ["CreatedUtc"] = "NULL",
             ["IsGoal"] = "a.GoalOrder IS NOT NULL",
+            ["PointsIsEstimated"] = "0",
+            ["TrophyTypeIsEstimated"] = "0",
             ["CategoryOrder"] = CategoryValue("SortIndex", "a.PlayniteGameId", "COALESCE(a.Category, 'Default')"),
             ["CategoryArtPath"] = CategoryValue("ImagePath", "a.PlayniteGameId", "COALESCE(a.Category, 'Default')")
         };
@@ -258,14 +264,21 @@ namespace PlayniteAchievements.Services.Database
         /// The first layer that supplies the column, set or cleared: custom (when it carries the
         /// field), then metadata, then the platform, as <see cref="LayerResolver"/> picks it.
         /// </summary>
-        private static string Value(string column, AchievementField field, bool custom = false) =>
+        private static string Value(string column, AchievementField field, bool custom = false, bool estimated = false) =>
             "CASE " +
             (custom ? "WHEN c." + column + " IS NOT NULL THEN c." + column + " WHEN " + IsCleared(field, "c") + " THEN NULL " : string.Empty) +
             "WHEN m." + column + " IS NOT NULL THEN m." + column + " WHEN " + IsCleared(field) + " THEN NULL " +
-            "ELSE ad." + column + " END";
+            // The estimated layer is the last resort: it fills a slot only when no layer supplied it.
+            "ELSE " + (estimated ? "COALESCE(ad." + column + ", e." + column + ")" : "ad." + column) + " END";
 
-        private static string Pick(string column, AchievementField field, bool custom = false) =>
-            Value(column, field, custom) + " AS " + column;
+        private static string Pick(string column, AchievementField field, bool custom = false, bool estimated = false) =>
+            Value(column, field, custom, estimated) + " AS " + column;
+
+        /// <summary>1 when the resolved value of the column is the estimated layer's, else 0.</summary>
+        private static string EstimatedFlag(string column, AchievementField field) =>
+            "CASE WHEN c." + column + " IS NOT NULL OR " + IsCleared(field, "c") + " THEN 0 " +
+            "WHEN m." + column + " IS NOT NULL OR " + IsCleared(field) + " THEN 0 " +
+            "WHEN ad." + column + " IS NULL AND e." + column + " IS NOT NULL THEN 1 ELSE 0 END";
 
         /// <summary>
         /// The tags <see cref="LayerResolver.ResolveTags"/> gives: the deciding layer's, plus the

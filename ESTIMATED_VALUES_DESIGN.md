@@ -9,7 +9,7 @@ items, the places where I had to make a call, and what comes next.
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Pure logic in `source/Services/Estimation/`: native-wins guard, value scoring, PSN grade estimator, Gamerscore estimator, privacy filter, request builder, calibration profile. Nothing is wired into the running plugin yet, so behaviour of the existing build is unchanged. | Done, 26 tests pass |
-| 2 | Estimated data layer in the cache (table, resolver, views), "delete all generated data" maintenance action | Not started |
+| 2 | Estimated data layer in the cache: table, guarded writes, resolver fallback, resolved views, "delete all generated data" | Built; SQL and resolver verified here, the plugin itself needs a Windows build. No UI yet for the delete action |
 | 3 | Gemini client, queue/retry/backoff, JSON validation, structure-based fallback | Not started |
 | 4 | Gathering native anchors and categories from PA, settings UI (preset, model name, key), estimated marker in the UI | Not started |
 | 5 | Blind validation run on the user's own native lists (spec section 11) | Not started |
@@ -18,6 +18,35 @@ Tests: `tests/PlayniteAchievements.Tests/Services/Estimation/EstimationTests.cs`
 compiled and the tests run on Linux/.NET 8 with a stand-in for MSTest. The WPF plugin project and
 the repo's own test project target .NET Framework 4.6.2 and have not been built in this environment,
 so they need a build on Windows. The new files use only features the existing code already uses.
+
+## What "native" means (confirmed)
+
+Anything PA already holds for a slot counts as native and is never overwritten: the platform's own
+values (PlayStation, Xbox, Steam and so on), what metadata sources supplied (Exophase, SteamHunters,
+TrueGaming), and the user's own overrides. A slot a source or the user deliberately cleared also stays
+empty. Only a slot nothing supplies can hold an estimate.
+
+## Phase 2: the estimated layer
+
+- `AchievementEstimatedLayer` table (`Services/Database/AchievementEstimatedLayerSql.cs`), created
+  on start like the metadata layer. No schema version bump, so no cache rebuild. Holds only
+  Points (estimated Gamerscore) and TrophyType (estimated grade), plus reason, confidence, model and time.
+- Three guards in the data layer: every write statement skips a slot another layer supplies;
+  readers fall back to the estimate only when no layer supplies the slot; `PurgeSuperseded` drops an
+  estimate once native data arrives. A trophy type other than bronze/silver/gold (platinum) is never stored.
+- Resolved views (`AchievementDefinitions`, `ResolvedAchievements`) show estimated values in the
+  same Points / TrophyType columns, and gain two columns, `PointsIsEstimated` and `TrophyTypeIsEstimated`,
+  for the estimated marker. Existing columns are unchanged. Summaries read these views, so
+  estimated values flow into totals.
+- In memory, `AchievementDetail.EstimatedLayer` plus two flags; `AchievementLayers.Resolve` applies
+  the fallback on every resolve, and an estimate can never be captured as a platform value.
+- Roll-back: `CacheManager.ClearEstimatedValues()` deletes the whole table and nothing else. Clearing
+  the platform cache also clears it. A settings button for it comes with the UI phase.
+
+Verification here: the SQL ran against SQLite fixtures (precedence, cleared slots, user overrides,
+native arrival, clear-all, delete trigger); both resolved views compile and return the right values;
+the real resolver files compile and pass scenario tests; the new writer compiles against the real
+SqlNado library. Not verified here: the full plugin build and the repo's own test project (Windows).
 
 ## Findings for spec section 12 (open items)
 
@@ -55,19 +84,20 @@ rules, as the spec says.
 
 ## Calls I made where the spec was ambiguous (please confirm)
 
-1. **Budget versus "gold needs a reason", small lists.** In the Native preset a small list (under
-   about 67 trophies) is pulled toward about 1,000 points, which for a 12-trophy list means nearly
-   everything is gold. The budget may therefore promote a trophy to gold without a stated reason
-   (its reason is recorded as "budget"). In the Value-based preset, promotion to gold still needs a
-   reason.
-2. **The 65-trophy handover.** Taken literally, "target = max(1,000, 15 x count)" makes a 67-trophy
-   list all bronze (15 x 67 = 1,005), which contradicts "bronze-dominant". I read it as: once the
-   floor exceeds the budget, the budget stops constraining, and the silver and gold cuts tighten
-   smoothly from 65 to 200 trophies. The numbers (0.45 / 0.75 cuts, tightening 0.20 / 0.15) are
-   starting values for the validation run to fit.
-3. **Large lists.** From 100 trophies on, gold is reserved for capstones, true endings and the last
-   step of a ladder; "hard challenge" no longer earns it. This implements the spec's "gold only for
-   true capstones" for Geometry Dash / Cookie Clicker style lists. Found by a failing test.
+1. **Budget versus "gold needs a reason", small lists (confirmed).** In the Native preset a small
+   list is pulled toward about 1,000 points, which for a 12-trophy list means nearly everything is
+   gold. Golds go to the best-justified trophies first (capstone, true ending, hard challenge, then
+   by value), and the budget may still promote one without a stated reason when the list needs it.
+   In the Value-based preset and in large lists, gold still needs a reason.
+2. **The 65-trophy handover (confirmed, then reworked).** Taken literally, "target = max(1,000,
+   15 x count)" makes a 67-trophy list all bronze, and my first version switched the budget off there,
+   which made the mix jump. It is now one continuous curve: the native budget for small lists, and
+   for longer ones the all-bronze floor plus a headroom (35% at 65 trophies) that fades smoothly to
+   nothing by 200. The mix is scaled to that target keeping its shape, so there is a real middle of
+   silvers. The numbers (35%, 65, 200, cuts 0.45 / 0.75) are starting values for the validation run.
+3. **Large lists (confirmed).** From 100 trophies on, gold is reserved for capstones (end-of-story
+   beats), true endings and the last step of a ladder; a challenge only counts at the extreme end
+   of difficulty (5).
 4. **Gamerscore blocks.** Chunked in list order, 100 per block, 1,000 G each. A very small final
    block still receives up to 1,000 G, capped at 200 per achievement, so a lone 701st achievement
    would get 200 G. Category-aware blocks (a DLC pack as its own block) are the better fix and

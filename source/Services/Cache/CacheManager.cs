@@ -1420,6 +1420,58 @@ namespace PlayniteAchievements.Services.Cache
             return cleared;
         }
 
+        /// <summary>
+        /// Stores generated trophy grades and Gamerscore for a game. Native, metadata and user values
+        /// are never overwritten: the data layer skips any slot another layer supplies. Returns how
+        /// many values were stored.
+        /// </summary>
+        public int WriteEstimatedValues(Guid playniteGameId, string model, IReadOnlyList<EstimatedValueRow> rows)
+        {
+            int written;
+            lock (_sync)
+            {
+                EnsureReady_Locked("WriteEstimatedValues");
+                written = _store.WriteEstimatedValues(playniteGameId, model, rows);
+                if (written > 0)
+                {
+                    RemoveMemoryGameData_Locked(UserKey(playniteGameId.ToString()));
+                }
+            }
+
+            if (written > 0)
+            {
+                RaiseCacheInvalidatedEvent(CacheInvalidatedEventArgs.Scoped(new[] { playniteGameId }));
+            }
+
+            return written;
+        }
+
+        /// <summary>
+        /// Deletes every generated trophy grade and Gamerscore, the roll-back for estimated data.
+        /// Native, metadata and custom data are untouched. Returns how many rows were deleted.
+        /// </summary>
+        public long ClearEstimatedValues()
+        {
+            long cleared;
+            lock (_sync)
+            {
+                EnsureReady_Locked("ClearEstimatedValues");
+                cleared = _store.ClearEstimatedValues();
+                if (cleared > 0)
+                {
+                    ClearMemoryState_Locked();
+                }
+            }
+
+            if (cleared > 0)
+            {
+                // The memory copies carry the estimates, so every game reloads from the cache.
+                RaiseCacheInvalidatedEvent(CacheInvalidatedEventArgs.FullInvalidation);
+            }
+
+            return cleared;
+        }
+
         /// <summary>Replaces one game's rows in the capture index. Never throws.</summary>
         internal void ReplaceAchievementCaptures(Guid playniteGameId, IReadOnlyList<Captures.CaptureIndexRow> rows)
         {
@@ -1917,7 +1969,10 @@ namespace PlayniteAchievements.Services.Cache
                     AchievementNote = achievement.AchievementNote,
                     MetadataOrderIndex = achievement.MetadataOrderIndex,
                     PlatformLayer = achievement.PlatformLayer,
-                    MetadataLayer = achievement.MetadataLayer
+                    MetadataLayer = achievement.MetadataLayer,
+                    EstimatedLayer = achievement.EstimatedLayer,
+                    IsPointsEstimated = achievement.IsPointsEstimated,
+                    IsTrophyTypeEstimated = achievement.IsTrophyTypeEstimated
                 });
             }
 
