@@ -2849,6 +2849,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Achievement icon art (right side)" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170"
+                                                          ToolTip="Fill crops the art to the shape. Balanced and Fit scale it down so less or none of it is cut off by the circle.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Default}"/>
+                                                    <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fill}"/>
+                                                    <ComboBoxItem Content="Balanced" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Balanced}"/>
+                                                    <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fit}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
                                                 <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Default.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
@@ -2993,6 +3003,16 @@
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Achievement icon art (right side)" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Common.XboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170"
+                                                          ToolTip="Fill crops the art to the shape. Balanced and Fit scale it down so less or none of it is cut off by the circle.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Default}"/>
+                                                    <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fill}"/>
+                                                    <ComboBoxItem Content="Balanced" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Balanced}"/>
+                                                    <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fit}"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
@@ -3203,6 +3223,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Achievement icon art (right side)" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170"
+                                                          ToolTip="Fill crops the art to the shape. Balanced and Fit scale it down so less or none of it is cut off by the circle.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Default}"/>
+                                                    <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fill}"/>
+                                                    <ComboBoxItem Content="Balanced" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Balanced}"/>
+                                                    <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fit}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
                                                 <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Uncommon.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
@@ -3407,6 +3437,16 @@
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Achievement icon art (right side)" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Rare.XboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170"
+                                                          ToolTip="Fill crops the art to the shape. Balanced and Fit scale it down so less or none of it is cut off by the circle.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Default}"/>
+                                                    <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fill}"/>
+                                                    <ComboBoxItem Content="Balanced" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Balanced}"/>
+                                                    <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fit}"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
@@ -3617,6 +3657,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Achievement icon art (right side)" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170"
+                                                          ToolTip="Fill crops the art to the shape. Balanced and Fit scale it down so less or none of it is cut off by the circle.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Default}"/>
+                                                    <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fill}"/>
+                                                    <ComboBoxItem Content="Balanced" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Balanced}"/>
+                                                    <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fit}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
                                                 <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.UltraRare.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
@@ -3821,6 +3871,16 @@
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxToggle.Default}"/>
                                                     <ComboBoxItem Content="On" Tag="{x:Static settings:OfficialSanXboxToggle.On}"/>
                                                     <ComboBoxItem Content="Off" Tag="{x:Static settings:OfficialSanXboxToggle.Off}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Achievement icon art (right side)" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Capstone.XboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170"
+                                                          ToolTip="Fill crops the art to the shape. Balanced and Fit scale it down so less or none of it is cut off by the circle.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Default}"/>
+                                                    <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fill}"/>
+                                                    <ComboBoxItem Content="Balanced" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Balanced}"/>
+                                                    <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fit}"/>
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
@@ -4031,6 +4091,16 @@
                                                 </ComboBox>
                                             </DockPanel>
                                             <DockPanel Margin="0,0,0,4" LastChildFill="False">
+                                                <TextBlock Text="Achievement icon art (right side)" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
+                                                <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170"
+                                                          ToolTip="Fill crops the art to the shape. Balanced and Fit scale it down so less or none of it is cut off by the circle.">
+                                                    <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Default}"/>
+                                                    <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fill}"/>
+                                                    <ComboBoxItem Content="Balanced" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Balanced}"/>
+                                                    <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static settings:OfficialSanXboxIconFitChoice.Fit}"/>
+                                                </ComboBox>
+                                            </DockPanel>
+                                            <DockPanel Margin="0,0,0,4" LastChildFill="False">
                                                 <TextBlock Text="Score without Xbox gamerscore" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="230" Foreground="{DynamicResource TextBrush}"/>
                                                 <ComboBox SelectedValue="{Binding OfficialSanProfiles.Completion.XboxScore, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="170">
                                                     <ComboBoxItem Content="Settings-page default" Tag="{x:Static settings:OfficialSanXboxScoreChoice.Default}"/>
@@ -4136,6 +4206,15 @@
                                               IsChecked="{Binding OfficialSanXboxRarityText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
                                     <CheckBox Content="Say &quot;Trophy&quot; instead of &quot;Achievement&quot; in the unlock text"
                                               IsChecked="{Binding OfficialSanXboxTrophyWord, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"/>
+                                    <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                        <TextBlock Text="Achievement icon art (right side):" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextBrush}"/>
+                                        <ComboBox SelectedValue="{Binding OfficialSanXboxIconFit, Mode=TwoWay}" SelectedValuePath="Tag" MinWidth="200"
+                                                  ToolTip="Fill crops the art to the shape (a circle cuts off the corners). Balanced and Fit scale it down so less or none of it is cut off.">
+                                            <ComboBoxItem Content="Fill (crop to shape)" Tag="{x:Static local:OfficialSanXboxIconFit.Fill}"/>
+                                            <ComboBoxItem Content="Balanced" Tag="{x:Static local:OfficialSanXboxIconFit.Balanced}"/>
+                                            <ComboBoxItem Content="Fit (show all of it)" Tag="{x:Static local:OfficialSanXboxIconFit.Fit}"/>
+                                        </ComboBox>
+                                    </DockPanel>
                                     <CheckBox Content="Recolour the animated emblem with the card's colours"
                                               IsChecked="{Binding OfficialSanXboxTintEmblem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,6"
                                               ToolTip="The emblem gifs have a grey or green disc baked in. On: the disc, rim and star take the card's secondary colour, so the emblem matches whatever colours you pick in Edit style."/>

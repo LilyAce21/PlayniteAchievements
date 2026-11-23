@@ -97,6 +97,14 @@ namespace PlayniteAchievements.Providers.Local
         None = 2
     }
 
+    /// <summary>How the right-hand achievement icon sits in its shape on the Xbox-style SAN themes.</summary>
+    public enum OfficialSanXboxIconFit
+    {
+        Fill = 0,
+        Balanced = 1,
+        Fit = 2
+    }
+
     /// <summary>When the Xbox-style SAN themes draw a laurel around the emblem.</summary>
     public enum OfficialSanXboxLaurelMode
     {
@@ -499,6 +507,7 @@ namespace PlayniteAchievements.Providers.Local
         private bool _officialSanXboxInlineTrophy = true;
         private bool _officialSanXboxTintEmblem = true;
         private bool _officialSanXboxRarityText = true;
+        private OfficialSanXboxIconFit _officialSanXboxIconFit = OfficialSanXboxIconFit.Balanced;
         private bool _officialSanXboxLaurelPercent;
         private bool _officialSanXboxLaurelRim;
         private bool _officialSanXboxTrophyWord;
@@ -582,6 +591,9 @@ namespace PlayniteAchievements.Providers.Local
 
         /// <summary>Xbox-style SAN themes: recolour the animated emblem with the card's colours.</summary>
         public bool OfficialSanXboxTintEmblem { get => _officialSanXboxTintEmblem; set => SetValue(ref _officialSanXboxTintEmblem, value); }
+
+        /// <summary>Xbox-style SAN themes: Fill crops the icon art to the shape, Balanced and Fit scale it down to show more of it.</summary>
+        public OfficialSanXboxIconFit OfficialSanXboxIconFit { get => _officialSanXboxIconFit; set => SetValue(ref _officialSanXboxIconFit, value); }
 
         /// <summary>Xbox-style SAN themes: "Rare Achievement unlocked" / "Ultra-Rare Achievement unlocked" by rarity.</summary>
         public bool OfficialSanXboxRarityText { get => _officialSanXboxRarityText; set => SetValue(ref _officialSanXboxRarityText, value); }

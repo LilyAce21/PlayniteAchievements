@@ -1052,6 +1052,12 @@ namespace PlayniteAchievements.Services
                 var xboxTrophyStyle = trophyChoice == OfficialSanXboxTrophyChoice.PlayStation ? OfficialSanXboxTrophyStyle.PlayStation
                     : trophyChoice == OfficialSanXboxTrophyChoice.Rarity ? OfficialSanXboxTrophyStyle.Rarity
                     : settings.OfficialSanXboxTrophyStyle;
+                var iconFitChoice = XboxPick(xbProfiles, profileKey, pr => pr.XboxIconFit);
+                var xboxIconFit = iconFitChoice == OfficialSanXboxIconFitChoice.Fill ? "fill"
+                    : iconFitChoice == OfficialSanXboxIconFitChoice.Balanced ? "balanced"
+                    : iconFitChoice == OfficialSanXboxIconFitChoice.Fit ? "fit"
+                    : settings.OfficialSanXboxIconFit == OfficialSanXboxIconFit.Fill ? "fill"
+                    : settings.OfficialSanXboxIconFit == OfficialSanXboxIconFit.Fit ? "fit" : "balanced";
                 var scoreChoice = XboxPick(xbProfiles, profileKey, pr => pr.XboxScore);
                 var xboxScoreFallback = scoreChoice == OfficialSanXboxScoreChoice.Prestige ? OfficialSanScoreFallback.Prestige
                     : scoreChoice == OfficialSanXboxScoreChoice.None ? OfficialSanScoreFallback.None
@@ -1160,6 +1166,7 @@ namespace PlayniteAchievements.Services
                         ["laurelPercent"] = xboxLaurelPercent ? (JToken)new JValue(percent) : JValue.CreateNull(),
                         ["laurelRim"] = XboxFlag(xbProfiles, profileKey, pr => pr.XboxLaurelRim, settings.OfficialSanXboxLaurelRim),
                         ["unlockText"] = xboxUnlockText,
+                        ["iconFit"] = xboxIconFit,
                         ["score"] = score.HasValue ? (JToken)new JValue(score.Value) : JValue.CreateNull(),
                         ["scoreUnit"] = scoreUnit
                     },

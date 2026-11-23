@@ -50,6 +50,11 @@
         border-radius: var(--iconroundness, 50%);
         object-fit: cover;
       }
+      /* Right-hand icon art: "fill" crops the art to the shape (default look); "balanced" and "fit" scale it down so
+         less or none of it is cut off by the circle, over a backing in the card's colour. */
+      body[pa-xbox][rightachicon] #rightachicon { background: var(--pa-iconbacking, transparent); place-items: center; }
+      body[pa-iconfit="balanced"][rightachicon] #rightachicon img { width: 86%; height: 86%; border-radius: 0; object-fit: contain; }
+      body[pa-iconfit="fit"][rightachicon] #rightachicon img { width: 72%; height: 72%; border-radius: 0; object-fit: contain; }
       @keyframes rightachicon-in { to { opacity: 1; } }
       @keyframes rightachicon-out { to { opacity: 0; } }
 
@@ -1445,6 +1450,14 @@
                 if (xb.laurelPath) paBuildLaurelImage(payload); else paBuildLaurel();
               }
               if (xb && xb.emblem === true && !(xb.laurel === true && xb.laurelPath)) paBuildBubbleOnly(payload);
+            } catch (e) {}
+            try {
+              if (xb && xb.emblem === true) {
+                const fit = xb.iconFit === "fit" || xb.iconFit === "balanced" ? xb.iconFit : "fill";
+                document.body.setAttribute("pa-iconfit", fit);
+                const sec = paParseColor(getComputedStyle(document.documentElement).getPropertyValue("--secondarycolor"));
+                document.documentElement.style.setProperty("--pa-iconbacking", paRgb(paMix(sec, [0, 0, 0], 0.5), 0.92));
+              }
             } catch (e) {}
             try { paFitXbox(payload); } catch (e) {}
             notifyReady();

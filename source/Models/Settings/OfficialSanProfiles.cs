@@ -100,6 +100,14 @@ namespace PlayniteAchievements.Models.Settings
         PlayStation = 2
     }
 
+    public enum OfficialSanXboxIconFitChoice
+    {
+        Default = 0,
+        Fill = 1,
+        Balanced = 2,
+        Fit = 3
+    }
+
     public enum OfficialSanXboxScoreChoice
     {
         Default = 0,
@@ -118,6 +126,7 @@ namespace PlayniteAchievements.Models.Settings
         private OfficialSanXboxScoreChoice _xboxScore;
         private OfficialSanXboxToggle _xboxRarityText;
         private OfficialSanXboxToggle _xboxTrophyWord;
+        private OfficialSanXboxIconFitChoice _xboxIconFit;
         private OfficialSanXboxToggle _xboxLaurelPercent;
         private OfficialSanXboxToggle _xboxLaurelRim;
 
@@ -139,6 +148,9 @@ namespace PlayniteAchievements.Models.Settings
 
         /// <summary>Rarity percentage in a bubble on the bottom edge of the emblem circle (at the laurel opening when there is one); replaces the other two places.</summary>
         public OfficialSanXboxToggle XboxLaurelPercent { get => _xboxLaurelPercent; set => SetValue(ref _xboxLaurelPercent, value); }
+
+        /// <summary>How the achievement icon on the right sits in its shape: cropped to fill it, or scaled down to show more of the art.</summary>
+        public OfficialSanXboxIconFitChoice XboxIconFit { get => _xboxIconFit; set => SetValue(ref _xboxIconFit, value); }
 
         /// <summary>"Trophy" instead of "Achievement" in the unlock text.</summary>
         public OfficialSanXboxToggle XboxTrophyWord { get => _xboxTrophyWord; set => SetValue(ref _xboxTrophyWord, value); }
