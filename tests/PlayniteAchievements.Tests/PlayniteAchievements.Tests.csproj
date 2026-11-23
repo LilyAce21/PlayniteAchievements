@@ -19,6 +19,14 @@
     <Compile Include="..\..\source\Services\InGameMonitoring\LocalPollingFingerprintGate.cs" Link="Source\Services\InGameMonitoring\LocalPollingFingerprintGate.cs" />
     <Compile Include="..\..\source\Services\Logging\FileLogger.cs" Link="Source\Services\Logging\FileLogger.cs" />
     <Compile Include="..\..\source\Services\Logging\NamedLoggerWrapper.cs" Link="Source\Services\Logging\NamedLoggerWrapper.cs" />
+    <Compile Include="..\..\source\Services\Estimation\EstimationModels.cs" Link="Source\Services\Estimation\EstimationModels.cs" />
+    <Compile Include="..\..\source\Services\Estimation\NativeWinsGuard.cs" Link="Source\Services\Estimation\NativeWinsGuard.cs" />
+    <Compile Include="..\..\source\Services\Estimation\ValueScoring.cs" Link="Source\Services\Estimation\ValueScoring.cs" />
+    <Compile Include="..\..\source\Services\Estimation\TrophyGradeEstimator.cs" Link="Source\Services\Estimation\TrophyGradeEstimator.cs" />
+    <Compile Include="..\..\source\Services\Estimation\GamerscoreEstimator.cs" Link="Source\Services\Estimation\GamerscoreEstimator.cs" />
+    <Compile Include="..\..\source\Services\Estimation\PrivacyFilter.cs" Link="Source\Services\Estimation\PrivacyFilter.cs" />
+    <Compile Include="..\..\source\Services\Estimation\CalibrationProfile.cs" Link="Source\Services\Estimation\CalibrationProfile.cs" />
+    <Compile Include="..\..\source\Services\Estimation\EstimationRequestBuilder.cs" Link="Source\Services\Estimation\EstimationRequestBuilder.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
     <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
