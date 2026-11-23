@@ -115,6 +115,18 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>Per-trophy floor (all bronze). Past about 65 trophies the floor exceeds the budget.</summary>
         public int TrophyFloorPerTrophy { get; set; } = 15;
 
+        /// <summary>List size where the headroom above the per-trophy floor starts to fade (about where the floor meets the budget).</summary>
+        public int TrophyHeadroomStart { get; set; } = 65;
+
+        /// <summary>List size where the headroom above the floor has faded to nothing (a bronze-dominant list).</summary>
+        public int TrophyHeadroomEnd { get; set; } = 200;
+
+        /// <summary>
+        /// How far above the all-bronze floor a mid-size list's budget sits before the fade starts
+        /// (0.35 = 35% above). A starting value to be fitted from the user's native library.
+        /// </summary>
+        public double TrophyHeadroomAtStart { get; set; } = 0.35;
+
         /// <summary>Gamerscore of one block (1,000 on Xbox).</summary>
         public int GamerscoreBlockTotal { get; set; } = 1000;
 
