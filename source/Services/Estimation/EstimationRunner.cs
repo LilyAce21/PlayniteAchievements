@@ -26,6 +26,12 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>Points PA holds natively, or null when there are none or the value is an estimate.</summary>
         public int? NativePoints { get; set; }
+
+        /// <summary>True when the stored trophy type is a previously generated estimate.</summary>
+        public bool HasEstimatedTrophy { get; set; }
+
+        /// <summary>True when the stored points are a previously generated estimate.</summary>
+        public bool HasEstimatedPoints { get; set; }
     }
 
     public sealed class EstimationSourceGame
@@ -52,6 +58,12 @@ namespace PlayniteAchievements.Services.Estimation
         public bool GenerateTrophies { get; set; } = true;
         public bool GenerateGamerscore { get; set; } = true;
         public string Model { get; set; }
+
+        /// <summary>
+        /// False (the default) keeps earlier results: a kind whose targets all already carry an estimate is
+        /// not generated again. True regenerates everything that has no native data.
+        /// </summary>
+        public bool Regenerate { get; set; }
     }
 
     public sealed class EstimationPlan
@@ -158,7 +170,26 @@ namespace PlayniteAchievements.Services.Estimation
                 }
             }
 
-            if (!plan.NeedsAnything) plan.Notes.Add("Nothing to generate: every slot already has native data.");
+            // Results are kept permanently. A kind is skipped only when every target already has an
+            // estimate; if any target is new, all targets of that kind are regenerated together so the
+            // list stays graded as one.
+            if (!options.Regenerate)
+            {
+                var byName = plan.Achievements.ToDictionary(a => a.ApiName, StringComparer.OrdinalIgnoreCase);
+                if (plan.TrophyTargets.Count > 0 && plan.TrophyTargets.All(n => byName[n].HasEstimatedTrophy))
+                {
+                    plan.TrophyTargets.Clear();
+                    plan.Notes.Add("Trophy grades were kept from an earlier run.");
+                }
+
+                if (plan.PointsTargets.Count > 0 && plan.PointsTargets.All(n => byName[n].HasEstimatedPoints))
+                {
+                    plan.PointsTargets.Clear();
+                    plan.Notes.Add("Gamerscore was kept from an earlier run.");
+                }
+            }
+
+            if (!plan.NeedsAnything && plan.Notes.Count == 0) plan.Notes.Add("Nothing to generate: every slot already has native data.");
             return plan;
         }
     }
@@ -182,6 +213,7 @@ namespace PlayniteAchievements.Services.Estimation
     {
         public EstimationRunStatus Status { get; set; }
         public string Message { get; set; }
+        public LlmFailureKind FailureKind { get; set; }
         public List<EstimatedValueRow> Rows { get; } = new List<EstimatedValueRow>();
         public EstimationPlan Plan { get; set; }
         public ScoringOutcome Scoring { get; set; }
@@ -242,6 +274,7 @@ namespace PlayniteAchievements.Services.Estimation
             {
                 result.Status = EstimationRunStatus.Failed;
                 result.Message = scoring.Error;
+                result.FailureKind = scoring.FailureKind;
                 return result;
             }
 

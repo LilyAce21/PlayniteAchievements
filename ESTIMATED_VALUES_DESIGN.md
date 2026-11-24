@@ -91,12 +91,25 @@ SqlNado library. Not verified here: the full plugin build and the repo's own tes
   hidden from anyone who reads the code or the settings file's source, and it would be included if settings are
   exported. It is never put in a URL, a log line or an error message.
 
-### Known consequence: points cards are per provider
+### Points cards are per provider (decided: leave as is)
 
 PA adds a game's Points to the points card of its provider (`PointsFamilies`): an Xbox game to Gamerscore, a Steam
-game to "Steam Points". An estimated Gamerscore on a Steam game therefore lands on the Steam card, not the Gamerscore
-card. Routing estimated points to the Gamerscore card would need the summary code to split them out; this is a
-decision for the UI phase.
+game to "Steam Points", an Epic game to Epic XP. An estimated Gamerscore on a non-Xbox game therefore counts toward
+that provider's own card. The owner decided to leave this alone: those cards already hold the points fetched for
+non-Xbox games, and turning estimates into real Gamerscore would be confusing. Estimated points are not routed to
+the Gamerscore card.
+
+## Phase 4b so far: running it
+
+- `EstimationCoordinator` runs one game or the whole library, one game at a time (the client paces requests).
+  Results are kept permanently: a kind (trophies or Gamerscore) is skipped when every target already carries an
+  estimate, and regenerated together when any target is new, so a list stays graded as one. A regenerate option
+  redoes everything that has no native data.
+- A run stops early on a problem every remaining game would share (missing or rejected key, unavailable model,
+  used-up quota, no network); games already finished are kept. A refusal of one game's content is that game's
+  problem alone and does not stop the run.
+- `CacheEstimationHost` connects the coordinator to the cache. Nothing calls the coordinator yet: the settings
+  screen, the Generate and Delete buttons, the estimated marker and the calibration profile are still to do.
 
 ## Findings for spec section 12 (open items)
 

@@ -19,7 +19,10 @@ namespace PlayniteAchievements.Services.Estimation
         Transient,
 
         /// <summary>Retrying will not help until something changes: missing or bad key, model not available, request blocked.</summary>
-        Permanent
+        Permanent,
+
+        /// <summary>This one request was refused (for example blocked by a content filter). Other games may work.</summary>
+        Content
     }
 
     public sealed class LlmCallResult
@@ -284,7 +287,7 @@ namespace PlayniteAchievements.Services.Estimation
             var blockReason = (string)root["promptFeedback"]?["blockReason"];
             if (!string.IsNullOrWhiteSpace(blockReason))
             {
-                return LlmCallResult.Fail(LlmFailureKind.Permanent, "Gemini blocked the request (" + Scrub(blockReason, key) + ").");
+                return LlmCallResult.Fail(LlmFailureKind.Content, "Gemini blocked the request (" + Scrub(blockReason, key) + ").");
             }
 
             var candidate = (root["candidates"] as JArray)?.FirstOrDefault() as JObject;

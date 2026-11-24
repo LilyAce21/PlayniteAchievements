@@ -42,7 +42,9 @@ namespace PlayniteAchievements.Services.Estimation
                     Category = a.Category,
                     RarityPercent = a.GlobalPercentUnlocked,
                     NativeTrophyType = a.IsTrophyTypeEstimated ? null : a.TrophyType,
-                    NativePoints = a.IsPointsEstimated ? null : a.Points
+                    NativePoints = a.IsPointsEstimated ? null : a.Points,
+                    HasEstimatedTrophy = a.IsTrophyTypeEstimated,
+                    HasEstimatedPoints = a.IsPointsEstimated
                 });
             }
 

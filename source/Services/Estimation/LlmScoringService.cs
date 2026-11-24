@@ -13,6 +13,9 @@ namespace PlayniteAchievements.Services.Estimation
 
         public string Error { get; set; }
 
+        /// <summary>Why the call failed, when it did.</summary>
+        public LlmFailureKind FailureKind { get; set; }
+
         public List<AchievementScore> Scores { get; } = new List<AchievementScore>();
 
         public GameScoring Game { get; set; } = new GameScoring();
@@ -64,6 +67,7 @@ namespace PlayniteAchievements.Services.Estimation
                 {
                     outcome.Succeeded = false;
                     outcome.Error = call.Error;
+                    outcome.FailureKind = call.Failure;
                     outcome.Scores.Clear();
                     outcome.FallbackApiNames.Clear();
                     return outcome;
