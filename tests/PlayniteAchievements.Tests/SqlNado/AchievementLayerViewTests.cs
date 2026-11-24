@@ -447,7 +447,17 @@ namespace PlayniteAchievements.SqlNado.Tests
                 Metadata(db, "native", displayName: "Borrowed");
                 WriteEstimate(db, "plain", 100, "gold");
 
+                // Totals are computed from the resolved view, so the estimate counts while it exists...
+                const string goldCount = "SELECT COUNT(1) FROM " + AchievementLayerSql.ViewName + " WHERE LOWER(COALESCE(TrophyType, '')) = 'gold';";
+                const string pointsTotal = "SELECT COALESCE(SUM(Points), 0) FROM " + AchievementLayerSql.ViewName + ";";
+                Assert.AreEqual(1, db.ExecuteScalar<long>(goldCount));
+                Assert.AreEqual(150, db.ExecuteScalar<long>(pointsTotal));
+
                 Assert.AreEqual(1, EstimatedLayerWriter.ClearAll(db));
+
+                // ...and drops back to the native-only figures the moment it is deleted.
+                Assert.AreEqual(0, db.ExecuteScalar<long>(goldCount));
+                Assert.AreEqual(50, db.ExecuteScalar<long>(pointsTotal));
 
                 Assert.AreEqual(0, db.ExecuteScalar<long>("SELECT COUNT(1) FROM AchievementEstimatedLayer;"));
                 Assert.AreEqual(2, db.ExecuteScalar<long>("SELECT COUNT(1) FROM PlatformDefinitions;"));

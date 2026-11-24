@@ -37,7 +37,9 @@ empty. Only a slot nothing supplies can hold an estimate.
 - Resolved views (`AchievementDefinitions`, `ResolvedAchievements`) show estimated values in the
   same Points / TrophyType columns, and gain two columns, `PointsIsEstimated` and `TrophyTypeIsEstimated`,
   for the estimated marker. Existing columns are unchanged. Summaries read these views, so
-  estimated values flow into totals.
+  estimated values count toward trophy and points totals (confirmed with the user). No totals are
+  stored anywhere: they are computed on read, so deleting the estimated data removes them from totals
+  at once (tested), and clearing also resets the in-memory copies and tells the UI to reload.
 - In memory, `AchievementDetail.EstimatedLayer` plus two flags; `AchievementLayers.Resolve` applies
   the fallback on every resolve, and an estimate can never be captured as a platform value.
 - Roll-back: `CacheManager.ClearEstimatedValues()` deletes the whole table and nothing else. Clearing
