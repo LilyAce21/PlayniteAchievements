@@ -10,7 +10,7 @@ items, the places where I had to make a call, and what comes next.
 |---|---|---|
 | 1 | Pure logic in `source/Services/Estimation/`: native-wins guard, value scoring, PSN grade estimator, Gamerscore estimator, privacy filter, request builder, calibration profile. Nothing is wired into the running plugin yet, so behaviour of the existing build is unchanged. | Done, 26 tests pass |
 | 2 | Estimated data layer in the cache: table, guarded writes, resolver fallback, resolved views, "delete all generated data" | Built; SQL and resolver verified here, the plugin itself needs a Windows build. No UI yet for the delete action |
-| 3 | Gemini client, queue/retry/backoff, JSON validation, structure-based fallback | Not started |
+| 3 | Gemini client, pacing/retry/backoff, JSON validation, structure-based fallback | Built; tested with a fake HTTP layer only, never against the live API (needs a key) |
 | 4 | Gathering native anchors and categories from PA, settings UI (preset, model name, key), estimated marker in the UI | Not started |
 | 5 | Blind validation run on the user's own native lists (spec section 11) | Not started |
 
@@ -47,6 +47,26 @@ Verification here: the SQL ran against SQLite fixtures (precedence, cleared slot
 native arrival, clear-all, delete trigger); both resolved views compile and return the right values;
 the real resolver files compile and pass scenario tests; the new writer compiles against the real
 SqlNado library. Not verified here: the full plugin build and the repo's own test project (Windows).
+
+## Phase 3: the Gemini client
+
+- `GeminiClient`: POST to `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`,
+  key in the `x-goog-api-key` header (never the URL), JSON-only structured output with a response
+  schema. Default model `gemini-3.5-flash-lite`, configurable. Google has been pointing new projects
+  to the 3.5 Flash-Lite and 3.8 Flash line; 2.5 models can return 404 for new keys, and the client
+  says so in plain words when that happens. Verify the current lineup and limits in AI Studio.
+- Paced (8 s between requests by default, for free-tier per-minute limits), retried with backoff and
+  Retry-After on 429 and server errors, not retried on bad key / unavailable model / blocked request.
+  Errors shown to the user are scrubbed of the key.
+- The request is checked against the privacy allowlist a second time just before sending.
+- `LlmScoringService`: one request per game, 100 achievements per chunk. A network, quota, key or model
+  problem is a failure that generates and caches nothing, so it can be retried later. A model that
+  answered unusably (not JSON, truncated, missing entries) falls back to `StructureFallback`, which
+  scores from list position and numbers in names (ladders), at low confidence so the estimators lean on
+  structure and budget.
+- Free tier note: Google may use free-tier content to improve its products. Only public game-level
+  data is ever sent, but this is why the allowlist matters.
+- Not decided yet: where the API key is stored (settings UI phase).
 
 ## Findings for spec section 12 (open items)
 

@@ -306,8 +306,10 @@ namespace PlayniteAchievements.Services.Estimation
             // the square root of the factor, so a tight list gives up silvers before it gives up
             // golds; when the budget is generous (small lists) they scale fully with it.
             var goldIdeal = gold0 * (factor < 1 ? Math.Sqrt(factor) : factor);
-            var scaledGold = (int)Math.Round(goldIdeal);
-            for (var g = Math.Max(0, scaledGold - 3); g <= Math.Min(Math.Min(n, goldCap), scaledGold + 3); g++)
+
+            // Every gold count is tried, so a list that started with no golds can still reach its
+            // budget. Points decide first; among near-equal fits the mix closest to the scaled shape wins.
+            for (var g = 0; g <= Math.Min(n, goldCap); g++)
             {
                 var silvers = (int)Math.Round((extra - (GoldPoints - BronzePoints) * g) / (SilverPoints - BronzePoints));
                 silvers = Math.Max(0, Math.Min(n - g, silvers));

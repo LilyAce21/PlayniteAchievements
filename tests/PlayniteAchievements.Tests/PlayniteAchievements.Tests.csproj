@@ -27,6 +27,11 @@
     <Compile Include="..\..\source\Services\Estimation\PrivacyFilter.cs" Link="Source\Services\Estimation\PrivacyFilter.cs" />
     <Compile Include="..\..\source\Services\Estimation\CalibrationProfile.cs" Link="Source\Services\Estimation\CalibrationProfile.cs" />
     <Compile Include="..\..\source\Services\Estimation\EstimationRequestBuilder.cs" Link="Source\Services\Estimation\EstimationRequestBuilder.cs" />
+    <Compile Include="..\..\source\Services\Estimation\EstimationPrompt.cs" Link="Source\Services\Estimation\EstimationPrompt.cs" />
+    <Compile Include="..\..\source\Services\Estimation\EstimationResponseParser.cs" Link="Source\Services\Estimation\EstimationResponseParser.cs" />
+    <Compile Include="..\..\source\Services\Estimation\StructureFallback.cs" Link="Source\Services\Estimation\StructureFallback.cs" />
+    <Compile Include="..\..\source\Services\Estimation\GeminiClient.cs" Link="Source\Services\Estimation\GeminiClient.cs" />
+    <Compile Include="..\..\source\Services\Estimation\LlmScoringService.cs" Link="Source\Services\Estimation\LlmScoringService.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
     <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
