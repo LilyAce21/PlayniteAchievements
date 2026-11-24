@@ -367,6 +367,14 @@ namespace PlayniteAchievements.Models.Settings
                 : new Dictionary<Guid, string>();
             target.ExtraLocalPaths = source.ExtraLocalPaths;
             target.ExcludedLocalPaths = source.ExcludedLocalPaths;
+            target.EstimatedValuesEnabled = source.EstimatedValuesEnabled;
+            target.EstimatedValuesGenerateTrophies = source.EstimatedValuesGenerateTrophies;
+            target.EstimatedValuesGenerateGamerscore = source.EstimatedValuesGenerateGamerscore;
+            target.EstimatedValuesBudgetPreset = source.EstimatedValuesBudgetPreset;
+            target.EstimatedValuesTrophyBudget = source.EstimatedValuesTrophyBudget;
+            target.EstimatedValuesGeminiModel = source.EstimatedValuesGeminiModel;
+            target.EstimatedValuesGeminiKey = source.EstimatedValuesGeminiKey;
+            target.EstimatedValuesRequestIntervalSeconds = source.EstimatedValuesRequestIntervalSeconds;
             target.LastAllGamesCollectorScore = source.LastAllGamesCollectorScore;
             target.LastAllGamesCollectorLevel = source.LastAllGamesCollectorLevel;
             target.LastAllGamesCollectorLevelProgress = source.LastAllGamesCollectorLevelProgress;

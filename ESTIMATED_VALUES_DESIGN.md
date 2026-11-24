@@ -11,7 +11,8 @@ items, the places where I had to make a call, and what comes next.
 | 1 | Pure logic in `source/Services/Estimation/`: native-wins guard, value scoring, PSN grade estimator, Gamerscore estimator, privacy filter, request builder, calibration profile. Nothing is wired into the running plugin yet, so behaviour of the existing build is unchanged. | Done, 26 tests pass |
 | 2 | Estimated data layer in the cache: table, guarded writes, resolver fallback, resolved views, "delete all generated data" | Built; SQL and resolver verified here, the plugin itself needs a Windows build. No UI yet for the delete action |
 | 3 | Gemini client, pacing/retry/backoff, JSON validation, structure-based fallback | Built; tested with a fake HTTP layer only, never against the live API (needs a key) |
-| 4 | Gathering native anchors and categories from PA, settings UI (preset, model name, key), estimated marker in the UI | Not started |
+| 4a | Planner and runner (what may be generated per game, anchors from each row's own native values, end to end through the model and estimators), settings fields, obfuscated key | Built and tested with a fake model; not yet triggered from anywhere in the plugin |
+| 4b | Settings screen, estimated marker, delete-all button, a way to start a run (per game and library), calibration profile from the user's native lists, purge of superseded estimates after refreshes | Not started |
 | 5 | Blind validation run on the user's own native lists (spec section 11) | Not started |
 
 Tests: `tests/PlayniteAchievements.Tests/Services/Estimation/EstimationTests.cs`. The engine was
@@ -69,6 +70,33 @@ SqlNado library. Not verified here: the full plugin build and the repo's own tes
 - Free tier note: Google may use free-tier content to improve its products. Only public game-level
   data is ever sent, but this is why the allowlist matters.
 - Not decided yet: where the API key is stored (settings UI phase).
+
+## Phase 4a: planner, runner, settings
+
+- PA keeps one resolved achievement list per game, with cross-platform data already merged onto each row
+  by the metadata overlay (Xbox points, PSN trophy types). So the anchors are simply each row's own native
+  Points and TrophyType; no second lookup is needed. A value that is itself an estimate is never counted as native.
+- `EstimationPlanner` decides, per game, which slots may be generated into:
+  - platinum rows are excluded from everything (never graded, budgeted, anchored or sent);
+  - only bronze, silver and gold count as grade anchors. Other providers reuse the trophy field for their own
+    values (RetroAchievements, GameJolt), and where one of those is present the trophy slot is left alone;
+  - native Points count as Gamerscore only for Xbox-family providers. Where a game has native Points of another
+    kind (for example RetroAchievements points), no Gamerscore is generated next to them. A native 0 still
+    occupies the slot. A PlayStation game has no native Points, so Gamerscore can be generated for it.
+- `EstimationRunner`: plan, ask the model (public facts and anchors only), grade, build rows, and strip any value
+  for a slot with native data one more time before returning rows. A model that cannot be reached returns Failed and generates nothing.
+- Settings (off by default): enable, trophies on/off, Gamerscore on/off, budget preset, trophy budget, Gemini model,
+  Gemini key, seconds between requests. Registered in the settings copy and clone, which a reflection test checks.
+- The API key is stored lightly obfuscated, not encrypted (the owner's choice for a free-tier key). It is not
+  hidden from anyone who reads the code or the settings file's source, and it would be included if settings are
+  exported. It is never put in a URL, a log line or an error message.
+
+### Known consequence: points cards are per provider
+
+PA adds a game's Points to the points card of its provider (`PointsFamilies`): an Xbox game to Gamerscore, a Steam
+game to "Steam Points". An estimated Gamerscore on a Steam game therefore lands on the Steam card, not the Gamerscore
+card. Routing estimated points to the Gamerscore card would need the summary code to split them out; this is a
+decision for the UI phase.
 
 ## Findings for spec section 12 (open items)
 

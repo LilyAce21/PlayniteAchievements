@@ -1,0 +1,32 @@
+using PlayniteAchievements.Services.Estimation;
+
+namespace PlayniteAchievements.Models.Settings
+{
+    /// <summary>
+    /// Settings for generated (estimated) PSN trophy grades and Xbox Gamerscore. Off by default.
+    /// Estimated values never replace native data; see ESTIMATED_VALUES_DESIGN.md.
+    /// </summary>
+    public partial class PersistedSettings
+    {
+        public bool EstimatedValuesEnabled { get; set; } = false;
+
+        public bool EstimatedValuesGenerateTrophies { get; set; } = true;
+
+        public bool EstimatedValuesGenerateGamerscore { get; set; } = true;
+
+        /// <summary>How tightly the PSN point budget constrains small and mid-size lists.</summary>
+        public BudgetPreset EstimatedValuesBudgetPreset { get; set; } = BudgetPreset.Native;
+
+        /// <summary>Non-platinum trophy point budget (about 1,000). To be fitted from the user's native library.</summary>
+        public int EstimatedValuesTrophyBudget { get; set; } = 1000;
+
+        /// <summary>Gemini model id. Stays configurable because lineups and quotas change.</summary>
+        public string EstimatedValuesGeminiModel { get; set; } = "gemini-3.5-flash-lite";
+
+        /// <summary>The Gemini API key, lightly obfuscated (see <see cref="SecretObfuscator"/>). Use EstimatedValuesConfig to read or set it.</summary>
+        public string EstimatedValuesGeminiKey { get; set; } = string.Empty;
+
+        /// <summary>Minimum seconds between requests, for the free tier's per-minute limit.</summary>
+        public int EstimatedValuesRequestIntervalSeconds { get; set; } = 8;
+    }
+}

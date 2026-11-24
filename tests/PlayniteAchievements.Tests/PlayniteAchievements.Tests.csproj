@@ -32,6 +32,9 @@
     <Compile Include="..\..\source\Services\Estimation\StructureFallback.cs" Link="Source\Services\Estimation\StructureFallback.cs" />
     <Compile Include="..\..\source\Services\Estimation\GeminiClient.cs" Link="Source\Services\Estimation\GeminiClient.cs" />
     <Compile Include="..\..\source\Services\Estimation\LlmScoringService.cs" Link="Source\Services\Estimation\LlmScoringService.cs" />
+    <Compile Include="..\..\source\Services\Estimation\EstimationRunner.cs" Link="Source\Services\Estimation\EstimationRunner.cs" />
+    <Compile Include="..\..\source\Services\Estimation\SecretObfuscator.cs" Link="Source\Services\Estimation\SecretObfuscator.cs" />
+    <Compile Include="..\..\source\Services\Estimation\EstimatedValuesConfig.cs" Link="Source\Services\Estimation\EstimatedValuesConfig.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="3.6.4" />
     <PackageReference Include="MSTest.TestFramework" Version="3.6.4" />
@@ -646,6 +649,7 @@
     <Compile Include="..\..\source\Services\Metadata\MetadataLinkResolver.cs" Link="Source\Services\Metadata\MetadataLinkResolver.cs" />
     <Compile Include="..\..\source\Models\Settings\PersistedSettings.GridCompatibility.Notifications.cs" Link="Source\Models\Settings\PersistedSettings.GridCompatibility.Notifications.cs" />
     <Compile Include="..\..\source\Models\Settings\PersistedSettings.ForkCompatibility.cs" Link="Source\Models\Settings\PersistedSettings.ForkCompatibility.cs" />
+    <Compile Include="..\..\source\Models\Settings\PersistedSettings.EstimatedValues.cs" Link="Source\Models\Settings\PersistedSettings.EstimatedValues.cs" />
     <Compile Include="..\..\source\Models\Settings\ProgressBadgeSource.cs" Link="Source\Models\Settings\ProgressBadgeSource.cs" />
     <Compile Include="..\..\source\Models\Settings\ProgressDetailStyle.cs" Link="Source\Models\Settings\ProgressDetailStyle.cs" />
     <Compile Include="..\..\source\Models\Settings\CompletionBadgeKind.cs" Link="Source\Models\Settings\CompletionBadgeKind.cs" />
