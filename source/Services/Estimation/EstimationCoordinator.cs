@@ -98,13 +98,23 @@ namespace PlayniteAchievements.Services.Estimation
             return summary;
         }
 
-        public async Task<EstimationLibrarySummary> RunLibraryAsync(
+        public Task<EstimationLibrarySummary> RunLibraryAsync(
+            bool regenerate,
+            IProgress<EstimationGameSummary> progress,
+            CancellationToken cancellationToken)
+        {
+            return RunGamesAsync(_host.GetGameIds(), regenerate, progress, cancellationToken);
+        }
+
+        /// <summary>Runs the given games in order, with the same stop-early policy as a library run.</summary>
+        public async Task<EstimationLibrarySummary> RunGamesAsync(
+            IReadOnlyList<Guid> gameIds,
             bool regenerate,
             IProgress<EstimationGameSummary> progress,
             CancellationToken cancellationToken)
         {
             var library = new EstimationLibrarySummary();
-            var ids = _host.GetGameIds() ?? new List<Guid>();
+            var ids = gameIds ?? new List<Guid>();
             library.Games = ids.Count;
 
             foreach (var id in ids)

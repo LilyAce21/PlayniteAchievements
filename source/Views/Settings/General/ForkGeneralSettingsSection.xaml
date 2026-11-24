@@ -1,7 +1,8 @@
 <UserControl x:Class="PlayniteAchievements.Views.Settings.General.ForkGeneralSettingsSection"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls">
+             xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
+             xmlns:est="clr-namespace:PlayniteAchievements.Services.Estimation">
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -18,6 +19,57 @@
                                          Hint="When enabled, refreshes keep previously unlocked achievements even if the provider reports them locked. Disable to accept the selected account's current unlock states, including zero unlocks. Failed or empty responses remain protected.">
                         <CheckBox IsChecked="{Binding Persisted.PreserveCachedUnlocksOnRefresh, Mode=TwoWay}"/>
                     </controls:SettingRow>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource SettingGroupCardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Estimated trophy grades and Gamerscore" Style="{StaticResource SubSectionHeaderStyle}"/>
+                    <TextBlock Style="{StaticResource MutedTextStyle}" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="Generates the PlayStation trophy grade and Xbox Gamerscore a developer would most likely have chosen, for achievements that have none. Generated values never replace native data, count toward totals like native ones, and can be deleted at any time without touching anything native. Only public game information is sent to Google's Gemini service: achievement names, descriptions, categories and any native values. Nothing about your account, unlocks or dates is sent."/>
+                    <controls:SettingRow Label="Generate estimated values"
+                                         Hint="Master switch. Nothing is generated until you press Generate below, and nothing is sent unless this is on.">
+                        <CheckBox IsChecked="{Binding Persisted.EstimatedValuesEnabled, Mode=TwoWay}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Trophy grades"
+                                         Hint="Estimate bronze, silver and gold. Platinum is never generated, because it is already created for every game.">
+                        <CheckBox IsChecked="{Binding Persisted.EstimatedValuesGenerateTrophies, Mode=TwoWay}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Gamerscore"
+                                         Hint="Estimate Xbox Gamerscore values. They count toward the points of the game's own platform (Steam points, Epic points and so on), not toward your Xbox Gamerscore.">
+                        <CheckBox IsChecked="{Binding Persisted.EstimatedValuesGenerateGamerscore, Mode=TwoWay}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Trophy budget style"
+                                         Hint="Native follows the real trophy point budget at every list size, so small lists come out gold-heavy. Value-based allows more varied grades on small lists.">
+                        <ComboBox MinWidth="260" SelectedValuePath="Tag"
+                                  SelectedValue="{Binding Persisted.EstimatedValuesBudgetPreset, Mode=TwoWay}">
+                            <ComboBoxItem Content="Native (follow the native budget)" Tag="{x:Static est:BudgetPreset.Native}"/>
+                            <ComboBoxItem Content="Value-based (more varied small lists)" Tag="{x:Static est:BudgetPreset.ValueBased}"/>
+                        </ComboBox>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Trophy budget (points)"
+                                         Hint="Total non-platinum trophy points a small list is aimed at. About 1,000 is the usual figure; it is a starting estimate, not an official number.">
+                        <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesTrophyBudget, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Gemini model"
+                                         Hint="Free Gemini models only. Google changes which models are available, so this stays editable. If you see 'model not available', pick a current one such as gemini-3.5-flash-lite.">
+                        <TextBox MinWidth="260" Text="{Binding Persisted.EstimatedValuesGeminiModel, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Gemini API key"
+                                         Hint="A free key from Google AI Studio. It is stored lightly obfuscated, not encrypted, and is sent only to Google.">
+                        <PasswordBox x:Name="GeminiKeyBox" MinWidth="260" PasswordChanged="GeminiKey_PasswordChanged"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Seconds between requests"
+                                         Hint="The free tier allows only a few requests per minute. Raise this if you see rate-limit messages.">
+                        <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesRequestIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </controls:SettingRow>
+                    <WrapPanel Margin="0,8,0,0">
+                        <Button Content="Generate for all games" Click="GenerateEstimated_Click" MinWidth="170" Margin="0,0,8,8"
+                                Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
+                        <Button Content="Regenerate all" Click="RegenerateEstimated_Click" MinWidth="130" Margin="0,0,8,8"
+                                Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
+                        <Button Content="Delete all generated values" Click="ClearEstimated_Click" MinWidth="200" Margin="0,0,0,8"
+                                Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
+                    </WrapPanel>
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource SettingGroupCardStyle}">

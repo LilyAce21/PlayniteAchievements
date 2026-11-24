@@ -1446,6 +1446,16 @@ namespace PlayniteAchievements.Services.Cache
             return written;
         }
 
+        /// <summary>Drops estimates that native, metadata or user data has since superseded. Safe at any time.</summary>
+        public void PurgeSupersededEstimates()
+        {
+            lock (_sync)
+            {
+                EnsureReady_Locked("PurgeSupersededEstimates");
+                _store.PurgeSupersededEstimates();
+            }
+        }
+
         /// <summary>
         /// Deletes every generated trophy grade and Gamerscore, the roll-back for estimated data.
         /// Native, metadata and custom data are untouched. Returns how many rows were deleted.

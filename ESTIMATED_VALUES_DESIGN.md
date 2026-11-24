@@ -12,7 +12,7 @@ items, the places where I had to make a call, and what comes next.
 | 2 | Estimated data layer in the cache: table, guarded writes, resolver fallback, resolved views, "delete all generated data" | Built; SQL and resolver verified here, the plugin itself needs a Windows build. No UI yet for the delete action |
 | 3 | Gemini client, pacing/retry/backoff, JSON validation, structure-based fallback | Built; tested with a fake HTTP layer only, never against the live API (needs a key) |
 | 4a | Planner and runner (what may be generated per game, anchors from each row's own native values, end to end through the model and estimators), settings fields, obfuscated key | Built and tested with a fake model; not yet triggered from anywhere in the plugin |
-| 4b | Settings screen, estimated marker, delete-all button, a way to start a run (per game and library), calibration profile from the user's native lists, purge of superseded estimates after refreshes | Not started |
+| 4b | Settings card, Generate / Regenerate / Delete buttons, estimated marker, purge before runs | Built (UI is XAML and not built or seen here; needs a Windows build and a look). Still to do: calibration profile from the user's native lists, per-game menu action |
 | 5 | Blind validation run on the user's own native lists (spec section 11) | Not started |
 
 Tests: `tests/PlayniteAchievements.Tests/Services/Estimation/EstimationTests.cs`. The engine was
@@ -108,8 +108,16 @@ the Gamerscore card.
 - A run stops early on a problem every remaining game would share (missing or rejected key, unavailable model,
   used-up quota, no network); games already finished are kept. A refusal of one game's content is that game's
   problem alone and does not stop the run.
-- `CacheEstimationHost` connects the coordinator to the cache. Nothing calls the coordinator yet: the settings
-  screen, the Generate and Delete buttons, the estimated marker and the calibration profile are still to do.
+- `CacheEstimationHost` connects the coordinator to the cache.
+- Settings, General tab, "Estimated trophy grades and Gamerscore" card: master switch, trophy and Gamerscore
+  switches, budget style, trophy budget, Gemini model, masked API key, seconds between requests, and buttons:
+  Generate for all games, Regenerate all, Delete all generated values. Runs show Playnite's cancelable progress
+  window and finish with a summary. Superseded estimates are purged before each run.
+- Marker: estimated points show with a leading "\u2248" in the achievement grid, and an estimated trophy grade's
+  tooltip says "(estimated)" (never while a hidden grade is masked). The display item also exposes
+  `IsPointsEstimated` and `IsTrophyTypeEstimated` for themes.
+- Still to do: the calibration profile (grade mix by list size from the user's native lists), and a per-game
+  "Generate" menu entry.
 
 ## Findings for spec section 12 (open items)
 

@@ -144,6 +144,20 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         }
 
         [TestMethod]
+        public void Games_OnlyTheChosenGamesAreRun()
+        {
+            var a = Game("a"); var b = Game("b"); var c = Game("c");
+            var (coordinator, host, client) = Build(a, b, c);
+
+            var summary = coordinator.RunGamesAsync(new[] { b.PlayniteGameId }, false, null, CancellationToken.None).Result;
+
+            Assert.AreEqual(1, summary.Games);
+            Assert.AreEqual(1, summary.Generated);
+            CollectionAssert.AreEqual(new[] { b.PlayniteGameId }, host.Written);
+            Assert.AreEqual(1, client.Calls);
+        }
+
+        [TestMethod]
         public void Game_WithoutAchievementDataIsSkipped()
         {
             var (coordinator, host, client) = Build();

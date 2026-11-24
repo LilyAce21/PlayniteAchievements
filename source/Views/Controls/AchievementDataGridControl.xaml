@@ -483,6 +483,10 @@
                             <DataTrigger Binding="{Binding TrophyTypeResolved}" Value="unknown">
                                 <Setter Property="ToolTip" Value="{DynamicResource LOCPlayAch_Achievements_ClickToReveal}"/>
                             </DataTrigger>
+                            <!-- A generated (estimated) grade says so. Last, so it wins, and it is never true while masked. -->
+                            <DataTrigger Binding="{Binding HasEstimatedTrophyToolTip}" Value="True">
+                                <Setter Property="ToolTip" Value="{Binding EstimatedTrophyToolTip}"/>
+                            </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </DataGridTemplateColumn.CellStyle>

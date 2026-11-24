@@ -12,14 +12,28 @@ namespace PlayniteAchievements.Views.Settings.General
     public partial class ForkGeneralSettingsSection : UserControl
     {
         private readonly PlayniteAchievementsPlugin _plugin;
+        private readonly PlayniteAchievementsSettings _settings;
 
         internal ForkGeneralSettingsSection(PlayniteAchievementsSettings settings, PlayniteAchievementsPlugin plugin)
         {
             _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
             InitializeComponent();
-            DataContext = settings ?? throw new ArgumentNullException(nameof(settings));
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            DataContext = settings;
+            GeminiKeyBox.Password = Services.Estimation.EstimatedValuesConfig.GetApiKey(settings.Persisted);
             DebugModeCheckBox.DataContext = Providers.ProviderRegistry.Instance?.GetSettingsForEdit("Local");
         }
+
+        private void GeminiKey_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            Services.Estimation.EstimatedValuesConfig.SetApiKey(_settings?.Persisted, GeminiKeyBox.Password);
+        }
+
+        private void GenerateEstimated_Click(object sender, RoutedEventArgs e) => _plugin.GenerateEstimatedValues(null, false);
+
+        private void RegenerateEstimated_Click(object sender, RoutedEventArgs e) => _plugin.GenerateEstimatedValues(null, true);
+
+        private void ClearEstimated_Click(object sender, RoutedEventArgs e) => _plugin.ClearEstimatedValues();
 
         private void DebugMode_Changed(object sender, RoutedEventArgs e)
         {

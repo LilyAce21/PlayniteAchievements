@@ -1659,8 +1659,33 @@ namespace PlayniteAchievements.ViewModels.Items
         public int DisplayOrder => _source?.DisplayOrder ?? 0;
 
         public string PointsText => HasPoints
-            ? PointsValue.Value.ToString("N0", FormattingCulture.Current)
+            ? (IsPointsEstimated ? EstimatedMarker : string.Empty) + PointsValue.Value.ToString("N0", FormattingCulture.Current)
             : string.Empty;
+
+        /// <summary>A subtle prefix on a value that is a generated estimate rather than native data.</summary>
+        public const string EstimatedMarker = "\u2248"; // ≈
+
+        /// <summary>True when the points are a generated estimate, not a native value.</summary>
+        public bool IsPointsEstimated => _source?.IsPointsEstimated == true;
+
+        /// <summary>True when the trophy type is a generated estimate, not a native value.</summary>
+        public bool IsTrophyTypeEstimated => _source?.IsTrophyTypeEstimated == true;
+
+        /// <summary>True when the trophy tooltip should say the grade is estimated. Never true while the grade is masked.</summary>
+        public bool HasEstimatedTrophyToolTip => IsTrophyTypeEstimated && !IsTrophyHidden && HasTrophyType;
+
+        /// <summary>The trophy name with an "(estimated)" note, for the tooltip of an estimated grade.</summary>
+        public string EstimatedTrophyToolTip
+        {
+            get
+            {
+                if (!HasEstimatedTrophyToolTip) return null;
+                var key = "LOCPlayAch_Trophy_" + char.ToUpperInvariant(TrophyType[0]) + TrophyType.Substring(1).ToLowerInvariant();
+                var name = Playnite.SDK.ResourceProvider.GetString(key);
+                if (string.IsNullOrWhiteSpace(name) || name == key) name = TrophyType;
+                return name + " (estimated)";
+            }
+        }
 
         /// <summary>
         /// True when the achievement carries a point value worth rendering. A zero value already
@@ -2160,6 +2185,8 @@ namespace PlayniteAchievements.ViewModels.Items
         {
             OnPropertyChanged(nameof(IsTrophyHidden));
             OnPropertyChanged(nameof(TrophyTypeResolved));
+            OnPropertyChanged(nameof(HasEstimatedTrophyToolTip));
+            OnPropertyChanged(nameof(EstimatedTrophyToolTip));
         }
 
         private void NotifyPointsDisplayChanged()
