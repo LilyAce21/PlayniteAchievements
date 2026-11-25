@@ -111,6 +111,10 @@ namespace PlayniteAchievements
                     () => EstimatedValuesConfig.ToRunOptions(EstimationPersisted));
 
                 var ids = gameIds ?? new CacheEstimationHost(cache).GetGameIds();
+                _logger?.Info("[EstimatedValues] Starting: " + ids.Count + " game(s), regenerate=" + regenerate +
+                              ", model=" + (persisted.EstimatedValuesGeminiModel ?? string.Empty).Trim() +
+                              ", trophies=" + persisted.EstimatedValuesGenerateTrophies +
+                              ", gamerscore=" + persisted.EstimatedValuesGenerateGamerscore + ".");
                 var options = new GlobalProgressOptions("Generating estimated trophy grades and Gamerscore…", true)
                 {
                     Cancelable = true,
@@ -125,6 +129,10 @@ namespace PlayniteAchievements
                     var reporter = new SyncProgress<EstimationGameSummary>(game =>
                     {
                         done++;
+                        // Counts and status only: never the request, the response or the key.
+                        _logger?.Info("[EstimatedValues] " + (string.IsNullOrWhiteSpace(game.Title) ? game.PlayniteGameId.ToString() : game.Title) +
+                                      ": " + game.Status + ", " + game.ValuesStored + " value(s) stored" +
+                                      (string.IsNullOrWhiteSpace(game.Message) ? string.Empty : " (" + game.Message + ")"));
                         progress.CurrentProgressValue = done;
                         progress.Text = "Generating estimated values (" + done + " of " + ids.Count + ")" +
                                         (string.IsNullOrWhiteSpace(game.Title) ? string.Empty : ": " + game.Title);
@@ -160,6 +168,12 @@ namespace PlayniteAchievements
                     PluginTitle, MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
+
+            _logger?.Info("[EstimatedValues] Finished: " + (summary == null
+                ? "cancelled."
+                : summary.Generated + " generated, " + summary.GeneratedWithFallback + " from structure fallback, " + summary.Skipped +
+                  " skipped, " + summary.Failed + " failed, " + summary.ValuesStored + " value(s) stored" +
+                  (summary.StoppedEarly ? "; stopped early: " + summary.StopReason : string.Empty) + "."));
 
             PlayniteApi?.Dialogs?.ShowMessage(DescribeSummary(summary), PluginTitle, MessageBoxButton.OK,
                 summary != null && summary.StoppedEarly ? MessageBoxImage.Warning : MessageBoxImage.Information);
