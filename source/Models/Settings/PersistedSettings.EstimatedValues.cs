@@ -18,7 +18,18 @@ namespace PlayniteAchievements.Models.Settings
         public BudgetPreset EstimatedValuesBudgetPreset { get; set; } = BudgetPreset.Native;
 
         /// <summary>Non-platinum trophy point budget (about 1,000). To be fitted from the user's native library.</summary>
-        public int EstimatedValuesTrophyBudget { get; set; } = 1000;
+        public int EstimatedValuesTrophyBudget
+        {
+            get => _estimatedValuesTrophyBudget;
+            set
+            {
+                if (_estimatedValuesTrophyBudget == value) return;
+                _estimatedValuesTrophyBudget = value;
+                OnPropertyChanged(nameof(EstimatedValuesTrophyBudget)); // so "Fit from my library" updates the box
+            }
+        }
+
+        private int _estimatedValuesTrophyBudget = 1000;
 
         /// <summary>Gemini model id. Stays configurable because lineups and quotas change.</summary>
         public string EstimatedValuesGeminiModel { get; set; } = "gemini-3.5-flash-lite";

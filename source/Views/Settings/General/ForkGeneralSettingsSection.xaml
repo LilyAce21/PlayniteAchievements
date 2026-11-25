@@ -48,7 +48,11 @@
                     </controls:SettingRow>
                     <controls:SettingRow Label="Trophy budget (points)"
                                          Hint="Total non-platinum trophy points a small list is aimed at. About 1,000 is the usual figure; it is a starting estimate, not an official number.">
-                        <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesTrophyBudget, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesTrophyBudget, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                            <Button Content="Fit from my library" Click="FitBudget_Click" Margin="8,0,0,0"
+                                    Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
+                        </StackPanel>
                     </controls:SettingRow>
                     <controls:SettingRow Label="Gemini model"
                                          Hint="Free Gemini models only. Google changes which models are available, so this stays editable. If you see 'model not available', pick a current one such as gemini-3.5-flash-lite.">

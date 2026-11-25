@@ -162,6 +162,63 @@ namespace PlayniteAchievements
         }
 
         /// <summary>
+        /// Looks at the user's own native PlayStation-style lists and suggests the trophy budget they imply
+        /// (the median total points of lists with 5 to 45 trophies). Nothing changes unless the user agrees.
+        /// </summary>
+        internal void FitTrophyBudgetFromLibrary()
+        {
+            var persisted = EstimationPersisted;
+            var cache = _cacheManager as CacheManager;
+            if (persisted == null || cache == null)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage("The achievement cache is not ready yet.", PluginTitle);
+                return;
+            }
+
+            CalibrationProfile profile = null;
+            Exception failure = null;
+            PlayniteApi.Dialogs.ActivateGlobalProgress(progress =>
+            {
+                progress.Text = "Reading your native trophy lists…";
+                try
+                {
+                    profile = EstimationCoordinator.BuildCalibration(new CacheEstimationHost(cache));
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                }
+            }, new GlobalProgressOptions("Reading your native trophy lists…", false) { IsIndeterminate = true });
+
+            if (failure != null)
+            {
+                _logger?.Error(failure, "Fitting the trophy budget failed.");
+                PlayniteApi.Dialogs.ShowMessage(string.Format(ResourceProvider.GetString("LOCPlayAch_Status_Failed"), failure.Message), PluginTitle, MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var suggested = profile?.SuggestedTrophyBudget;
+            var counted = profile?.Lists.Count(l => l.Size >= 5 && l.Size <= 45) ?? 0;
+            if (!suggested.HasValue)
+            {
+                PlayniteApi.Dialogs.ShowMessage(
+                    "Not enough native trophy lists to fit a budget: found " + counted + " complete lists with 5 to 45 trophies, and at least 5 are needed. " +
+                    "Only complete lists from PlayStation sources (PSN, RPCS3, ShadPS4, Vita3K) count. The budget was left at " + persisted.EstimatedValuesTrophyBudget + ".",
+                    PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var answer = PlayniteApi.Dialogs.ShowMessage(
+                "Your " + counted + " complete native trophy lists with 5 to 45 trophies have a median of " + suggested.Value +
+                " points. Set the trophy budget to " + suggested.Value + " (currently " + persisted.EstimatedValuesTrophyBudget + ")?",
+                PluginTitle, MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (answer == MessageBoxResult.Yes)
+            {
+                persisted.EstimatedValuesTrophyBudget = suggested.Value;
+            }
+        }
+
+        /// <summary>
         /// Deletes every generated trophy grade and Gamerscore after confirmation. Native, metadata and
         /// custom data live in other tables and are not touched, so this is the roll-back for the feature.
         /// </summary>

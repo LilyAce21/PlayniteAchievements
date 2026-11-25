@@ -61,6 +61,8 @@ namespace PlayniteAchievements.Services.Estimation
         private readonly IEstimationHost _host;
         private readonly IEstimationLlmClient _client;
         private readonly Func<EstimationRunOptions> _options;
+        private CalibrationProfile _calibration;
+        private bool _calibrationDone;
 
         public EstimationCoordinator(IEstimationHost host, IEstimationLlmClient client, Func<EstimationRunOptions> options)
         {
@@ -84,6 +86,7 @@ namespace PlayniteAchievements.Services.Estimation
             summary.Title = source.Title;
             var options = _options();
             options.Regenerate = regenerate;
+            if (options.Calibration == null && options.UseCalibration) options.Calibration = EnsureCalibration();
 
             var run = await EstimationRunner.RunAsync(source, _client, options, cancellationToken).ConfigureAwait(false);
             summary.Status = run.Status;
@@ -146,6 +149,37 @@ namespace PlayniteAchievements.Services.Estimation
             }
 
             return library;
+        }
+
+        /// <summary>
+        /// Summarises the user's native lists once per coordinator (so once per run). Any problem reading the
+        /// library just means no calibration: estimates still work without it.
+        /// </summary>
+        public CalibrationProfile EnsureCalibration()
+        {
+            if (_calibrationDone) return _calibration;
+            _calibrationDone = true;
+
+            try
+            {
+                var profile = BuildCalibration(_host);
+                _calibration = profile.IsEmpty ? null : profile;
+            }
+            catch (Exception)
+            {
+                _calibration = null;
+            }
+
+            return _calibration;
+        }
+
+        /// <summary>Summarises every native list the host can load. May be empty; throws if the library cannot be read.</summary>
+        public static CalibrationProfile BuildCalibration(IEstimationHost host)
+        {
+            var sources = (host.GetGameIds() ?? new List<Guid>())
+                .Select(id => host.LoadSource(id))
+                .Where(source => source != null);
+            return CalibrationProfile.FromSources(sources);
         }
 
         /// <summary>The roll-back for the whole feature. Returns how many generated rows were deleted.</summary>

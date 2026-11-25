@@ -15,6 +15,10 @@ namespace PlayniteAchievements.Services.Estimation
         public string Description { get; set; }
         public bool IsHidden { get; set; }
         public string Category { get; set; }
+
+        /// <summary>The raw category kind PA holds (for example a DLC or update kind). Used only for calibration.</summary>
+        public string CategoryKind { get; set; }
+
         public double? RarityPercent { get; set; }
 
         /// <summary>
@@ -41,6 +45,9 @@ namespace PlayniteAchievements.Services.Estimation
         public int? ReleaseYear { get; set; }
         public string Genre { get; set; }
 
+        /// <summary>The game's provider (for example "PSN" or "Steam"). Used only for calibration.</summary>
+        public string ProviderKey { get; set; }
+
         /// <summary>
         /// True when the game's native Points are Xbox Gamerscore (an Xbox-family provider), so a partial
         /// native list can be filled in. When false, any native Points belong to another system (for
@@ -64,6 +71,12 @@ namespace PlayniteAchievements.Services.Estimation
         /// not generated again. True regenerates everything that has no native data.
         /// </summary>
         public bool Regenerate { get; set; }
+
+        /// <summary>
+        /// Summarise the user's own native lists into the request (grade mix by size, DLC split, closest
+        /// anonymous lists). The coordinator computes it once per run when this is true and none is supplied.
+        /// </summary>
+        public bool UseCalibration { get; set; } = true;
     }
 
     public sealed class EstimationPlan

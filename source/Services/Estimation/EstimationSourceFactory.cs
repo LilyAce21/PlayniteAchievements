@@ -25,6 +25,7 @@ namespace PlayniteAchievements.Services.Estimation
                 Title = game?.Name ?? data.GameName,
                 ReleaseYear = game?.ReleaseYear,
                 Genre = genre,
+                ProviderKey = data.EffectiveProviderKey,
                 PointsAreGamerscore = string.Equals(
                     PointsFamilies.FromProviderKey(data.EffectiveProviderKey),
                     PointsFamilies.Xbox,
@@ -40,6 +41,7 @@ namespace PlayniteAchievements.Services.Estimation
                     Description = a.Description,
                     IsHidden = a.Hidden,
                     Category = a.Category,
+                    CategoryKind = a.CategoryKind,
                     RarityPercent = a.GlobalPercentUnlocked,
                     NativeTrophyType = a.IsTrophyTypeEstimated ? null : a.TrophyType,
                     NativePoints = a.IsPointsEstimated ? null : a.Points,

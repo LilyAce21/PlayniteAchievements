@@ -12,7 +12,7 @@ items, the places where I had to make a call, and what comes next.
 | 2 | Estimated data layer in the cache: table, guarded writes, resolver fallback, resolved views, "delete all generated data" | Built; SQL and resolver verified here, the plugin itself needs a Windows build. No UI yet for the delete action |
 | 3 | Gemini client, pacing/retry/backoff, JSON validation, structure-based fallback | Built; tested with a fake HTTP layer only, never against the live API (needs a key) |
 | 4a | Planner and runner (what may be generated per game, anchors from each row's own native values, end to end through the model and estimators), settings fields, obfuscated key | Built and tested with a fake model; not yet triggered from anywhere in the plugin |
-| 4b | Settings card, Generate / Regenerate / Delete buttons, estimated marker, purge before runs | Built (UI is XAML and not built or seen here; needs a Windows build and a look). Still to do: calibration profile from the user's native lists, per-game menu action |
+| 4b | Settings card, Generate / Regenerate / Delete buttons, estimated marker, purge before runs | Built (UI is XAML and not built or seen here; needs a Windows build and a look). Still to do: per-game menu action |
 | 5 | Blind validation run on the user's own native lists (spec section 11) | Not started |
 
 Tests: `tests/PlayniteAchievements.Tests/Services/Estimation/EstimationTests.cs`. The engine was
@@ -116,8 +116,29 @@ the Gamerscore card.
 - Marker: estimated points show with a leading "\u2248" in the achievement grid, and an estimated trophy grade's
   tooltip says "(estimated)" (never while a hidden grade is masked). The display item also exposes
   `IsPointsEstimated` and `IsTrophyTypeEstimated` for themes.
-- Still to do: the calibration profile (grade mix by list size from the user's native lists), and a per-game
-  "Generate" menu entry.
+- Still to do: a per-game "Generate" menu entry.
+
+## Calibration (spec sections 5 and 11)
+
+`CalibrationProfile` summarises the user's own native lists, computed locally once per run:
+
+- grade mix and average points by list size (1-12, 13-30, 31-65, 66-100, 101+ trophies);
+- how DLC and update packs split a game's points (average share of points and trophies in those categories);
+- Gamerscore by list size (average total, median value, share of capstone spikes);
+- the three closest real lists to the game being estimated, as anonymous examples.
+
+Which lists count: trophy lists only from PSN-family providers (PSN, RPCS3, ShadPS4, Vita3K), since other providers
+reuse the trophy field for their own tiers; only complete lists, where every non-platinum achievement has a native
+bronze, silver or gold, so partial lists never skew the mix; at least 3 trophies. Gamerscore lists are complete
+Xbox-family lists with a native value on every achievement.
+
+Privacy: the request carries summary statistics only. The "closest lists" are size and grade counts, never a title,
+so nothing about which games the user owns is sent. The profile is skipped quietly if the library cannot be read.
+
+"Fit from my library" (next to the trophy budget): shows the median points of complete native lists with 5 to 45
+trophies (needs at least 5) and applies it only if the user agrees. This is the fitting spec section 11 asks for,
+for the budget figure; the fade between 65 and 200 trophies and the grade thresholds still need the blind
+validation run on real data.
 
 ## Findings for spec section 12 (open items)
 

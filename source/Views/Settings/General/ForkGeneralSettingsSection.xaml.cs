@@ -29,6 +29,8 @@ namespace PlayniteAchievements.Views.Settings.General
             Services.Estimation.EstimatedValuesConfig.SetApiKey(_settings?.Persisted, GeminiKeyBox.Password);
         }
 
+        private void FitBudget_Click(object sender, RoutedEventArgs e) => _plugin.FitTrophyBudgetFromLibrary();
+
         private void GenerateEstimated_Click(object sender, RoutedEventArgs e) => _plugin.GenerateEstimatedValues(null, false);
 
         private void RegenerateEstimated_Click(object sender, RoutedEventArgs e) => _plugin.GenerateEstimatedValues(null, true);

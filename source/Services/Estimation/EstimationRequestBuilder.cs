@@ -113,18 +113,8 @@ namespace PlayniteAchievements.Services.Estimation
                     .ToList();
                 if (anchors.Count > 0) root["anchors"] = new JArray(anchors);
 
-                if (context.Calibration != null && context.Calibration.Rows.Count > 0)
-                {
-                    root["calibration"] = new JArray(context.Calibration.Rows.Select(b => new JObject
-                    {
-                        ["sizeBucket"] = b.SizeBucket,
-                        ["lists"] = b.Lists,
-                        ["bronzeShare"] = b.BronzeShare,
-                        ["silverShare"] = b.SilverShare,
-                        ["goldShare"] = b.GoldShare,
-                        ["averagePoints"] = b.AveragePoints
-                    }));
-                }
+                var calibration = CalibrationJson(context.Calibration, achievements.Count);
+                if (calibration != null) root["calibration"] = calibration;
 
                 request.Json = root.ToString(Formatting.None);
                 PrivacyFilter.AssertSafe(request.Json);
@@ -132,6 +122,66 @@ namespace PlayniteAchievements.Services.Estimation
             }
 
             return requests;
+        }
+
+        /// <summary>
+        /// The calibration block: summary statistics only. The closest real lists are anonymous (size and
+        /// grade counts), so no title from the user's library is ever sent.
+        /// </summary>
+        private static JObject CalibrationJson(CalibrationProfile profile, int listSize)
+        {
+            if (profile == null || profile.IsEmpty) return null;
+
+            var json = new JObject();
+            if (profile.Rows.Count > 0)
+            {
+                json["bySize"] = new JArray(profile.Rows.Select(b => new JObject
+                {
+                    ["sizeBucket"] = b.SizeBucket,
+                    ["lists"] = b.Lists,
+                    ["bronzeShare"] = b.BronzeShare,
+                    ["silverShare"] = b.SilverShare,
+                    ["goldShare"] = b.GoldShare,
+                    ["averagePoints"] = b.AveragePoints
+                }));
+            }
+
+            var closest = profile.ClosestLists(listSize, 3);
+            if (closest.Count > 0)
+            {
+                json["closestLists"] = new JArray(closest.Select(l => new JObject
+                {
+                    ["size"] = l.Size,
+                    ["bronze"] = l.Bronze,
+                    ["silver"] = l.Silver,
+                    ["gold"] = l.Gold,
+                    ["points"] = l.Points
+                }));
+            }
+
+            if (profile.Extras != null)
+            {
+                json["extras"] = new JObject
+                {
+                    ["lists"] = profile.Extras.Lists,
+                    ["pointShare"] = profile.Extras.AveragePointShare,
+                    ["trophyShare"] = profile.Extras.AverageTrophyShare
+                };
+            }
+
+            if (profile.GamerscoreRows.Count > 0)
+            {
+                json["gamerscoreBySize"] = new JArray(profile.GamerscoreRows.Select(b => new JObject
+                {
+                    ["sizeBucket"] = b.SizeBucket,
+                    ["lists"] = b.Lists,
+                    ["averageTotal"] = b.AverageTotal,
+                    ["medianValue"] = b.MedianValue,
+                    ["spikeShare"] = b.SpikeShare
+                }));
+            }
+
+            return json;
         }
 
         private static JObject AchievementJson(PublicAchievement a, string id)
