@@ -1921,7 +1921,7 @@
     <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalLumaPlayIniPathHeader">LumaPlay.ini override</sys:String>
     <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalLumaPlayIniPathHint">Point to the game's LumaPlay.ini file. The Local provider can infer UplayGameID from this file when the game has no app id metadata.</sys:String>
     <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalRefreshOnCloseHeader">Refresh when game closes</sys:String>
-    <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalRefreshOnCloseHint">Override whether this game should trigger a refresh right after it closes. Clear to use the global setting from Achievement Notifications.</sys:String>
+    <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalRefreshOnCloseHint">Override whether this game should trigger a refresh right after it closes. Clear to use the global "Refresh achievements when a game closes" setting in Santodan-Fork &gt; Platforms &gt; Local.</sys:String>
     <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalSteamAppIdHeader">Local forced Steam App ID</sys:String>
     <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalSteamAppIdHint">Enter the Steam App ID the Local provider should use for this game. This is useful when a game has multiple Steam App IDs.</sys:String>
     <sys:String x:Key="LOCPlayAch_GameOptions_Overrides_LocalSteamUserHeader">Local forced Steam user</sys:String>
