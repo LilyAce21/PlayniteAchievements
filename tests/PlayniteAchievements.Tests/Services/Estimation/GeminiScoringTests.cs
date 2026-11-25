@@ -124,21 +124,21 @@ namespace PlayniteAchievements.Services.Estimation.Tests
 
             Assert.IsTrue(result.Success);
             Assert.AreEqual(2, h.Handler.Urls.Count);
-            Assert.IsTrue(h.Delays.Contains(TimeSpan.FromSeconds(7)), "Retry-After should set the wait");
+            Assert.IsTrue(h.Delays.Any(d => d >= TimeSpan.FromSeconds(7) && d < TimeSpan.FromSeconds(9)), "Retry-After should set the wait (plus a small margin)");
         }
 
         [TestMethod]
         public void Client_BacksOffExponentiallyOnServerTroubleThenGivesUpAsTransient()
         {
             var h = new Harness();
-            for (var i = 0; i < 4; i++) h.Handler.Responses.Enqueue(_ => Json(HttpStatusCode.ServiceUnavailable, "{}"));
+            for (var i = 0; i < 6; i++) h.Handler.Responses.Enqueue(_ => Json(HttpStatusCode.ServiceUnavailable, "{}"));
             var client = h.Client();
 
             var result = client.GenerateAsync(EstimationRequestBuilder.Build(Context(2))[0].Json, CancellationToken.None).Result;
 
             Assert.IsFalse(result.Success);
             Assert.AreEqual(LlmFailureKind.Transient, result.Failure);
-            Assert.AreEqual(4, h.Handler.Urls.Count);
+            Assert.AreEqual(6, h.Handler.Urls.Count);
 
             // Waits double each attempt (plus under half a second of jitter), up to the cap.
             var first = client.BackoffDelay(1, null);
@@ -147,7 +147,7 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             Assert.IsTrue(first >= TimeSpan.FromSeconds(2) && first < TimeSpan.FromSeconds(2.6));
             Assert.IsTrue(second >= TimeSpan.FromSeconds(4) && second < TimeSpan.FromSeconds(4.6));
             Assert.IsTrue(third >= TimeSpan.FromSeconds(8) && third < TimeSpan.FromSeconds(8.6));
-            Assert.IsTrue(client.BackoffDelay(20, null) <= TimeSpan.FromSeconds(90));
+            Assert.IsTrue(client.BackoffDelay(20, null) <= TimeSpan.FromSeconds(120));
         }
 
         [TestMethod]
@@ -280,7 +280,7 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         public void Scoring_ANetworkOrQuotaFailureGeneratesNothing()
         {
             var h = new Harness();
-            for (var i = 0; i < 4; i++) h.Handler.Responses.Enqueue(_ => Json((HttpStatusCode)429, "{}"));
+            for (var i = 0; i < 6; i++) h.Handler.Responses.Enqueue(_ => Json((HttpStatusCode)429, "{}"));
 
             var outcome = LlmScoringService.ScoreAsync(h.Client(), Context(5), CancellationToken.None).Result;
 

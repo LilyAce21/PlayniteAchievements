@@ -189,6 +189,24 @@ request, which stays strict JSON with no tools.
   descriptions only.
 - Whether Gemini really searched each achievement individually cannot be guaranteed; the counts are the evidence.
 
+## Rate limits (429) with research on
+
+Research multiplies the requests per game (about one per 25 achievements, plus a retry for skipped ones, plus scoring),
+and search-grounded calls can have tighter limits than plain ones. The first version only read the standard
+`Retry-After` header, but Gemini puts the wait in the error body, so it retried after 2, 4 and 8 seconds, used up every
+attempt within about 15 seconds against a limit that resets per minute, and failed. Now:
+- the wait Gemini names (`retryDelay`, or "retry in Ns" in the message) is honoured, plus a second of margin; 6 attempts;
+- the log names the quota that was hit and its limit (Google's quota id and value, never the key) so the real limits can
+  be seen rather than guessed;
+- a per-day quota is recognised and not retried (it cannot help); the message says to try tomorrow, switch model or turn
+  research off;
+- adaptive pacing: after a rate limit the gap between requests grows (15s, 30s, up to 60s) and eases off as requests
+  succeed; research requests are always at least 15s apart;
+- research notes already gathered are kept in memory for the session, so an interruption on batch 3 does not make the
+  next attempt pay for batches 1 and 2 again; cleared when a game is regenerated or all generated data is deleted.
+If it still hits limits: raise "Seconds between requests", raise "Achievements per research request", or turn research
+off. Quota ids in the log tell which limit it is.
+
 ## Findings for spec section 12 (open items)
 
 **How PA stores native PSN/Xbox data.** SQLite through SqlNado. The platform's own values live in

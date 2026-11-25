@@ -53,7 +53,8 @@ namespace PlayniteAchievements.Services.Estimation
             CancellationToken cancellationToken,
             int chunkSize = EstimationRequestBuilder.DefaultChunkSize,
             IEstimationResearchClient research = null,
-            int researchBatchSize = DefaultResearchBatchSize)
+            int researchBatchSize = DefaultResearchBatchSize,
+            IDictionary<string, string> researchCache = null)
         {
             var outcome = new ScoringOutcome();
             if (client == null) throw new ArgumentNullException(nameof(client));
@@ -72,7 +73,7 @@ namespace PlayniteAchievements.Services.Estimation
             var notesById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (research != null)
             {
-                var researchFailure = await ResearchAsync(research, context, researchBatchSize, notesById, outcome, cancellationToken).ConfigureAwait(false);
+                var researchFailure = await ResearchAsync(research, context, researchBatchSize, notesById, outcome, researchCache, cancellationToken).ConfigureAwait(false);
                 if (researchFailure != null)
                 {
                     outcome.Succeeded = false;
@@ -159,9 +160,37 @@ namespace PlayniteAchievements.Services.Estimation
             int batchSize,
             Dictionary<string, string> notesById,
             ScoringOutcome outcome,
+            IDictionary<string, string> cache,
             CancellationToken cancellationToken)
         {
-            foreach (var request in EstimationRequestBuilder.BuildResearch(context, batchSize))
+            // What an earlier attempt already found is reused, so a rate limit part way through research does not
+            // make the next attempt pay for the finished batches again.
+            var ids = EstimationRequestBuilder.IdsByApiName(context);
+            var alreadyResearched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (cache != null)
+            {
+                foreach (var pair in ids)
+                {
+                    if (cache.TryGetValue(pair.Key, out var cachedNote))
+                    {
+                        notesById[pair.Value] = cachedNote;
+                        alreadyResearched.Add(pair.Key);
+                    }
+                }
+            }
+
+            void Remember(KeyValuePair<string, string> found, IDictionary<string, string> idMap)
+            {
+                notesById[found.Key] = found.Value;
+                if (cache != null && idMap.TryGetValue(found.Key, out var apiName)) cache[apiName] = found.Value;
+            }
+
+            var remaining = alreadyResearched.Count == 0
+                ? null
+                : new HashSet<string>(ids.Keys.Where(name => !alreadyResearched.Contains(name)), StringComparer.OrdinalIgnoreCase);
+            if (remaining != null && remaining.Count == 0) return null; // everything was researched earlier
+
+            foreach (var request in EstimationRequestBuilder.BuildResearch(context, batchSize, remaining))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -170,7 +199,7 @@ namespace PlayniteAchievements.Services.Estimation
 
                 outcome.SearchQueryCount += call.SearchQueries;
                 outcome.SourceCount += call.Sources;
-                foreach (var pair in ResearchResponseParser.Parse(call.Text, request.IdMap)) notesById[pair.Key] = pair.Value;
+                foreach (var pair in ResearchResponseParser.Parse(call.Text, request.IdMap)) Remember(pair, request.IdMap);
 
                 var missing = request.IdMap.Where(p => !notesById.ContainsKey(p.Key)).Select(p => p.Value).ToList();
                 if (missing.Count == 0 || call.Truncated && missing.Count == request.IdMap.Count) continue;
@@ -184,7 +213,7 @@ namespace PlayniteAchievements.Services.Estimation
 
                     outcome.SearchQueryCount += again.SearchQueries;
                     outcome.SourceCount += again.Sources;
-                    foreach (var pair in ResearchResponseParser.Parse(again.Text, retry.IdMap)) notesById[pair.Key] = pair.Value;
+                    foreach (var pair in ResearchResponseParser.Parse(again.Text, retry.IdMap)) Remember(pair, retry.IdMap);
                 }
             }
 

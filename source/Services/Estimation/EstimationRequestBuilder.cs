@@ -79,8 +79,7 @@ namespace PlayniteAchievements.Services.Estimation
                 .ToList();
 
             // Ids are assigned once for the whole game, so chunks and the final response agree.
-            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < achievements.Count; i++) ids[achievements[i].ApiName] = "a" + (i + 1).ToString("D4");
+            var ids = AssignIds(achievements);
 
             chunkSize = Math.Max(1, chunkSize);
             var chunkCount = Math.Max(1, (int)Math.Ceiling(achievements.Count / (double)chunkSize));
@@ -191,6 +190,22 @@ namespace PlayniteAchievements.Services.Estimation
             return json;
         }
 
+        /// <summary>The opaque id of each achievement (api name to "a0001"), the same in every request for a game.</summary>
+        public static Dictionary<string, string> IdsByApiName(EstimationGameContext context)
+        {
+            var all = (context?.Achievements ?? new List<PublicAchievement>())
+                .Where(a => a != null && !string.IsNullOrWhiteSpace(a.ApiName))
+                .ToList();
+            return AssignIds(all);
+        }
+
+        private static Dictionary<string, string> AssignIds(IList<PublicAchievement> achievements)
+        {
+            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < achievements.Count; i++) ids[achievements[i].ApiName] = "a" + (i + 1).ToString("D4");
+            return ids;
+        }
+
         private static JObject AchievementJson(PublicAchievement a, string id, string researchNote = null, bool includeRarity = true)
         {
             var json = new JObject
@@ -224,8 +239,7 @@ namespace PlayniteAchievements.Services.Estimation
                 .ToList();
 
             // The same id scheme as Build, so a note found here belongs to the same achievement there.
-            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < all.Count; i++) ids[all[i].ApiName] = "a" + (i + 1).ToString("D4");
+            var ids = AssignIds(all);
 
             var wanted = all.Where(a => onlyApiNames == null || onlyApiNames.Contains(a.ApiName)).ToList();
             batchSize = Math.Max(1, batchSize);

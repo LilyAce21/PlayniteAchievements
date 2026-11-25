@@ -302,7 +302,8 @@ namespace PlayniteAchievements.Services.Estimation
             var researchClient = options.UseResearch ? client as IEstimationResearchClient : null;
             var scoring = await LlmScoringService.ScoreAsync(
                 client, context, cancellationToken,
-                EstimationRequestBuilder.DefaultChunkSize, researchClient, Math.Max(1, options.ResearchBatchSize)).ConfigureAwait(false);
+                EstimationRequestBuilder.DefaultChunkSize, researchClient, Math.Max(1, options.ResearchBatchSize),
+                researchClient != null ? ResearchNotesCache.For(game.PlayniteGameId) : null).ConfigureAwait(false);
             result.Scoring = scoring;
             if (!scoring.Succeeded)
             {

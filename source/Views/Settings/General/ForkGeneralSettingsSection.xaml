@@ -71,7 +71,7 @@
                         <PasswordBox x:Name="GeminiKeyBox" MinWidth="260" PasswordChanged="GeminiKey_PasswordChanged"/>
                     </controls:SettingRow>
                     <controls:SettingRow Label="Seconds between requests"
-                                         Hint="The free tier allows only a few requests per minute. Raise this if you see rate-limit messages.">
+                                         Hint="The free tier allows only a few requests per minute. Raise this if you see rate-limit messages. Research requests are always spaced at least 15 seconds apart, and the plugin slows itself down further after a rate limit.">
                         <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesRequestIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
                     </controls:SettingRow>
                     <WrapPanel Margin="0,8,0,0">

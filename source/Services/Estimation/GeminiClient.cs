@@ -43,6 +43,15 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>How many web sources Gemini reports using for this answer (research calls only).</summary>
         public int Sources { get; set; }
 
+        /// <summary>How long Gemini says to wait before trying again (from its error body), when it says.</summary>
+        public TimeSpan? RetryAfter { get; set; }
+
+        /// <summary>True when the free daily quota is used up, so retrying today cannot help.</summary>
+        public bool DailyQuotaExhausted { get; set; }
+
+        /// <summary>Which quota was hit (Google's own quota id and limit), for the log. Never sensitive.</summary>
+        public string QuotaDetail { get; set; }
+
         public static LlmCallResult Ok(string text, bool truncated = false) =>
             new LlmCallResult { Success = true, Text = text, Truncated = truncated };
 
@@ -72,9 +81,18 @@ namespace PlayniteAchievements.Services.Estimation
         /// </summary>
         public string Model { get; set; } = "gemini-3.5-flash-lite";
 
-        public int MaxAttempts { get; set; } = 4;
+        public int MaxAttempts { get; set; } = 6;
         public TimeSpan BaseDelay { get; set; } = TimeSpan.FromSeconds(2);
-        public TimeSpan MaxDelay { get; set; } = TimeSpan.FromSeconds(90);
+        public TimeSpan MaxDelay { get; set; } = TimeSpan.FromSeconds(120);
+
+        /// <summary>
+        /// Minimum gap between research requests. Search-grounded calls are heavier and some of their limits are
+        /// tighter than plain ones, so they are spaced further apart.
+        /// </summary>
+        public TimeSpan ResearchMinRequestInterval { get; set; } = TimeSpan.FromSeconds(15);
+
+        /// <summary>The most the client will slow itself down after rate limits (see adaptive pacing).</summary>
+        public TimeSpan MaxAdaptiveInterval { get; set; } = TimeSpan.FromSeconds(60);
 
         /// <summary>Minimum gap between requests. Free-tier limits are a handful of requests per minute.</summary>
         public TimeSpan MinRequestInterval { get; set; } = TimeSpan.FromSeconds(8);
@@ -105,6 +123,9 @@ namespace PlayniteAchievements.Services.Estimation
         private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
         private DateTime _lastRequestUtc = DateTime.MinValue;
         private readonly Random _random = new Random();
+
+        // Adaptive pacing: after a rate limit the gap between requests grows, and it eases off again as requests succeed.
+        private TimeSpan _adaptiveInterval = TimeSpan.Zero;
 
         public GeminiClient(
             HttpClient http,
@@ -162,7 +183,7 @@ namespace PlayniteAchievements.Services.Estimation
             for (var attempt = 1; attempt <= attempts; attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await WaitForTurnAsync(cancellationToken).ConfigureAwait(false);
+                await WaitForTurnAsync(research, cancellationToken).ConfigureAwait(false);
 
                 TimeSpan? retryAfter = null;
                 try
@@ -183,9 +204,27 @@ namespace PlayniteAchievements.Services.Estimation
                                 // Counts only: proof that searches really ran, never any content.
                                 _log("Gemini research: " + last.SearchQueries + " web search(es), " + last.Sources + " source(s).");
                             }
-                            if (last.Success || last.Failure == LlmFailureKind.Permanent) return last;
+                            if (last.Success)
+                            {
+                                EaseOffPacing(model);
+                                return last;
+                            }
 
-                            retryAfter = response.Headers.RetryAfter?.Delta;
+                            if (last.Failure == LlmFailureKind.Permanent) return last;
+
+                            if ((int)response.StatusCode == 429)
+                            {
+                                _log("Gemini " + model + " rate limit: " + (last.QuotaDetail ?? "no detail given") +
+                                     (last.RetryAfter.HasValue ? "; Gemini says retry in " + (int)Math.Ceiling(last.RetryAfter.Value.TotalSeconds) + "s" : string.Empty) + ".");
+                                if (last.DailyQuotaExhausted) return last; // retrying today cannot help
+                                SlowDownPacing(model);
+                            }
+
+                            // Gemini names the wait in the error body; the standard header is used if that is all there is.
+                            var header = response.Headers.RetryAfter?.Delta;
+                            retryAfter = header.HasValue && last.RetryAfter.HasValue
+                                ? (header.Value > last.RetryAfter.Value ? header : last.RetryAfter)
+                                : header ?? last.RetryAfter;
                         }
                     }
                 }
@@ -257,12 +296,17 @@ namespace PlayniteAchievements.Services.Estimation
         }
 
         /// <summary>Paces requests so free-tier per-minute limits are not hit by our own bursts.</summary>
-        private async Task WaitForTurnAsync(CancellationToken cancellationToken)
+        private async Task WaitForTurnAsync(bool research, CancellationToken cancellationToken)
         {
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var wait = _lastRequestUtc + _options.MinRequestInterval - _utcNow();
+                var interval = research && _options.ResearchMinRequestInterval > _options.MinRequestInterval
+                    ? _options.ResearchMinRequestInterval
+                    : _options.MinRequestInterval;
+                if (_adaptiveInterval > interval) interval = _adaptiveInterval;
+
+                var wait = _lastRequestUtc + interval - _utcNow();
                 if (wait > TimeSpan.Zero && _lastRequestUtc != DateTime.MinValue)
                 {
                     await _delay(wait, cancellationToken).ConfigureAwait(false);
@@ -276,11 +320,34 @@ namespace PlayniteAchievements.Services.Estimation
             }
         }
 
+        /// <summary>After a rate limit, widen the gap between requests (up to a cap) so the rest of the run stays under it.</summary>
+        private void SlowDownPacing(string model)
+        {
+            var next = TimeSpan.FromSeconds(Math.Max(15, _adaptiveInterval.TotalSeconds * 2));
+            if (next > _options.MaxAdaptiveInterval) next = _options.MaxAdaptiveInterval;
+            if (next == _adaptiveInterval) return;
+
+            _adaptiveInterval = next;
+            _log("Gemini " + model + ": slowing down to one request every " + (int)next.TotalSeconds + "s after a rate limit.");
+        }
+
+        /// <summary>Each successful request lets the gap shrink again, back to the normal spacing.</summary>
+        private void EaseOffPacing(string model)
+        {
+            if (_adaptiveInterval <= TimeSpan.Zero) return;
+
+            var next = TimeSpan.FromSeconds(_adaptiveInterval.TotalSeconds * 0.75);
+            _adaptiveInterval = next < TimeSpan.FromSeconds(2) ? TimeSpan.Zero : next;
+            if (_adaptiveInterval == TimeSpan.Zero) _log("Gemini " + model + ": back to normal pacing.");
+        }
+
         internal TimeSpan BackoffDelay(int attempt, TimeSpan? retryAfter)
         {
             if (retryAfter.HasValue && retryAfter.Value > TimeSpan.Zero)
             {
-                return retryAfter.Value > _options.MaxDelay ? _options.MaxDelay : retryAfter.Value;
+                // The wait Gemini named, plus a second of margin and a little jitter so a window edge is not hit again.
+                var named = retryAfter.Value + TimeSpan.FromSeconds(1) + TimeSpan.FromMilliseconds(_random.Next(0, 500));
+                return named > _options.MaxDelay ? _options.MaxDelay : named;
             }
 
             var exponential = TimeSpan.FromMilliseconds(_options.BaseDelay.TotalMilliseconds * Math.Pow(2, attempt - 1));
@@ -309,8 +376,7 @@ namespace PlayniteAchievements.Services.Estimation
                         "The model \"" + model + "\" is not available to this key. Google limits older models for new " +
                         "projects, so try a current one (for example gemini-3.5-flash-lite or gemini-3.8-flash).");
                 case 429:
-                    return LlmCallResult.Fail(LlmFailureKind.Transient,
-                        "Gemini's free-tier rate limit or daily quota was reached" + detail + ".");
+                    return RateLimited(body, key);
                 default:
                     if (code >= 500)
                     {
@@ -370,6 +436,74 @@ namespace PlayniteAchievements.Services.Estimation
             {
                 return string.Empty;
             }
+        }
+
+        private static readonly Regex RetryInMessage = new Regex(@"retry in (\d+(?:\.\d+)?)\s*s", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// A 429 with what Gemini says about it: how long to wait, which quota was hit and whether it is a daily one.
+        /// </summary>
+        internal static LlmCallResult RateLimited(string body, string key)
+        {
+            TimeSpan? retryAfter = null;
+            var quotas = new List<string>();
+            string message = null;
+
+            try
+            {
+                var error = JObject.Parse(body)["error"] as JObject;
+                message = (string)error?["message"];
+
+                foreach (var detail in (error?["details"] as JArray ?? new JArray()).OfType<JObject>())
+                {
+                    var delay = (string)detail["retryDelay"];
+                    if (!string.IsNullOrWhiteSpace(delay) &&
+                        double.TryParse(delay.Trim().TrimEnd('s'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+                    {
+                        retryAfter = TimeSpan.FromSeconds(seconds);
+                    }
+
+                    foreach (var violation in (detail["violations"] as JArray ?? new JArray()).OfType<JObject>())
+                    {
+                        var id = (string)violation["quotaId"] ?? (string)violation["quotaMetric"];
+                        if (string.IsNullOrWhiteSpace(id)) continue;
+
+                        var value = (string)violation["quotaValue"];
+                        quotas.Add(string.IsNullOrWhiteSpace(value) ? id : id + " (limit " + value + ")");
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // An unreadable body just means no detail.
+            }
+
+            if (!retryAfter.HasValue && message != null)
+            {
+                var match = RetryInMessage.Match(message);
+                if (match.Success &&
+                    double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var seconds))
+                {
+                    retryAfter = TimeSpan.FromSeconds(seconds);
+                }
+            }
+
+            // Quota names are Google's own identifiers (long, but not secret), so only the key is stripped from them.
+            var which = string.Join(", ", quotas.Distinct());
+            if (!string.IsNullOrEmpty(key)) which = which.Replace(key, "[key]");
+            var daily = quotas.Any(q => q.IndexOf("PerDay", StringComparison.OrdinalIgnoreCase) >= 0 || q.IndexOf("per_day", StringComparison.OrdinalIgnoreCase) >= 0);
+
+            var text = daily
+                ? "Gemini's daily free quota is used up" + (which.Length > 0 ? " (" + which + ")" : string.Empty) +
+                  ". It resets once a day, so try again tomorrow, switch to another model, or turn off \"Research each achievement\" (search grounding has its own limits)."
+                : "Gemini's free-tier rate limit was reached" + (which.Length > 0 ? " (" + which + ")" : string.Empty) +
+                  ". It usually clears within a minute. Raising \"Seconds between requests\", using bigger research batches or turning off \"Research each achievement\" uses fewer requests.";
+
+            var result = LlmCallResult.Fail(LlmFailureKind.Transient, text);
+            result.RetryAfter = retryAfter;
+            result.DailyQuotaExhausted = daily;
+            result.QuotaDetail = which.Length > 0 ? which : null;
+            return result;
         }
 
         /// <summary>Removes the key (and anything credential-shaped) from text that may be shown or logged.</summary>

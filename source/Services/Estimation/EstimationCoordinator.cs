@@ -86,6 +86,7 @@ namespace PlayniteAchievements.Services.Estimation
             summary.Title = source.Title;
             var options = _options();
             options.Regenerate = regenerate;
+            if (regenerate) ResearchNotesCache.Clear(playniteGameId); // regenerating means researching afresh
             if (options.Calibration == null && options.UseCalibration) options.Calibration = EnsureCalibration();
 
             var run = await EstimationRunner.RunAsync(source, _client, options, cancellationToken).ConfigureAwait(false);
@@ -183,6 +184,10 @@ namespace PlayniteAchievements.Services.Estimation
         }
 
         /// <summary>The roll-back for the whole feature. Returns how many generated rows were deleted.</summary>
-        public long ClearAll() => _host.ClearAll();
+        public long ClearAll()
+        {
+            ResearchNotesCache.ClearAll();
+            return _host.ClearAll();
+        }
     }
 }
