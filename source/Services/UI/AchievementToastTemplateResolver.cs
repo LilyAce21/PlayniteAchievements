@@ -534,14 +534,15 @@ namespace PlayniteAchievements.Services.UI
             where T : class
         {
             resource = null;
-            if (dictionaries == null || dictionaries.Count == 0)
+            var snapshot = PlayniteAchievements.Common.LiveCollectionSnapshot.Take(dictionaries);
+            if (snapshot.Length == 0)
             {
                 return false;
             }
 
-            for (var i = dictionaries.Count - 1; i >= 0; i--)
+            for (var i = snapshot.Length - 1; i >= 0; i--)
             {
-                var dictionary = dictionaries[i];
+                var dictionary = snapshot[i];
                 if (dictionary == null || IsPluginDictionary(dictionary))
                 {
                     continue;
@@ -1347,7 +1348,9 @@ namespace PlayniteAchievements.Services.UI
                 yield return path;
             }
 
-            foreach (var dictionary in resources.MergedDictionaries)
+            // A copy, because the live list can be changed by another thread while a theme loads
+            // ("Collection was modified"); see LiveCollectionSnapshot.
+            foreach (var dictionary in PlayniteAchievements.Common.LiveCollectionSnapshot.Take(resources.MergedDictionaries))
             {
                 foreach (var nestedPath in EnumerateResourceDictionarySourcePaths(dictionary))
                 {
