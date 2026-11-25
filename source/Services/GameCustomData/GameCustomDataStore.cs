@@ -30,35 +30,13 @@ namespace PlayniteAchievements.Services.GameCustomData
     {
         public GameCustomDataChangedEventArgs(
             Guid playniteGameId,
-            bool affectsSummaryData = true,
-            bool affectsOverrideMirror = true,
-            bool affectsTagTotals = false)
+            bool affectsSummaryData = true)
         {
             PlayniteGameId = playniteGameId;
             AffectsSummaryData = affectsSummaryData;
-            AffectsOverrideMirror = affectsOverrideMirror;
-            AffectsTagTotals = affectsTagTotals;
         }
 
         public Guid PlayniteGameId { get; }
-
-        /// <summary>
-        /// True when the write changed which tags the user put on achievements, or the store could
-        /// not tell. A tag edit leaves every other summary count alone, so its writers report
-        /// <see cref="AffectsSummaryData"/> false and subscribers recount only the game's tags.
-        /// </summary>
-        public bool AffectsTagTotals { get; }
-
-        /// <summary>
-        /// False when the change cannot have moved the per-achievement override mirror -- the
-        /// filtered ApiNames and the user-editable points and trophy type. A capstone edit is the
-        /// case that matters: it is summary-visible but touches nothing the mirror carries, and
-        /// resyncing it costs a record clone and a write-connection query on the click.
-        ///
-        /// Defaults to true so every existing caller keeps resyncing, and only a writer that
-        /// knows better opts out.
-        /// </summary>
-        public bool AffectsOverrideMirror { get; }
 
         /// <summary>
         /// False when the change only reorders or re-presents achievements the user already had,
@@ -87,14 +65,12 @@ namespace PlayniteAchievements.Services.GameCustomData
             Guid playniteGameId,
             GameCustomDataFile previous,
             GameCustomDataFile persisted,
-            bool affectsSummaryData,
-            bool affectsOverrideMirror)
+            bool affectsSummaryData)
         {
             PlayniteGameId = playniteGameId;
             Previous = previous;
             Persisted = persisted;
             AffectsSummaryData = affectsSummaryData;
-            AffectsOverrideMirror = affectsOverrideMirror;
         }
 
         public Guid PlayniteGameId { get; }
@@ -106,12 +82,10 @@ namespace PlayniteAchievements.Services.GameCustomData
         public GameCustomDataFile Persisted { get; }
 
         /// <summary>
-        /// The flags this write reported. A reversal has to repeat them, or the mirrors that key
-        /// off them resync for the original change and not for the one that undid it.
+        /// The flag this write reported. A reversal has to repeat it, or the subscribers that key
+        /// off it rebuild for the original change and not for the one that undid it.
         /// </summary>
         public bool AffectsSummaryData { get; }
-
-        public bool AffectsOverrideMirror { get; }
     }
 
     /// <summary>
@@ -156,19 +130,6 @@ namespace PlayniteAchievements.Services.GameCustomData
             NullValueHandling = NullValueHandling.Ignore,
             DefaultValueHandling = DefaultValueHandling.Ignore
         };
-
-        // Compact, for the stored blob. The payload is a SQLite TEXT column that is only ever
-        // round-tripped through JsonConvert -- never diffed as text, hashed, or shown to anyone --
-        // so its indentation was whitespace written on every per-game save and carried into the
-        // WAL. The serialize scales with the game's override count, which is exactly the profile
-        // that made editing a heavily customized game slow. Anything that ever wants to compare
-        // payload text must normalize first.
-        private readonly JsonSerializerSettings _storeWriteSettings = new JsonSerializerSettings
-        {
-            Formatting = Formatting.None,
-            NullValueHandling = NullValueHandling.Ignore,
-            DefaultValueHandling = DefaultValueHandling.Ignore
-        };
         private readonly object _cacheSync = new object();
 
         private readonly GameCustomDataLegacyMigration _legacyMigration = new GameCustomDataLegacyMigration();
@@ -179,6 +140,7 @@ namespace PlayniteAchievements.Services.GameCustomData
         private Func<string, CustomProviderDefinition> _tryGetCustomProvider;
         private Func<CustomProviderDefinition, bool> _importCustomProviderIfMissing;
         private Func<Guid, IReadOnlyList<PortableGameKey>> _resolveGameKeys;
+        private Cache.AchievementDataFeed _feed;
         private Dictionary<Guid, GameCustomDataFile> _cacheByGameId;
         private HashSet<Guid> _missingGameIds;
 
@@ -195,7 +157,7 @@ namespace PlayniteAchievements.Services.GameCustomData
         {
             _logger = logger;
             var databasePath = Path.Combine(pluginUserDataPath ?? string.Empty, Database.SqlNadoSchemaManager.DatabaseFileName);
-            _repository = new GameCustomDataRepository(databasePath, _storeWriteSettings, logger);
+            _repository = new GameCustomDataRepository(databasePath, logger);
         }
 
         public string DatabasePath => _repository.DatabasePath;
@@ -203,6 +165,15 @@ namespace PlayniteAchievements.Services.GameCustomData
         public void AttachManagedCustomIconService(ManagedCustomIconService managedCustomIconService)
         {
             _managedCustomIconService = managedCustomIconService;
+        }
+
+        /// <summary>
+        /// Connects the change feed, raised for a game after its custom layer rows moved and its
+        /// change events ran.
+        /// </summary>
+        internal void AttachChangeFeed(Cache.AchievementDataFeed feed)
+        {
+            _feed = feed;
         }
 
         public void AttachNotificationImageStore(NotificationImageStore notificationImageStore)
@@ -274,6 +245,15 @@ namespace PlayniteAchievements.Services.GameCustomData
             lock (_cacheSync)
             {
                 EnsureCacheCollections();
+
+                // A write that landed while this read ran has already cached its record, which is
+                // newer than what this read returned; keep it rather than caching the older one.
+                if (_cacheByGameId.TryGetValue(playniteGameId, out var written))
+                {
+                    data = written?.Clone();
+                    return data != null;
+                }
+
                 if (found && loaded != null)
                 {
                     _cacheByGameId[playniteGameId] = loaded.Clone();
@@ -308,8 +288,7 @@ namespace PlayniteAchievements.Services.GameCustomData
         public void Update(
             Guid playniteGameId,
             Action<GameCustomDataFile> mutate,
-            bool affectsSummaryData = true,
-            bool affectsOverrideMirror = true)
+            bool affectsSummaryData = true)
         {
             if (playniteGameId == Guid.Empty)
             {
@@ -329,16 +308,272 @@ namespace PlayniteAchievements.Services.GameCustomData
             // the stored shape instead left that only true for a record whose mirrors were
             // already projections of it -- for one carrying a value the record did not, from an
             // older schema or an import, the write read past it and then dropped it.
-            GameCustomDataFile data;
-            GameCustomDataFile previous;
-            using (PerfScope.Start(_logger, "GameCustomData.Update.NormalizePrevious", thresholdMs: 10))
+            var batch = _batch;
+            var batched = batch != null && batch.ThreadId == Environment.CurrentManagedThreadId;
+            if (batched && batch.Holds(playniteGameId))
             {
-                data = GameCustomDataNormalizer.NormalizeInternal(LoadOrDefault(playniteGameId), playniteGameId);
-                previous = data.Clone();
+                batch.Add(playniteGameId, null, null, 0, affectsSummaryData, mutate);
+                return;
             }
 
-            mutate(data);
-            Save(playniteGameId, data, previous, affectsSummaryData, affectsOverrideMirror);
+            GameCustomDataFile data;
+            GameCustomDataFile previous;
+            if (batched)
+            {
+                long version;
+                lock (_writeSync)
+                {
+                    data = LoadNormalizedForWrite(playniteGameId, out previous);
+                    version = WriteVersionOf(playniteGameId);
+                }
+
+                batch.Add(playniteGameId, data, previous, version, affectsSummaryData, mutate);
+                return;
+            }
+
+            // The read, the mutation and the write happen under one lock, so a writer on another
+            // thread - the in-game monitor applies a linked file every few seconds while a game
+            // runs - cannot save a record it read before this one wrote and drop what it changed.
+            // The events run after the lock is released: they are synchronous and some of their
+            // subscribers wait on the UI thread, which may itself be waiting for this lock.
+            SavedRecord saved;
+            lock (_writeSync)
+            {
+                data = LoadNormalizedForWrite(playniteGameId, out previous);
+                mutate(data);
+                saved = SaveLocked(playniteGameId, data);
+            }
+
+            FinishSave(playniteGameId, saved, previous, affectsSummaryData);
+        }
+
+        /// <summary>
+        /// Serializes every read-modify-write of a game's record. Held from the read through the
+        /// repository write and the cache update, never while change events are raised.
+        /// </summary>
+        private readonly object _writeSync = new object();
+
+        /// <summary>Per game, how many writes have landed; lets a batch tell its read went stale. Guarded by <see cref="_writeSync"/>.</summary>
+        private readonly Dictionary<Guid, long> _writeVersions = new Dictionary<Guid, long>();
+
+        private long WriteVersionOf(Guid playniteGameId)
+        {
+            return _writeVersions.TryGetValue(playniteGameId, out var version) ? version : 0;
+        }
+
+        private void BumpWriteVersion(Guid playniteGameId)
+        {
+            _writeVersions[playniteGameId] = WriteVersionOf(playniteGameId) + 1;
+        }
+
+        private GameCustomDataFile LoadNormalizedForWrite(Guid playniteGameId, out GameCustomDataFile previous)
+        {
+            using (PerfScope.Start(_logger, "GameCustomData.Update.NormalizePrevious", thresholdMs: 10))
+            {
+                var data = GameCustomDataNormalizer.NormalizeInternal(LoadOrDefault(playniteGameId), playniteGameId);
+                previous = data.Clone();
+                return data;
+            }
+        }
+
+        private volatile WriteBatch _batch;
+
+        /// <summary>
+        /// Groups the <see cref="Update"/> calls this thread makes until the returned scope is
+        /// disposed: each game's updates apply in turn to one record, and every game is written in
+        /// one transaction when the scope ends, raising its events once and publishing one change
+        /// for all of them. Reads see a game's batched updates only once the scope has ended.
+        /// </summary>
+        /// <remarks>
+        /// For a gesture that writes many games, such as the library editor's edits across games.
+        /// Written one by one, each game paid its own SQLite transaction and its own change, and
+        /// each change re-read every page the editor had loaded. A scope begun inside another is
+        /// part of the outer one.
+        /// </remarks>
+        public IDisposable BeginBatch()
+        {
+            if (_batch != null)
+            {
+                return new BatchScope(null);
+            }
+
+            var batch = new WriteBatch(this, Environment.CurrentManagedThreadId);
+            _batch = batch;
+            return new BatchScope(batch);
+        }
+
+        private sealed class BatchScope : IDisposable
+        {
+            private WriteBatch _batch;
+
+            public BatchScope(WriteBatch batch)
+            {
+                _batch = batch;
+            }
+
+            public void Dispose()
+            {
+                var batch = _batch;
+                _batch = null;
+                batch?.Commit();
+            }
+        }
+
+        private sealed class WriteBatch
+        {
+            private readonly GameCustomDataStore _store;
+            private readonly Dictionary<Guid, PendingWrite> _games = new Dictionary<Guid, PendingWrite>();
+            private readonly List<Guid> _order = new List<Guid>();
+
+            public WriteBatch(GameCustomDataStore store, int threadId)
+            {
+                _store = store;
+                ThreadId = threadId;
+            }
+
+            public int ThreadId { get; }
+
+            public bool Holds(Guid playniteGameId) => _games.ContainsKey(playniteGameId);
+
+            /// <summary>
+            /// Applies an update to the game's pending record: the record as stored for its first
+            /// update, normalized again before each later one, as each update would have read it.
+            /// </summary>
+            public void Add(
+                Guid playniteGameId,
+                GameCustomDataFile normalizedStored,
+                GameCustomDataFile previous,
+                long readVersion,
+                bool affectsSummaryData,
+                Action<GameCustomDataFile> mutate)
+            {
+                if (_games.TryGetValue(playniteGameId, out var pending))
+                {
+                    pending.Data = GameCustomDataNormalizer.NormalizeInternal(pending.Data, playniteGameId);
+                    pending.AffectsSummaryData |= affectsSummaryData;
+                }
+                else
+                {
+                    pending = new PendingWrite
+                    {
+                        Data = normalizedStored,
+                        Previous = previous,
+                        ReadVersion = readVersion,
+                        AffectsSummaryData = affectsSummaryData
+                    };
+                    _games[playniteGameId] = pending;
+                    _order.Add(playniteGameId);
+                }
+
+                pending.Mutations.Add(mutate);
+                mutate(pending.Data);
+            }
+
+            public void Commit()
+            {
+                _store._batch = null;
+                if (_order.Count > 0)
+                {
+                    _store.SaveBatch(_order.Select(id => (id, _games[id])).ToList());
+                }
+            }
+        }
+
+        private sealed class PendingWrite
+        {
+            public GameCustomDataFile Data { get; set; }
+
+            public GameCustomDataFile Previous { get; set; }
+
+            /// <summary>The game's write version when <see cref="Previous"/> was read.</summary>
+            public long ReadVersion { get; set; }
+
+            /// <summary>The updates applied to <see cref="Data"/>, kept to replay on a newer record.</summary>
+            public List<Action<GameCustomDataFile>> Mutations { get; } = new List<Action<GameCustomDataFile>>();
+
+            public bool AffectsSummaryData { get; set; }
+        }
+
+        /// <summary>
+        /// Points a pending write at the record as stored now when another writer saved the game
+        /// after the batch read it: the batch's updates run again on the newer record, so the
+        /// commit keeps that writer's change instead of saving over it.
+        /// </summary>
+        private void RebaseIfStale(Guid playniteGameId, PendingWrite write)
+        {
+            if (WriteVersionOf(playniteGameId) == write.ReadVersion)
+            {
+                return;
+            }
+
+            var data = LoadNormalizedForWrite(playniteGameId, out var previous);
+            for (var index = 0; index < write.Mutations.Count; index++)
+            {
+                if (index > 0)
+                {
+                    data = GameCustomDataNormalizer.NormalizeInternal(data, playniteGameId);
+                }
+
+                write.Mutations[index](data);
+            }
+
+            write.Data = data;
+            write.Previous = previous;
+        }
+
+        private void SaveBatch(IReadOnlyList<(Guid GameId, PendingWrite Write)> writes)
+        {
+            using (var scope = PerfScope.Start(_logger, "GameCustomData.SaveBatch", thresholdMs: 10))
+            {
+                scope?.SetContext("games=" + writes.Count);
+                List<KeyValuePair<Guid, GameCustomDataFile>> normalized;
+                IReadOnlyList<(GameCustomDataFile Persisted, bool Changed)> results;
+                lock (_writeSync)
+                {
+                    foreach (var write in writes)
+                    {
+                        RebaseIfStale(write.GameId, write.Write);
+                    }
+
+                    normalized = writes
+                        .Select(write => new KeyValuePair<Guid, GameCustomDataFile>(
+                            write.GameId,
+                            GameCustomDataNormalizer.NormalizeInternal(write.Write.Data, write.GameId)))
+                        .ToList();
+
+                    using (PerfScope.Start(_logger, "GameCustomData.SaveBatch.Repository", thresholdMs: 10))
+                    {
+                        results = _repository.SaveBatch(normalized);
+                    }
+
+                    for (var index = 0; index < writes.Count; index++)
+                    {
+                        SetCachedEntry(writes[index].GameId, results[index].Persisted);
+                        BumpWriteVersion(writes[index].GameId);
+                    }
+                }
+
+                var changed = new List<Guid>();
+                for (var index = 0; index < writes.Count; index++)
+                {
+                    var gameId = writes[index].GameId;
+                    CompleteSave(
+                        gameId,
+                        normalized[index].Value,
+                        results[index].Persisted,
+                        writes[index].Write.Previous,
+                        writes[index].Write.AffectsSummaryData);
+                    if (results[index].Changed)
+                    {
+                        changed.Add(gameId);
+                    }
+                }
+
+                if (changed.Count > 0)
+                {
+                    _feed?.Publish(Database.AchievementDataChange.ForGames(changed));
+                }
+            }
         }
 
         // Rewrites every ApiName-keyed field after achievement definitions were renamed in place
@@ -536,17 +771,59 @@ namespace PlayniteAchievements.Services.GameCustomData
             return changed;
         }
 
+        /// <summary>
+        /// Writes <paramref name="data"/> as the game's whole record. A caller that derives the
+        /// record from the stored one should use <see cref="Update"/> or <see cref="Replace"/>,
+        /// which read and write under one lock.
+        /// </summary>
         public void Save(Guid playniteGameId, GameCustomDataFile data)
         {
-            Save(playniteGameId, data, previousData: null);
+            SavedRecord saved;
+            lock (_writeSync)
+            {
+                saved = SaveLocked(playniteGameId, data);
+            }
+
+            FinishSave(playniteGameId, saved, previousData: null, affectsSummaryData: true);
         }
 
-        private void Save(
-            Guid playniteGameId,
-            GameCustomDataFile data,
-            GameCustomDataFile previousData,
-            bool affectsSummaryData = true,
-            bool affectsOverrideMirror = true)
+        /// <summary>
+        /// Replaces the game's record with what <paramref name="rewrite"/> builds from the stored
+        /// one, read and written under the write lock. Returning null leaves the record as it is.
+        /// </summary>
+        public void Replace(Guid playniteGameId, Func<GameCustomDataFile, GameCustomDataFile> rewrite)
+        {
+            if (rewrite == null)
+            {
+                throw new ArgumentNullException(nameof(rewrite));
+            }
+
+            SavedRecord saved;
+            lock (_writeSync)
+            {
+                var next = rewrite(LoadOrDefault(playniteGameId));
+                if (next == null)
+                {
+                    return;
+                }
+
+                saved = SaveLocked(playniteGameId, next);
+            }
+
+            FinishSave(playniteGameId, saved, previousData: null, affectsSummaryData: true);
+        }
+
+        private sealed class SavedRecord
+        {
+            public GameCustomDataFile Normalized { get; set; }
+
+            public GameCustomDataFile Persisted { get; set; }
+
+            public bool LayerChanged { get; set; }
+        }
+
+        /// <summary>Normalizes and writes one record and caches it. The caller holds <see cref="_writeSync"/>.</summary>
+        private SavedRecord SaveLocked(Guid playniteGameId, GameCustomDataFile data)
         {
             // Names the caller. A bulk rename across 641 rows produced 215 store writes over 42
             // seconds with a 5.8s UI freeze inside it, and the log could not say which path
@@ -562,69 +839,99 @@ namespace PlayniteAchievements.Services.GameCustomData
                 }
 
                 GameCustomDataFile persisted;
+                bool layerChanged;
                 using (PerfScope.Start(_logger, "GameCustomData.Save.Repository", thresholdMs: 10))
                 {
-                    // Normalized immediately above and untouched since, so the repository does
-                    // not repeat it.
-                    persisted = _repository.Save(playniteGameId, normalized, alreadyNormalized: true);
+                    persisted = _repository.Save(playniteGameId, normalized, out layerChanged);
                 }
 
                 SetCachedEntry(playniteGameId, persisted);
-                if (ShouldSyncManagedCustomIconCache(previousData, normalized))
-                {
-                    SyncManagedCustomIconCache(playniteGameId, normalized);
-                }
+                BumpWriteVersion(playniteGameId);
+                return new SavedRecord { Normalized = normalized, Persisted = persisted, LayerChanged = layerChanged };
+            }
+        }
 
-                _notificationImageStore?.PruneGameImages(
-                    playniteGameId,
-                    normalized.NotificationAppearanceOverride?.Style);
-                // Before the change event, so a recorder has the write in hand before the
-                // subscribers that rebuild from it run. In its own guard because this is
-                // bookkeeping: a listener that throws must not fail a write that already landed.
-                try
-                {
-                    CustomDataWritten?.Invoke(
-                        this,
-                        new GameCustomDataWrittenEventArgs(
-                            playniteGameId,
-                            previousData,
-                            persisted,
-                            affectsSummaryData,
-                            affectsOverrideMirror));
-                }
-                catch (Exception ex)
-                {
-                    _logger?.Warn(ex, $"A custom-data write subscriber failed for game {playniteGameId}.");
-                }
+        /// <summary>What follows a write once the lock is released: its files and its events.</summary>
+        private void FinishSave(
+            Guid playniteGameId,
+            SavedRecord saved,
+            GameCustomDataFile previousData,
+            bool affectsSummaryData)
+        {
+            CompleteSave(playniteGameId, saved.Normalized, saved.Persisted, previousData, affectsSummaryData);
+            PublishLayerChanged(playniteGameId, saved.LayerChanged);
+        }
 
-                // Decided here rather than by each writer: the store holds both records, so every
-                // path that edits tags (the editor, combine-by-name, undo) is covered alike.
-                var affectsTagTotals = previousData == null ||
-                    !string.Equals(
-                        TagEditSignature(previousData),
-                        TagEditSignature(persisted),
-                        StringComparison.Ordinal);
-                using (PerfScope.Start(_logger, "GameCustomData.Save.RaiseChanged", thresholdMs: 10))
-                {
-                    RaiseCustomDataChanged(playniteGameId, affectsSummaryData, affectsOverrideMirror, affectsTagTotals);
-                }
+        /// <summary>What follows a game's write after the cache holds it: its files and its events.</summary>
+        private void CompleteSave(
+            Guid playniteGameId,
+            GameCustomDataFile normalized,
+            GameCustomDataFile persisted,
+            GameCustomDataFile previousData,
+            bool affectsSummaryData)
+        {
+            if (ShouldSyncManagedCustomIconCache(previousData, normalized))
+            {
+                SyncManagedCustomIconCache(playniteGameId, normalized);
+            }
+
+            _notificationImageStore?.PruneGameImages(
+                playniteGameId,
+                normalized.NotificationAppearanceOverride?.Style);
+            // Before the change event, so a recorder has the write in hand before the
+            // subscribers that rebuild from it run. In its own guard because this is
+            // bookkeeping: a listener that throws must not fail a write that already landed.
+            try
+            {
+                CustomDataWritten?.Invoke(
+                    this,
+                    new GameCustomDataWrittenEventArgs(
+                        playniteGameId,
+                        previousData,
+                        persisted,
+                        affectsSummaryData));
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, $"A custom-data write subscriber failed for game {playniteGameId}.");
+            }
+
+            using (PerfScope.Start(_logger, "GameCustomData.Save.RaiseChanged", thresholdMs: 10))
+            {
+                RaiseCustomDataChanged(playniteGameId, affectsSummaryData);
+            }
+        }
+
+        // Unchanged rows leave every resolved read as it was.
+        private void PublishLayerChanged(Guid playniteGameId, bool changed)
+        {
+            if (changed && playniteGameId != Guid.Empty)
+            {
+                _feed?.Publish(Database.AchievementDataChange.ForGames(new[] { playniteGameId }));
             }
         }
 
         public void Delete(Guid playniteGameId)
         {
-            _repository.Delete(playniteGameId);
-            _repository.DeleteCapstoneArtRecords(playniteGameId);
-            lock (_cacheSync)
+            bool layerChanged;
+            lock (_writeSync)
             {
-                EnsureCacheCollections();
-                _cacheByGameId.Remove(playniteGameId);
-                _missingGameIds.Add(playniteGameId);
+                layerChanged = _repository.Delete(playniteGameId);
+                _repository.DeleteCapstoneArtRecords(playniteGameId);
+                lock (_cacheSync)
+                {
+                    EnsureCacheCollections();
+                    _cacheByGameId.Remove(playniteGameId);
+                    _missingGameIds.Add(playniteGameId);
+                }
+
+                BumpWriteVersion(playniteGameId);
             }
 
             _managedCustomIconService?.ClearGameCustomCache(playniteGameId.ToString("D"));
             _notificationImageStore?.DeleteGameImages(playniteGameId);
             RaiseCustomDataChanged(playniteGameId);
+            PublishLayerChanged(playniteGameId, layerChanged);
         }
 
         /// <summary>
@@ -791,12 +1098,13 @@ namespace PlayniteAchievements.Services.GameCustomData
 
         public HashSet<Guid> GetExcludedRefreshGameIds()
         {
-            return GetExcludedGameIds(data => data?.ExcludedFromRefreshes == true);
-        }
-
-        public HashSet<Guid> GetExcludedSummaryGameIds()
-        {
-            return GetExcludedGameIds(data => data?.ExcludedFromSummaries == true);
+            EnsureCacheLoaded();
+            lock (_cacheSync)
+            {
+                return new HashSet<Guid>(_cacheByGameId
+                    .Where(pair => pair.Value?.ExcludedFromRefreshes == true)
+                    .Select(pair => pair.Key));
+            }
         }
 
         public void ExportPortablePackage(Guid playniteGameId, string destinationPath)
@@ -951,8 +1259,13 @@ namespace PlayniteAchievements.Services.GameCustomData
                     }
                 }
 
-                _repository.SaveMany(rowsToSave);
+                var changed = _repository.SaveMany(rowsToSave);
                 InvalidateCache();
+                foreach (var gameId in changed)
+                {
+                    PublishLayerChanged(gameId, true);
+                }
+
                 return migration.CleanedJson;
             }
             catch (Exception ex)
@@ -1897,15 +2210,16 @@ namespace PlayniteAchievements.Services.GameCustomData
 
             normalizedPortable.CustomProviderId = ResolveImportedCustomProviderId(normalizedPortable);
 
-            var current = LoadOrDefault(playniteGameId);
-            var merged = GameCustomDataFile.FromPortable(
-                normalizedPortable,
-                playniteGameId,
-                current.ExcludedFromRefreshes,
-                current.ExcludedFromSummaries);
-            PortablePersonalState.CarryLocal(current, merged);
-
-            Save(playniteGameId, merged);
+            Replace(playniteGameId, current =>
+            {
+                var merged = GameCustomDataFile.FromPortable(
+                    normalizedPortable,
+                    playniteGameId,
+                    current.ExcludedFromRefreshes,
+                    current.ExcludedFromSummaries);
+                PortablePersonalState.CarryLocal(current, merged);
+                return merged;
+            });
             return LoadOrDefault(playniteGameId);
         }
 
@@ -2482,6 +2796,7 @@ namespace PlayniteAchievements.Services.GameCustomData
                 _cacheByGameId = null;
                 _missingGameIds = null;
                 _cacheHoldsEveryStoredRow = false;
+                _cacheGeneration++;
             }
         }
 
@@ -2514,72 +2829,69 @@ namespace PlayniteAchievements.Services.GameCustomData
         /// </remarks>
         private bool _cacheHoldsEveryStoredRow;
 
-        private HashSet<Guid> GetExcludedGameIds(Func<GameCustomDataFile, bool> selector)
-        {
-            if (selector == null)
-            {
-                throw new ArgumentNullException(nameof(selector));
-            }
+        private readonly object _loadSync = new object();
 
-            EnsureCacheLoaded();
+        // Bumped by InvalidateCache, so a full read it overlapped is read again.
+        private int _cacheGeneration;
 
-            lock (_cacheSync)
-            {
-                var result = new HashSet<Guid>();
-
-                foreach (var pair in _cacheByGameId)
-                {
-                    if (selector(pair.Value))
-                    {
-                        result.Add(pair.Key);
-                    }
-                    else
-                    {
-                        result.Remove(pair.Key);
-                    }
-                }
-
-                return result;
-            }
-        }
+        // Runs between a full read and its install; tests invalidate the cache there.
+        internal Action AfterFullRead { get; set; }
 
         /// <summary>
-        /// Populates the in-memory cache from the repository when it has not been read yet.
+        /// Reads every stored row into the cache unless it holds them all already. One read runs at
+        /// a time, and a caller arriving during it waits for it.
         /// </summary>
         /// <remarks>
-        /// The repository read runs outside the cache lock, because it opens the database. A
-        /// second caller that wins the race re-checks before installing, so the work is repeated
-        /// at worst once and the cache is never replaced after it exists.
-        ///
-        /// This used to warm by calling <see cref="LoadAll"/> and discarding the result, which
-        /// deep-cloned every stored record twice - once into the cache, once into the copy that
-        /// was thrown away.
+        /// The repository read runs outside the cache lock, because it opens the database. Rows a
+        /// single-game read or a write cached meanwhile are at least as new as the read and stay
+        /// over it, and games they found missing stay missing. A read the cache was invalidated
+        /// during is read again.
         /// </remarks>
-        private void EnsureCacheLoaded()
+        public void EnsureCacheLoaded()
         {
-            lock (_cacheSync)
+            lock (_loadSync)
             {
-                if (_cacheByGameId != null && _missingGameIds != null)
+                while (true)
                 {
-                    return;
-                }
-            }
+                    int generation;
+                    lock (_cacheSync)
+                    {
+                        if (_cacheHoldsEveryStoredRow)
+                        {
+                            return;
+                        }
 
-            var rows = _repository.EnumerateAllNormalized().ToList();
-            lock (_cacheSync)
-            {
-                if (_cacheByGameId != null && _missingGameIds != null)
-                {
-                    return;
-                }
+                        generation = _cacheGeneration;
+                    }
 
-                _cacheByGameId = rows
-                    .Where(data => data?.PlayniteGameId != Guid.Empty)
-                    .ToDictionary(
-                        data => data.PlayniteGameId,
-                        data => data);
-                _missingGameIds = new HashSet<Guid>();
-                _cacheHoldsEveryStoredRow = true;
+                    var rows = _repository.EnumerateAllNormalized().ToList();
+                    AfterFullRead?.Invoke();
+                    lock (_cacheSync)
+                    {
+                        if (generation != _cacheGeneration)
+                        {
+                            continue;
+                        }
+
+                        var cache = rows
+                            .Where(data => data?.PlayniteGameId != Guid.Empty)
+                            .ToDictionary(data => data.PlayniteGameId, data => data);
+                        foreach (var cached in _cacheByGameId ?? new Dictionary<Guid, GameCustomDataFile>())
+                        {
+                            cache[cached.Key] = cached.Value;
+                        }
+
+                        foreach (var missing in _missingGameIds ?? new HashSet<Guid>())
+                        {
+                            cache.Remove(missing);
+                        }
+
+                        _cacheByGameId = cache;
+                        _missingGameIds = new HashSet<Guid>();
+                        _cacheHoldsEveryStoredRow = true;
+                        return;
+                    }
+                }
             }
         }
 
@@ -2587,12 +2899,9 @@ namespace PlayniteAchievements.Services.GameCustomData
         /// Raises <see cref="CustomDataChanged"/> without writing, for changes that alter how a
         /// game's stored custom data resolves (such as an edited custom provider definition).
         /// </summary>
-        public void NotifyChanged(
-            Guid playniteGameId,
-            bool affectsSummaryData = true,
-            bool affectsOverrideMirror = true)
+        public void NotifyChanged(Guid playniteGameId, bool affectsSummaryData = true)
         {
-            RaiseCustomDataChanged(playniteGameId, affectsSummaryData, affectsOverrideMirror);
+            RaiseCustomDataChanged(playniteGameId, affectsSummaryData);
         }
 
         /// <summary>
@@ -2646,11 +2955,7 @@ namespace PlayniteAchievements.Services.GameCustomData
             }
         }
 
-        private void RaiseCustomDataChanged(
-            Guid playniteGameId,
-            bool affectsSummaryData = true,
-            bool affectsOverrideMirror = true,
-            bool affectsTagTotals = true)
+        private void RaiseCustomDataChanged(Guid playniteGameId, bool affectsSummaryData = true)
         {
             if (playniteGameId == Guid.Empty)
             {
@@ -2659,36 +2964,7 @@ namespace PlayniteAchievements.Services.GameCustomData
 
             CustomDataChanged?.Invoke(
                 this,
-                new GameCustomDataChangedEventArgs(
-                    playniteGameId,
-                    affectsSummaryData,
-                    affectsOverrideMirror,
-                    affectsTagTotals));
+                new GameCustomDataChangedEventArgs(playniteGameId, affectsSummaryData));
         }
-
-        /// <summary>
-        /// The tags the user put on the game's achievements, in one comparable string: each tag
-        /// edit as its ApiName and stored value, the custom achievements' tags after them.
-        /// </summary>
-        internal static string TagEditSignature(GameCustomDataFile data)
-        {
-            var parts = new List<string>();
-            foreach (var pair in data?.AchievementOverrides ?? new Dictionary<string, AchievementOverride>())
-            {
-                if (AchievementTallyBuilder.HasTagEdit(pair.Value))
-                {
-                    parts.Add(pair.Key + "=" + (pair.Value.ClearTags ? string.Empty : pair.Value.Tags));
-                }
-            }
-
-            parts.Sort(StringComparer.OrdinalIgnoreCase);
-            foreach (var custom in data?.CustomAchievements ?? new List<CustomAchievementDefinition>())
-            {
-                parts.Add("custom:" + custom?.Id + "=" + custom?.Tags);
-            }
-
-            return string.Join("\u001f", parts);
-        }
-
     }
 }

@@ -296,16 +296,6 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Base
         protected virtual bool UsesLegacyThemeBindings => false;
 
         /// <summary>
-        /// Gets a value indicating whether this control needs all-games/library theme data.
-        /// </summary>
-        protected virtual bool RequiresLibraryThemeData => false;
-
-        /// <summary>
-        /// Gets a value indicating whether this control needs full all-games achievement lists.
-        /// </summary>
-        protected virtual bool RequiresHeavyLibraryThemeData => false;
-
-        /// <summary>
         /// Determines whether a change raised from <see cref="PlayniteAchievementsSettings"/> should trigger a refresh.
         /// </summary>
         protected virtual bool ShouldHandleSettingsDataChange(string propertyName) => false;
@@ -344,32 +334,6 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Base
             Unloaded += ThemeControlBase_Unloaded;
         }
 
-        private static ResourceDictionary _themeNativeTokens;
-
-        /// <summary>
-        /// Gets a shared dictionary of PlayAch.* tokens resolved from the active Playnite theme
-        /// without user appearance overrides. Merging it into a theme control shadows the
-        /// app-level tokens for the control's subtree (including hosted shared controls), so
-        /// controls embedded in themes render pure theme values while plugin windows keep the
-        /// override-aware app-level tokens.
-        /// </summary>
-        private static ResourceDictionary GetThemeNativeTokens()
-        {
-            if (_themeNativeTokens == null)
-            {
-                var dictionary = new ResourceDictionary();
-                PlayAchResourceService.Apply(dictionary, null);
-                _themeNativeTokens = dictionary;
-            }
-
-            return _themeNativeTokens;
-        }
-
-        /// <summary>
-        /// Merges the theme-native token dictionary after XAML initialization. This must not run
-        /// in the constructor: a &lt;UserControl.Resources&gt; element replaces the Resources
-        /// instance during InitializeComponent, which would discard a constructor-time merge.
-        /// </summary>
         protected override void OnInitialized(EventArgs e)
         {
             base.OnInitialized(e);
@@ -380,26 +344,11 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Base
             }
 
             FormattingCulture.Apply(this);
-
-            try
-            {
-                Resources.MergedDictionaries.Add(GetThemeNativeTokens());
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Failed to merge theme-native token dictionary.");
-            }
         }
 
         private void ThemeControlBase_Loaded(object sender, RoutedEventArgs e)
         {
             AttachWheelScrollClaim();
-
-            if (RequiresLibraryThemeData || RequiresHeavyLibraryThemeData)
-            {
-                Plugin?.ThemeIntegrationService?.EnsureAllGamesThemeDataLoaded(
-                    includeHeavyAchievementLists: RequiresHeavyLibraryThemeData);
-            }
 
             if (!EnableAutomaticThemeDataUpdates)
             {
@@ -1027,7 +976,8 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Base
                 [nameof(ModernThemeBindings.Uncommon)] = nameof(Uncommon),
                 [nameof(ModernThemeBindings.Rare)] = nameof(Rare),
                 [nameof(ModernThemeBindings.UltraRare)] = nameof(UltraRare),
-                [nameof(ModernThemeBindings.RareAndUltraRare)] = nameof(RareAndUltraRare)
+                [nameof(ModernThemeBindings.RareAndUltraRare)] = nameof(RareAndUltraRare),
+                [nameof(ModernThemeBindings.TagStats)] = nameof(TagStats)
             };
 
         private static readonly string[] ForwardedModernProperties =
@@ -1212,7 +1162,8 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Base
             nameof(Uncommon),
             nameof(Rare),
             nameof(UltraRare),
-            nameof(RareAndUltraRare)
+            nameof(RareAndUltraRare),
+            nameof(TagStats)
         };
 
         private readonly PlayniteAchievementsSettings _settings;
@@ -1722,7 +1673,7 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Base
 
         public ObservableCollection<FriendGameAchievementSummary> DynamicFriendGameSummaries => _modernThemeOverride?.DynamicFriendGameSummaries ?? _settings?.DynamicFriendGameSummaries;
 
-        public ObservableCollection<FriendAchievementDisplayItem> DynamicFriendAchievements => _modernThemeOverride?.DynamicFriendAchievements ?? _settings?.DynamicFriendAchievements;
+        public IReadOnlyList<FriendAchievementDisplayItem> DynamicFriendAchievements => _modernThemeOverride?.DynamicFriendAchievements ?? _settings?.DynamicFriendAchievements;
 
         public string DynamicFriendScopeProviderKey
         {
@@ -2123,6 +2074,8 @@ namespace PlayniteAchievements.Views.ThemeIntegration.Base
         public AchievementRarityStats UltraRare => _modernThemeOverride?.UltraRare ?? _settings?.UltraRare ?? EmptyRarityStats;
 
         public AchievementRarityStats RareAndUltraRare => _modernThemeOverride?.RareAndUltraRare ?? _settings?.RareAndUltraRare ?? EmptyRarityStats;
+
+        public List<AchievementTagStats> TagStats => _modernThemeOverride?.TagStats ?? _settings?.TagStats;
 
         public System.Windows.Input.ICommand SetDynamicAchievementsGameCommand => _settings?.SetDynamicAchievementsGameCommand;
 

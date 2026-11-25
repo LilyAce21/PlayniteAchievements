@@ -20,7 +20,7 @@ namespace PlayniteAchievements.Services.Achievements
     /// </summary>
     public sealed class AutoCapstoneAuthoring
     {
-        private const string BaseId = "auto-capstone";
+        private const string BaseId = AutoCapstoneMarkerRepair.BaseId;
 
         // The art record's source once the user replaced an auto capstone's art.
         private const string UserArtSource = "user";
@@ -32,6 +32,7 @@ namespace PlayniteAchievements.Services.Achievements
         private readonly Func<AutoCapstoneTemplates> _templates;
         private readonly Func<bool, string> _configuredTags;
         private readonly Func<MetadataLinkStore> _metadataLinks;
+        private readonly Func<PersistedSettings> _settings;
         private readonly ILogger _logger;
         private readonly Func<bool> _hideLockedPlayStation;
 
@@ -41,6 +42,7 @@ namespace PlayniteAchievements.Services.Achievements
         /// each authoring; null for none.
         /// </param>
         /// <param name="metadataLinks">Where the art written into each capstone is recorded.</param>
+        /// <param name="settings">The settings whose metadata choices name a game's capstone source.</param>
         public AutoCapstoneAuthoring(
             GameCustomDataStore store,
             AchievementOverridesService overridesService,
@@ -49,10 +51,9 @@ namespace PlayniteAchievements.Services.Achievements
             Func<AutoCapstoneTemplates> templates,
             Func<bool, string> configuredTags,
             Func<MetadataLinkStore> metadataLinks,
-            ILogger logger,
-            Func<bool> hideLockedPlayStation = null)
+            Func<PersistedSettings> settings,
+            ILogger logger)
         {
-            _hideLockedPlayStation = hideLockedPlayStation;
             _store = store;
             _overridesService = overridesService;
             _resolveGameData = resolveGameData;
@@ -60,8 +61,55 @@ namespace PlayniteAchievements.Services.Achievements
             _templates = templates;
             _configuredTags = configuredTags;
             _metadataLinks = metadataLinks;
+            _settings = settings;
             _logger = logger;
+            // Fork option: read from the settings accessor at each use, so it needs no extra argument.
+            _hideLockedPlayStation = () => _settings?.Invoke()?.HideLockedPlayStationAutoCapstones == true;
         }
+
+        /// <summary>
+        /// True when the game's choices name a source for its auto capstone but its last refresh
+        /// recorded no platinum from one, as after the choice was changed without a refresh. A game
+        /// with a platinum of its own needs none.
+        /// </summary>
+        public bool AwaitsCapstoneSource(Guid gameId)
+        {
+            var links = _metadataLinks?.Invoke();
+            var gameData = _resolveGameData?.Invoke(gameId);
+            if (gameId == Guid.Empty || links == null || gameData == null || links.IsExcludedFromMetadata(gameId))
+            {
+                return false;
+            }
+
+            var choice = (_settings?.Invoke() ?? new PersistedSettings())
+                .ResolveMetadataChoices(gameData.ProviderKey, links.GetChoices(gameId))
+                .CapstoneArt;
+            if (string.IsNullOrWhiteSpace(choice))
+            {
+                return false;
+            }
+
+            var ownPlatinum = AutoCapstoneTemplate.SelectPlatinum(
+                (gameData.Achievements ?? new List<AchievementDetail>()).Where(achievement => achievement?.IsCustom == false),
+                achievement => achievement.TrophyType,
+                achievement => achievement.CategoryKind);
+            if (ownPlatinum != null)
+            {
+                return false;
+            }
+
+            var applied = links.GetApplied(gameId);
+            return string.IsNullOrWhiteSpace(applied?.CapstoneArtUrl) &&
+                   string.IsNullOrWhiteSpace(applied?.CapstoneTitle) &&
+                   !(applied?.CategoryCapstones?.Count > 0);
+        }
+
+        /// <summary>
+        /// Brings one game's auto capstones in line with the platinum its last refresh recorded,
+        /// as <see cref="RefreshArtAsync(IEnumerable{Guid})"/> does after each refresh. For the
+        /// game's open editor, which saved its rows first and reads them back after.
+        /// </summary>
+        public Task RefreshArtFromEditorAsync(Guid gameId) => RefreshGameArtAsync(gameId, fromEditor: true);
 
         /// <summary>
         /// Brings each refreshed game's auto capstones in line with what they should now use (a
@@ -76,7 +124,7 @@ namespace PlayniteAchievements.Services.Achievements
             {
                 try
                 {
-                    await RefreshArtAsync(gameId).ConfigureAwait(false);
+                    await RefreshGameArtAsync(gameId).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -85,7 +133,7 @@ namespace PlayniteAchievements.Services.Achievements
             }
         }
 
-        private async Task RefreshArtAsync(Guid gameId)
+        private async Task RefreshGameArtAsync(Guid gameId, bool fromEditor = false)
         {
             var links = _metadataLinks?.Invoke();
             if (gameId == Guid.Empty || links == null || _store == null || _overridesService == null)
@@ -94,7 +142,7 @@ namespace PlayniteAchievements.Services.Achievements
             }
 
             // An open editor saves its own rows over this write, so the game waits for it to close.
-            if (OpenEditorRegistry.DeferWhileOpen(gameId, this, () => _ = Task.Run(() => RefreshArtAsync(new[] { gameId }))))
+            if (!fromEditor && OpenEditorRegistry.DeferWhileOpen(gameId, this, () => _ = Task.Run(() => RefreshArtAsync(new[] { gameId }))))
             {
                 _logger?.Debug($"[AutoCapstone] Art for gameId={gameId} waits for its editor to close.");
                 return;

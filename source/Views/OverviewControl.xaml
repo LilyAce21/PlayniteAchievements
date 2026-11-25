@@ -11,6 +11,7 @@
              xmlns:settings="clr-namespace:PlayniteAchievements.Models.Settings"
              xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
              xmlns:controls="clr-namespace:PlayniteAchievements.Views.Controls"
+             xmlns:yearReview="clr-namespace:PlayniteAchievements.Views.YearReview"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="900"
@@ -302,6 +303,10 @@
                         <Setter Property="Width" Value="NaN"/>
                         <Setter Property="BadgeOnly" Value="True"/>
                     </DataTrigger>
+                    <!-- Holds its place under the skeleton block until the first snapshot lands. -->
+                    <DataTrigger Binding="{Binding IsSnapshotPending}" Value="True">
+                        <Setter Property="Visibility" Value="Hidden"/>
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
 
@@ -424,6 +429,29 @@
                                 </Style>
                             </Button.Style>
                         </Button>
+
+                        <!-- Opens the Year in Review window: a small sparkle over turning rays. Its
+                             negative margins keep its layout height at the view buttons' 24, so
+                             they do not stretch and drop their underline. -->
+                        <Button x:Name="YearReviewButton"
+                                Click="YearReviewButton_Click"
+                                Visibility="{Binding ShowYearReviewButton, Converter={StaticResource BoolToVis}}"
+                                Margin="18,-3,0,-3"
+                                Width="30"
+                                Height="30"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource PlayAch.Button.ToolbarIconStyle}"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                ToolTip="{DynamicResource LOCPlayAch_YearReview_Title}"
+                                AutomationProperties.Name="{DynamicResource LOCPlayAch_YearReview_Title}">
+                            <yearReview:YearReviewSparkle Width="24"
+                                                          Height="24"
+                                                          Fill="{DynamicResource PlayAch.Brush.Accent}"
+                                                          Outline="{DynamicResource PlayAch.Brush.Text}"
+                                                          IsHot="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Button>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal"
@@ -483,7 +511,9 @@
                         IsHitTestVisible="False"
                         SizeChanged="ScoreCardsSlot_SizeChanged"/>
 
-                <!-- Right: the two score card slots, Overview subview only. -->
+                <!-- Right: the two score card slots, Overview subview only. The right-side parts of
+                     the other subviews are Hidden rather than Collapsed, so the header keeps the
+                     height of the tallest one and every subview's content starts at the same line. -->
                 <StackPanel x:Name="ScoreCardsPanel"
                             Grid.Row="1"
                             Grid.Column="1"
@@ -494,8 +524,11 @@
                             Margin="18,0,0,0">
                     <StackPanel.Style>
                         <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="Visibility" Value="Hidden"/>
                             <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowOverviewScoreCards}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
                                         <Condition Binding="{Binding ShowOverviewScoreCards}" Value="True"/>
@@ -508,12 +541,15 @@
                     </StackPanel.Style>
 
                     <!-- Right-click opens the card's settings, the same dialog as a showcase Score Card. -->
-                    <controls:ScoreCardControl x:Name="ScoreCard1Control"
-                                               Style="{StaticResource OverviewScoreCardStyle}"
-                                               ScoreCard="{Binding ScoreCard1}"
-                                               BadgePosition="{Binding ScoreCard1BadgePosition}"
-                                               MouseRightButtonUp="ScoreCard_MouseRightButtonUp"
-                                               Visibility="{Binding ShowOverviewScoreCard1, Converter={StaticResource BoolToVis}}"/>
+                    <Grid Visibility="{Binding ShowOverviewScoreCard1, Converter={StaticResource BoolToVis}}">
+                        <controls:ScoreCardControl x:Name="ScoreCard1Control"
+                                                   Style="{StaticResource OverviewScoreCardStyle}"
+                                                   ScoreCard="{Binding ScoreCard1}"
+                                                   BadgePosition="{Binding ScoreCard1BadgePosition}"
+                                                   MouseRightButtonUp="ScoreCard_MouseRightButtonUp"/>
+                        <Border Style="{DynamicResource PlayAch.Skeleton.Block}"
+                                Visibility="{Binding IsSnapshotPending, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
 
                     <Border x:Name="ScoreCardsDivider"
                             Background="{DynamicResource PlayAch.Brush.ControlBorder}"
@@ -524,12 +560,15 @@
                             Margin="12,2"
                             Visibility="{Binding ShowOverviewScoreCardDivider, Converter={StaticResource BoolToVis}}"/>
 
-                    <controls:ScoreCardControl x:Name="ScoreCard2Control"
-                                               Style="{StaticResource OverviewScoreCardStyle}"
-                                               ScoreCard="{Binding ScoreCard2}"
-                                               BadgePosition="{Binding ScoreCard2BadgePosition}"
-                                               MouseRightButtonUp="ScoreCard_MouseRightButtonUp"
-                                               Visibility="{Binding ShowOverviewScoreCard2, Converter={StaticResource BoolToVis}}"/>
+                    <Grid Visibility="{Binding ShowOverviewScoreCard2, Converter={StaticResource BoolToVis}}">
+                        <controls:ScoreCardControl x:Name="ScoreCard2Control"
+                                                   Style="{StaticResource OverviewScoreCardStyle}"
+                                                   ScoreCard="{Binding ScoreCard2}"
+                                                   BadgePosition="{Binding ScoreCard2BadgePosition}"
+                                                   MouseRightButtonUp="ScoreCard_MouseRightButtonUp"/>
+                        <Border Style="{DynamicResource PlayAch.Skeleton.Block}"
+                                Visibility="{Binding IsSnapshotPending, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Right: showcase page/edit controls, re-hosted from ShowcaseControl so the
@@ -542,7 +581,7 @@
                                 Focusable="False">
                     <ContentControl.Style>
                         <Style TargetType="ContentControl">
-                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="Visibility" Value="Hidden"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding ActiveSubView, ElementName=OverviewControlRoot}" Value="{x:Static rootModels:OverviewSubView.Showcase}">
                                     <Setter Property="Visibility" Value="Visible"/>
@@ -562,7 +601,7 @@
                         VerticalAlignment="Center">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource ClearGameSelectionButtonStyle}">
-                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="Visibility" Value="Hidden"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding ShowFriendsClearSelection, ElementName=OverviewControlRoot}" Value="True">
                                     <Setter Property="Visibility" Value="Visible"/>
@@ -609,18 +648,10 @@
 
         <!-- ROW 2: Tab Content -->
         <Grid Grid.Row="2">
-            <!-- Overview Tab Content -->
+            <!-- Each subview host holds its content only while that subview is shown (see
+                 ApplyActiveSubView), so a hidden subview is not part of the tree. -->
+            <Decorator x:Name="OverviewContentHost">
             <Grid x:Name="OverviewContent">
-                <Grid.Style>
-                    <Style TargetType="Grid">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ActiveSubView, ElementName=OverviewControlRoot}" Value="{x:Static rootModels:OverviewSubView.Overview}">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Grid.Style>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="OverviewLeftColumn" Width="*" MinWidth="560"/>
                     <ColumnDefinition Width="4"/>
@@ -967,7 +998,7 @@
                                                                  DelayInitialRenderUntilNormalized="True"
                                                                  ControlBar="{Binding SelectedGameAchievementsControlBar}"
                                                                  ShowControlBar="{Binding ShowOverviewSelectedGameGridControlBar}"
-                                                                 RevealCommand="{Binding DataContext.RevealAchievementCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                 RevealCommand="{Binding RevealAchievementCommand}"
                                                                  UseExternalSorting="True"
                                                                  Sorting="GameAchievementsGrid_Sorting"
                                                                  RowPreviewMouseRightButtonDown="DataGridRow_PreviewMouseRightButtonDown"
@@ -999,32 +1030,11 @@
                             Focusable="False"
                             IsTabStop="False"/>
             </Grid>
+            </Decorator>
 
-            <ContentControl x:Name="FriendsOverviewContentHost">
-                <ContentControl.Style>
-                    <Style TargetType="ContentControl">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ActiveSubView, ElementName=OverviewControlRoot}" Value="{x:Static rootModels:OverviewSubView.Friends}">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ContentControl.Style>
-            </ContentControl>
+            <ContentControl x:Name="FriendsOverviewContentHost"/>
 
-            <ContentControl x:Name="ShowcaseContentHost">
-                <ContentControl.Style>
-                    <Style TargetType="ContentControl">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding ActiveSubView, ElementName=OverviewControlRoot}" Value="{x:Static rootModels:OverviewSubView.Showcase}">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ContentControl.Style>
-            </ContentControl>
+            <ContentControl x:Name="ShowcaseContentHost"/>
         </Grid>
     </Grid>
     </Border>

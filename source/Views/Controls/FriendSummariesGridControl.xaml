@@ -10,7 +10,7 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/OverviewStyles.xaml"/>
+                <helpers:SharedResourceDictionary Source="pack://application:,,,/PlayniteAchievements;component/Resources/OverviewStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="FriendSummariesGridRowStyle"
@@ -123,7 +123,13 @@
         </DataGrid.CellStyle>
         <DataGrid.RowStyle>
             <Style TargetType="DataGridRow"
-                   BasedOn="{StaticResource FriendSummariesGridRowStyle}"/>
+                   BasedOn="{StaticResource FriendSummariesGridRowStyle}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsSelf}" Value="True">
+                        <Setter Property="FontWeight" Value="Bold"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </DataGrid.RowStyle>
         <DataGrid.Columns>
             <DataGridTemplateColumn Width="44" MinWidth="32" MaxWidth="96" CanUserResize="True"
@@ -137,7 +143,7 @@
                 </DataGridTemplateColumn.CellStyle>
                 <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate>
-                        <Border CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                        <Border CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                                 ClipToBounds="True"
                                 Margin="6,2"
                                 HorizontalAlignment="Center"
@@ -204,6 +210,12 @@
                                 SortMemberPath="UnlockedAchievementsCount"
                                 ElementStyle="{StaticResource FriendSummaryTextStyle}"
                                 helpers:ColumnVisibilityHelper.ColumnKey="FriendSummaryUnlocks"/>
+            <DataGridTextColumn Width="*" MinWidth="56" CanUserResize="True"
+                                Header="{DynamicResource LOCPlayAch_Completed}"
+                                Binding="{Binding CompletedGamesCount, Converter={StaticResource BlankZeroNumber}}"
+                                SortMemberPath="CompletedGamesCount"
+                                ElementStyle="{StaticResource FriendSummaryTextStyle}"
+                                helpers:ColumnVisibilityHelper.ColumnKey="FriendSummaryCompletedGames"/>
             <DataGridTextColumn Width="*" MinWidth="72" CanUserResize="True"
                                 Header="{DynamicResource LOCPlayAch_Score_Prestige}"
                                 Binding="{Binding PrestigeScore, Converter={StaticResource BlankZeroNumber}}"

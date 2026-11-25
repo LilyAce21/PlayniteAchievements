@@ -43,7 +43,7 @@ namespace PlayniteAchievements.Services.Database
               FROM PlatformDefinitions ad
               LEFT JOIN AchievementMetadataLayer m ON m.AchievementDefinitionId = ad.Id
               LEFT JOIN Games g ON g.Id = ad.GameId
-              LEFT JOIN AchievementOverrides c ON c.PlayniteGameId = g.PlayniteGameId AND c.ApiName = ad.ApiName AND c.IsAuthored = 0";
+              LEFT JOIN " + AchievementLayerSql.AchievementsTable + @" c ON c.PlayniteGameId = g.PlayniteGameId AND c.ApiName = ad.ApiName AND c.IsAuthored = 0";
 
         /// <summary>
         /// True when no layer supplies the slot: the platform has no value, no metadata source set

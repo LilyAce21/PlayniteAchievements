@@ -15,6 +15,7 @@ using PlayniteAchievements.Models.Achievements;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services;
 using PlayniteAchievements.Services.Achievements;
+using PlayniteAchievements.Services.Database;
 using PlayniteAchievements.Services.Logging;
 using PlayniteAchievements.Services.Summaries;
 using PlayniteAchievements.ViewModels;
@@ -37,6 +38,9 @@ namespace PlayniteAchievements.Views.Controls
         private RowPrepareCounter _rowPrepareCounter;
         private DataGridColumnLayoutService _columnPersistence;
         private bool _isAttached;
+
+        // Read at Loaded: by Unloaded the inherited value has left with the tree.
+        private bool _ownerDisposes;
         private bool _wheelDiagnosticsAttached;
         private PersistedSettingsSubscription _persistedSubscription;
         private AchievementGridOptions _appearanceRecord;
@@ -50,7 +54,7 @@ namespace PlayniteAchievements.Views.Controls
         private const double DefaultFriendColumnWidth = 140;
         private const double DefaultTrophyIconColumnWidth = 72;
         private const double DefaultCapturesColumnWidth = 56;
-        private const double MinimumStatusColumnWidth = 28;
+        private const double MinimumStatusColumnWidth = 16;
         private const double MinimumGameImageColumnWidth = 32;
         private const double MinimumFriendAvatarColumnWidth = 32;
         private const double MinimumFriendColumnWidth = 64;
@@ -154,7 +158,14 @@ namespace PlayniteAchievements.Views.Controls
                     friend: true,
                     unlockDate: true),
                 ["ShowcasePinnedAchievements"] = CreateAchievementVisibility(status: false, game: true),
-                ["ShowcaseRecentAchievements"] = CreateAchievementVisibility(status: false, game: true)
+                ["ShowcaseRecentAchievements"] = CreateAchievementVisibility(status: false, game: true),
+                // The unlock date cell carries the user's own state of each friend unlock.
+                [ShowcaseGridSurfaces.FriendAchievements] = CreateAchievementVisibility(
+                    status: false,
+                    game: true,
+                    friendAvatar: true,
+                    friend: true,
+                    unlockDate: true)
             };
 
         private static IReadOnlyDictionary<string, bool> CreateAchievementVisibility(
@@ -236,6 +247,11 @@ namespace PlayniteAchievements.Views.Controls
                 {
                     ["Avatar"] = 0,
                     ["Friend"] = 1
+                },
+                [ShowcaseGridSurfaces.FriendAchievements] = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Avatar"] = 0,
+                    ["Friend"] = 1
                 }
             };
 
@@ -267,9 +283,19 @@ namespace PlayniteAchievements.Views.Controls
 
         public bool HasAnyFavorites => (bool)GetValue(HasAnyFavoritesProperty);
 
+        /// <summary>
+        /// The rows a scan for a property of the source reads: all of them, or for a source that
+        /// holds only some rows (<see cref="IPartiallyLoadedRows"/>) the loaded ones, so a scan
+        /// never walks or loads rows nobody looks at.
+        /// </summary>
+        private static IEnumerable<AchievementDisplayItem> Scannable(IEnumerable<AchievementDisplayItem> source) =>
+            source is IPartiallyLoadedRows partial
+                ? partial.LoadedItems.OfType<AchievementDisplayItem>()
+                : source;
+
         private void RecomputeHasAnyFavorites()
         {
-            var hasAny = ItemsSource?.Any(item => item?.FriendIsFavorite == true) ?? false;
+            var hasAny = Scannable(ItemsSource)?.Any(item => item?.FriendIsFavorite == true) ?? false;
             SetValue(HasAnyFavoritesPropertyKey, hasAny);
         }
 
@@ -663,14 +689,14 @@ namespace PlayniteAchievements.Views.Controls
 
         /// <summary>
         /// Identifies the FixedRowHeight dependency property.
-        /// Null or NaN keeps the existing automatic row sizing.
+        /// Null or NaN keeps the automatic row height (see AchievementDataGridControl.RowHeight.cs).
         /// </summary>
         public static readonly DependencyProperty FixedRowHeightProperty =
             DependencyProperty.Register(nameof(FixedRowHeight), typeof(double?),
                 typeof(AchievementDataGridControl), new PropertyMetadata(null, OnRowSizingChanged));
 
         /// <summary>
-        /// Gets or sets a fixed DataGrid row height. Null keeps automatic sizing.
+        /// Gets or sets a fixed DataGrid row height. Null keeps the automatic row height.
         /// </summary>
         public double? FixedRowHeight
         {
@@ -882,6 +908,7 @@ namespace PlayniteAchievements.Views.Controls
         private GridMultiSelectFilter _connectedCategoryFilter;
         private GridControlBarViewModel _controlBarWithToggle;
         private INotifyCollectionChanged _observedItemsSource;
+        private INotifyPropertyChanged _observedPartialRows;
         private INotifyCollectionChanged _observedCategorySummarySource;
         private BulkObservableCollection<AchievementDisplayItem> _drillItems;
         private List<GameSummaryItem> _allCategorySummaries;
@@ -1207,7 +1234,7 @@ namespace PlayniteAchievements.Views.Controls
         // hidden mid-load before data arrives.
         private bool IsCategorySourceSingleGame()
         {
-            var items = ItemsSource;
+            var items = Scannable(ItemsSource);
             if (items == null)
             {
                 return true;
@@ -1243,7 +1270,7 @@ namespace PlayniteAchievements.Views.Controls
         // exactly the case nesting exists for.
         private bool HasMultipleCategories()
         {
-            var items = CategorySummarySource ?? ItemsSource;
+            var items = Scannable(CategorySummarySource ?? ItemsSource);
             if (items == null)
             {
                 return false;
@@ -1740,7 +1767,7 @@ namespace PlayniteAchievements.Views.Controls
         {
             // Build from the unfiltered source (when provided) so achievement filters applied while
             // drilled never change the category rollups; fall back to ItemsSource otherwise.
-            var items = (CategorySummarySource ?? ItemsSource)?.ToList();
+            var items = Scannable(CategorySummarySource ?? ItemsSource)?.ToList();
             // Every node of the tree at once rather than one level per click: the list is the whole
             // map, so any category is one click away and one click back.
             //
@@ -2232,7 +2259,7 @@ namespace PlayniteAchievements.Views.Controls
                 var drillSource = DrillIntoCategorySummarySource && CategorySummarySource != null
                     ? CategorySummarySource
                     : ItemsSource;
-                var filtered = (drillSource ?? Enumerable.Empty<AchievementDisplayItem>())
+                var filtered = (Scannable(drillSource) ?? Enumerable.Empty<AchievementDisplayItem>())
                     .Where(i => i != null && (selfOnly
                         ? CategoryPathHelper.IsSame(i.CategoryLabel, drilled)
                         : CategoryPathHelper.IsSelfOrDescendantOf(i.CategoryLabel, drilled)))
@@ -2259,17 +2286,39 @@ namespace PlayniteAchievements.Views.Controls
 
         private void ObserveItemsSourceCollection()
         {
+            StopObservingItemsSource();
+            if (ItemsSource is INotifyCollectionChanged incc)
+            {
+                _observedItemsSource = incc;
+                incc.CollectionChanged += OnItemsSourceCollectionChanged;
+            }
+
+            // A paged list fills its placeholders in place as rows load, announced as an Item[] change.
+            if (ItemsSource is IPartiallyLoadedRows && ItemsSource is INotifyPropertyChanged inpc)
+            {
+                _observedPartialRows = inpc;
+                inpc.PropertyChanged += OnPartialRowsChanged;
+            }
+        }
+
+        private void StopObservingItemsSource()
+        {
             if (_observedItemsSource != null)
             {
                 _observedItemsSource.CollectionChanged -= OnItemsSourceCollectionChanged;
                 _observedItemsSource = null;
             }
 
-            if (ItemsSource is INotifyCollectionChanged incc)
+            if (_observedPartialRows != null)
             {
-                _observedItemsSource = incc;
-                incc.CollectionChanged += OnItemsSourceCollectionChanged;
+                _observedPartialRows.PropertyChanged -= OnPartialRowsChanged;
+                _observedPartialRows = null;
             }
+        }
+
+        private void OnPartialRowsChanged(object sender, PropertyChangedEventArgs e)
+        {
+            RequestItemsSourceContentRefresh();
         }
 
         private void OnItemsSourceCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -2388,7 +2437,7 @@ namespace PlayniteAchievements.Views.Controls
         /// </summary>
         private void ReconcileDrillPath()
         {
-            var labels = (CategorySummarySource ?? ItemsSource ?? Enumerable.Empty<AchievementDisplayItem>())
+            var labels = (Scannable(CategorySummarySource ?? ItemsSource) ?? Enumerable.Empty<AchievementDisplayItem>())
                 .Where(i => i != null)
                 .Select(i => i.CategoryLabel)
                 .ToList();
@@ -2475,7 +2524,7 @@ namespace PlayniteAchievements.Views.Controls
             // drilled subtree's achievements rather than the whole source - the header row's
             // counts, art, and type all resolve from its own subtree, so the scoped build
             // produces the same row without a second whole-tree pass.
-            var items = (CategorySummarySource ?? ItemsSource)?
+            var items = Scannable(CategorySummarySource ?? ItemsSource)?
                 .Where(i => i != null && CategoryPathHelper.IsSelfOrDescendantOf(i.CategoryLabel, drilled))
                 .ToList();
             CategorySummaryItem match = null;
@@ -2679,7 +2728,7 @@ namespace PlayniteAchievements.Views.Controls
                 return true;
             }
 
-            var fallback = (ItemsSource ?? Enumerable.Empty<AchievementDisplayItem>())
+            var fallback = (Scannable(ItemsSource) ?? Enumerable.Empty<AchievementDisplayItem>())
                 .Select(item => item?.PlayniteGameId)
                 .Where(id => id.HasValue && id.Value != Guid.Empty)
                 .Select(id => id.Value)
@@ -2886,6 +2935,7 @@ namespace PlayniteAchievements.Views.Controls
         public AchievementDataGridControl()
         {
             InitializeComponent();
+            TrackArtColumns();
             // The category grids' key binds to this control directly: an ancestor binding in
             // XAML only resolves once they join the visual tree, after they have prepared their
             // columns under their own default key, writing into the Overview game list's record.
@@ -3148,7 +3198,8 @@ namespace PlayniteAchievements.Views.Controls
         {
             return columnSettingsKey != null &&
                    (columnSettingsKey.StartsWith("FriendsOverview", StringComparison.OrdinalIgnoreCase) ||
-                    columnSettingsKey.StartsWith("ViewFriendsAchievements", StringComparison.OrdinalIgnoreCase));
+                    columnSettingsKey.StartsWith("ViewFriendsAchievements", StringComparison.OrdinalIgnoreCase) ||
+                    ShowcaseGridSurfaces.IsFriendSurface(columnSettingsKey));
         }
 
         private static void SetForcedColumnCollapsed(
@@ -3255,6 +3306,7 @@ namespace PlayniteAchievements.Views.Controls
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
+            _ownerDisposes = GridLifetime.GetOwnerDisposes(this);
             UpdateControlBarOptions();
             ControlBarHost.ShownItemsChanged -= ControlBarHost_ShownItemsChanged;
             ControlBarHost.ShownItemsChanged += ControlBarHost_ShownItemsChanged;
@@ -3333,7 +3385,7 @@ namespace PlayniteAchievements.Views.Controls
 
         private void RefreshCategoryLabelDisplays()
         {
-            foreach (var item in ItemsSource ?? Enumerable.Empty<AchievementDisplayItem>())
+            foreach (var item in Scannable(ItemsSource) ?? Enumerable.Empty<AchievementDisplayItem>())
             {
                 item?.RefreshCategoryLabelDisplay();
             }
@@ -3398,6 +3450,15 @@ namespace PlayniteAchievements.Views.Controls
 
             SetValue(InlineNameDetailStylesPropertyKey, beforeName ? styles : NoInlineDetails);
             SetValue(InlineDescriptionDetailStylesPropertyKey, beforeDescription ? styles : NoInlineDetails);
+
+            // Without a spot the cells take the template that has no detail elements.
+            var template = (DataTemplate)FindResource(beforeName || beforeDescription
+                ? "AchievementInfoTemplate"
+                : "AchievementInfoPlainTemplate");
+            if (!ReferenceEquals(AchievementInfoColumn.CellTemplate, template))
+            {
+                AchievementInfoColumn.CellTemplate = template;
+            }
         }
 
         // Reads without creating: GetAchievement would add a record for every unknown key.
@@ -3483,6 +3544,14 @@ namespace PlayniteAchievements.Views.Controls
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
+            if (!_ownerDisposes)
+            {
+                ReleaseLoadedState();
+            }
+        }
+
+        private void ReleaseLoadedState()
+        {
             AchievementTagRegistry.Changed -= OnTagsChanged;
             UnsubscribeAppearance();
 
@@ -3501,7 +3570,7 @@ namespace PlayniteAchievements.Views.Controls
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                foreach (var item in ItemsSource ?? Enumerable.Empty<AchievementDisplayItem>())
+                foreach (var item in Scannable(ItemsSource) ?? Enumerable.Empty<AchievementDisplayItem>())
                 {
                     if (item != null && (e?.GameId == null || item.PlayniteGameId == e.GameId))
                     {
@@ -3516,7 +3585,13 @@ namespace PlayniteAchievements.Views.Controls
             (_rowPrepareCounter ?? (_rowPrepareCounter = new RowPrepareCounter(
                 Services.Logging.PluginLogger.GetLogger(nameof(AchievementDataGridControl)),
                 ColumnSettingsKey))).RowPrepared(Dispatcher, e.Row);
-            ApplyFixedRowHeight(e.Row);
+            // A paged source loads where the grid realizes rows, not where its reads land.
+            if (ReferenceEquals(EffectiveAchievements, ItemsSource) && ItemsSource is IRealizedRows rows)
+            {
+                rows.Realized(e.Row.GetIndex());
+            }
+
+            ApplyRowHeight(e.Row);
             ApplyRowHighlight(e.Row);
         }
 
@@ -3527,13 +3602,17 @@ namespace PlayniteAchievements.Views.Controls
                 return;
             }
 
-            foreach (var item in AchievementsDataGrid.Items)
+            // The realized rows only: walking Items would visit every row of the source.
+            var presenter = VisualTreeHelpers.FindVisualChild<System.Windows.Controls.Primitives.DataGridRowsPresenter>(AchievementsDataGrid);
+            if (presenter == null)
             {
-                if (AchievementsDataGrid.ItemContainerGenerator.ContainerFromItem(item) is DataGridRow row)
-                {
-                    ApplyFixedRowHeight(row);
-                    ApplyRowHighlight(row);
-                }
+                return;
+            }
+
+            foreach (var row in presenter.Children.OfType<DataGridRow>())
+            {
+                ApplyRowHeight(row);
+                ApplyRowHighlight(row);
             }
         }
 
@@ -3552,39 +3631,6 @@ namespace PlayniteAchievements.Views.Controls
             {
                 row.ClearValue(Control.BackgroundProperty);
             }
-        }
-
-        private void ApplyFixedRowHeight(DataGridRow row)
-        {
-            if (row == null)
-            {
-                return;
-            }
-
-            var fixedHeight = ResolveFixedRowHeight();
-            if (fixedHeight.HasValue)
-            {
-                row.Height = fixedHeight.Value;
-                row.MinHeight = fixedHeight.Value;
-                return;
-            }
-
-            row.ClearValue(FrameworkElement.HeightProperty);
-            row.ClearValue(FrameworkElement.MinHeightProperty);
-        }
-
-        private double? ResolveFixedRowHeight()
-        {
-            var height = FixedRowHeight;
-            if (!height.HasValue ||
-                double.IsNaN(height.Value) ||
-                double.IsInfinity(height.Value) ||
-                height.Value <= 0)
-            {
-                return null;
-            }
-
-            return Math.Max(PersistedSettings.MinimumGridRowHeight, height.Value);
         }
 
         private void AttachColumnPersistence()
@@ -3790,7 +3836,7 @@ namespace PlayniteAchievements.Views.Controls
                 case "StartPageFriendAchievements":
                     return false;
                 default:
-                    return true;
+                    return !ShowcaseGridSurfaces.IsFriendSurface(ColumnSettingsKey);
             }
         }
 
@@ -3884,7 +3930,9 @@ namespace PlayniteAchievements.Views.Controls
             PlayniteAchievementsSettings settings,
             Dictionary<string, int> map)
         {
-            if (!DefaultOrderByColumnSettingsKey.TryGetValue(ColumnSettingsKey ?? string.Empty, out var defaults) ||
+            // Per-instance showcase keys ("<BaseKey>:<instanceId>") share their base key's order.
+            if ((!DefaultOrderByColumnSettingsKey.TryGetValue(ColumnSettingsKey ?? string.Empty, out var defaults) &&
+                 !DefaultOrderByColumnSettingsKey.TryGetValue(ShowcaseGridSurfaces.GetBaseKey(ColumnSettingsKey) ?? string.Empty, out defaults)) ||
                 defaults == null ||
                 defaults.Count == 0)
             {
@@ -4107,6 +4155,13 @@ namespace PlayniteAchievements.Views.Controls
                 return;
             }
 
+            // A list holding only some rows is sorted by its query, never reordered here.
+            if (ItemsSource is IPartiallyLoadedRows)
+            {
+                e.Handled = true;
+                return;
+            }
+
             if (GridSortRequestEventArgs.Of(e)?.IsReset == true)
             {
                 DataGridSortingHelper.HandleSorting(sender, e, AchievementsDataGrid);
@@ -4197,7 +4252,7 @@ namespace PlayniteAchievements.Views.Controls
 
         private void ReplaceItemsInSource(List<AchievementDisplayItem> items)
         {
-            if (items == null)
+            if (items == null || ItemsSource is IPartiallyLoadedRows)
             {
                 return;
             }
@@ -4472,11 +4527,7 @@ namespace PlayniteAchievements.Views.Controls
             _persistedSubscription?.Dispose();
             _persistedSubscription = null;
 
-            if (_observedItemsSource != null)
-            {
-                _observedItemsSource.CollectionChanged -= OnItemsSourceCollectionChanged;
-                _observedItemsSource = null;
-            }
+            StopObservingItemsSource();
 
             if (_observedCategorySummarySource != null)
             {
@@ -4487,6 +4538,14 @@ namespace PlayniteAchievements.Views.Controls
             DataGridAlignmentBehavior.SetColumnCellVerticalAlignmentOverridesProvider(AchievementsDataGrid, null);
             DataGridAlignmentBehavior.SetColumnHeaderHorizontalAlignmentOverridesProvider(AchievementsDataGrid, null);
             _isAttached = false;
+
+            // An owner that disposes this grid kept it loaded through Unloaded.
+            if (_ownerDisposes)
+            {
+                ReleaseLoadedState();
+                CategoryDrillHeaderGrid?.Dispose();
+                CategoryListGrid?.Dispose();
+            }
         }
     }
 }

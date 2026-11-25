@@ -21,7 +21,6 @@ using PlayniteAchievements.Services.Cache;
 using PlayniteAchievements.Services.Captures;
 using PlayniteAchievements.Services.Images;
 using PlayniteAchievements.Services.GameCustomData;
-using PlayniteAchievements.Services.Library;
 using PlayniteAchievements.Services.Logging;
 using PlayniteAchievements.Services.Friends;
 using PlayniteAchievements.Services.Refresh;
@@ -65,10 +64,7 @@ namespace PlayniteAchievements.Services.UI
         private readonly Action _persistSettingsForUi;
         private readonly AchievementOverridesService _achievementOverridesService;
         private readonly AchievementDataService _achievementDataService;
-        private readonly LibraryProjectionService _libraryProjectionService;
         private readonly GameCustomDataStore _gameCustomDataStore;
-        private readonly FriendsOverviewDataCoordinator _friendsOverviewDataCoordinator;
-        private readonly FriendGameAchievementsDataCoordinator _friendGameAchievementsDataCoordinator;
         private readonly Func<Widgets.WidgetDataCoordinator> _widgetCoordinatorAccessor;
         private readonly PlayniteAchievementsSettings _settings;
         private readonly ManualSourceRegistry _manualSourceRegistry;
@@ -88,14 +84,11 @@ namespace PlayniteAchievements.Services.UI
             Action persistSettingsForUi,
             AchievementOverridesService achievementOverridesService,
             AchievementDataService achievementDataService,
-            LibraryProjectionService libraryProjectionService,
             GameCustomDataStore gameCustomDataStore,
             PlayniteAchievementsSettings settings,
             ManualSourceRegistry manualSourceRegistry,
             Action ensureAchievementResourcesLoaded,
             FullscreenControllerNavigationService fullscreenControllerNavigationService,
-            FriendsOverviewDataCoordinator friendsOverviewDataCoordinator = null,
-            FriendGameAchievementsDataCoordinator friendGameAchievementsDataCoordinator = null,
             Func<Widgets.WidgetDataCoordinator> widgetCoordinatorAccessor = null)
         {
             _api = api;
@@ -106,10 +99,7 @@ namespace PlayniteAchievements.Services.UI
             _persistSettingsForUi = persistSettingsForUi ?? throw new ArgumentNullException(nameof(persistSettingsForUi));
             _achievementOverridesService = achievementOverridesService;
             _achievementDataService = achievementDataService ?? throw new ArgumentNullException(nameof(achievementDataService));
-            _libraryProjectionService = libraryProjectionService;
             _gameCustomDataStore = gameCustomDataStore;
-            _friendsOverviewDataCoordinator = friendsOverviewDataCoordinator;
-            _friendGameAchievementsDataCoordinator = friendGameAchievementsDataCoordinator;
             _widgetCoordinatorAccessor = widgetCoordinatorAccessor;
             _settings = settings;
             _manualSourceRegistry = manualSourceRegistry ?? throw new ArgumentNullException(nameof(manualSourceRegistry));
@@ -590,7 +580,7 @@ namespace PlayniteAchievements.Services.UI
                     authContext = await _refreshService
                         .GetRefreshAuthContextOrShowDialogAsync(request, progress.CancelToken)
                         .ConfigureAwait(false);
-                    if (authContext == null || !authContext.HasAuthenticatedProviders)
+                    if (authContext == null || !authContext.CanProceed)
                     {
                         _logger?.Info("RunRefreshWithGlobalProgressAsync: Authentication preflight found no authenticated providers.");
                         SafeInvokeRefreshCompleted(onCompleted, false);
@@ -1080,30 +1070,61 @@ namespace PlayniteAchievements.Services.UI
             return true;
         }
 
-        /// <summary>Whether a window's content is, or directly wraps, a <typeparamref name="T"/>.</summary>
-        private static bool HostsControl<T>(object content) where T : class
+        /// <summary>
+        /// Brings the open plugin window that hosts a <typeparamref name="T"/> to the front. False
+        /// when none is open. Runs on the UI thread.
+        /// </summary>
+        public bool TryActivateOpenWindowHosting<T>() where T : class =>
+            TryActivateOpenWindowHosting<T>(out _);
+
+        /// <summary>
+        /// Brings the open plugin window that hosts a <typeparamref name="T"/> to the front and
+        /// returns the hosted control. False when none is open. Runs on the UI thread.
+        /// </summary>
+        public bool TryActivateOpenWindowHosting<T>(out T control) where T : class
         {
-            if (content == null)
+            control = null;
+            var application = Application.Current;
+            foreach (var candidate in application?.Windows?.OfType<Window>() ?? Enumerable.Empty<Window>())
             {
-                return false;
-            }
+                if (candidate == null
+                    || !candidate.IsVisible
+                    || ReferenceEquals(candidate, application.MainWindow))
+                {
+                    continue;
+                }
 
-            if (content is T)
-            {
-                return true;
-            }
-
-            if (content is FullscreenOverlayContainer overlay)
-            {
-                return HostsControl<T>(overlay.HostedContent);
-            }
-
-            if (content is ContentControl contentControl)
-            {
-                return HostsControl<T>(contentControl.Content);
+                control = FindHostedControl<T>(candidate.Content);
+                if (control != null)
+                {
+                    ActivateTrackedWindow(candidate);
+                    return true;
+                }
             }
 
             return false;
+        }
+
+        /// <summary>Whether a window's content is, or directly wraps, a <typeparamref name="T"/>.</summary>
+        private static bool HostsControl<T>(object content) where T : class =>
+            FindHostedControl<T>(content) != null;
+
+        /// <summary>A window's content when it is, or directly wraps, a <typeparamref name="T"/>; else null.</summary>
+        private static T FindHostedControl<T>(object content) where T : class
+        {
+            switch (content)
+            {
+                case null:
+                    return null;
+                case T control:
+                    return control;
+                case FullscreenOverlayContainer overlay:
+                    return FindHostedControl<T>(overlay.HostedContent);
+                case ContentControl contentControl:
+                    return FindHostedControl<T>(contentControl.Content);
+                default:
+                    return null;
+            }
         }
 
         private void TrackOverviewWindow(Window window)
@@ -1403,12 +1424,10 @@ namespace PlayniteAchievements.Services.UI
                     _persistSettingsForUi,
                     _achievementOverridesService,
                     _achievementDataService,
-                    _libraryProjectionService,
                     _gameCustomDataStore,
                     _refreshCoordinator,
                     _settings,
                     OverviewLaunchContext.Popout,
-                    _friendsOverviewDataCoordinator,
                     _widgetCoordinatorAccessor);
                 if (!string.IsNullOrWhiteSpace(showcasePageId))
                 {
@@ -1570,7 +1589,7 @@ namespace PlayniteAchievements.Services.UI
                 var isFullscreen = DetectFullscreenMode();
                 var view = new ViewFriendsAchievementsControl(
                     gameId,
-                    _friendGameAchievementsDataCoordinator,
+                    _cacheManager as IFriendCacheManager,
                     _refreshService,
                     _refreshCoordinator,
                     _api,

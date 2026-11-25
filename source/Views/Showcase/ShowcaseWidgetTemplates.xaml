@@ -37,7 +37,7 @@
          fills its cell; the stack follows the block's vertical alignment within it. -->
     <DataTemplate x:Key="ShowcaseStatTileTemplate">
         <Border Background="{DynamicResource PlayAch.Brush.Overlay.Tint.08}"
-                CornerRadius="{StaticResource PlayAch.Radius.Card}"
+                CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                 Margin="3"
                 Padding="8,6"
                 ClipToBounds="True">
@@ -715,7 +715,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Background="{DynamicResource PlayAch.Brush.Overlay.Tint.08}"
-                                CornerRadius="{StaticResource PlayAch.Radius.Card}"
+                                CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                                 Margin="0,1,0,5"
                                 Padding="8,5"
                                 ClipToBounds="True">
@@ -824,6 +824,82 @@
                                                  AppearanceOptions="{Binding GridOptions, FallbackValue={x:Null}}"/>
     </DataTemplate>
 
+    <!-- FriendUnlocks: the shared achievement grid over the picked friends' unlocks. -->
+    <DataTemplate DataType="{x:Type widgets:FriendUnlocksWidgetViewModel}">
+        <Grid>
+            <showcase:ShowcaseAchievementGridControl ItemsSource="{Binding Items}"
+                                                     ShowFriendColumn="True"
+                                                     ColumnSettingsKey="{Binding ColumnSettingsKey}"
+                                                     ControlBar="{Binding ControlBar}"
+                                                     ShowControlBar="{Binding ShowControlBar}"
+                                                     ShowColumnHeaders="{Binding GridOptions.ShowColumnHeaders, FallbackValue=True}"
+                                                     FixedRowHeight="{Binding GridOptions.RowHeight, FallbackValue={x:Null}}"
+                                                     UseCoverImages="{Binding GridOptions.UseCoverImages, FallbackValue=False}"
+                                                     ShowRarityGlow="{Binding GridOptions.ShowRarityGlow, FallbackValue=True}"
+                                                     ColorRarityColumnsByRarity="{Binding GridOptions.ColorRarityColumnsByRarity, FallbackValue=False}"
+                                                     AppearanceOptions="{Binding GridOptions, FallbackValue={x:Null}}"/>
+            <TextBlock Text="{DynamicResource LOCPlayAch_FriendsOverview_NoData}"
+                       Visibility="{Binding HasNoFriendData, Converter={StaticResource BoolToVis}}"
+                       Foreground="{DynamicResource PlayAch.Brush.Text}"
+                       FontSize="12"
+                       Opacity="0.62"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False"/>
+        </Grid>
+    </DataTemplate>
+
+    <!-- FriendLeaderboard: the shared friend summaries grid over the picked friends and the user. -->
+    <DataTemplate DataType="{x:Type widgets:FriendLeaderboardWidgetViewModel}">
+        <Grid>
+            <showcase:ShowcaseFriendSummariesGridControl ItemsSource="{Binding Items}"
+                                                         ColumnSettingsKey="{Binding ColumnSettingsKey}"
+                                                         ControlBar="{Binding ControlBar}"
+                                                         ShowControlBar="{Binding ShowControlBar}"
+                                                         ShowColumnHeaders="{Binding GridOptions.ShowColumnHeaders, FallbackValue=True}"
+                                                         FixedRowHeight="{Binding GridOptions.RowHeight, FallbackValue={x:Null}}"/>
+            <TextBlock Text="{DynamicResource LOCPlayAch_FriendsOverview_NoData}"
+                       Visibility="{Binding HasNoFriendData, Converter={StaticResource BoolToVis}}"
+                       Foreground="{DynamicResource PlayAch.Brush.Text}"
+                       FontSize="12"
+                       Opacity="0.62"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False"/>
+        </Grid>
+    </DataTemplate>
+
+    <!-- FriendGames: the shared game-summaries grid over the picked friends' games. -->
+    <DataTemplate DataType="{x:Type widgets:FriendGamesWidgetViewModel}">
+        <Grid>
+            <showcase:ShowcaseGameGridControl ItemsSource="{Binding Items}"
+                                              ColumnSettingsKey="{Binding ColumnSettingsKey}"
+                                              ControlBar="{Binding ControlBar}"
+                                              ShowControlBar="{Binding ShowControlBar}"
+                                              ShowColumnHeaders="{Binding GridOptions.ShowColumnHeaders, FallbackValue=True}"
+                                              FixedRowHeight="{Binding GridOptions.RowHeight, FallbackValue={x:Null}}"
+                                              UseCoverImages="{Binding GridOptions.UseCoverImages, FallbackValue=False}"
+                                              ShowCompletionGlow="{Binding GridOptions.ShowCompletionGlow, FallbackValue=True}"
+                                              ShowMetadataPlatform="{Binding GridOptions.ShowMetadataPlatform, FallbackValue=True}"
+                                              ShowMetadataPlaytime="{Binding GridOptions.ShowMetadataPlaytime, FallbackValue=True}"
+                                              ShowMetadataRegion="{Binding GridOptions.ShowMetadataRegion, FallbackValue=True}"/>
+            <TextBlock Text="{DynamicResource LOCPlayAch_FriendsOverview_NoData}"
+                       Visibility="{Binding HasNoFriendData, Converter={StaticResource BoolToVis}}"
+                       Foreground="{DynamicResource PlayAch.Brush.Text}"
+                       FontSize="12"
+                       Opacity="0.62"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False"/>
+        </Grid>
+    </DataTemplate>
+
     <!-- GameSummaries: the shared game-summaries grid over the whole library. -->
     <DataTemplate DataType="{x:Type widgets:GameSummariesWidgetViewModel}">
         <showcase:ShowcaseGameGridControl ItemsSource="{Binding Items}"
@@ -910,6 +986,7 @@
                             <controls:RarityRayBurst UseCompletedColors="True"
                                                      BurstScale="1.55"
                                                      CornerRadiusRatio="0.14"
+                                                     CornerRadiusPx="{DynamicResource PlayAch.Radius.Art}"
                                                      SubjectUri="{Binding CoverPath}">
                                 <controls:RarityRayBurst.Style>
                                     <Style TargetType="controls:RarityRayBurst">
@@ -975,9 +1052,12 @@
                                             <BlurEffect Radius="14"/>
                                         </Rectangle.Effect>
                                     </Rectangle>
-                                    <Image Effect="{DynamicResource PlayAch.Effect.CompletedGlowEdge}">
-                                        <Image.Style>
-                                            <Style TargetType="Image" BasedOn="{StaticResource MosaicTileArtStyle}">
+                                    <!-- The edge glow sits on this wrapper and the rounding clip on
+                                         the art inside, so the edge follows the tile's rounded corners
+                                         and the clip never cuts the blur. -->
+                                    <Border Effect="{DynamicResource PlayAch.Effect.CompletedGlowEdge}">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
                                                 <Setter Property="Visibility" Value="Collapsed"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding RayGlowTiers, RelativeSource={RelativeSource AncestorType=showcase:ShowcaseWidgetControl}, Converter={StaticResource RaritySelectionIncludesCompleted}}" Value="True">
@@ -985,18 +1065,34 @@
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </Image.Style>
-                                    </Image>
+                                        </Border.Style>
+                                        <Image>
+                                            <Image.Style>
+                                                <Style TargetType="Image" BasedOn="{StaticResource MosaicTileArtStyle}">
+                                                    <Setter Property="helpers:RoundedClip.Radius" Value="{DynamicResource PlayAch.Radius.Art}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSeamless}" Value="True">
+                                                            <Setter Property="helpers:RoundedClip.Radius" Value="0"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Image.Style>
+                                        </Image>
+                                    </Border>
                                 </Grid>
                             </Border>
                             <Border Background="{DynamicResource PlayAch.Brush.Overlay.Tint.08}"
                                     ClipToBounds="True">
                                 <Border.Style>
                                     <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="{StaticResource PlayAch.Radius.Small}"/>
+                                        <Setter Property="CornerRadius" Value="{DynamicResource PlayAch.Radius.Layout}"/>
+                                        <!-- Clips the art, tint and rarity bar together; seamless
+                                             tiles stay square so they keep butting edge to edge. -->
+                                        <Setter Property="helpers:RoundedClip.Radius" Value="{DynamicResource PlayAch.Radius.Art}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsSeamless}" Value="True">
                                                 <Setter Property="CornerRadius" Value="0"/>
+                                                <Setter Property="helpers:RoundedClip.Radius" Value="0"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -1052,7 +1148,7 @@
                 <ControlTemplate TargetType="ListBoxItem">
                     <Border x:Name="Bd"
                             Background="Transparent"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -1077,7 +1173,7 @@
         <Border Background="{DynamicResource PlayAch.Brush.PopupSurface}"
                 BorderBrush="{DynamicResource PlayAch.Brush.PopupBorder}"
                 BorderThickness="1"
-                CornerRadius="4"
+                CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                 Padding="8"
                 MinWidth="260"
                 MaxWidth="380">
@@ -1115,7 +1211,8 @@
                                        SnapsToDevicePixels="True"
                                        RenderOptions.BitmapScalingMode="HighQuality"
                                        helpers:AsyncImage.Uri="{Binding DisplayIcon, Mode=OneWay}"
-                                       helpers:AsyncImage.DecodePixel="64"/>
+                                       helpers:AsyncImage.DecodePixel="64"
+                                       helpers:RoundedClip.Radius="{DynamicResource PlayAch.Radius.AchievementIcon}"/>
                                 <StackPanel Grid.Column="1"
                                             Margin="8,0"
                                             VerticalAlignment="Center">

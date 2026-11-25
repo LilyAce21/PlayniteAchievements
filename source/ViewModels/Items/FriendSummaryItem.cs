@@ -26,6 +26,11 @@ namespace PlayniteAchievements.ViewModels.Items
         [IgnoreDataMember]
         public ICommand SetDynamicFriendScopeUserCommand { get; set; }
 
+        /// <summary>Stands in for a row before the grid's first read lands (see <see cref="PlaceholderRows"/>).</summary>
+        [DontSerialize]
+        [IgnoreDataMember]
+        public bool IsPlaceholder { get; set; }
+
         private string _displayName;
         private string _avatarPath;
         private int _sharedGamesCount;
@@ -102,6 +107,11 @@ namespace PlayniteAchievements.ViewModels.Items
         // Projected from the persisted friend settings (FriendSettingsEntry.IsFavorite). Favorites are
         // pinned ahead of non-favorites in every friend list regardless of the active sort.
         public bool IsFavorite { get; set; }
+
+        /// <summary>True for the user's own row, which the friends leaderboard ranks among friends.</summary>
+        [DontSerialize]
+        [IgnoreDataMember]
+        public bool IsSelf { get; set; }
 
         [DontSerialize]
         [IgnoreDataMember]

@@ -40,6 +40,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             nameof(PlayniteAchievementsSettings.TotalUltraRare),
             nameof(PlayniteAchievementsSettings.TotalRareAndUltraRare),
             nameof(PlayniteAchievementsSettings.TotalOverall),
+            nameof(PlayniteAchievementsSettings.TotalTagStats),
             nameof(PlayniteAchievementsSettings.CollectorScore),
             nameof(PlayniteAchievementsSettings.CollectorLevel),
             nameof(PlayniteAchievementsSettings.CollectorLevelProgress),
@@ -86,16 +87,6 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             nameof(PlayniteAchievementsSettings.RiotGames),
             nameof(PlayniteAchievementsSettings.FFXIVGames),
             nameof(PlayniteAchievementsSettings.ManualGames)
-        };
-
-        public static readonly string[] ModernAllGamesHeavy =
-        {
-            nameof(PlayniteAchievementsSettings.AllAchievementsUnlockAsc),
-            nameof(PlayniteAchievementsSettings.AllAchievementsUnlockDesc),
-            nameof(PlayniteAchievementsSettings.AllAchievementsRarityAsc),
-            nameof(PlayniteAchievementsSettings.AllAchievementsRarityDesc),
-            nameof(PlayniteAchievementsSettings.MostRecentUnlocks),
-            nameof(PlayniteAchievementsSettings.RarestRecentUnlocks)
         };
 
         public static readonly string[] DynamicAllGames =
@@ -302,6 +293,7 @@ namespace PlayniteAchievements.Services.ThemeIntegration
             nameof(PlayniteAchievementsSettings.Rare),
             nameof(PlayniteAchievementsSettings.UltraRare),
             nameof(PlayniteAchievementsSettings.RareAndUltraRare),
+            nameof(PlayniteAchievementsSettings.TagStats),
             nameof(PlayniteAchievementsSettings.ListAchievements),
             nameof(PlayniteAchievementsSettings.ListAchUnlockDateAsc),
             nameof(PlayniteAchievementsSettings.ListAchUnlockDateDesc)

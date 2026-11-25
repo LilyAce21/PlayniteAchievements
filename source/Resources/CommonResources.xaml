@@ -173,7 +173,7 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             Padding="{TemplateBinding Padding}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
@@ -203,7 +203,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -289,7 +289,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Chrome" CornerRadius="4" Background="Transparent">
+                    <Border x:Name="Chrome" CornerRadius="{DynamicResource PlayAch.Radius.Layout}" Background="Transparent">
                         <TextBlock Text="{TemplateBinding Content}"
                                    FontFamily="{TemplateBinding FontFamily}"
                                    FontSize="{TemplateBinding FontSize}"
@@ -330,7 +330,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Chrome" CornerRadius="4" Background="Transparent" Padding="{TemplateBinding Padding}">
+                    <Border x:Name="Chrome" CornerRadius="{DynamicResource PlayAch.Radius.Layout}" Background="Transparent" Padding="{TemplateBinding Padding}">
                         <StackPanel Orientation="Horizontal">
                             <controls:GlyphIcon x:Name="Glyph"
                                                 Glyph="&#xEF44;"
@@ -547,7 +547,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Chrome"
-                            CornerRadius="4"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="1">
@@ -594,7 +594,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -626,18 +626,25 @@
         </Setter>
     </Style>
 
-    <Style x:Key="PlayAch.TextBox.BaseStyle" TargetType="TextBox">
+    <!-- The shared box of text inputs and dropdown-style selector buttons (search bars and the
+         Showcase and grid control bar dropdowns), so both draw from one set of values. Their
+         templates draw this box with PlayAch.Radius.Layout, an Accent outline on hover and a
+         Selection outline on focus. -->
+    <Style x:Key="PlayAch.InputChrome.BaseStyle" TargetType="Control">
         <Setter Property="MinHeight" Value="{StaticResource PlayAch.Size.Control.Height}"/>
-        <Setter Property="Padding" Value="8,4"/>
         <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Input.Background}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Input.Border}"/>
         <Setter Property="BorderThickness" Value="{StaticResource PlayAch.Thickness.Border}"/>
         <Setter Property="Foreground" Value="{DynamicResource PlayAch.Brush.Text}"/>
-        <Setter Property="CaretBrush" Value="{DynamicResource PlayAch.Brush.Text}"/>
         <Setter Property="FontSize" Value="{DynamicResource PlayAch.FontSize.Body}"/>
         <Setter Property="FontFamily" Value="{DynamicResource PlayAch.FontFamily.Body}"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    </Style>
+
+    <Style x:Key="PlayAch.TextBox.BaseStyle" TargetType="TextBox" BasedOn="{StaticResource PlayAch.InputChrome.BaseStyle}">
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource PlayAch.Brush.Text}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -645,7 +652,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
@@ -688,7 +695,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
@@ -738,7 +745,7 @@
                                   Width="10"
                                   Height="8"
                                   Data="M 0,4 L 3.5,7.5 L 10,0"
-                                  Stroke="White"
+                                  Stroke="{DynamicResource PlayAch.Brush.Text}"
                                   StrokeThickness="2"
                                   StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round"
@@ -952,7 +959,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <Grid>
                             <ToggleButton x:Name="ToggleButton"
@@ -983,8 +990,10 @@
                                               ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
                                               ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                               TextElement.Foreground="{TemplateBinding Foreground}"/>
+                            <!-- Collapsed, not Hidden, until IsEditable: a hidden element is still
+                                 measured, which applies a full TextBox template to every combo. -->
                             <TextBox x:Name="PART_EditableTextBox"
-                                     Visibility="Hidden"
+                                     Visibility="Collapsed"
                                      VerticalAlignment="Center"
                                      HorizontalAlignment="Stretch"
                                      Margin="0,0,25,0"
@@ -1117,7 +1126,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <DockPanel Margin="0,0,2,0">
                             <Viewbox DockPanel.Dock="Right" Width="20">
@@ -1409,7 +1418,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             Margin="0,0,1,0"
                             SnapsToDevicePixels="True">
                         <ContentPresenter ContentSource="Header"
@@ -1462,7 +1471,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Card}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -1630,10 +1639,10 @@
     </Style>
 
     <Style x:Key="PlayAch.CardBorderStyle" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Surface}"/>
+        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Panel}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Border}"/>
         <Setter Property="BorderThickness" Value="{StaticResource PlayAch.Thickness.Border}"/>
-        <Setter Property="CornerRadius" Value="{StaticResource PlayAch.Radius.Card}"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource PlayAch.Radius.Layout}"/>
         <Setter Property="Padding" Value="{StaticResource PlayAch.Thickness.CardPadding}"/>
     </Style>
 
@@ -1708,7 +1717,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource PlayAch.Radius.Small}"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter Margin="{TemplateBinding Padding}"
                                           HorizontalAlignment="Center"
@@ -1740,12 +1749,28 @@
         <Setter Property="Opacity" Value="{StaticResource PlayAch.Opacity.Full}"/>
     </Style>
 
+    <!-- A settings section: no fill and no padding, so the theme's background shows through and
+         the section's header and rows line up with the page margin. Spacing between sections and
+         the section header mark the groups. -->
+    <!-- The short accent line under a settings section header. -->
+    <Style x:Key="PlayAch.SectionAccentRuleStyle" TargetType="Border">
+        <Setter Property="Height" Value="2"/>
+        <Setter Property="Width" Value="44"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="CornerRadius" Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Accent}"/>
+        <Setter Property="Margin" Value="0,0,0,14"/>
+    </Style>
+
+    <!-- A settings section as a card: the Panel fill (a theme's panel or card brush, transparent
+         when it has none) and the Border outline, so a section still reads as one group where the
+         theme leaves Panel transparent. -->
     <Style x:Key="PlayAch.SectionBorderStyle" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Surface}"/>
-        <Setter Property="CornerRadius" Value="{StaticResource PlayAch.Radius.Section}"/>
+        <Setter Property="Background" Value="{DynamicResource PlayAch.Brush.Panel}"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource PlayAch.Radius.Layout}"/>
         <Setter Property="Padding" Value="{StaticResource PlayAch.Thickness.SectionPadding}"/>
         <Setter Property="Margin" Value="{StaticResource PlayAch.Thickness.Bottom.Xl}"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PlayAch.Brush.Border}"/>
         <Setter Property="BorderThickness" Value="{StaticResource PlayAch.Thickness.Border}"/>
     </Style>
 
@@ -1785,7 +1810,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{StaticResource PlayAch.Thickness.Border}"
-                            CornerRadius="3"
+                            CornerRadius="{DynamicResource PlayAch.Radius.Layout}"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"/>

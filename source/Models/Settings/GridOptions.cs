@@ -22,6 +22,50 @@ namespace PlayniteAchievements.Models.Settings
             public const string StartPageRecent = "StartPageRecent";
             public const string StartPageFriendAchievements = "StartPageFriendAchievements";
             public const string DesktopTheme = "DesktopTheme";
+
+            /// <summary>
+            /// The surface whose saved Compare pick <paramref name="surfaceKey"/> uses. The
+            /// grids of one window share a pick, kept under the window's first grid; every other
+            /// surface keeps its own.
+            /// </summary>
+            public static string CompareGroup(string surfaceKey)
+            {
+                switch (surfaceKey)
+                {
+                    case OverviewSelectedGame:
+                        return OverviewRecent;
+                    case FriendsOverviewSelectedFriend:
+                    case FriendsOverviewSelectedGame:
+                    case FriendsOverviewSelectedFriendGame:
+                        return FriendsOverviewRecent;
+                    case ViewFriendsAchievementsSelectedFriend:
+                        return ViewFriendsAchievements;
+                    default:
+                        return surfaceKey;
+                }
+            }
+
+            /// <summary>Every surface whose Compare pick is kept under <paramref name="groupKey"/>.</summary>
+            public static IReadOnlyList<string> CompareGroupMembers(string groupKey)
+            {
+                switch (groupKey)
+                {
+                    case OverviewRecent:
+                        return new[] { OverviewRecent, OverviewSelectedGame };
+                    case FriendsOverviewRecent:
+                        return new[]
+                        {
+                            FriendsOverviewRecent,
+                            FriendsOverviewSelectedFriend,
+                            FriendsOverviewSelectedGame,
+                            FriendsOverviewSelectedFriendGame
+                        };
+                    case ViewFriendsAchievements:
+                        return new[] { ViewFriendsAchievements, ViewFriendsAchievementsSelectedFriend };
+                    default:
+                        return new[] { groupKey };
+                }
+            }
         }
 
         public static class GameSummaries
@@ -45,6 +89,9 @@ namespace PlayniteAchievements.Models.Settings
         public static class ManageAchievements
         {
             public const string Editor = "ManageAchievementsEditor";
+
+            /// <summary>The library editor's grid, which adds a Game column to the per-game one.</summary>
+            public const string LibraryEditor = "LibraryAchievementEditor";
         }
 
         public static class CategorySummaries
@@ -1079,6 +1126,34 @@ namespace PlayniteAchievements.Models.Settings
             return _gameSummaries.Remove(id);
         }
 
+        public bool RemoveFriendSummaries(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id) || !_friendSummaries.TryGetValue(id, out var options))
+            {
+                return false;
+            }
+
+            DetachOptions(options);
+            return _friendSummaries.Remove(id);
+        }
+
+        /// <summary>
+        /// Stores a clone of <paramref name="options"/> under the surface, replacing (and
+        /// detaching) any existing record so change notifications follow the new instance.
+        /// </summary>
+        public void SetFriendSummaries(string id, FriendSummaryGridOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(id) || options == null)
+            {
+                return;
+            }
+
+            RemoveFriendSummaries(id);
+            var copy = options.Clone();
+            _friendSummaries[id] = copy;
+            AttachOptions(FriendSummariesKindName, id, copy);
+        }
+
         public bool RemoveCategorySummaries(string id)
         {
             if (string.IsNullOrWhiteSpace(id) || !_categorySummaries.TryGetValue(id, out var options))
@@ -1238,6 +1313,12 @@ namespace PlayniteAchievements.Models.Settings
         /// </summary>
         public static bool TryResolveFriendSummariesId(string columnSettingsKey, out string id)
         {
+            if (ShowcaseGridSurfaces.IsFriendSummariesSurface(columnSettingsKey))
+            {
+                id = columnSettingsKey;
+                return true;
+            }
+
             return FriendSummaryIdsByColumnKey.TryGetValue(columnSettingsKey ?? string.Empty, out id);
         }
 
@@ -1280,6 +1361,12 @@ namespace PlayniteAchievements.Models.Settings
 
         public static string ResolveFriendSummariesId(string columnSettingsKey)
         {
+            // The friends leaderboard widget keeps a record per instance, keyed by the raw key.
+            if (ShowcaseGridSurfaces.IsFriendSummariesSurface(columnSettingsKey))
+            {
+                return columnSettingsKey;
+            }
+
             return FriendSummaryIdsByColumnKey.TryGetValue(columnSettingsKey ?? string.Empty, out var id)
                 ? id
                 : GridOptionKeys.FriendSummaries.FriendsOverview;
@@ -1382,6 +1469,7 @@ namespace PlayniteAchievements.Models.Settings
             Ensure(_categorySummaries, GridOptionKeys.CategorySummaries.DesktopTheme, CreateDefaultCategorySummaries);
 
             Ensure(_manageAchievements, GridOptionKeys.ManageAchievements.Editor, () => new ManageAchievementsGridOptions());
+            Ensure(_manageAchievements, GridOptionKeys.ManageAchievements.LibraryEditor, () => new ManageAchievementsGridOptions());
 
             RefreshOptionSubscriptions();
         }
@@ -1520,7 +1608,16 @@ namespace PlayniteAchievements.Models.Settings
 
         private static FriendSummaryGridOptions CreateDefaultFriendSummaries(string key)
         {
-            return new FriendSummaryGridOptions();
+            var options = new FriendSummaryGridOptions();
+            if (ShowcaseGridSurfaces.IsFriendSummariesSurface(key))
+            {
+                // The friends leaderboard ranks by score until the user picks another sort.
+                options.ShowControlBar = false;
+                options.SortMode = FriendSummariesSortMode.CollectionScore;
+                options.MaxRows = DefaultShowcaseRecentMaxRows;
+            }
+
+            return options;
         }
 
         private static CategorySummaryGridOptions CreateDefaultCategorySummaries()

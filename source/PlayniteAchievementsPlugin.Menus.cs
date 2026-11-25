@@ -21,6 +21,12 @@ namespace PlayniteAchievements
 {
     public partial class PlayniteAchievementsPlugin
     {
+        /// <summary>
+        /// Shows Log Memory Diagnostics in the extensions menu while memory tracing is armed.
+        /// Off: tracing still logs without the menu item.
+        /// </summary>
+        private static readonly bool MemoryDiagnosticsMenuEnabled = false;
+
         private static string PluginGameMenuSection => ResourceProvider.GetString("LOCPlayAch_Title_PluginName");
         // Nested "Maintenance" submenu under the plugin's game-menu section (Playnite uses | to nest).
         private static string PluginGameMaintenanceSection =>
@@ -234,14 +240,24 @@ namespace PlayniteAchievements
                             _ = StartMenuRefreshAsync(new RefreshRequest { GameIds = selectedIds });
                         }
                     };
-
-                    yield return new GameMenuItem
-                    {
-                        Description = "-",
-                        MenuSection = PluginGameMenuSection,
-                    };
                 }
 
+                // The Achievement Editor locked to the selection; shown mid-refresh, as in the main menu.
+                yield return new GameMenuItem
+                {
+                    Description = ResourceProvider.GetString("LOCPlayAch_Menu_AchievementEditor"),
+                    MenuSection = PluginGameMenuSection,
+                    Action = (a) =>
+                    {
+                        OpenLibraryEditorWindow(selectedGames.Select(g => g.Id).ToList());
+                    }
+                };
+
+                yield return new GameMenuItem
+                {
+                    Description = "-",
+                    MenuSection = PluginGameMenuSection,
+                };
                 foreach (var item in EstimatedValuesMenuItems(selectedGames.Select(g => g.Id).ToList()))
                 {
                     yield return item;
@@ -588,6 +604,29 @@ namespace PlayniteAchievements
 
             yield return new MainMenuItem
             {
+                Description = ResourceProvider.GetString("LOCPlayAch_Menu_AchievementEditor"),
+                MenuSection = PluginMainMenuSection,
+                Action = (a) =>
+                {
+                    OpenLibraryEditorWindow();
+                }
+            };
+
+            if (Services.YearReview.YearReviewAvailability.IsReleased(DateTime.Today))
+            {
+                yield return new MainMenuItem
+                {
+                    Description = ResourceProvider.GetString("LOCPlayAch_YearReview_Title"),
+                    MenuSection = PluginMainMenuSection,
+                    Action = (a) =>
+                    {
+                        OpenYearReviewWindow();
+                    }
+                };
+            }
+
+            yield return new MainMenuItem
+            {
                 Description = ResourceProvider.GetString("LOCPlayAch_Common_Settings"),
                 MenuSection = PluginMainMenuSection,
                 Action = (a) =>
@@ -702,11 +741,11 @@ namespace PlayniteAchievements
                 };
             }
 
-            // Developer-only diagnostic, hidden unless the hardcoded PerfScope.PerfTracingEnabled
-            // flag is on (never shown in a tracing-off build). Deliberately not localized.
+            // Developer-only diagnostic, hidden unless the hardcoded MemoryDiagnosticsMenuEnabled
+            // flag is on and memory tracing is armed. Deliberately not localized.
             // Available mid-refresh: capturing memory state during and after large scans is the
             // point. The compacting collect logs a managed-vs-native breakdown of residual memory.
-            if (Common.MemoryDiagnostics.Enabled)
+            if (MemoryDiagnosticsMenuEnabled && Common.MemoryDiagnostics.Enabled)
             {
                 yield return new MainMenuItem
                 {

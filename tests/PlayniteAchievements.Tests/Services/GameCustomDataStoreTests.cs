@@ -123,6 +123,92 @@ namespace PlayniteAchievements.Services.Tests
         }
 
         [TestMethod]
+        public void FullRead_AfterASingleGameRead_HoldsEveryStoredRow()
+        {
+            var tempDir = CreateTempDirectory();
+            var (a, b, absent) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+            try
+            {
+                SaveCapstone(new GameCustomDataStore(tempDir), a, b);
+                var store = new GameCustomDataStore(tempDir);
+
+                Assert.IsTrue(store.TryLoad(a, out _));
+                Assert.IsFalse(store.TryLoad(absent, out _));
+
+                CollectionAssert.AreEquivalent(new[] { a, b }, StoredGames(store));
+            }
+            finally
+            {
+                DeleteDirectory(tempDir);
+            }
+        }
+
+        [TestMethod]
+        public void FullRead_AfterASingleGameReadThatFollowsAnInvalidate_HoldsEveryStoredRow()
+        {
+            var tempDir = CreateTempDirectory();
+            var (a, b, legacy) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+            try
+            {
+                var store = new GameCustomDataStore(tempDir);
+                SaveCapstone(store, a, b);
+                CollectionAssert.AreEquivalent(new[] { a, b }, StoredGames(store));
+
+                // The legacy migration saves many games at once and invalidates the cache.
+                store.MigrateLegacyConfig(LegacyExclusion(legacy));
+                Assert.IsTrue(store.TryLoad(a, out _));
+
+                CollectionAssert.AreEquivalent(new[] { a, b, legacy }, StoredGames(store));
+                CollectionAssert.AreEquivalent(new[] { legacy }, store.GetExcludedRefreshGameIds().ToList());
+            }
+            finally
+            {
+                DeleteDirectory(tempDir);
+            }
+        }
+
+        [TestMethod]
+        public void FullRead_TheCacheWasInvalidatedDuring_IsReadAgain()
+        {
+            var tempDir = CreateTempDirectory();
+            var (a, legacy) = (Guid.NewGuid(), Guid.NewGuid());
+            try
+            {
+                var store = new GameCustomDataStore(tempDir);
+                SaveCapstone(store, a);
+                var reads = 0;
+                store.AfterFullRead = () =>
+                {
+                    if (++reads == 1)
+                    {
+                        store.MigrateLegacyConfig(LegacyExclusion(legacy));
+                    }
+                };
+
+                CollectionAssert.AreEquivalent(new[] { a, legacy }, StoredGames(store));
+                Assert.AreEqual(2, reads);
+            }
+            finally
+            {
+                DeleteDirectory(tempDir);
+            }
+        }
+
+        private static void SaveCapstone(GameCustomDataStore store, params Guid[] gameIds)
+        {
+            foreach (var gameId in gameIds)
+            {
+                store.Save(gameId, new GameCustomDataFile { PlayniteGameId = gameId, ManualCapstoneApiName = "capstone" });
+            }
+        }
+
+        private static List<Guid> StoredGames(GameCustomDataStore store) =>
+            store.QueryAll(rows => rows.Select(row => row.PlayniteGameId).ToList());
+
+        private static string LegacyExclusion(Guid gameId) =>
+            "{\"Persisted\":{\"ExcludedGameIds\":[\"" + gameId + "\"]}}";
+
+        [TestMethod]
         public void CustomDataChanged_RaisesForSaveAndDelete()
         {
             var tempDir = CreateTempDirectory();
@@ -1320,6 +1406,88 @@ namespace PlayniteAchievements.Services.Tests
             Assert.IsNull(data.ShadPS4MatchIdOverride);
             Assert.IsNull(data.ForceUseExophase);
             Assert.IsNull(data.ExophaseSlugOverride);
+        }
+
+        [TestMethod]
+        public void Update_WriterOnAnotherThreadDoesNotOverwriteAConcurrentUpdate()
+        {
+            var tempDir = CreateTempDirectory();
+            var gameId = Guid.NewGuid();
+            try
+            {
+                var store = new GameCustomDataStore(tempDir);
+                store.Update(gameId, data => data.AchievementOrder = new List<string> { "seed" });
+
+                using (var entered = new System.Threading.ManualResetEventSlim())
+                using (var release = new System.Threading.ManualResetEventSlim())
+                {
+                    // The background writer reads the record, then stalls before writing it.
+                    var background = System.Threading.Tasks.Task.Run(() => store.Update(gameId, data =>
+                    {
+                        entered.Set();
+                        release.Wait(TimeSpan.FromSeconds(10));
+                        data.AchievementOrder = new List<string> { "background" };
+                    }));
+                    Assert.IsTrue(entered.Wait(TimeSpan.FromSeconds(10)));
+
+                    // The settings write starts while the background writer holds its read.
+                    var settings = System.Threading.Tasks.Task.Run(() => store.Update(gameId, data =>
+                        data.NotificationBehaviorOverride = new GameNotificationBehaviorOverride
+                        {
+                            EnableNotifications = true,
+                            EnableProgressToasts = true,
+                            ProgressToastIntervalPercent = 25
+                        }));
+                    System.Threading.Thread.Sleep(200);
+                    release.Set();
+
+                    Assert.IsTrue(System.Threading.Tasks.Task.WaitAll(new[] { background, settings }, TimeSpan.FromSeconds(10)));
+                }
+
+                Assert.IsTrue(store.TryLoad(gameId, out var stored));
+                CollectionAssert.AreEqual(new[] { "background" }, stored.AchievementOrder);
+                Assert.AreEqual(25, stored.NotificationBehaviorOverride?.ProgressToastIntervalPercent);
+
+                // And from the database, not just the cache.
+                Assert.IsTrue(new GameCustomDataStore(tempDir).TryLoad(gameId, out var reread));
+                CollectionAssert.AreEqual(new[] { "background" }, reread.AchievementOrder);
+                Assert.AreEqual(25, reread.NotificationBehaviorOverride?.ProgressToastIntervalPercent);
+            }
+            finally
+            {
+                DeleteDirectory(tempDir);
+            }
+        }
+
+        [TestMethod]
+        public void BeginBatch_KeepsAWriteThatLandedBeforeTheBatchCommitted()
+        {
+            var tempDir = CreateTempDirectory();
+            var gameId = Guid.NewGuid();
+            try
+            {
+                var store = new GameCustomDataStore(tempDir);
+                store.Update(gameId, data => data.AchievementOrder = new List<string> { "seed" });
+
+                using (store.BeginBatch())
+                {
+                    store.Update(gameId, data => data.AchievementOrder = new List<string> { "batched" });
+                    System.Threading.Tasks.Task.Run(() => store.Update(gameId, data =>
+                        data.NotificationBehaviorOverride = new GameNotificationBehaviorOverride
+                        {
+                            EnableNotifications = true,
+                            ProgressToastIntervalPercent = 25
+                        })).Wait();
+                }
+
+                Assert.IsTrue(new GameCustomDataStore(tempDir).TryLoad(gameId, out var reread));
+                CollectionAssert.AreEqual(new[] { "batched" }, reread.AchievementOrder);
+                Assert.AreEqual(25, reread.NotificationBehaviorOverride?.ProgressToastIntervalPercent);
+            }
+            finally
+            {
+                DeleteDirectory(tempDir);
+            }
         }
 
         private static string CreateTempDirectory()
