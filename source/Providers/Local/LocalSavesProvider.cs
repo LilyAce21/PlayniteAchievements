@@ -246,6 +246,7 @@ namespace PlayniteAchievements.Providers.Local
 
         public bool IsCapable(Game game)
         {
+            if (HasNativeSource(game)) return true;
             if (TryResolveNemirtingasPaths(game, out _, out _))
             {
                 return true;
@@ -336,6 +337,8 @@ namespace PlayniteAchievements.Providers.Local
             using var pollingStage = PlayniteAchievements.Services.Logging.PollingDebugLog.Stage("local.fetch-and-correlate");
             var readClock = System.Diagnostics.Stopwatch.StartNew();
             long tResolved = -1, tSchema = -1, tSteamCaches = -1, tLoaded = -1;
+            if (TryGetNativeConfiguration(game, out var nativeConfig, out var nativeInstall))
+                return await ReadNativeSourceAsync(game, nativeConfig, nativeInstall).ConfigureAwait(false);
             if (TryResolveNemirtingasPaths(game, out var epicSchemaPath, out var epicSavePath))
             {
                 var epicData = await LoadNemirtingasAchievementsAsync(game, epicSchemaPath, epicSavePath).ConfigureAwait(false);
@@ -958,6 +961,7 @@ namespace PlayniteAchievements.Providers.Local
 
         InGameProgressRegistration IInGameProgressSource.TryRegister(Game game, GameAchievementData cachedSchema)
         {
+            if (HasNativeSource(game)) return null;
             if (game == null ||
                 cachedSchema?.Achievements == null ||
                 cachedSchema.Achievements.Count == 0 ||
@@ -1539,6 +1543,7 @@ namespace PlayniteAchievements.Providers.Local
             var settings = ProviderRegistry.Settings<LocalSettings>();
             return settings != null &&
                    (settings.SteamAppIdOverrides?.ContainsKey(gameId) == true ||
+                    settings.NativeSourceOverrides?.ContainsKey(gameId) == true ||
                     settings.LocalFolderOverrides?.ContainsKey(gameId) == true ||
                     settings.CustomSchemaPathOverrides?.ContainsKey(gameId) == true ||
                     settings.CustomSchemaEnabledOverrides?.ContainsKey(gameId) == true ||
@@ -1570,6 +1575,7 @@ namespace PlayniteAchievements.Providers.Local
 
             var removed = false;
             removed |= settings.SteamAppIdOverrides?.Remove(gameId) == true;
+            removed |= settings.NativeSourceOverrides?.Remove(gameId) == true;
             removed |= settings.LocalFolderOverrides?.Remove(gameId) == true;
             removed |= settings.CustomSchemaPathOverrides?.Remove(gameId) == true;
             removed |= settings.CustomSchemaEnabledOverrides?.Remove(gameId) == true;
