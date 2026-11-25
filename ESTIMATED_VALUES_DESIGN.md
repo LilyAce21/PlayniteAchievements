@@ -12,7 +12,7 @@ items, the places where I had to make a call, and what comes next.
 | 2 | Estimated data layer in the cache: table, guarded writes, resolver fallback, resolved views, "delete all generated data" | Built; SQL and resolver verified here, the plugin itself needs a Windows build. No UI yet for the delete action |
 | 3 | Gemini client, pacing/retry/backoff, JSON validation, structure-based fallback | Built; tested with a fake HTTP layer only, never against the live API (needs a key) |
 | 4a | Planner and runner (what may be generated per game, anchors from each row's own native values, end to end through the model and estimators), settings fields, obfuscated key | Built and tested with a fake model; not yet triggered from anywhere in the plugin |
-| 4b | Settings card, Generate / Regenerate / Delete buttons, estimated marker, purge before runs | Built (UI is XAML and not built or seen here; needs a Windows build and a look). Still to do: per-game menu action |
+| 4b | Settings card, Generate / Regenerate / Delete buttons, estimated marker, purge before runs | Built (UI is XAML and not built or seen here; needs a Windows build and a look). Per-game menu entries added |
 | 5 | Blind validation run on the user's own native lists (spec section 11) | Not started |
 
 Tests: `tests/PlayniteAchievements.Tests/Services/Estimation/EstimationTests.cs`. The engine was
@@ -116,7 +116,16 @@ the Gamerscore card.
 - Marker: estimated points show with a leading "\u2248" in the achievement grid, and an estimated trophy grade's
   tooltip says "(estimated)" (never while a hidden grade is masked). The display item also exposes
   `IsPointsEstimated` and `IsTrophyTypeEstimated` for themes.
-- Still to do: a per-game "Generate" menu entry.
+- Game menu (single game or a multi-selection): "Generate estimated trophies and Gamerscore" and "Regenerate ...".
+  Shown only while the feature is switched on. Generate keeps earlier results; Regenerate redoes everything that has
+  no native data.
+
+## What is sent about the game itself
+
+For the game being estimated: its title, release year and genre, and for every achievement its name, description,
+hidden flag, category and rarity, plus any native values for the same game (as anchors). The title is sent because it
+is the main thing the model uses to recognise the game. What is not sent: anything about the player (unlocks, dates,
+profile, keys), and the titles of any other game in the library; the calibration examples are anonymous counts.
 
 ## Calibration (spec sections 5 and 11)
 

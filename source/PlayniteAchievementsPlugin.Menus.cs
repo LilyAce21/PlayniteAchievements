@@ -242,6 +242,11 @@ namespace PlayniteAchievements
                     };
                 }
 
+                foreach (var item in EstimatedValuesMenuItems(selectedGames.Select(g => g.Id).ToList()))
+                {
+                    yield return item;
+                }
+
                 foreach (var item in MaintenanceMenuItems(selectedGames))
                 {
                     yield return item;
@@ -321,6 +326,11 @@ namespace PlayniteAchievements
                             game.Id);
                     }
                 };
+            }
+
+            foreach (var item in EstimatedValuesMenuItems(new List<Guid> { game.Id }))
+            {
+                yield return item;
             }
 
             yield return new GameMenuItem

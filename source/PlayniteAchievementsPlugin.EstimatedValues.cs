@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Windows;
 using Playnite.SDK;
+using Playnite.SDK.Plugins;
 using PlayniteAchievements.Models.Settings;
 using PlayniteAchievements.Services.Cache;
 using PlayniteAchievements.Services.Estimation;
@@ -25,6 +26,32 @@ namespace PlayniteAchievements
         private PersistedSettings EstimationPersisted => _settingsViewModel?.Settings?.Persisted;
 
         private static string PluginTitle => ResourceProvider.GetString("LOCPlayAch_Title_PluginName");
+
+        /// <summary>
+        /// Game menu entries for generating estimated values for the selected games. Only offered while the
+        /// feature is switched on, so the menu stays uncluttered for everyone else.
+        /// </summary>
+        private IEnumerable<GameMenuItem> EstimatedValuesMenuItems(IReadOnlyList<Guid> gameIds)
+        {
+            if (EstimationPersisted?.EstimatedValuesEnabled != true || gameIds == null || gameIds.Count == 0)
+            {
+                yield break;
+            }
+
+            yield return new GameMenuItem
+            {
+                Description = "Generate estimated trophies and Gamerscore",
+                MenuSection = PluginGameMenuSection,
+                Action = a => GenerateEstimatedValues(gameIds, false)
+            };
+
+            yield return new GameMenuItem
+            {
+                Description = "Regenerate estimated trophies and Gamerscore",
+                MenuSection = PluginGameMenuSection,
+                Action = a => GenerateEstimatedValues(gameIds, true)
+            };
+        }
 
         /// <summary>Why a run cannot start, or null when it can.</summary>
         internal string GetEstimatedValuesProblem()
