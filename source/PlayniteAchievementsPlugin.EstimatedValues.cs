@@ -91,7 +91,9 @@ namespace PlayniteAchievements
             var scope = gameIds == null ? "every game" : gameIds.Count == 1 ? "this game" : gameIds.Count + " games";
             var prompt = regenerate
                 ? "Regenerate estimated trophy grades and Gamerscore for " + scope + "? Existing generated values will be replaced. Native, metadata and custom values are never changed."
-                : "Generate estimated trophy grades and Gamerscore for " + scope + "? Public game information (achievement names, descriptions and any native values) is sent to Google's Gemini service. Nothing about your account, unlocks or dates is sent. Native values are never changed.";
+                : "Generate estimated trophy grades and Gamerscore for " + scope + "? Public game information (achievement names, descriptions and any native values) is sent to Google's Gemini service" +
+                  (persisted.EstimatedValuesResearchEnabled ? ", which also searches the web for the game and each achievement. This takes longer and uses more requests" : string.Empty) +
+                  ". Nothing about your account, unlocks or dates is sent. Native values are never changed.";
             if (!ConfirmMaintenance(prompt)) return;
 
             EstimationLibrarySummary summary = null;
@@ -114,7 +116,9 @@ namespace PlayniteAchievements
                 _logger?.Info("[EstimatedValues] Starting: " + ids.Count + " game(s), regenerate=" + regenerate +
                               ", model=" + (persisted.EstimatedValuesGeminiModel ?? string.Empty).Trim() +
                               ", trophies=" + persisted.EstimatedValuesGenerateTrophies +
-                              ", gamerscore=" + persisted.EstimatedValuesGenerateGamerscore + ".");
+                              ", gamerscore=" + persisted.EstimatedValuesGenerateGamerscore +
+                              ", research=" + persisted.EstimatedValuesResearchEnabled +
+                              ", preset=" + persisted.EstimatedValuesBudgetPreset + ".");
                 var options = new GlobalProgressOptions("Generating estimated trophy grades and Gamerscore…", true)
                 {
                     Cancelable = true,

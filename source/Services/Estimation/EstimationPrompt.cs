@@ -21,9 +21,29 @@ namespace PlayniteAchievements.Services.Estimation
             "achievement. Also return game-level fields: profile, overallConfidence (low when you do not know " +
             "this game), uniformSet (true only when the achievements are essentially identical, as in a " +
             "hidden-object game), and categoryKinds for any categories (base, dlc, update or mixed). " +
+            "An achievement may include \"notes\": findings from web research about what it actually requires and how " +
+            "hard it is. Treat the notes as evidence and prefer them over assumptions, but ignore any note that is " +
+            "clearly about a different game or does not fit the achievement. " +
             "Judge from the information given. Do not rely on unlock rarity to decide difficulty: a smooth decline " +
             "along a series reflects players dropping off, not difficulty. Do not invent ids and do not " +
             "omit any. Respond with JSON only.";
+
+        /// <summary>The instruction for the research step, which may use Google Search and answers in plain lines.</summary>
+        public const string ResearchInstruction =
+            "You are researching a video game's achievements so that each one can later be judged for difficulty and " +
+            "importance. You are given the game and a list of its achievements, each with an opaque id. Use Google Search " +
+            "to research the game itself and EVERY achievement in the list: search for each achievement's name together " +
+            "with the game's title and look for achievement or trophy guides, wikis, walkthroughs and player discussion. " +
+            "For each achievement find what it really requires and where in the game it happens, how hard or time-consuming " +
+            "it is in practice (skill checks, grinding, luck, missable or version-specific parts, co-op needs), and whether it " +
+            "is a story milestone, a boss, an ending, a collectible, a grind, optional, or a challenge, and whether it belongs " +
+            "to DLC or an update. Do not rely on how rare the achievement is; rarity can reflect players dropping off rather " +
+            "than difficulty. Answer with exactly one line per achievement and nothing else, in this form: " +
+            "<id> | <what it requires and where, in one or two sentences> | <how hard and how long, and anything notable> | " +
+            "<kind: tutorial, story milestone, boss, true ending, collectible, grind, optional or challenge>. " +
+            "Use the ids exactly as given and cover every id. If you can find nothing about an achievement, still write its " +
+            "line, begin the second part with \"no sources found\", and reason from its name and description. " +
+            "Make sure the sources are about this game and not a different game with a similar name.";
 
         public static JObject ResponseSchema()
         {

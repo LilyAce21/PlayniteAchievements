@@ -53,6 +53,9 @@ namespace PlayniteAchievements.Services.Estimation
                 .Select(g => g.First())
                 .ToList();
 
+            // Xbox titles need at least this many achievements, so a smaller list can never have Gamerscore.
+            if (scores.Count < settings.GamerscoreMinAchievements) return result;
+
             // Hard rules 1 and 3: native data is never a target.
             var targets = scores
                 .Where(s => !natives.ContainsKey(s.ApiName))

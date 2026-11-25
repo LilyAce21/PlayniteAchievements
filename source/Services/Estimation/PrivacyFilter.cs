@@ -30,7 +30,7 @@ namespace PlayniteAchievements.Services.Estimation
             "categories", "anchors", "platform", "grade", "gamerscore",
             "calibration", "sizeBucket", "lists", "bronzeShare", "silverShare", "goldShare", "averagePoints",
             "bySize", "closestLists", "size", "bronze", "silver", "gold", "points", "extras", "pointShare", "trophyShare",
-            "gamerscoreBySize", "averageTotal", "medianValue", "spikeShare",
+            "gamerscoreBySize", "averageTotal", "medianValue", "spikeShare", "notes",
             "responseSchema", "difficulty", "type", "phase", "capstone", "seriesId", "seriesPosition", "confidence",
             "profile", "overallConfidence", "uniformSet", "kind", "categoryKinds", "chunk", "chunkCount"
         };

@@ -77,6 +77,15 @@ namespace PlayniteAchievements.Services.Estimation
         /// anonymous lists). The coordinator computes it once per run when this is true and none is supplied.
         /// </summary>
         public bool UseCalibration { get; set; } = true;
+
+        /// <summary>
+        /// Research every achievement with web search before scoring it (when the client supports it), so the model
+        /// understands what each one really is. Costs extra requests and uses Google Search grounding.
+        /// </summary>
+        public bool UseResearch { get; set; } = true;
+
+        /// <summary>Achievements per research request. Smaller batches let the model look at each one properly.</summary>
+        public int ResearchBatchSize { get; set; } = 25;
     }
 
     public sealed class EstimationPlan
@@ -168,9 +177,18 @@ namespace PlayniteAchievements.Services.Estimation
                 }
             }
 
+            var settings = options.Settings ?? new EstimationSettings();
+            var tooFewForXbox = plan.Achievements.Count < settings.GamerscoreMinAchievements;
+
             if (options.GenerateGamerscore)
             {
-                if (pointsBlocked)
+                if (tooFewForXbox)
+                {
+                    // Xbox needs at least 10 achievements, and fewer could not reach a 1,000 G block either.
+                    plan.Notes.Add("Gamerscore was skipped: Xbox titles need at least " + settings.GamerscoreMinAchievements +
+                                   " achievements and this list has " + plan.Achievements.Count + ".");
+                }
+                else if (pointsBlocked)
                 {
                     plan.Notes.Add("Gamerscore was skipped: this game's native points are not Xbox Gamerscore.");
                 }
@@ -281,7 +299,10 @@ namespace PlayniteAchievements.Services.Estimation
                 context.Anchors.Add(new NativeAnchor { ApiName = pair.Key, Platform = "xbox", Gamerscore = pair.Value });
             }
 
-            var scoring = await LlmScoringService.ScoreAsync(client, context, cancellationToken).ConfigureAwait(false);
+            var researchClient = options.UseResearch ? client as IEstimationResearchClient : null;
+            var scoring = await LlmScoringService.ScoreAsync(
+                client, context, cancellationToken,
+                EstimationRequestBuilder.DefaultChunkSize, researchClient, Math.Max(1, options.ResearchBatchSize)).ConfigureAwait(false);
             result.Scoring = scoring;
             if (!scoring.Succeeded)
             {

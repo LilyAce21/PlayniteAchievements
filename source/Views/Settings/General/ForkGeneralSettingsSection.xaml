@@ -38,12 +38,20 @@
                                          Hint="Estimate Xbox Gamerscore values. They count toward the points of the game's own platform (Steam points, Epic points and so on), not toward your Xbox Gamerscore.">
                         <CheckBox IsChecked="{Binding Persisted.EstimatedValuesGenerateGamerscore, Mode=TwoWay}"/>
                     </controls:SettingRow>
+                    <controls:SettingRow Label="Research each achievement"
+                                         Hint="Before grading, Gemini looks up the game and every achievement with Google Search (guides, wikis, walkthroughs) to understand what each one requires and how hard it is. Uses extra requests and Gemini's search quota; turn this off if you hit limits. Only the game title and achievement names and descriptions are searched for.">
+                        <CheckBox IsChecked="{Binding Persisted.EstimatedValuesResearchEnabled, Mode=TwoWay}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Achievements per research request"
+                                         Hint="Smaller batches let Gemini look at each achievement more carefully but use more requests. 25 is a good balance.">
+                        <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesResearchBatchSize, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </controls:SettingRow>
                     <controls:SettingRow Label="Trophy budget style"
-                                         Hint="Native follows the real trophy point budget at every list size, so small lists come out gold-heavy. Value-based allows more varied grades on small lists.">
+                                         Hint="Native follows the trophy point budget strictly at every list size, so small lists come out gold-heavy and large ones bronze-heavy. Value-based treats the budget as a strong guide: it still aims for it, but an achievement that clearly deserves a grade keeps it (trivial ones stay bronze, standouts get silver or gold) even when that departs from the budget, within limits.">
                         <ComboBox MinWidth="260" SelectedValuePath="Tag"
                                   SelectedValue="{Binding Persisted.EstimatedValuesBudgetPreset, Mode=TwoWay}">
-                            <ComboBoxItem Content="Native (follow the native budget)" Tag="{x:Static est:BudgetPreset.Native}"/>
-                            <ComboBoxItem Content="Value-based (more varied small lists)" Tag="{x:Static est:BudgetPreset.ValueBased}"/>
+                            <ComboBoxItem Content="Native (strict budget)" Tag="{x:Static est:BudgetPreset.Native}"/>
+                            <ComboBoxItem Content="Value-based (budget as a guide)" Tag="{x:Static est:BudgetPreset.ValueBased}"/>
                         </ComboBox>
                     </controls:SettingRow>
                     <controls:SettingRow Label="Trophy budget (points)"

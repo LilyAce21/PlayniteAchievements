@@ -368,6 +368,8 @@ namespace PlayniteAchievements.Models.Settings
             target.ExtraLocalPaths = source.ExtraLocalPaths;
             target.ExcludedLocalPaths = source.ExcludedLocalPaths;
             target.EstimatedValuesEnabled = source.EstimatedValuesEnabled;
+            target.EstimatedValuesResearchEnabled = source.EstimatedValuesResearchEnabled;
+            target.EstimatedValuesResearchBatchSize = source.EstimatedValuesResearchBatchSize;
             target.EstimatedValuesGenerateTrophies = source.EstimatedValuesGenerateTrophies;
             target.EstimatedValuesGenerateGamerscore = source.EstimatedValuesGenerateGamerscore;
             target.EstimatedValuesBudgetPreset = source.EstimatedValuesBudgetPreset;

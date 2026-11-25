@@ -35,6 +35,8 @@ namespace PlayniteAchievements.Services.Estimation
                 Calibration = calibration,
                 GenerateTrophies = settings?.EstimatedValuesGenerateTrophies ?? true,
                 GenerateGamerscore = settings?.EstimatedValuesGenerateGamerscore ?? true,
+                UseResearch = settings?.EstimatedValuesResearchEnabled ?? true,
+                ResearchBatchSize = Math.Max(5, Math.Min(50, settings?.EstimatedValuesResearchBatchSize ?? 25)),
                 Model = settings?.EstimatedValuesGeminiModel
             };
         }

@@ -14,7 +14,16 @@ namespace PlayniteAchievements.Models.Settings
 
         public bool EstimatedValuesGenerateGamerscore { get; set; } = true;
 
-        /// <summary>How tightly the PSN point budget constrains small and mid-size lists.</summary>
+        /// <summary>
+        /// Research every achievement with Google Search before scoring it, so the model understands what each one
+        /// really is. Uses extra requests and Gemini's search grounding, which has its own quota.
+        /// </summary>
+        public bool EstimatedValuesResearchEnabled { get; set; } = true;
+
+        /// <summary>Achievements per research request. Smaller is more thorough and uses more requests.</summary>
+        public int EstimatedValuesResearchBatchSize { get; set; } = 25;
+
+        /// <summary>How strictly the PSN point budget shapes grades: strict (Native) or a strong guide (Value-based).</summary>
         public BudgetPreset EstimatedValuesBudgetPreset { get; set; } = BudgetPreset.Native;
 
         /// <summary>Non-platinum trophy point budget (about 1,000). To be fitted from the user's native library.</summary>

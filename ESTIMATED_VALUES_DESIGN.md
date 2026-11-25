@@ -149,6 +149,46 @@ trophies (needs at least 5) and applies it only if the user agrees. This is the 
 for the budget figure; the fade between 65 and 200 trophies and the grade thresholds still need the blind
 validation run on real data.
 
+## Rules added after the first real runs
+
+**Gamerscore needs at least 10 achievements.** Xbox requires a minimum of 10 achievements per title, and a smaller list
+could not reach a 1,000 G block anyway, so a list with fewer than 10 achievements (platinum not counted) never gets
+Gamerscore. Trophy grades are still generated for it. Enforced in the planner (with a note) and again in the
+Gamerscore estimator itself. The 10 is `EstimationSettings.GamerscoreMinAchievements`, to be re-verified against
+Microsoft's current rules.
+
+**Value-based preset reworked: the budget is a strong guide, at every list size.** Native stays strict. Value-based
+still aims for the budget (the same curve, a tighter-than-before 8% band) but lets clear cases keep their grade:
+- a clearly deserved grade is kept even when the budget would change it: a gold with a stated reason well above the
+  gold cut, a silver well above the silver cut, a clearly trivial bronze (never one with a stated gold reason);
+- only the borderline achievements are moved toward the budget;
+- the exceptions are limited. If keeping them would leave the total more than 25% above the budget, the least clear
+  silvers and golds are handed back to it. If the list would sit more than 25% below, the least clear silvers are handed
+  back so its strongest can be lifted, and golds without a stated reason are allowed, but only as many as it takes to get
+  back within the limit. Clear bronzes are never lifted.
+- gold still needs a stated reason except in that last case.
+Example, 12 achievements (six trivial, six strong): strict gives gold to almost everything (960 points); value-based keeps
+the trivial ones bronze, gives gold to the stronger half, and lands at 705. The 25% and the clear margin (0.08 past a
+cut) are starting values for the validation run.
+
+**Research each achievement with web search.** Before scoring, a research step asks Gemini to use Google Search on the
+game and on every achievement (name plus game title: guides, wikis, walkthroughs) and report, one line per achievement,
+what it requires, how hard it really is, and what kind it is. The notes are attached to each achievement in the scoring
+request, which stays strict JSON with no tools.
+- Two steps on purpose: search and strict JSON output have not always worked together on Gemini (grounding was
+  reported silently switching off; Google says it is fixed), so the research step answers in plain lines and the scoring
+  step never depends on it.
+- Batches of 25 achievements (setting) so each one gets looked at; one retry for any the model skipped.
+- Verifiable: the log reports how many web searches and sources each research call used, and the per-game line says how
+  many achievements were researched. A warning is logged if no searches were reported.
+- An achievement that could not be researched has its confidence capped at 0.5, so the estimators lean on structure.
+- Rarity is left out of the research request so it cannot colour what is found.
+- A quota, key or network failure in research fails the game like any other model failure (nothing generated, retry later).
+- Cost: more requests per game, and search grounding has its own quota and may be billed separately from plain
+  generation. The setting can be switched off. What is searched for: the game title and achievement names and
+  descriptions only.
+- Whether Gemini really searched each achievement individually cannot be guaranteed; the counts are the evidence.
+
 ## Findings for spec section 12 (open items)
 
 **How PA stores native PSN/Xbox data.** SQLite through SqlNado. The platform's own values live in

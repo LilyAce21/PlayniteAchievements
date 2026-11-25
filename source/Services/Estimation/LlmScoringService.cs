@@ -25,6 +25,14 @@ namespace PlayniteAchievements.Services.Estimation
 
         public List<string> Notes { get; } = new List<string>();
 
+        /// <summary>How many achievements had web research available when they were scored.</summary>
+        public int ResearchedCount { get; set; }
+
+        /// <summary>Web searches Gemini reports running during research, and the sources it used.</summary>
+        public int SearchQueryCount { get; set; }
+
+        public int SourceCount { get; set; }
+
         /// <summary>True when every score came from the structure fallback (the model answered, but unusably).</summary>
         public bool UsedFallbackForAll => Succeeded && Scores.Count > 0 && FallbackApiNames.Count == Scores.Count;
     }
@@ -36,11 +44,16 @@ namespace PlayniteAchievements.Services.Estimation
     /// </summary>
     public static class LlmScoringService
     {
+        /// <summary>Confidence is capped at this for an achievement that could not be researched while research was on.</summary>
+        internal const double UnresearchedConfidenceCap = 0.5;
+
         public static async Task<ScoringOutcome> ScoreAsync(
             IEstimationLlmClient client,
             EstimationGameContext context,
             CancellationToken cancellationToken,
-            int chunkSize = EstimationRequestBuilder.DefaultChunkSize)
+            int chunkSize = EstimationRequestBuilder.DefaultChunkSize,
+            IEstimationResearchClient research = null,
+            int researchBatchSize = DefaultResearchBatchSize)
         {
             var outcome = new ScoringOutcome();
             if (client == null) throw new ArgumentNullException(nameof(client));
@@ -55,7 +68,24 @@ namespace PlayniteAchievements.Services.Estimation
                 return outcome;
             }
 
-            var requests = EstimationRequestBuilder.Build(context, chunkSize);
+            // ---- step 1 (optional): research every achievement with web search -------------------------------
+            var notesById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (research != null)
+            {
+                var researchFailure = await ResearchAsync(research, context, researchBatchSize, notesById, outcome, cancellationToken).ConfigureAwait(false);
+                if (researchFailure != null)
+                {
+                    outcome.Succeeded = false;
+                    outcome.Error = researchFailure.Error;
+                    outcome.FailureKind = researchFailure.Failure;
+                    outcome.Scores.Clear();
+                    outcome.FallbackApiNames.Clear();
+                    return outcome;
+                }
+            }
+
+            // ---- step 2: score, with each achievement's research attached ------------------------------------
+            var requests = EstimationRequestBuilder.Build(context, chunkSize, notesById);
             var usableGames = new List<GameScoring>();
 
             foreach (var request in requests)
@@ -80,6 +110,19 @@ namespace PlayniteAchievements.Services.Estimation
                 outcome.Notes.AddRange(parsed.Problems);
 
                 if (parsed.IsUsable) usableGames.Add(parsed.Game);
+
+                if (research != null)
+                {
+                    // Anything that could not be researched is trusted less, so the estimators lean on structure for it.
+                    var idByApiName = request.IdMap.ToDictionary(p => p.Value, p => p.Key, StringComparer.OrdinalIgnoreCase);
+                    foreach (var score in parsed.Scores)
+                    {
+                        score.Researched = idByApiName.TryGetValue(score.ApiName, out var scoreId) && notesById.ContainsKey(scoreId);
+                        if (!score.Researched) score.Confidence = Math.Min(score.Confidence, UnresearchedConfidenceCap);
+                        else outcome.ResearchedCount++;
+                    }
+                }
+
                 outcome.Scores.AddRange(parsed.Scores);
 
                 if (parsed.Missing.Count > 0)
@@ -93,7 +136,61 @@ namespace PlayniteAchievements.Services.Estimation
 
             outcome.Game = CombineGames(usableGames);
             outcome.Succeeded = true;
+
+            if (research != null)
+            {
+                outcome.Notes.Insert(0, "Researched " + outcome.ResearchedCount + " of " + achievements.Count + " achievements (" +
+                                        outcome.SearchQueryCount + " web searches, " + outcome.SourceCount + " sources).");
+            }
+
             return outcome;
+        }
+
+        internal const int DefaultResearchBatchSize = 25;
+
+        /// <summary>
+        /// Researches the achievements in small batches, then retries once for any the model skipped. Returns the
+        /// failing call when Gemini itself cannot be used (key, quota, network); a batch whose answer simply could not
+        /// be read is not a failure, its achievements just go unresearched.
+        /// </summary>
+        private static async Task<LlmCallResult> ResearchAsync(
+            IEstimationResearchClient research,
+            EstimationGameContext context,
+            int batchSize,
+            Dictionary<string, string> notesById,
+            ScoringOutcome outcome,
+            CancellationToken cancellationToken)
+        {
+            foreach (var request in EstimationRequestBuilder.BuildResearch(context, batchSize))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var call = await research.ResearchAsync(request.Json, cancellationToken).ConfigureAwait(false);
+                if (!call.Success) return call;
+
+                outcome.SearchQueryCount += call.SearchQueries;
+                outcome.SourceCount += call.Sources;
+                foreach (var pair in ResearchResponseParser.Parse(call.Text, request.IdMap)) notesById[pair.Key] = pair.Value;
+
+                var missing = request.IdMap.Where(p => !notesById.ContainsKey(p.Key)).Select(p => p.Value).ToList();
+                if (missing.Count == 0 || call.Truncated && missing.Count == request.IdMap.Count) continue;
+
+                // One more try for the achievements the model skipped.
+                var retries = EstimationRequestBuilder.BuildResearch(context, batchSize, new HashSet<string>(missing, StringComparer.OrdinalIgnoreCase));
+                foreach (var retry in retries)
+                {
+                    var again = await research.ResearchAsync(retry.Json, cancellationToken).ConfigureAwait(false);
+                    if (!again.Success) return again;
+
+                    outcome.SearchQueryCount += again.SearchQueries;
+                    outcome.SourceCount += again.Sources;
+                    foreach (var pair in ResearchResponseParser.Parse(again.Text, retry.IdMap)) notesById[pair.Key] = pair.Value;
+                }
+            }
+
+            if (notesById.Count == 0) outcome.Notes.Add("Web research returned nothing usable; scores rely on the achievement text alone.");
+            if (outcome.SearchQueryCount == 0) outcome.Notes.Add("Gemini reported running no web searches, so the research may rest on its own knowledge.");
+            return null;
         }
 
         private static GameScoring CombineGames(IList<GameScoring> games)

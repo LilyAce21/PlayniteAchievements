@@ -37,6 +37,12 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>True when the model stopped because it ran out of output room (the text is likely cut off).</summary>
         public bool Truncated { get; set; }
 
+        /// <summary>How many web searches Gemini reports it ran for this answer (research calls only).</summary>
+        public int SearchQueries { get; set; }
+
+        /// <summary>How many web sources Gemini reports using for this answer (research calls only).</summary>
+        public int Sources { get; set; }
+
         public static LlmCallResult Ok(string text, bool truncated = false) =>
             new LlmCallResult { Success = true, Text = text, Truncated = truncated };
 
@@ -47,6 +53,12 @@ namespace PlayniteAchievements.Services.Estimation
     public interface IEstimationLlmClient
     {
         Task<LlmCallResult> GenerateAsync(string requestJson, CancellationToken cancellationToken);
+    }
+
+    /// <summary>A client that can research with web search and answer in plain text (see <see cref="GeminiClient"/>).</summary>
+    public interface IEstimationResearchClient
+    {
+        Task<LlmCallResult> ResearchAsync(string requestJson, CancellationToken cancellationToken);
     }
 
     public sealed class GeminiClientOptions
@@ -69,6 +81,8 @@ namespace PlayniteAchievements.Services.Estimation
 
         public double Temperature { get; set; } = 0.2;
         public int MaxOutputTokens { get; set; } = 16384;
+
+        public int ResearchMaxOutputTokens { get; set; } = 12288;
     }
 
     /// <summary>
@@ -77,7 +91,7 @@ namespace PlayniteAchievements.Services.Estimation
     /// retried with backoff (honouring Retry-After); and every request is checked against the privacy
     /// allowlist again immediately before sending.
     /// </summary>
-    public sealed class GeminiClient : IEstimationLlmClient
+    public sealed class GeminiClient : IEstimationLlmClient, IEstimationResearchClient
     {
         internal const string BaseUrl = "https://generativelanguage.googleapis.com/v1beta/models/";
 
@@ -106,7 +120,17 @@ namespace PlayniteAchievements.Services.Estimation
             _utcNow = utcNow ?? (() => DateTime.UtcNow);
         }
 
-        public async Task<LlmCallResult> GenerateAsync(string requestJson, CancellationToken cancellationToken)
+        public Task<LlmCallResult> GenerateAsync(string requestJson, CancellationToken cancellationToken) =>
+            CallAsync(requestJson, research: false, cancellationToken: cancellationToken);
+
+        /// <summary>
+        /// The research step: Google Search is switched on and the answer comes back as plain lines. Strict JSON is
+        /// deliberately not requested here, because search and structured output have not always worked together.
+        /// </summary>
+        public Task<LlmCallResult> ResearchAsync(string requestJson, CancellationToken cancellationToken) =>
+            CallAsync(requestJson, research: true, cancellationToken: cancellationToken);
+
+        private async Task<LlmCallResult> CallAsync(string requestJson, bool research, CancellationToken cancellationToken)
         {
             var key = _options.ApiKey?.Invoke();
             if (string.IsNullOrWhiteSpace(key))
@@ -130,7 +154,7 @@ namespace PlayniteAchievements.Services.Estimation
                 return LlmCallResult.Fail(LlmFailureKind.Permanent, ex.Message);
             }
 
-            var body = BuildBody(requestJson);
+            var body = research ? BuildResearchBody(requestJson) : BuildBody(requestJson);
             var url = BaseUrl + model + ":generateContent";
 
             var attempts = Math.Max(1, _options.MaxAttempts);
@@ -151,9 +175,14 @@ namespace PlayniteAchievements.Services.Estimation
                         using (var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false))
                         {
                             var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                            _log("Gemini " + model + " attempt " + attempt + ": HTTP " + (int)response.StatusCode);
+                            _log("Gemini " + model + (research ? " research" : string.Empty) + " attempt " + attempt + ": HTTP " + (int)response.StatusCode);
 
                             last = Interpret(response.StatusCode, text, key, model);
+                            if (last.Success && research)
+                            {
+                                // Counts only: proof that searches really ran, never any content.
+                                _log("Gemini research: " + last.SearchQueries + " web search(es), " + last.Sources + " source(s).");
+                            }
                             if (last.Success || last.Failure == LlmFailureKind.Permanent) return last;
 
                             retryAfter = response.Headers.RetryAfter?.Delta;
@@ -202,6 +231,26 @@ namespace PlayniteAchievements.Services.Estimation
                     ["maxOutputTokens"] = _options.MaxOutputTokens,
                     ["responseMimeType"] = "application/json",
                     ["responseSchema"] = EstimationPrompt.ResponseSchema()
+                }
+            };
+            return body.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
+        private string BuildResearchBody(string requestJson)
+        {
+            var body = new JObject
+            {
+                ["systemInstruction"] = new JObject { ["parts"] = new JArray(new JObject { ["text"] = EstimationPrompt.ResearchInstruction }) },
+                ["contents"] = new JArray(new JObject
+                {
+                    ["role"] = "user",
+                    ["parts"] = new JArray(new JObject { ["text"] = requestJson })
+                }),
+                ["tools"] = new JArray(new JObject { ["google_search"] = new JObject() }),
+                ["generationConfig"] = new JObject
+                {
+                    ["temperature"] = _options.Temperature,
+                    ["maxOutputTokens"] = _options.ResearchMaxOutputTokens
                 }
             };
             return body.ToString(Newtonsoft.Json.Formatting.None);
@@ -301,7 +350,11 @@ namespace PlayniteAchievements.Services.Estimation
                 return LlmCallResult.Fail(LlmFailureKind.Transient, "Gemini returned no usable text (" + Scrub(why, key) + ").");
             }
 
-            return LlmCallResult.Ok(text, string.Equals(finish, "MAX_TOKENS", StringComparison.OrdinalIgnoreCase));
+            var result = LlmCallResult.Ok(text, string.Equals(finish, "MAX_TOKENS", StringComparison.OrdinalIgnoreCase));
+            var grounding = candidate?["groundingMetadata"] as JObject;
+            result.SearchQueries = (grounding?["webSearchQueries"] as JArray)?.Count ?? 0;
+            result.Sources = (grounding?["groundingChunks"] as JArray)?.Count ?? 0;
+            return result;
         }
 
         private static string ErrorDetail(string body, string key)

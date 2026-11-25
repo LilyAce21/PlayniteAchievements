@@ -211,6 +211,102 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             Assert.AreEqual(15 * 400, TrophyGradeEstimator.BudgetTarget(400, settings));
         }
 
+        // ---- value-based preset: the budget is a strong guide, with exceptions where value is clear ----
+
+        private static EstimationSettings Strict => new EstimationSettings { Preset = BudgetPreset.Native };
+        private static EstimationSettings Guided => new EstimationSettings { Preset = BudgetPreset.ValueBased };
+
+        private static Dictionary<string, TrophyEstimate> Grade(List<AchievementScore> scores, EstimationSettings settings) =>
+            TrophyGradeEstimator.Estimate(new TrophyEstimationInput { Scores = scores, Settings = settings }).ToDictionary(e => e.ApiName);
+
+        [TestMethod]
+        public void ValueBased_SmallListKeepsClearlyTrivialBronzesWhereStrictBudgetPromotesThem()
+        {
+            // Six strong bosses and six tutorials, no capstone or ending: nothing here justifies an abundance of golds.
+            var scores = Enumerable.Range(0, 6).Select(i => Score("boss" + i, difficulty: 4, kind: AchievementKind.Boss, phase: GamePhase.Late)).ToList();
+            scores.AddRange(Enumerable.Range(0, 6).Select(i => Score("tut" + i, difficulty: 1, kind: AchievementKind.Tutorial, phase: GamePhase.Early)));
+
+            var strict = Grade(scores, Strict);
+            var guided = Grade(scores, Guided);
+
+            Assert.IsTrue(strict.Values.Any(e => e.Grade != TrophyGrade.Bronze && e.ApiName.StartsWith("tut")), "the strict budget lifts tutorials to hit its target");
+            Assert.IsTrue(Enumerable.Range(0, 6).All(i => guided["tut" + i].Grade == TrophyGrade.Bronze), "clearly trivial achievements stay bronze");
+            Assert.IsTrue(guided.Values.Count(e => e.Grade == TrophyGrade.Gold) < strict.Values.Count(e => e.Grade == TrophyGrade.Gold), "far fewer golds than the strict budget");
+            Assert.IsTrue(guided.Values.Where(e => e.Grade == TrophyGrade.Gold).All(e => e.ApiName.StartsWith("boss")), "golds only go to the strongest achievements");
+            Assert.IsTrue(Points(guided.Values) < Points(strict.Values));
+        }
+
+        [TestMethod]
+        public void ValueBased_LargeListKeepsClearSilversWhereStrictBudgetForcesBronze()
+        {
+            var scores = Enumerable.Range(0, 150)
+                .Select(i => Score("lvl" + i, difficulty: 1 + i % 2, kind: AchievementKind.Collectible, phase: GamePhase.Mid))
+                .ToList();
+            for (var i = 0; i < 40; i++) scores[i] = Score("lvl" + i, difficulty: 4, kind: AchievementKind.Boss, phase: GamePhase.Late);
+
+            var strict = Grade(scores, Strict);
+            var guided = Grade(scores, Guided);
+            var target = TrophyGradeEstimator.BudgetTarget(150, new EstimationSettings());
+
+            var strictSilvers = strict.Values.Count(e => e.Grade == TrophyGrade.Silver);
+            var guidedSilvers = guided.Values.Count(e => e.Grade == TrophyGrade.Silver);
+            Assert.IsTrue(guidedSilvers > strictSilvers, "guided kept " + guidedSilvers + " silvers, strict " + strictSilvers);
+            Assert.AreEqual(40, guidedSilvers, "all forty clear silvers are kept");
+            Assert.IsTrue(Points(guided.Values) <= target * 1.25, "exceptions stay within the limit of the budget");
+        }
+
+        [TestMethod]
+        public void ValueBased_ExceptionsAreLimitedSoTheBudgetStaysAGuide()
+        {
+            // Sixty achievements that all clearly deserve silver would total far past the budget.
+            var scores = Enumerable.Range(0, 60).Select(i => Score("b" + i, difficulty: 4, kind: AchievementKind.Boss, phase: GamePhase.Late)).ToList();
+
+            var guided = Grade(scores, Guided);
+            var target = TrophyGradeEstimator.BudgetTarget(60, new EstimationSettings());
+            var total = Points(guided.Values);
+
+            Assert.IsTrue(total <= target * 1.25 + 1, "total " + total + " vs target " + target);
+            Assert.IsTrue(guided.Values.Count(e => e.Grade == TrophyGrade.Silver) >= 30, "still plenty of silvers; it is a guide, not a rule");
+            Assert.IsTrue(guided.Values.Any(e => e.Grade == TrophyGrade.Bronze), "the least clear ones were given back to the budget");
+        }
+
+        [TestMethod]
+        public void ValueBased_ACapstoneIsNeverTreatedAsClearlyBronze()
+        {
+            var scores = Enumerable.Range(0, 11).Select(i => Score("x" + i, difficulty: 2, kind: AchievementKind.Collectible, phase: GamePhase.Mid)).ToList();
+            scores.Add(Score("end", difficulty: 1, kind: AchievementKind.Tutorial, phase: GamePhase.Early, capstone: true));
+
+            var guided = Grade(scores, Guided);
+
+            Assert.AreEqual(TrophyGrade.Gold, guided["end"].Grade, "the capstone still earns the budget's gold");
+        }
+
+        [TestMethod]
+        public void ValueBased_StillMovesTowardTheBudgetAtEverySize()
+        {
+            foreach (var n in new[] { 12, 20, 40, 100, 200 })
+            {
+                var guided = Grade(Spread(n), Guided);
+                var target = TrophyGradeEstimator.BudgetTarget(n, new EstimationSettings());
+                var total = Points(guided.Values);
+
+                Assert.IsTrue(total >= target * 0.60 && total <= target * 1.25 + 1,
+                    "n=" + n + ": total " + total + " is too far from the target " + target);
+            }
+        }
+
+        [TestMethod]
+        public void NativePreset_IsUnchangedByTheValueBasedRework()
+        {
+            foreach (var n in new[] { 12, 40, 100 })
+            {
+                var strict = Grade(Spread(n), Strict);
+                var target = TrophyGradeEstimator.BudgetTarget(n, new EstimationSettings());
+                var total = Points(strict.Values);
+                Assert.IsTrue(Math.Abs(total - target) <= target * 0.06, "n=" + n + ": strict total " + total + " vs target " + target);
+            }
+        }
+
         [TestMethod]
         public void Trophies_UniformSetIsAllBronze()
         {

@@ -78,39 +78,81 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         [TestMethod]
         public void Planner_NeverTargetsASlotThatHasNativeData()
         {
-            var game = Game(6, gamerscore: true);
+            var game = Game(12, gamerscore: true);
             game.Achievements[1].NativeTrophyType = "gold";
             game.Achievements[2].NativeTrophyType = "silver";
             game.Achievements[3].NativePoints = 20;
             game.Achievements[4].NativePoints = 0; // a native zero still occupies the slot
             var plan = EstimationPlanner.Plan(game, new EstimationRunOptions());
 
-            CollectionAssert.AreEquivalent(new[] { "ACH_0", "ACH_3", "ACH_4", "ACH_5" }, plan.TrophyTargets.ToList());
-            CollectionAssert.AreEquivalent(new[] { "ACH_0", "ACH_1", "ACH_2", "ACH_5" }, plan.PointsTargets.ToList());
+            Assert.AreEqual(10, plan.TrophyTargets.Count);
+            Assert.IsFalse(plan.TrophyTargets.Contains("ACH_1") || plan.TrophyTargets.Contains("ACH_2"));
+            Assert.AreEqual(10, plan.PointsTargets.Count);
+            Assert.IsFalse(plan.PointsTargets.Contains("ACH_3") || plan.PointsTargets.Contains("ACH_4"));
         }
 
         [TestMethod]
         public void Planner_LeavesAlonePointsThatAreNotGamerscore()
         {
-            var game = Game(4, gamerscore: false);
+            var game = Game(12, gamerscore: false);
             game.Achievements[0].NativePoints = 25; // for example RetroAchievements points
             var plan = EstimationPlanner.Plan(game, new EstimationRunOptions());
 
             Assert.AreEqual(0, plan.PointsTargets.Count);
             Assert.IsTrue(plan.Notes.Any(n => n.Contains("not Xbox Gamerscore")));
-            Assert.AreEqual(4, plan.TrophyTargets.Count, "trophies are still generated");
+            Assert.AreEqual(12, plan.TrophyTargets.Count, "trophies are still generated");
         }
 
         [TestMethod]
         public void Planner_LeavesAloneATrophyFieldThatHoldsAnotherProvidersValues()
         {
-            var game = Game(4);
+            var game = Game(12);
             game.Achievements[0].NativeTrophyType = "win_condition";
             var plan = EstimationPlanner.Plan(game, new EstimationRunOptions());
 
             Assert.AreEqual(0, plan.TrophyTargets.Count);
             Assert.AreEqual(0, plan.NativeGrades.Count, "a foreign value is not a grade anchor");
-            Assert.AreEqual(4, plan.PointsTargets.Count);
+            Assert.AreEqual(12, plan.PointsTargets.Count);
+        }
+
+        [TestMethod]
+        public void Planner_NoGamerscoreForListsWithFewerThanTenAchievements()
+        {
+            var nine = EstimationPlanner.Plan(Game(9), new EstimationRunOptions());
+            Assert.AreEqual(0, nine.PointsTargets.Count);
+            Assert.AreEqual(9, nine.TrophyTargets.Count, "trophy grades are still generated");
+            Assert.IsTrue(nine.Notes.Any(n => n.Contains("at least 10") && n.Contains("9")));
+
+            var ten = EstimationPlanner.Plan(Game(10), new EstimationRunOptions());
+            Assert.AreEqual(10, ten.PointsTargets.Count);
+        }
+
+        [TestMethod]
+        public void Planner_ThePlatinumRowDoesNotCountTowardTheTen()
+        {
+            var game = Game(10);
+            game.Achievements[0].NativeTrophyType = "platinum";   // nine real achievements remain
+            Assert.AreEqual(0, EstimationPlanner.Plan(game, new EstimationRunOptions()).PointsTargets.Count);
+        }
+
+        [TestMethod]
+        public void Runner_AShortListGetsTrophiesButNeverGamerscore()
+        {
+            var result = Run(Game(8), new FakeModel());
+
+            Assert.AreEqual(EstimationRunStatus.Generated, result.Status);
+            Assert.AreEqual(8, result.Rows.Count);
+            Assert.IsTrue(result.Rows.All(r => r.TrophyType != null && !r.Points.HasValue));
+        }
+
+        [TestMethod]
+        public void Estimator_RefusesGamerscoreForAShortListEvenIfAskedDirectly()
+        {
+            var scores = Enumerable.Range(0, 9).Select(i => new AchievementScore { ApiName = "a" + i, Difficulty = 3 }).ToList();
+            Assert.AreEqual(0, GamerscoreEstimator.Estimate(new GamerscoreEstimationInput { Scores = scores }).Count);
+
+            scores.Add(new AchievementScore { ApiName = "a9", Difficulty = 3 });
+            Assert.AreEqual(10, GamerscoreEstimator.Estimate(new GamerscoreEstimationInput { Scores = scores }).Count);
         }
 
         // ------------------------------------------------------------------ runner

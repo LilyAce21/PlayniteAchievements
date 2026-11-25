@@ -138,7 +138,7 @@ namespace PlayniteAchievements.Services.Estimation
                 reasons[s.ApiName] = why;
             }
 
-            ApplyBudget(targets, scoreByName, grades, reasons, settings);
+            ApplyBudget(targets, scoreByName, grades, reasons, settings, silverCut, goldCut);
 
             return targets
                 .Select(s => new TrophyEstimate { ApiName = s.ApiName, Grade = grades[s.ApiName], Reason = reasons[s.ApiName] })
@@ -249,25 +249,49 @@ namespace PlayniteAchievements.Services.Estimation
             return Math.Min(target, GoldPoints * count);
         }
 
-        private static double Tolerance(BudgetPreset preset) => preset == BudgetPreset.Native ? 0.03 : 0.50;
+        /// <summary>How close to the budget the grades are brought: tight for Native, still aiming at it for Value-based.</summary>
+        private static double Tolerance(BudgetPreset preset) => preset == BudgetPreset.Native ? 0.03 : 0.08;
 
         /// <summary>
-        /// Brings the list's total into the budget band. The budget only nudges: when the value-based
-        /// grades already sit inside the band nothing changes. Outside it, the mix the scores
-        /// suggested is scaled to the band (a list keeps its shape, with a real middle of silvers,
-        /// instead of collapsing into gold and bronze), and grades are then handed out in merit
-        /// order: trophies with a stated gold reason first, then by value.
+        /// Value-based preset: the most the exceptions may pull the total away from the budget (25%).
+        /// Beyond that, the least clear exceptions are given back to the budget.
+        /// </summary>
+        private const double ExceptionLimit = 0.25;
+
+        /// <summary>
+        /// Value-based preset: how far past a grade's cut a score must be for the grade to count as clearly
+        /// deserved (and so to be kept even when the budget would change it).
+        /// </summary>
+        private const double ClearMargin = 0.08;
+
+        /// <summary>
+        /// Brings the list's total toward the budget.
+        /// <para>
+        /// Native preset: strict. The budget only nudges: when the value-based grades already sit inside a tight
+        /// band nothing changes; outside it, the mix the scores suggested is scaled to the band (a list keeps its
+        /// shape, with a real middle of silvers) and grades are handed out in merit order.
+        /// </para>
+        /// <para>
+        /// Value-based preset: the budget is a strong guide, not a rule, at every list size. Achievements that
+        /// clearly deserve their grade by value (a clear gold with a stated reason, a clear silver, a clearly
+        /// trivial bronze) keep it even when a strict budget would have changed it, and only the borderline ones
+        /// are moved toward the budget. The exceptions are limited: if they would pull the total more than a
+        /// quarter away from the budget, the least clear ones are given back to it.
+        /// </para>
         /// </summary>
         private static void ApplyBudget(
             List<AchievementScore> targets,
             Dictionary<string, double> scoreByName,
             Dictionary<string, TrophyGrade> grades,
             Dictionary<string, string> reasons,
-            EstimationSettings settings)
+            EstimationSettings settings,
+            double silverCut,
+            double goldCut)
         {
             var n = targets.Count;
             var target = BudgetTarget(n, settings);
             var largeList = n >= LargeListThreshold;
+            var valueBased = settings.Preset == BudgetPreset.ValueBased;
 
             var tolerance = Tolerance(settings.Preset);
             var low = target * (1 - tolerance);
@@ -276,28 +300,70 @@ namespace PlayniteAchievements.Services.Estimation
             var total = grades.Values.Sum(PointsOf);
             if (total >= low && total <= high) return;
 
-            var goal = total < low ? low : high;
-            var floor = BronzePoints * n;
-            var extra = Math.Max(0.0, goal - floor);
-
             var reasonsByName = GoldReasons(targets, largeList);
+
+            // Which achievements keep their value-based grade whatever the budget says.
+            var pinned = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase); // api name -> how clear
+            if (valueBased)
+            {
+                foreach (var t in targets)
+                {
+                    var score = scoreByName[t.ApiName];
+                    var grade = grades[t.ApiName];
+                    if (grade == TrophyGrade.Gold && score >= goldCut + ClearMargin) pinned[t.ApiName] = score - goldCut;
+                    else if (grade == TrophyGrade.Silver && score >= silverCut + ClearMargin) pinned[t.ApiName] = score - silverCut;
+                    // An achievement with a stated gold reason (capstone, ending...) is never "clearly bronze".
+                    else if (grade == TrophyGrade.Bronze && score < silverCut - ClearMargin && !reasonsByName.ContainsKey(t.ApiName)) pinned[t.ApiName] = silverCut - score;
+                }
+
+                GiveBackExceptionsBeyondTheLimit(targets, grades, reasonsByName, pinned, target);
+            }
+
+            var free = targets.Where(t => !pinned.ContainsKey(t.ApiName)).ToList();
+            if (free.Count == 0) return;
+
+            var pinnedPoints = targets.Where(t => pinned.ContainsKey(t.ApiName)).Sum(t => PointsOf(grades[t.ApiName]));
+            var goal = total < low ? low : high;
+            var nFree = free.Count;
+            var floor = BronzePoints * nFree;
+
+            // Gold needs a stated reason where one is required (large lists, value-based preset). The exception:
+            // a value-based list that would still sit far below its budget may promote its strongest remaining
+            // achievements to gold, only as many as it takes to get back within the exception limit.
+            var goldRequiresReason = largeList || valueBased;
+            var reasonedFree = free.Count(t => reasonsByName.ContainsKey(t.ApiName));
+            var goldCap = nFree;
+            if (goldRequiresReason)
+            {
+                goldCap = reasonedFree;
+                if (valueBased)
+                {
+                    var reachableWithReasonsOnly = pinnedPoints + GoldPoints * reasonedFree + SilverPoints * (nFree - reasonedFree);
+                    var lowLimit = target * (1 - ExceptionLimit);
+                    if (reachableWithReasonsOnly < lowLimit)
+                    {
+                        var steps = (int)Math.Ceiling((lowLimit - reachableWithReasonsOnly) / (GoldPoints - SilverPoints));
+                        goldCap = Math.Min(nFree, reasonedFree + steps);
+                    }
+                }
+            }
+
+            // The most the free achievements could add.
+            var ceiling = GoldPoints * goldCap + SilverPoints * (nFree - goldCap);
+            var extra = Math.Max(0.0, Math.Min(goal - pinnedPoints, ceiling) - floor);
+
             double Merit(AchievementScore s) => (reasonsByName.ContainsKey(s.ApiName) ? 10.0 : 0.0) + scoreByName[s.ApiName];
-            var byMerit = targets
+            var byMerit = free
                 .OrderByDescending(Merit)
                 .ThenBy(s => s.ApiName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            // The shape the scores suggested: how many golds and silvers, and how much each adds above bronze.
-            var gold0 = grades.Values.Count(g => g == TrophyGrade.Gold);
-            var silver0 = grades.Values.Count(g => g == TrophyGrade.Silver);
+            // The shape the scores suggested for these achievements: how many golds and silvers.
+            var gold0 = free.Count(t => grades[t.ApiName] == TrophyGrade.Gold);
+            var silver0 = free.Count(t => grades[t.ApiName] == TrophyGrade.Silver);
             if (gold0 + silver0 == 0) { gold0 = 1; silver0 = 3; } // nothing to scale: seed a typical shape
             var extra0 = (GoldPoints - BronzePoints) * gold0 + (SilverPoints - BronzePoints) * silver0;
             var factor = extra / extra0;
-
-            // Golds are capped by stated reasons where a reason is required (large lists, value-based preset).
-            var goldCap = largeList || settings.Preset == BudgetPreset.ValueBased
-                ? reasonsByName.Count
-                : n;
 
             var bestGold = 0;
             var bestSilver = 0;
@@ -309,17 +375,17 @@ namespace PlayniteAchievements.Services.Estimation
 
             // Every gold count is tried, so a list that started with no golds can still reach its
             // budget. Points decide first; among near-equal fits the mix closest to the scaled shape wins.
-            for (var g = 0; g <= Math.Min(n, goldCap); g++)
+            for (var g = 0; g <= Math.Min(nFree, goldCap); g++)
             {
                 var silvers = (int)Math.Round((extra - (GoldPoints - BronzePoints) * g) / (SilverPoints - BronzePoints));
-                silvers = Math.Max(0, Math.Min(n - g, silvers));
+                silvers = Math.Max(0, Math.Min(nFree - g, silvers));
 
                 var points = floor + (GoldPoints - BronzePoints) * g + (SilverPoints - BronzePoints) * silvers;
-                var error = Math.Abs(points - goal) + 0.001 * Math.Abs(g - goldIdeal);
+                var error = Math.Abs(points - (floor + extra)) + 0.001 * Math.Abs(g - goldIdeal);
                 if (error < bestError) { bestError = error; bestGold = g; bestSilver = silvers; }
             }
 
-            for (var i = 0; i < n; i++)
+            for (var i = 0; i < nFree; i++)
             {
                 var s = byMerit[i];
                 var grade = i < bestGold ? TrophyGrade.Gold : i < bestGold + bestSilver ? TrophyGrade.Silver : TrophyGrade.Bronze;
@@ -329,6 +395,59 @@ namespace PlayniteAchievements.Services.Estimation
                 reasons[s.ApiName] = grade == TrophyGrade.Gold && reasonsByName.TryGetValue(s.ApiName, out var why)
                     ? "budget: " + why
                     : "budget";
+            }
+
+            // Say which grades were kept on value alone, so the reason in the data is honest.
+            foreach (var name in pinned.Keys)
+            {
+                if (reasons.TryGetValue(name, out var existing) && existing != "budget" && !existing.StartsWith("budget:", StringComparison.Ordinal)) continue;
+                reasons[name] = "clear value";
+            }
+        }
+
+        /// <summary>
+        /// Value-based preset: the exceptions are limited. If keeping every clearly deserved grade would leave the
+        /// total more than the exception limit above the budget (even with everything else at bronze), the least clear
+        /// silvers and golds are handed back to the budget; if it would be more than the limit below it, the least clear
+        /// silvers are handed back so the strongest of them can be lifted. Clear bronzes always stay bronze.
+        /// </summary>
+        private static void GiveBackExceptionsBeyondTheLimit(
+            List<AchievementScore> targets,
+            Dictionary<string, TrophyGrade> grades,
+            Dictionary<string, string> reasonsByName,
+            Dictionary<string, double> pinned,
+            int target)
+        {
+            var highLimit = target * (1 + ExceptionLimit);
+            var lowLimit = target * (1 - ExceptionLimit);
+
+            for (var guard = 0; guard <= targets.Count; guard++)
+            {
+                var free = targets.Where(t => !pinned.ContainsKey(t.ApiName)).ToList();
+                var pinnedPoints = targets.Where(t => pinned.ContainsKey(t.ApiName)).Sum(t => PointsOf(grades[t.ApiName]));
+
+                var lowest = pinnedPoints + BronzePoints * free.Count;
+                var highest = pinnedPoints + GoldPoints * free.Count;
+
+                string leastClear = null;
+                if (lowest > highLimit)
+                {
+                    // Too generous: hand back the least clear silver or gold.
+                    leastClear = pinned.Where(p => grades[p.Key] != TrophyGrade.Bronze).OrderBy(p => p.Value).Select(p => p.Key).FirstOrDefault();
+                }
+                else if (highest < lowLimit)
+                {
+                    // Too stingy. A value-based list that would sit far below its budget may promote its strongest
+                    // remaining achievements to gold (no stated reason needed, only as many as it takes), so the free
+                    // ones count as able to reach gold.
+
+                    // Hand back the least clear silver. Clearly trivial bronzes are never handed back: lifting them would
+                    // be exactly the abundance of undeserved grades this preset exists to avoid.
+                    leastClear = pinned.Where(p => grades[p.Key] == TrophyGrade.Silver).OrderBy(p => p.Value).Select(p => p.Key).FirstOrDefault();
+                }
+
+                if (leastClear == null) return;
+                pinned.Remove(leastClear);
             }
         }
 

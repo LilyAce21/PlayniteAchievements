@@ -15,6 +15,9 @@ namespace PlayniteAchievements.Services.Estimation
         public bool IsHidden { get; set; }
         public string Category { get; set; }
         public double? RarityPercent { get; set; }
+
+        /// <summary>What web research found about this achievement. Added by the research step; null when none.</summary>
+        public string ResearchNote { get; set; }
     }
 
     /// <summary>A native value from the same game, offered as an anchor (either platform).</summary>
@@ -64,7 +67,10 @@ namespace PlayniteAchievements.Services.Estimation
     {
         public const int DefaultChunkSize = 100;
 
-        public static List<BuiltEstimationRequest> Build(EstimationGameContext context, int chunkSize = DefaultChunkSize)
+        public static List<BuiltEstimationRequest> Build(
+            EstimationGameContext context,
+            int chunkSize = DefaultChunkSize,
+            IDictionary<string, string> researchNotesById = null)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
 
@@ -98,7 +104,8 @@ namespace PlayniteAchievements.Services.Estimation
                     },
                     ["chunk"] = chunk,
                     ["chunkCount"] = chunkCount,
-                    ["achievements"] = new JArray(slice.Select(a => AchievementJson(a, ids[a.ApiName])))
+                    ["achievements"] = new JArray(slice.Select(a => AchievementJson(a, ids[a.ApiName],
+                        researchNotesById != null && researchNotesById.TryGetValue(ids[a.ApiName], out var note) ? note : null)))
                 };
 
                 var categories = slice.Select(a => PrivacyFilter.Clean(a.Category))
@@ -184,7 +191,7 @@ namespace PlayniteAchievements.Services.Estimation
             return json;
         }
 
-        private static JObject AchievementJson(PublicAchievement a, string id)
+        private static JObject AchievementJson(PublicAchievement a, string id, string researchNote = null, bool includeRarity = true)
         {
             var json = new JObject
             {
@@ -195,8 +202,62 @@ namespace PlayniteAchievements.Services.Estimation
             };
 
             if (!string.IsNullOrWhiteSpace(a.Category)) json["category"] = PrivacyFilter.Clean(a.Category);
-            if (a.RarityPercent.HasValue) json["rarityPercent"] = Math.Round(a.RarityPercent.Value, 1);
+            if (includeRarity && a.RarityPercent.HasValue) json["rarityPercent"] = Math.Round(a.RarityPercent.Value, 1);
+            if (!string.IsNullOrWhiteSpace(researchNote)) json["notes"] = PrivacyFilter.Clean(researchNote);
             return json;
+        }
+
+        /// <summary>
+        /// The requests for the research step: small batches so the model can look at every achievement, with the
+        /// same opaque ids as the scoring requests. Rarity is left out on purpose, so it cannot colour what the
+        /// research finds. <paramref name="onlyApiNames"/> limits the batches to some achievements (a retry).
+        /// </summary>
+        public static List<BuiltEstimationRequest> BuildResearch(
+            EstimationGameContext context,
+            int batchSize,
+            ISet<string> onlyApiNames = null)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            var all = (context.Achievements ?? new List<PublicAchievement>())
+                .Where(a => a != null && !string.IsNullOrWhiteSpace(a.ApiName))
+                .ToList();
+
+            // The same id scheme as Build, so a note found here belongs to the same achievement there.
+            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < all.Count; i++) ids[all[i].ApiName] = "a" + (i + 1).ToString("D4");
+
+            var wanted = all.Where(a => onlyApiNames == null || onlyApiNames.Contains(a.ApiName)).ToList();
+            batchSize = Math.Max(1, batchSize);
+            var batchCount = Math.Max(1, (int)Math.Ceiling(wanted.Count / (double)batchSize));
+            var requests = new List<BuiltEstimationRequest>();
+
+            for (var batch = 0; batch < batchCount && wanted.Count > 0; batch++)
+            {
+                var slice = wanted.Skip(batch * batchSize).Take(batchSize).ToList();
+                var request = new BuiltEstimationRequest { ChunkIndex = batch, ChunkCount = batchCount };
+                foreach (var a in slice) request.IdMap[ids[a.ApiName]] = a.ApiName;
+
+                var root = new JObject
+                {
+                    ["task"] = "research_achievements",
+                    ["game"] = new JObject
+                    {
+                        ["title"] = PrivacyFilter.Clean(context.Title),
+                        ["releaseYear"] = context.ReleaseYear,
+                        ["genre"] = PrivacyFilter.Clean(context.Genre)
+                    },
+                    ["chunk"] = batch,
+                    ["chunkCount"] = batchCount,
+                    ["achievements"] = new JArray(slice.Select(a => AchievementJson(a, ids[a.ApiName], null, includeRarity: false)))
+                };
+
+                request.Json = root.ToString(Formatting.None);
+                PrivacyFilter.AssertSafe(request.Json);
+                requests.Add(request);
+            }
+
+            return requests;
         }
 
         private static JObject AnchorJson(NativeAnchor a, string id)

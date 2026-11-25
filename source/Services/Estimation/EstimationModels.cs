@@ -48,13 +48,16 @@ namespace PlayniteAchievements.Services.Estimation
         Mixed
     }
 
-    /// <summary>How tightly the PSN point budget constrains small and mid-size lists.</summary>
+    /// <summary>How strictly the PSN point budget shapes the grades, at every list size.</summary>
     public enum BudgetPreset
     {
-        /// <summary>Follow the native budget (about 1,000 non-platinum points) at all list sizes.</summary>
+        /// <summary>Strict: follows the native budget (about 1,000 non-platinum points, rising with the list) closely.</summary>
         Native = 0,
 
-        /// <summary>Same scores, wide tolerance band, so small lists get varied grades.</summary>
+        /// <summary>
+        /// The budget is a strong guide, not a rule. Achievements that clearly deserve a grade by value keep it even
+        /// when the budget would change it, within limits; the rest are moved toward the budget.
+        /// </summary>
         ValueBased
     }
 
@@ -86,6 +89,9 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>Category the achievement belongs to (for example a DLC pack name), when known.</summary>
         public string Category { get; set; }
+
+        /// <summary>True when web research about this achievement was available when it was scored.</summary>
+        public bool Researched { get; set; }
     }
 
     /// <summary>Game-level judgement that accompanies the per-achievement scores.</summary>
@@ -132,6 +138,12 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>Most achievements in one Gamerscore block (100 on Xbox).</summary>
         public int GamerscoreBlockSize { get; set; } = 100;
+
+        /// <summary>
+        /// Xbox requires at least this many achievements in a title, so a list smaller than this can never
+        /// carry (or be given) Gamerscore. Also means a full 1,000 G block could not be reached.
+        /// </summary>
+        public int GamerscoreMinAchievements { get; set; } = 10;
 
         public int GamerscoreMinValue { get; set; } = 5;
 
