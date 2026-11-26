@@ -118,6 +118,8 @@ namespace PlayniteAchievements
                               ", trophies=" + persisted.EstimatedValuesGenerateTrophies +
                               ", gamerscore=" + persisted.EstimatedValuesGenerateGamerscore +
                               ", research=" + persisted.EstimatedValuesResearchEnabled +
+                              (persisted.EstimatedValuesResearchEnabled && !string.IsNullOrWhiteSpace(persisted.EstimatedValuesResearchModel)
+                                  ? " (model " + persisted.EstimatedValuesResearchModel.Trim() + ")" : string.Empty) +
                               ", preset=" + persisted.EstimatedValuesBudgetPreset + ".");
                 var options = new GlobalProgressOptions("Generating estimated trophy grades and Gamerscore…", true)
                 {
@@ -175,7 +177,7 @@ namespace PlayniteAchievements
 
             _logger?.Info("[EstimatedValues] Finished: " + (summary == null
                 ? "cancelled."
-                : summary.Generated + " generated, " + summary.GeneratedWithFallback + " from structure fallback, " + summary.Skipped +
+                : summary.Generated + " generated, " + summary.GeneratedWithFallback + " from structure fallback, " + summary.WithoutResearch + " without research, " + summary.Skipped +
                   " skipped, " + summary.Failed + " failed, " + summary.ValuesStored + " value(s) stored" +
                   (summary.StoppedEarly ? "; stopped early: " + summary.StopReason : string.Empty) + "."));
 
@@ -192,6 +194,12 @@ namespace PlayniteAchievements
             text.Append("Generated estimated values for ").Append(generated).Append(generated == 1 ? " game" : " games")
                 .Append(" (").Append(summary.ValuesStored).Append(" values). ");
             if (summary.Skipped > 0) text.Append(summary.Skipped).Append(" had nothing to generate or were kept from an earlier run. ");
+            if (summary.WithoutResearch > 0)
+            {
+                text.Append(summary.WithoutResearch).Append(summary.WithoutResearch == 1 ? " game was" : " games were")
+                    .Append(" scored without web research: ").Append(summary.ResearchSkippedReason).Append(" ");
+            }
+
             if (summary.GeneratedWithFallback > 0)
             {
                 text.Append(summary.GeneratedWithFallback).Append(summary.GeneratedWithFallback == 1 ? " game was" : " games were")

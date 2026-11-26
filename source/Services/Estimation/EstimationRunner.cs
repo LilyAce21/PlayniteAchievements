@@ -245,6 +245,9 @@ namespace PlayniteAchievements.Services.Estimation
         public EstimationRunStatus Status { get; set; }
         public string Message { get; set; }
         public LlmFailureKind FailureKind { get; set; }
+
+        /// <summary>Why the game was scored without web research, when research was wanted but unavailable.</summary>
+        public string ResearchSkippedReason { get; set; }
         public List<EstimatedValueRow> Rows { get; } = new List<EstimatedValueRow>();
         public EstimationPlan Plan { get; set; }
         public ScoringOutcome Scoring { get; set; }
@@ -305,6 +308,7 @@ namespace PlayniteAchievements.Services.Estimation
                 EstimationRequestBuilder.DefaultChunkSize, researchClient, Math.Max(1, options.ResearchBatchSize),
                 researchClient != null ? ResearchNotesCache.For(game.PlayniteGameId) : null).ConfigureAwait(false);
             result.Scoring = scoring;
+            result.ResearchSkippedReason = scoring.ResearchSkippedReason;
             if (!scoring.Succeeded)
             {
                 result.Status = EstimationRunStatus.Failed;

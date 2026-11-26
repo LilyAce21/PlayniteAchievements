@@ -39,8 +39,12 @@
                         <CheckBox IsChecked="{Binding Persisted.EstimatedValuesGenerateGamerscore, Mode=TwoWay}"/>
                     </controls:SettingRow>
                     <controls:SettingRow Label="Research each achievement"
-                                         Hint="Before grading, Gemini looks up the game and every achievement with Google Search (guides, wikis, walkthroughs) to understand what each one requires and how hard it is. Uses extra requests and Gemini's search quota; turn this off if you hit limits. Only the game title and achievement names and descriptions are searched for.">
+                                         Hint="Before grading, Gemini looks up the game and every achievement with Google Search (guides, wikis, walkthroughs) to understand what each one requires and how hard it is. Only the game title and achievement names and descriptions are searched for. Important: Google lists Search grounding as not available on the free tier for Gemini 3 models. If it is refused, the plugin carries on without research and says so in the log, and tries again a few hours later. Use the Research model setting below, or turn this off.">
                         <CheckBox IsChecked="{Binding Persisted.EstimatedValuesResearchEnabled, Mode=TwoWay}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Research model"
+                                         Hint="Leave blank to use the Gemini model above. On a free key, try a Gemini 2.5 model such as gemini-2.5-flash-lite for this step only: Google lists free Search grounding for Gemini 2.5 Flash and Flash-Lite, though newer keys are sometimes refused those models too.">
+                        <TextBox MinWidth="260" Text="{Binding Persisted.EstimatedValuesResearchModel, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
                     </controls:SettingRow>
                     <controls:SettingRow Label="Achievements per research request"
                                          Hint="Smaller batches let Gemini look at each achievement more carefully but use more requests. 25 is a good balance.">

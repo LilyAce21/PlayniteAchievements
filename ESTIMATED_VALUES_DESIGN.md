@@ -207,6 +207,24 @@ attempt within about 15 seconds against a limit that resets per minute, and fail
 If it still hits limits: raise "Seconds between requests", raise "Achievements per research request", or turn research
 off. Quota ids in the log tell which limit it is.
 
+## Why research kept returning 429: search grounding is not on the free tier for Gemini 3
+
+The real cause of the research 429s was not request rate. Google's pricing page lists "Grounding with Google Search" as not
+available on the free tier for the Gemini 3 models (including 3.5 Flash-Lite); it is a paid-tier feature there (a monthly
+allowance, then per-query pricing, with a daily cap). The signature in the log: an immediate 429 on the very first research
+request, and the same answer on every retry for minutes. Google lists free search grounding (500 requests a day) for Gemini 2.5
+Flash and Flash-Lite, but newer keys are sometimes refused 2.5 models (404), so that route is not guaranteed.
+
+This conflicts with the free-models-only rule when research is on and the model is a Gemini 3 one, so research is now best effort:
+- Research gives up fast: two 429s in a row with no earlier success, an explicit zero limit, or a 404/403 means "research is
+  not available for this key and model". The game is then scored without research (no confidence penalty, since nothing was
+  missed), the log and summary say so, and research is skipped for 4 hours before being tried once more. One success clears it.
+  Regenerate also clears it. A genuine rate limit (research has worked before) is still retried and paced.
+- "Research model" setting: research can use a different model from scoring (for example gemini-2.5-flash-lite). Availability is
+  tracked per model, so refusing the research model never blocks scoring.
+- Research and plain requests now have separate pacing, so a search problem cannot slow scoring.
+- The log now carries Google's own error text when a 429 has no quota fields ("no detail given" is gone).
+
 ## Findings for spec section 12 (open items)
 
 **How PA stores native PSN/Xbox data.** SQLite through SqlNado. The platform's own values live in

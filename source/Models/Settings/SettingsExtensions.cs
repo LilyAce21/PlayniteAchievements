@@ -370,6 +370,7 @@ namespace PlayniteAchievements.Models.Settings
             target.EstimatedValuesEnabled = source.EstimatedValuesEnabled;
             target.EstimatedValuesResearchEnabled = source.EstimatedValuesResearchEnabled;
             target.EstimatedValuesResearchBatchSize = source.EstimatedValuesResearchBatchSize;
+            target.EstimatedValuesResearchModel = source.EstimatedValuesResearchModel;
             target.EstimatedValuesGenerateTrophies = source.EstimatedValuesGenerateTrophies;
             target.EstimatedValuesGenerateGamerscore = source.EstimatedValuesGenerateGamerscore;
             target.EstimatedValuesBudgetPreset = source.EstimatedValuesBudgetPreset;

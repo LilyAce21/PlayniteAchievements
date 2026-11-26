@@ -49,6 +49,7 @@ namespace PlayniteAchievements.Services.Estimation
             {
                 ApiKey = () => GetApiKey(settingsAccessor?.Invoke()),
                 Model = string.IsNullOrWhiteSpace(current?.EstimatedValuesGeminiModel) ? "gemini-3.5-flash-lite" : current.EstimatedValuesGeminiModel.Trim(),
+                ResearchModel = string.IsNullOrWhiteSpace(current?.EstimatedValuesResearchModel) ? null : current.EstimatedValuesResearchModel.Trim(),
                 MinRequestInterval = TimeSpan.FromSeconds(Math.Max(0, Math.Min(120, current?.EstimatedValuesRequestIntervalSeconds ?? 8)))
             };
         }

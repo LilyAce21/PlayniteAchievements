@@ -33,6 +33,12 @@ namespace PlayniteAchievements.Services.Estimation
 
         public int SourceCount { get; set; }
 
+        /// <summary>
+        /// Set when web research was wanted but could not be used (for example Google Search is not available for the key
+        /// or model), so the game was scored without it. The scores are still valid; this says why they lack research.
+        /// </summary>
+        public string ResearchSkippedReason { get; set; }
+
         /// <summary>True when every score came from the structure fallback (the model answered, but unusably).</summary>
         public bool UsedFallbackForAll => Succeeded && Scores.Count > 0 && FallbackApiNames.Count == Scores.Count;
     }
@@ -71,10 +77,21 @@ namespace PlayniteAchievements.Services.Estimation
 
             // ---- step 1 (optional): research every achievement with web search -------------------------------
             var notesById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (research != null)
+            var researching = research != null;
+            if (researching)
             {
                 var researchFailure = await ResearchAsync(research, context, researchBatchSize, notesById, outcome, researchCache, cancellationToken).ConfigureAwait(false);
-                if (researchFailure != null)
+                if (researchFailure != null && researchFailure.ResearchUnavailable)
+                {
+                    // Google Search cannot be used here. That is not a reason to lose the game: carry on without it.
+                    outcome.ResearchSkippedReason = researchFailure.Error;
+                    outcome.Notes.Add("Scored without web research: " + researchFailure.Error);
+
+                    // Nothing was researched, so nothing was missed: no confidence penalty. If some batches did succeed
+                    // first, the rest count as unresearched like any other gap.
+                    if (notesById.Count == 0) researching = false;
+                }
+                else if (researchFailure != null)
                 {
                     outcome.Succeeded = false;
                     outcome.Error = researchFailure.Error;
@@ -112,7 +129,7 @@ namespace PlayniteAchievements.Services.Estimation
 
                 if (parsed.IsUsable) usableGames.Add(parsed.Game);
 
-                if (research != null)
+                if (researching)
                 {
                     // Anything that could not be researched is trusted less, so the estimators lean on structure for it.
                     var idByApiName = request.IdMap.ToDictionary(p => p.Value, p => p.Key, StringComparer.OrdinalIgnoreCase);
@@ -138,7 +155,7 @@ namespace PlayniteAchievements.Services.Estimation
             outcome.Game = CombineGames(usableGames);
             outcome.Succeeded = true;
 
-            if (research != null)
+            if (researching)
             {
                 outcome.Notes.Insert(0, "Researched " + outcome.ResearchedCount + " of " + achievements.Count + " achievements (" +
                                         outcome.SearchQueryCount + " web searches, " + outcome.SourceCount + " sources).");

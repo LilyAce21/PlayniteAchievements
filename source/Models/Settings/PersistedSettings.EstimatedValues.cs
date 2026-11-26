@@ -20,6 +20,12 @@ namespace PlayniteAchievements.Models.Settings
         /// </summary>
         public bool EstimatedValuesResearchEnabled { get; set; } = true;
 
+        /// <summary>
+        /// The Gemini model used for the research step, or blank to use the main model. Google Search grounding is not
+        /// available on the free tier for Gemini 3 models, so a free key may need a different model here.
+        /// </summary>
+        public string EstimatedValuesResearchModel { get; set; } = string.Empty;
+
         /// <summary>Achievements per research request. Smaller is more thorough and uses more requests.</summary>
         public int EstimatedValuesResearchBatchSize { get; set; } = 25;
 

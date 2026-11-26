@@ -31,6 +31,9 @@ namespace PlayniteAchievements.Services.Estimation
         public int ValuesStored { get; set; }
         public string Message { get; set; }
         public LlmFailureKind FailureKind { get; set; }
+
+        /// <summary>Why the game was scored without web research, or null when research was used (or not wanted).</summary>
+        public string ResearchSkippedReason { get; set; }
     }
 
     public sealed class EstimationLibrarySummary
@@ -41,6 +44,12 @@ namespace PlayniteAchievements.Services.Estimation
         public int Skipped { get; set; }
         public int Failed { get; set; }
         public int ValuesStored { get; set; }
+
+        /// <summary>Games generated without web research because it was unavailable.</summary>
+        public int WithoutResearch { get; set; }
+
+        /// <summary>The reason research was unavailable (the last one seen), or null.</summary>
+        public string ResearchSkippedReason { get; set; }
 
         /// <summary>True when the run stopped early because trying more games would only fail the same way.</summary>
         public bool StoppedEarly { get; set; }
@@ -86,13 +95,19 @@ namespace PlayniteAchievements.Services.Estimation
             summary.Title = source.Title;
             var options = _options();
             options.Regenerate = regenerate;
-            if (regenerate) ResearchNotesCache.Clear(playniteGameId); // regenerating means researching afresh
+            if (regenerate)
+            {
+                // Regenerating means trying everything afresh, including research that was refused earlier.
+                ResearchNotesCache.Clear(playniteGameId);
+                ResearchAvailability.ResetAll();
+            }
             if (options.Calibration == null && options.UseCalibration) options.Calibration = EnsureCalibration();
 
             var run = await EstimationRunner.RunAsync(source, _client, options, cancellationToken).ConfigureAwait(false);
             summary.Status = run.Status;
             summary.Message = run.Message;
             summary.FailureKind = run.FailureKind;
+            summary.ResearchSkippedReason = run.ResearchSkippedReason;
 
             if ((run.Status == EstimationRunStatus.Generated || run.Status == EstimationRunStatus.GeneratedWithFallback) && run.Rows.Count > 0)
             {
@@ -130,6 +145,11 @@ namespace PlayniteAchievements.Services.Estimation
                 progress?.Report(summary);
 
                 library.ValuesStored += summary.ValuesStored;
+                if (!string.IsNullOrWhiteSpace(summary.ResearchSkippedReason) && summary.Status != EstimationRunStatus.Failed)
+                {
+                    library.WithoutResearch++;
+                    library.ResearchSkippedReason = summary.ResearchSkippedReason;
+                }
                 switch (summary.Status)
                 {
                     case EstimationRunStatus.Generated: library.Generated++; break;

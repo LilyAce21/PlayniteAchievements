@@ -52,6 +52,15 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>Which quota was hit (Google's own quota id and limit), for the log. Never sensitive.</summary>
         public string QuotaDetail { get; set; }
 
+        /// <summary>Gemini reports a limit of zero: this model or tool is not included in the plan, so retrying cannot help.</summary>
+        public bool QuotaIsZero { get; set; }
+
+        /// <summary>
+        /// Web research (Google Search) is not available for this key and model, so the caller should carry on without
+        /// it rather than fail. Set only on research calls.
+        /// </summary>
+        public bool ResearchUnavailable { get; set; }
+
         public static LlmCallResult Ok(string text, bool truncated = false) =>
             new LlmCallResult { Success = true, Text = text, Truncated = truncated };
 
@@ -101,6 +110,16 @@ namespace PlayniteAchievements.Services.Estimation
         public int MaxOutputTokens { get; set; } = 16384;
 
         public int ResearchMaxOutputTokens { get; set; } = 12288;
+
+        /// <summary>
+        /// The model for the research step, or blank to use <see cref="Model"/>. Google Search grounding is not available
+        /// on the free tier for Gemini 3 models, so a free key may need a different model here (Google lists free grounding
+        /// for Gemini 2.5 Flash and Flash-Lite), or research left off.
+        /// </summary>
+        public string ResearchModel { get; set; }
+
+        /// <summary>Research gives up sooner than plain requests: if Google Search is not available, retrying only wastes time.</summary>
+        public int ResearchMaxAttempts { get; set; } = 3;
     }
 
     /// <summary>
@@ -125,7 +144,10 @@ namespace PlayniteAchievements.Services.Estimation
         private readonly Random _random = new Random();
 
         // Adaptive pacing: after a rate limit the gap between requests grows, and it eases off again as requests succeed.
-        private TimeSpan _adaptiveInterval = TimeSpan.Zero;
+        // Plain and research requests are limited separately, so each has its own, and a search problem never slows scoring.
+        private TimeSpan _adaptivePlain = TimeSpan.Zero;
+        private TimeSpan _adaptiveResearch = TimeSpan.Zero;
+        private int _researchRateLimits;
 
         public GeminiClient(
             HttpClient http,
@@ -159,10 +181,18 @@ namespace PlayniteAchievements.Services.Estimation
                 return LlmCallResult.Fail(LlmFailureKind.Permanent, "No Gemini API key is set.");
             }
 
-            var model = NormalizeModel(_options.Model);
+            var model = NormalizeModel(research && !string.IsNullOrWhiteSpace(_options.ResearchModel) ? _options.ResearchModel : _options.Model);
             if (model == null)
             {
                 return LlmCallResult.Fail(LlmFailureKind.Permanent, "The Gemini model name is not valid.");
+            }
+
+            if (research && ResearchAvailability.IsUnavailable(model, out var knownReason))
+            {
+                // Refused earlier this session: do not ask again until it is time to re-check.
+                var skipped = LlmCallResult.Fail(LlmFailureKind.Transient, knownReason);
+                skipped.ResearchUnavailable = true;
+                return skipped;
             }
 
             // Defence in depth: the builder already checked, and nothing outside the allowlist leaves.
@@ -178,7 +208,8 @@ namespace PlayniteAchievements.Services.Estimation
             var body = research ? BuildResearchBody(requestJson) : BuildBody(requestJson);
             var url = BaseUrl + model + ":generateContent";
 
-            var attempts = Math.Max(1, _options.MaxAttempts);
+            var attempts = Math.Max(1, research ? Math.Min(_options.MaxAttempts, _options.ResearchMaxAttempts) : _options.MaxAttempts);
+            _researchRateLimits = 0;
             LlmCallResult last = null;
             for (var attempt = 1; attempt <= attempts; attempt++)
             {
@@ -206,18 +237,44 @@ namespace PlayniteAchievements.Services.Estimation
                             }
                             if (last.Success)
                             {
-                                EaseOffPacing(model);
+                                if (research) ResearchAvailability.MarkWorked(model);
+                                EaseOffPacing(model, research);
                                 return last;
+                            }
+
+                            if (research && IsToolRefused((int)response.StatusCode, text))
+                            {
+                                // 404/403 (or a "tool not supported" 400): this key or model cannot use Google Search at all.
+                                return RefuseResearch(model, last, "Gemini did not accept Google Search for the model \"" + model + "\" (HTTP " + (int)response.StatusCode + ")" + ErrorDetail(text, key));
                             }
 
                             if (last.Failure == LlmFailureKind.Permanent) return last;
 
                             if ((int)response.StatusCode == 429)
                             {
-                                _log("Gemini " + model + " rate limit: " + (last.QuotaDetail ?? "no detail given") +
+                                _log("Gemini " + model + (research ? " research" : string.Empty) + " rate limit: " + (last.QuotaDetail ?? "no detail given") +
                                      (last.RetryAfter.HasValue ? "; Gemini says retry in " + (int)Math.Ceiling(last.RetryAfter.Value.TotalSeconds) + "s" : string.Empty) + ".");
-                                if (last.DailyQuotaExhausted) return last; // retrying today cannot help
-                                SlowDownPacing(model);
+
+                                if (research)
+                                {
+                                    _researchRateLimits++;
+                                    var neverWorked = !ResearchAvailability.HasWorked(model);
+                                    if (last.QuotaIsZero || last.DailyQuotaExhausted || (neverWorked && _researchRateLimits >= 2))
+                                    {
+                                        // A refusal that does not clear is not a rate limit: on the free tier Google lists search
+                                        // grounding as unavailable for Gemini 3 models, and it answers with a quota error.
+                                        return RefuseResearch(model, last,
+                                            "Google Search research is not available for the model \"" + model + "\" on this key: Gemini keeps answering with a quota error" +
+                                            (last.QuotaDetail != null ? " (" + last.QuotaDetail + ")" : string.Empty) +
+                                            ". Google lists search grounding as paid-only for Gemini 3 models. Set a different \"Research model\" (for example gemini-2.5-flash-lite) or turn research off.");
+                                    }
+                                }
+                                else if (last.DailyQuotaExhausted)
+                                {
+                                    return last; // retrying today cannot help
+                                }
+
+                                SlowDownPacing(model, research);
                             }
 
                             // Gemini names the wait in the error body; the standard header is used if that is all there is.
@@ -304,7 +361,8 @@ namespace PlayniteAchievements.Services.Estimation
                 var interval = research && _options.ResearchMinRequestInterval > _options.MinRequestInterval
                     ? _options.ResearchMinRequestInterval
                     : _options.MinRequestInterval;
-                if (_adaptiveInterval > interval) interval = _adaptiveInterval;
+                var adaptive = research ? _adaptiveResearch : _adaptivePlain;
+                if (adaptive > interval) interval = adaptive;
 
                 var wait = _lastRequestUtc + interval - _utcNow();
                 if (wait > TimeSpan.Zero && _lastRequestUtc != DateTime.MinValue)
@@ -321,24 +379,50 @@ namespace PlayniteAchievements.Services.Estimation
         }
 
         /// <summary>After a rate limit, widen the gap between requests (up to a cap) so the rest of the run stays under it.</summary>
-        private void SlowDownPacing(string model)
+        private void SlowDownPacing(string model, bool research)
         {
-            var next = TimeSpan.FromSeconds(Math.Max(15, _adaptiveInterval.TotalSeconds * 2));
+            var current = research ? _adaptiveResearch : _adaptivePlain;
+            var next = TimeSpan.FromSeconds(Math.Max(15, current.TotalSeconds * 2));
             if (next > _options.MaxAdaptiveInterval) next = _options.MaxAdaptiveInterval;
-            if (next == _adaptiveInterval) return;
+            if (next == current) return;
 
-            _adaptiveInterval = next;
-            _log("Gemini " + model + ": slowing down to one request every " + (int)next.TotalSeconds + "s after a rate limit.");
+            if (research) _adaptiveResearch = next; else _adaptivePlain = next;
+            _log("Gemini " + model + (research ? " research" : string.Empty) + ": slowing down to one request every " + (int)next.TotalSeconds + "s after a rate limit.");
         }
 
         /// <summary>Each successful request lets the gap shrink again, back to the normal spacing.</summary>
-        private void EaseOffPacing(string model)
+        private void EaseOffPacing(string model, bool research)
         {
-            if (_adaptiveInterval <= TimeSpan.Zero) return;
+            var current = research ? _adaptiveResearch : _adaptivePlain;
+            if (current <= TimeSpan.Zero) return;
 
-            var next = TimeSpan.FromSeconds(_adaptiveInterval.TotalSeconds * 0.75);
-            _adaptiveInterval = next < TimeSpan.FromSeconds(2) ? TimeSpan.Zero : next;
-            if (_adaptiveInterval == TimeSpan.Zero) _log("Gemini " + model + ": back to normal pacing.");
+            var next = TimeSpan.FromSeconds(current.TotalSeconds * 0.75);
+            if (next < TimeSpan.FromSeconds(2)) next = TimeSpan.Zero;
+            if (research) _adaptiveResearch = next; else _adaptivePlain = next;
+            if (next == TimeSpan.Zero) _log("Gemini " + model + (research ? " research" : string.Empty) + ": back to normal pacing.");
+        }
+
+        /// <summary>True when the response says this key or model cannot use the search tool at all.</summary>
+        private static bool IsToolRefused(int status, string body)
+        {
+            if (status == 404 || status == 403) return true;
+            if (status != 400) return false;
+
+            var lower = (body ?? string.Empty).ToLowerInvariant();
+            return lower.Contains("google_search") || lower.Contains("search as a tool") || lower.Contains("tool is not supported") || lower.Contains("tools are not supported");
+        }
+
+        /// <summary>Research cannot be used right now: remember that, log it once, and tell the caller to carry on without it.</summary>
+        private LlmCallResult RefuseResearch(string model, LlmCallResult basis, string reason)
+        {
+            ResearchAvailability.MarkUnavailable(model, reason);
+            _log("Gemini " + model + ": web research is unavailable (" + (basis?.QuotaDetail ?? "refused") + "); carrying on without it, and not asking again for " +
+                 (int)ResearchAvailability.RememberFor.TotalHours + " hours.");
+
+            var result = LlmCallResult.Fail(LlmFailureKind.Transient, reason);
+            result.ResearchUnavailable = true;
+            result.QuotaDetail = basis?.QuotaDetail;
+            return result;
         }
 
         internal TimeSpan BackoffDelay(int attempt, TimeSpan? retryAfter)
@@ -491,6 +575,16 @@ namespace PlayniteAchievements.Services.Estimation
             // Quota names are Google's own identifiers (long, but not secret), so only the key is stripped from them.
             var which = string.Join(", ", quotas.Distinct());
             if (!string.IsNullOrEmpty(key)) which = which.Replace(key, "[key]");
+
+            // No structured quota fields? Then Google's own words are the only detail there is, so keep them.
+            if (which.Length == 0 && !string.IsNullOrWhiteSpace(message))
+            {
+                which = Scrub(message.Trim(), key);
+                if (which.Length > 240) which = which.Substring(0, 240) + "…";
+            }
+
+            var zero = quotas.Any(q => q.IndexOf("(limit 0)", StringComparison.OrdinalIgnoreCase) >= 0) ||
+                       (message != null && message.IndexOf("limit: 0", StringComparison.OrdinalIgnoreCase) >= 0);
             var daily = quotas.Any(q => q.IndexOf("PerDay", StringComparison.OrdinalIgnoreCase) >= 0 || q.IndexOf("per_day", StringComparison.OrdinalIgnoreCase) >= 0);
 
             var text = daily
@@ -502,6 +596,7 @@ namespace PlayniteAchievements.Services.Estimation
             var result = LlmCallResult.Fail(LlmFailureKind.Transient, text);
             result.RetryAfter = retryAfter;
             result.DailyQuotaExhausted = daily;
+            result.QuotaIsZero = zero;
             result.QuotaDetail = which.Length > 0 ? which : null;
             return result;
         }
