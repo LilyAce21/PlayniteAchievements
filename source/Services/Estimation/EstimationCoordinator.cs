@@ -97,8 +97,9 @@ namespace PlayniteAchievements.Services.Estimation
             options.Regenerate = regenerate;
             if (regenerate)
             {
-                // Regenerating means trying everything afresh, including research that was refused earlier.
-                ResearchNotesCache.Clear(playniteGameId);
+                // Regenerating redoes the grading, not the research: what was already found is reused, so it spends no
+                // search credits (deleting the saved research is a separate action). Research that was refused earlier,
+                // for example after a key was fixed, is tried again.
                 ResearchAvailability.ResetAll();
             }
             if (options.Calibration == null && options.UseCalibration) options.Calibration = EnsureCalibration();
@@ -204,10 +205,6 @@ namespace PlayniteAchievements.Services.Estimation
         }
 
         /// <summary>The roll-back for the whole feature. Returns how many generated rows were deleted.</summary>
-        public long ClearAll()
-        {
-            ResearchNotesCache.ClearAll();
-            return _host.ClearAll();
-        }
+        public long ClearAll() => _host.ClearAll();
     }
 }

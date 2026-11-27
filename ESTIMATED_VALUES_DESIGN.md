@@ -253,9 +253,16 @@ games a month. Exa (about $10 of free credit) and Serper (2,500 one-time queries
 the code has an `ISearchProvider` interface for that. Brave now requires a card.
 
 Spending: a monthly credit budget (default 900) is tracked in a small file and shown in the run summary; the run stops searching at
-the budget. Findings are saved per game in the plugin's data folder (`EstimatedValuesResearch`) so Regenerate is the only thing
-that spends credits twice; Regenerate and Delete all generated values clear them. If the key is missing or rejected, or credits run
-out, the game is scored without research (no confidence penalty), the log says so, and it is tried again after a few hours.
+the budget. Findings are saved per game in the plugin's data folder (`EstimatedValuesResearch`), so research is paid for once:
+- Generate keeps earlier results, and anything new is researched only for the new achievements.
+- Regenerate redoes the grading on the saved research and spends no search credits. (An earlier version wiped the game's research on
+  Regenerate; that was changed.)
+- "Delete all generated values" removes the generated trophy grades and Gamerscore only; saved research is kept, so generating again
+  is free. (An earlier note here claimed it also deleted research. It did not, and now it deliberately does not.)
+- "Delete saved research" is the separate action that removes the saved findings. After it, the next generation researches from
+  scratch and spends credits. The monthly credit count is not reset, because those credits were really spent.
+If the key is missing or rejected, or credits run out, the game is scored without research (no confidence penalty), the log says so,
+and it is tried again after a few hours (Regenerate also tries again at once).
 
 Privacy: only the game title and achievement names (public) go to Tavily. Nothing about the player. The key is lightly obfuscated like
 the Gemini key and goes only in a header. The Google Search via Gemini route remains as a setting for paid keys.

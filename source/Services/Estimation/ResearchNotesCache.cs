@@ -109,6 +109,28 @@ namespace PlayniteAchievements.Services.Estimation
             }
         }
 
+        /// <summary>How many games have saved research (in memory or on disk).</summary>
+        public static int SavedGameCount()
+        {
+            lock (Sync)
+            {
+                var ids = new HashSet<string>(Games.Where(g => g.Value.Notes.Count > 0 || g.Value.Misses.Count > 0).Select(g => g.Key.ToString("N")));
+                try
+                {
+                    if (_directory != null && Directory.Exists(_directory))
+                    {
+                        foreach (var file in Directory.GetFiles(_directory, "*.json")) ids.Add(Path.GetFileNameWithoutExtension(file));
+                    }
+                }
+                catch (Exception)
+                {
+                    // Best effort: a count for a message.
+                }
+
+                return ids.Count;
+            }
+        }
+
         public static void Clear(Guid gameId)
         {
             lock (Sync)

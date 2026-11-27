@@ -103,7 +103,9 @@
                                 Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
                         <Button Content="Regenerate all" Click="RegenerateEstimated_Click" MinWidth="130" Margin="0,0,8,8"
                                 Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
-                        <Button Content="Delete all generated values" Click="ClearEstimated_Click" MinWidth="200" Margin="0,0,0,8"
+                        <Button Content="Delete all generated values" Click="ClearEstimated_Click" MinWidth="200" Margin="0,0,8,8"
+                                Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
+                        <Button Content="Delete saved research" Click="ClearResearch_Click" MinWidth="170" Margin="0,0,0,8"
                                 Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
                     </WrapPanel>
                 </StackPanel>

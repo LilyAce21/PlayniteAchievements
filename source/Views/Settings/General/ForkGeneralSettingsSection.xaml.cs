@@ -43,6 +43,8 @@ namespace PlayniteAchievements.Views.Settings.General
 
         private void ClearEstimated_Click(object sender, RoutedEventArgs e) => _plugin.ClearEstimatedValues();
 
+        private void ClearResearch_Click(object sender, RoutedEventArgs e) => _plugin.ClearSavedResearch();
+
         private void DebugMode_Changed(object sender, RoutedEventArgs e)
         {
             if (!(sender is CheckBox checkBox) || !(checkBox.DataContext is Providers.Local.LocalSettings)) return;

@@ -110,7 +110,7 @@ namespace PlayniteAchievements
             var scope = gameIds == null ? "every game" : gameIds.Count == 1 ? "this game" : gameIds.Count + " games";
             var prompt = regenerate
                 ? "Regenerate estimated trophy grades and Gamerscore for " + scope + "? Existing generated values will be replaced" +
-                  (webSearch ? ", and the web research is repeated, which spends search credits again" : string.Empty) +
+                  (persisted.EstimatedValuesResearchEnabled ? ". Research that was already saved is reused, so this spends no extra search credits" : string.Empty) +
                   ". Native, metadata and custom values are never changed."
                 : "Generate estimated trophy grades and Gamerscore for " + scope + "? Public game information (achievement names, descriptions and any native values) is sent to Google's Gemini service" +
                   (webSearch
@@ -335,11 +335,44 @@ namespace PlayniteAchievements
             if (ok)
             {
                 PlayniteApi?.Dialogs?.ShowMessage(
-                    cleared > 0 ? "Deleted generated values for " + cleared + " achievements." : "There were no generated values to delete.",
+                    (cleared > 0 ? "Deleted generated values for " + cleared + " achievements." : "There were no generated values to delete.") +
+                    " Saved web research was kept, so generating again costs no search credits. Use \"Delete saved research\" to remove it too.",
                     PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
             }
 
             return ok;
+        }
+
+        /// <summary>
+        /// Deletes the saved web research (the guide findings kept per game) after confirmation. Generated trophy grades and
+        /// Gamerscore are not touched. The next generation researches again and spends search credits; the credit count for
+        /// the month is not reset, because the credits were really spent.
+        /// </summary>
+        internal void ClearSavedResearch()
+        {
+            ConfigureResearchStorage();
+            var games = ResearchNotesCache.SavedGameCount();
+            if (games == 0)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage("There is no saved research to delete.", PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (!ConfirmMaintenance(
+                    "Delete the saved web research for " + games + " game" + (games == 1 ? string.Empty : "s") + "? " +
+                    "Generated trophy grades and Gamerscore are not touched, but generating or regenerating again will research " +
+                    "from scratch and spend search credits."))
+            {
+                return;
+            }
+
+            var ok = RunMaintenance(() => ResearchNotesCache.ClearAll(), "clear saved research");
+            if (ok)
+            {
+                _logger?.Info("[EstimatedValues] Deleted saved research for " + games + " game(s).");
+                PlayniteApi?.Dialogs?.ShowMessage("Deleted saved research for " + games + " game" + (games == 1 ? string.Empty : "s") + ".",
+                    PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         /// <summary>Reports progress on the calling thread, in order, without queueing.</summary>
