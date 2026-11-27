@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -22,6 +23,22 @@ namespace PlayniteAchievements
         private static readonly HttpClient EstimationHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
 
         private bool _estimationRunning;
+        private SearchUsageTracker _searchUsage;
+        private bool _researchCacheConfigured;
+
+        /// <summary>
+        /// Where research findings and the search credit count are saved: the plugin's own data folder. Findings are
+        /// public facts about games; nothing about the player and no key is stored there.
+        /// </summary>
+        private void ConfigureResearchStorage()
+        {
+            if (_researchCacheConfigured) return;
+            _researchCacheConfigured = true;
+
+            var folder = Path.Combine(GetPluginUserDataPath(), "EstimatedValuesResearch");
+            ResearchNotesCache.Configure(Path.Combine(folder, "notes"));
+            _searchUsage = new SearchUsageTracker(Path.Combine(folder, "search-usage.json"));
+        }
 
         private PersistedSettings EstimationPersisted => _settingsViewModel?.Settings?.Persisted;
 
@@ -88,11 +105,18 @@ namespace PlayniteAchievements
             var persisted = EstimationPersisted;
             var cache = _cacheManager as CacheManager;
             if (cache == null) return;
+            ConfigureResearchStorage();
+            var webSearch = EstimatedValuesConfig.UsesWebSearchResearch(persisted);
             var scope = gameIds == null ? "every game" : gameIds.Count == 1 ? "this game" : gameIds.Count + " games";
             var prompt = regenerate
-                ? "Regenerate estimated trophy grades and Gamerscore for " + scope + "? Existing generated values will be replaced. Native, metadata and custom values are never changed."
+                ? "Regenerate estimated trophy grades and Gamerscore for " + scope + "? Existing generated values will be replaced" +
+                  (webSearch ? ", and the web research is repeated, which spends search credits again" : string.Empty) +
+                  ". Native, metadata and custom values are never changed."
                 : "Generate estimated trophy grades and Gamerscore for " + scope + "? Public game information (achievement names, descriptions and any native values) is sent to Google's Gemini service" +
-                  (persisted.EstimatedValuesResearchEnabled ? ", which also searches the web for the game and each achievement. This takes longer and uses more requests" : string.Empty) +
+                  (webSearch
+                      ? ". The game title and achievement names are also searched for on the web with Tavily to find guides, using search credits (" +
+                        (_searchUsage?.UsedThisMonth ?? 0) + " of " + persisted.EstimatedValuesSearchCreditsPerMonth + " used this month)"
+                      : persisted.EstimatedValuesResearchEnabled ? ", which also searches the web for the game and each achievement. This takes longer and uses more requests" : string.Empty) +
                   ". Nothing about your account, unlocks or dates is sent. Native values are never changed.";
             if (!ConfirmMaintenance(prompt)) return;
 
@@ -107,10 +131,28 @@ namespace PlayniteAchievements
                     EstimationHttp,
                     EstimatedValuesConfig.ToClientOptions(() => EstimationPersisted),
                     message => _logger?.Info(message));
+                // Plugin-driven web search: the plugin searches, finds each achievement in the guide pages, and gives
+                // Gemini what it found. It needs no Gemini search access, so it works on a free key.
+                IEvidenceSource evidenceSource = null;
+                if (webSearch)
+                {
+                    var search = new TavilySearchClient(
+                        EstimationHttp,
+                        () => EstimatedValuesConfig.GetTavilyKey(EstimationPersisted),
+                        message => _logger?.Info(message));
+                    evidenceSource = new EvidenceGatherer(
+                        search, _searchUsage, EstimatedValuesConfig.ToEvidenceOptions(persisted), message => _logger?.Info(message));
+                }
+
                 var coordinator = new EstimationCoordinator(
                     new CacheEstimationHost(cache),
                     client,
-                    () => EstimatedValuesConfig.ToRunOptions(EstimationPersisted));
+                    () =>
+                    {
+                        var runOptions = EstimatedValuesConfig.ToRunOptions(EstimationPersisted);
+                        runOptions.EvidenceSource = evidenceSource;
+                        return runOptions;
+                    });
 
                 var ids = gameIds ?? new CacheEstimationHost(cache).GetGameIds();
                 _logger?.Info("[EstimatedValues] Starting: " + ids.Count + " game(s), regenerate=" + regenerate +
@@ -118,7 +160,8 @@ namespace PlayniteAchievements
                               ", trophies=" + persisted.EstimatedValuesGenerateTrophies +
                               ", gamerscore=" + persisted.EstimatedValuesGenerateGamerscore +
                               ", research=" + persisted.EstimatedValuesResearchEnabled +
-                              (persisted.EstimatedValuesResearchEnabled && !string.IsNullOrWhiteSpace(persisted.EstimatedValuesResearchModel)
+                              (persisted.EstimatedValuesResearchEnabled ? " via " + persisted.EstimatedValuesResearchProvider : string.Empty) +
+                              (persisted.EstimatedValuesResearchEnabled && !webSearch && !string.IsNullOrWhiteSpace(persisted.EstimatedValuesResearchModel)
                                   ? " (model " + persisted.EstimatedValuesResearchModel.Trim() + ")" : string.Empty) +
                               ", preset=" + persisted.EstimatedValuesBudgetPreset + ".");
                 var options = new GlobalProgressOptions("Generating estimated trophy grades and Gamerscore…", true)
@@ -181,7 +224,10 @@ namespace PlayniteAchievements
                   " skipped, " + summary.Failed + " failed, " + summary.ValuesStored + " value(s) stored" +
                   (summary.StoppedEarly ? "; stopped early: " + summary.StopReason : string.Empty) + "."));
 
-            PlayniteApi?.Dialogs?.ShowMessage(DescribeSummary(summary), PluginTitle, MessageBoxButton.OK,
+            var creditNote = EstimatedValuesConfig.UsesWebSearchResearch(EstimationPersisted) && _searchUsage != null
+                ? " Search credits used this month: " + _searchUsage.UsedThisMonth + " of " + EstimationPersisted.EstimatedValuesSearchCreditsPerMonth + "."
+                : string.Empty;
+            PlayniteApi?.Dialogs?.ShowMessage(DescribeSummary(summary) + creditNote, PluginTitle, MessageBoxButton.OK,
                 summary != null && summary.StoppedEarly ? MessageBoxImage.Warning : MessageBoxImage.Information);
         }
 

@@ -225,6 +225,41 @@ This conflicts with the free-models-only rule when research is on and the model 
 - Research and plain requests now have separate pacing, so a search problem cannot slow scoring.
 - The log now carries Google's own error text when a 429 has no quota fields ("no detail given" is gone).
 
+## Research with free web search (Tavily) instead of Gemini's Google Search
+
+Google Search grounding is paid-only for Gemini 3 models, so research now defaults to plugin-driven web search. The plugin
+searches itself and hands the findings to Gemini as notes; Gemini only scores, so requests per game are back to one.
+
+Why this rather than Gemini function calling or URL Context: function calling would make Gemini run its own search loop, several
+Gemini requests per game, which is what hits free-tier request limits. URL Context fetches pages Gemini is given the addresses
+of; it does not search. Plugin-driven search is deterministic, cheap on Gemini, and can be cached.
+
+How it works (`EvidenceGatherer`):
+1. Up to three searches per game for guide pages (achievement guides, trophy roadmaps with difficulty and hours, tip pages), each
+   asking for the full page text. A page only counts if it is about this game (the title appears in its address, title or opening
+   text), so a different game with a similar name is dropped.
+2. Every achievement is looked up by name in those pages (`PassageMatcher`: tolerant of punctuation and spacing; short generic
+   names find nothing rather than something misleading). One guide usually covers dozens of achievements, which is what stretches
+   the free credits.
+3. Achievements the guides skipped get targeted searches, up to a per-game limit (default 10), most likely important first
+   (hidden, endings, bosses, hard challenges). Ones that find nothing are remembered so they are not searched again.
+4. Game-level notes (stated difficulty, hours, playthroughs, missables) are pulled from the guides and sent as `gameNotes`.
+5. Each achievement's note (up to two passages with the site named, 600 characters at most) goes in the scoring request as `notes`.
+   Achievements with no evidence keep Gemini's own knowledge and are trusted slightly less (confidence capped at 0.7).
+
+Tavily (`TavilySearchClient`): `POST https://api.tavily.com/search`, key in an Authorization header, basic depth (one credit). Free
+plan: 1,000 credits a month, no card. Per-game cost is about 3 credits plus the targeted searches, so very roughly 60 to 150
+games a month. Exa (about $10 of free credit) and Serper (2,500 one-time queries) are alternatives if a second provider is wanted;
+the code has an `ISearchProvider` interface for that. Brave now requires a card.
+
+Spending: a monthly credit budget (default 900) is tracked in a small file and shown in the run summary; the run stops searching at
+the budget. Findings are saved per game in the plugin's data folder (`EstimatedValuesResearch`) so Regenerate is the only thing
+that spends credits twice; Regenerate and Delete all generated values clear them. If the key is missing or rejected, or credits run
+out, the game is scored without research (no confidence penalty), the log says so, and it is tried again after a few hours.
+
+Privacy: only the game title and achievement names (public) go to Tavily. Nothing about the player. The key is lightly obfuscated like
+the Gemini key and goes only in a header. The Google Search via Gemini route remains as a setting for paid keys.
+
 ## Findings for spec section 12 (open items)
 
 **How PA stores native PSN/Xbox data.** SQLite through SqlNado. The platform's own values live in

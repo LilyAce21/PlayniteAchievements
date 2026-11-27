@@ -70,7 +70,8 @@ namespace PlayniteAchievements.Services.Estimation
         public static List<BuiltEstimationRequest> Build(
             EstimationGameContext context,
             int chunkSize = DefaultChunkSize,
-            IDictionary<string, string> researchNotesById = null)
+            IDictionary<string, string> researchNotesById = null,
+            string gameNotes = null)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
 
@@ -106,6 +107,8 @@ namespace PlayniteAchievements.Services.Estimation
                     ["achievements"] = new JArray(slice.Select(a => AchievementJson(a, ids[a.ApiName],
                         researchNotesById != null && researchNotesById.TryGetValue(ids[a.ApiName], out var note) ? note : null)))
                 };
+
+                if (!string.IsNullOrWhiteSpace(gameNotes)) ((JObject)root["game"])["gameNotes"] = PrivacyFilter.Clean(gameNotes);
 
                 var categories = slice.Select(a => PrivacyFilter.Clean(a.Category))
                     .Where(c => !string.IsNullOrWhiteSpace(c))

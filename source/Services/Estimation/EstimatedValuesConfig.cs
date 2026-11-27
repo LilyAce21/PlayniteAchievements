@@ -17,6 +17,28 @@ namespace PlayniteAchievements.Services.Estimation
 
         public static bool HasApiKey(PersistedSettings settings) => !string.IsNullOrWhiteSpace(GetApiKey(settings));
 
+        public static string GetTavilyKey(PersistedSettings settings) =>
+            SecretObfuscator.Reveal(settings?.EstimatedValuesTavilyKey);
+
+        public static void SetTavilyKey(PersistedSettings settings, string plainKey)
+        {
+            if (settings == null) return;
+            settings.EstimatedValuesTavilyKey = SecretObfuscator.Obfuscate(plainKey);
+        }
+
+        public static bool UsesWebSearchResearch(PersistedSettings settings) =>
+            settings != null && settings.EstimatedValuesResearchEnabled && settings.EstimatedValuesResearchProvider == ResearchProvider.TavilyWebSearch;
+
+        /// <summary>How the evidence gatherer searches, from the settings (limits are clamped to sane values).</summary>
+        public static EvidenceOptions ToEvidenceOptions(PersistedSettings settings)
+        {
+            return new EvidenceOptions
+            {
+                MonthlyCreditBudget = Math.Max(0, Math.Min(100000, settings?.EstimatedValuesSearchCreditsPerMonth ?? 900)),
+                MaxAchievementQueries = Math.Max(0, Math.Min(50, settings?.EstimatedValuesSearchesPerGame ?? 10))
+            };
+        }
+
         public static EstimationSettings ToEstimationSettings(PersistedSettings settings)
         {
             var result = new EstimationSettings();

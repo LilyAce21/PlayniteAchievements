@@ -21,12 +21,18 @@ namespace PlayniteAchievements.Views.Settings.General
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             DataContext = settings;
             GeminiKeyBox.Password = Services.Estimation.EstimatedValuesConfig.GetApiKey(settings.Persisted);
+            TavilyKeyBox.Password = Services.Estimation.EstimatedValuesConfig.GetTavilyKey(settings.Persisted);
             DebugModeCheckBox.DataContext = Providers.ProviderRegistry.Instance?.GetSettingsForEdit("Local");
         }
 
         private void GeminiKey_PasswordChanged(object sender, RoutedEventArgs e)
         {
             Services.Estimation.EstimatedValuesConfig.SetApiKey(_settings?.Persisted, GeminiKeyBox.Password);
+        }
+
+        private void TavilyKey_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            Services.Estimation.EstimatedValuesConfig.SetTavilyKey(_settings?.Persisted, TavilyKeyBox.Password);
         }
 
         private void FitBudget_Click(object sender, RoutedEventArgs e) => _plugin.FitTrophyBudgetFromLibrary();

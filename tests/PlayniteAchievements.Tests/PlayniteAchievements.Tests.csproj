@@ -34,6 +34,12 @@
     <Compile Include="..\..\source\Services\Estimation\LlmScoringService.cs" Link="Source\Services\Estimation\LlmScoringService.cs" />
     <Compile Include="..\..\source\Common\LiveCollectionSnapshot.cs" Link="Source\Common\LiveCollectionSnapshot.cs" />
     <Compile Include="..\..\source\Services\Estimation\EstimationRunner.cs" Link="Source\Services\Estimation\EstimationRunner.cs" />
+    <Compile Include="..\..\source\Services\Estimation\EvidenceGatherer.cs" Link="Source\Services\Estimation\EvidenceGatherer.cs" />
+    <Compile Include="..\..\source\Services\Estimation\PassageMatcher.cs" Link="Source\Services\Estimation\PassageMatcher.cs" />
+    <Compile Include="..\..\source\Services\Estimation\ResearchProvider.cs" Link="Source\Services\Estimation\ResearchProvider.cs" />
+    <Compile Include="..\..\source\Services\Estimation\SearchProvider.cs" Link="Source\Services\Estimation\SearchProvider.cs" />
+    <Compile Include="..\..\source\Services\Estimation\SearchUsageTracker.cs" Link="Source\Services\Estimation\SearchUsageTracker.cs" />
+    <Compile Include="..\..\source\Services\Estimation\TavilySearchClient.cs" Link="Source\Services\Estimation\TavilySearchClient.cs" />
     <Compile Include="..\..\source\Services\Estimation\ResearchAvailability.cs" Link="Source\Services\Estimation\ResearchAvailability.cs" />
     <Compile Include="..\..\source\Services\Estimation\ResearchNotesCache.cs" Link="Source\Services\Estimation\ResearchNotesCache.cs" />
     <Compile Include="..\..\source\Services\Estimation\ResearchResponseParser.cs" Link="Source\Services\Estimation\ResearchResponseParser.cs" />

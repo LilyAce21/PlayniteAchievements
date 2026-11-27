@@ -20,6 +20,18 @@ namespace PlayniteAchievements.Models.Settings
         /// </summary>
         public bool EstimatedValuesResearchEnabled { get; set; } = true;
 
+        /// <summary>Where research comes from: the plugin's own web search (works on a free key) or Gemini's Google Search (paid).</summary>
+        public ResearchProvider EstimatedValuesResearchProvider { get; set; } = ResearchProvider.TavilyWebSearch;
+
+        /// <summary>The Tavily API key for web search research, lightly obfuscated like the Gemini key. Use EstimatedValuesConfig to read or set it.</summary>
+        public string EstimatedValuesTavilyKey { get; set; } = string.Empty;
+
+        /// <summary>The most search credits to spend per month. Tavily's free plan includes 1,000; this keeps some in reserve.</summary>
+        public int EstimatedValuesSearchCreditsPerMonth { get; set; } = 900;
+
+        /// <summary>Targeted searches per game for achievements the guide pages did not cover (each costs one credit).</summary>
+        public int EstimatedValuesSearchesPerGame { get; set; } = 10;
+
         /// <summary>
         /// The Gemini model used for the research step, or blank to use the main model. Google Search grounding is not
         /// available on the free tier for Gemini 3 models, so a free key may need a different model here.

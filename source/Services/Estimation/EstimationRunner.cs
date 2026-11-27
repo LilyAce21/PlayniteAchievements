@@ -86,6 +86,12 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>Achievements per research request. Smaller batches let the model look at each one properly.</summary>
         public int ResearchBatchSize { get; set; } = 25;
+
+        /// <summary>
+        /// When set, research comes from plugin-driven web search (the findings are handed to the model as notes) instead of
+        /// Gemini's own Google Search. This is how research works on a free Gemini key.
+        /// </summary>
+        public IEvidenceSource EvidenceSource { get; set; }
     }
 
     public sealed class EstimationPlan
@@ -302,11 +308,24 @@ namespace PlayniteAchievements.Services.Estimation
                 context.Anchors.Add(new NativeAnchor { ApiName = pair.Key, Platform = "xbox", Gamerscore = pair.Value });
             }
 
-            var researchClient = options.UseResearch ? client as IEstimationResearchClient : null;
-            var scoring = await LlmScoringService.ScoreAsync(
-                client, context, cancellationToken,
-                EstimationRequestBuilder.DefaultChunkSize, researchClient, Math.Max(1, options.ResearchBatchSize),
-                researchClient != null ? ResearchNotesCache.For(game.PlayniteGameId) : null).ConfigureAwait(false);
+            var evidence = options.UseResearch ? options.EvidenceSource : null;
+            var researchClient = options.UseResearch && evidence == null ? client as IEstimationResearchClient : null;
+            var wantsResearch = evidence != null || researchClient != null;
+
+            ScoringOutcome scoring;
+            try
+            {
+                scoring = await LlmScoringService.ScoreAsync(
+                    client, context, cancellationToken,
+                    EstimationRequestBuilder.DefaultChunkSize, researchClient, Math.Max(1, options.ResearchBatchSize),
+                    wantsResearch ? ResearchNotesCache.For(game.PlayniteGameId) : null,
+                    evidence, evidence != null ? ResearchNotesCache.MissesFor(game.PlayniteGameId) : null).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Whatever was found is kept, even when the run is interrupted, so it is never paid for twice.
+                if (wantsResearch) ResearchNotesCache.Save(game.PlayniteGameId);
+            }
             result.Scoring = scoring;
             result.ResearchSkippedReason = scoring.ResearchSkippedReason;
             if (!scoring.Succeeded)

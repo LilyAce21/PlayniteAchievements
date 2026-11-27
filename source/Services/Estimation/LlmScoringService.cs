@@ -33,6 +33,9 @@ namespace PlayniteAchievements.Services.Estimation
 
         public int SourceCount { get; set; }
 
+        /// <summary>Search credits spent on this game's research (plugin-driven web search only).</summary>
+        public int SearchCredits { get; set; }
+
         /// <summary>
         /// Set when web research was wanted but could not be used (for example Google Search is not available for the key
         /// or model), so the game was scored without it. The scores are still valid; this says why they lack research.
@@ -53,6 +56,12 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>Confidence is capped at this for an achievement that could not be researched while research was on.</summary>
         internal const double UnresearchedConfidenceCap = 0.5;
 
+        /// <summary>
+        /// With plugin-driven web search many achievements simply are not discussed online. The model still has the
+        /// achievement text and its own knowledge, so these are trusted a little less, not as little as an unresearched gap.
+        /// </summary>
+        internal const double NoEvidenceConfidenceCap = 0.7;
+
         public static async Task<ScoringOutcome> ScoreAsync(
             IEstimationLlmClient client,
             EstimationGameContext context,
@@ -60,7 +69,9 @@ namespace PlayniteAchievements.Services.Estimation
             int chunkSize = EstimationRequestBuilder.DefaultChunkSize,
             IEstimationResearchClient research = null,
             int researchBatchSize = DefaultResearchBatchSize,
-            IDictionary<string, string> researchCache = null)
+            IDictionary<string, string> researchCache = null,
+            IEvidenceSource evidenceSource = null,
+            ISet<string> evidenceMisses = null)
         {
             var outcome = new ScoringOutcome();
             if (client == null) throw new ArgumentNullException(nameof(client));
@@ -77,8 +88,34 @@ namespace PlayniteAchievements.Services.Estimation
 
             // ---- step 1 (optional): research every achievement with web search -------------------------------
             var notesById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var researching = research != null;
-            if (researching)
+            string gameNotes = null;
+            var evidenceMode = evidenceSource != null;
+            var researching = evidenceMode || research != null;
+
+            if (evidenceMode)
+            {
+                // Plugin-driven web search takes the place of Gemini's own search: it needs no Gemini requests.
+                var evidence = await evidenceSource.GatherAsync(context, researchCache, evidenceMisses, cancellationToken).ConfigureAwait(false);
+                outcome.SearchQueryCount = evidence.Searches;
+                outcome.SourceCount = evidence.Sources;
+                outcome.SearchCredits = evidence.Credits;
+                gameNotes = evidence.GameNotes;
+                outcome.Notes.AddRange(evidence.Notes);
+
+                var ids = EstimationRequestBuilder.IdsByApiName(context);
+                foreach (var pair in evidence.NotesByApiName)
+                {
+                    if (ids.TryGetValue(pair.Key, out var evidenceId)) notesById[evidenceId] = pair.Value;
+                }
+
+                if (evidence.Unavailable)
+                {
+                    outcome.ResearchSkippedReason = evidence.Reason;
+                    outcome.Notes.Add("Scored without web research: " + evidence.Reason);
+                    researching = false;
+                }
+            }
+            else if (researching)
             {
                 var researchFailure = await ResearchAsync(research, context, researchBatchSize, notesById, outcome, researchCache, cancellationToken).ConfigureAwait(false);
                 if (researchFailure != null && researchFailure.ResearchUnavailable)
@@ -103,7 +140,7 @@ namespace PlayniteAchievements.Services.Estimation
             }
 
             // ---- step 2: score, with each achievement's research attached ------------------------------------
-            var requests = EstimationRequestBuilder.Build(context, chunkSize, notesById);
+            var requests = EstimationRequestBuilder.Build(context, chunkSize, notesById, gameNotes);
             var usableGames = new List<GameScoring>();
 
             foreach (var request in requests)
@@ -136,7 +173,7 @@ namespace PlayniteAchievements.Services.Estimation
                     foreach (var score in parsed.Scores)
                     {
                         score.Researched = idByApiName.TryGetValue(score.ApiName, out var scoreId) && notesById.ContainsKey(scoreId);
-                        if (!score.Researched) score.Confidence = Math.Min(score.Confidence, UnresearchedConfidenceCap);
+                        if (!score.Researched) score.Confidence = Math.Min(score.Confidence, evidenceMode ? NoEvidenceConfidenceCap : UnresearchedConfidenceCap);
                         else outcome.ResearchedCount++;
                     }
                 }
@@ -157,8 +194,11 @@ namespace PlayniteAchievements.Services.Estimation
 
             if (researching)
             {
-                outcome.Notes.Insert(0, "Researched " + outcome.ResearchedCount + " of " + achievements.Count + " achievements (" +
-                                        outcome.SearchQueryCount + " web searches, " + outcome.SourceCount + " sources).");
+                outcome.Notes.Insert(0, evidenceMode
+                    ? "Found written evidence for " + outcome.ResearchedCount + " of " + achievements.Count + " achievements (" +
+                      outcome.SearchQueryCount + " searches, " + outcome.SearchCredits + " credits, " + outcome.SourceCount + " sources)."
+                    : "Researched " + outcome.ResearchedCount + " of " + achievements.Count + " achievements (" +
+                      outcome.SearchQueryCount + " web searches, " + outcome.SourceCount + " sources).");
             }
 
             return outcome;

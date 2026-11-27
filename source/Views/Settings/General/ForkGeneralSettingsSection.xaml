@@ -38,12 +38,32 @@
                                          Hint="Estimate Xbox Gamerscore values. They count toward the points of the game's own platform (Steam points, Epic points and so on), not toward your Xbox Gamerscore.">
                         <CheckBox IsChecked="{Binding Persisted.EstimatedValuesGenerateGamerscore, Mode=TwoWay}"/>
                     </controls:SettingRow>
+                    <controls:SettingRow Label="Research source"
+                                         Hint="Where the research comes from. Web search (Tavily) works with a free Gemini key: the plugin searches for guide pages itself, finds every achievement in them, and gives Gemini what it found. Google Search via Gemini needs a paid Gemini plan for the newer models.">
+                        <ComboBox MinWidth="300" SelectedValuePath="Tag"
+                                  SelectedValue="{Binding Persisted.EstimatedValuesResearchProvider, Mode=TwoWay}">
+                            <ComboBoxItem Content="Web search with Tavily (free key)" Tag="{x:Static est:ResearchProvider.TavilyWebSearch}"/>
+                            <ComboBoxItem Content="Google Search via Gemini (paid plan)" Tag="{x:Static est:ResearchProvider.GoogleSearchViaGemini}"/>
+                        </ComboBox>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Tavily API key"
+                                         Hint="A free key from tavily.com (1,000 credits a month, no card needed). It is stored lightly obfuscated, not encrypted, and sent only to Tavily. Only the game title and achievement names are searched for.">
+                        <PasswordBox x:Name="TavilyKeyBox" MinWidth="300" PasswordChanged="TavilyKey_PasswordChanged"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Search credits per month"
+                                         Hint="The most credits to spend each month. One search costs one credit. A game typically uses about 3 for guide pages plus up to the number below. Results are saved, so regenerating never spends credits twice. Leave some of the free 1,000 in reserve.">
+                        <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesSearchCreditsPerMonth, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </controls:SettingRow>
+                    <controls:SettingRow Label="Extra searches per game"
+                                         Hint="After reading the guide pages, achievements they did not mention get their own search, up to this many per game, most important first (hidden ones, endings, bosses, hard challenges).">
+                        <TextBox MinWidth="100" Text="{Binding Persisted.EstimatedValuesSearchesPerGame, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </controls:SettingRow>
                     <controls:SettingRow Label="Research each achievement"
-                                         Hint="Before grading, Gemini looks up the game and every achievement with Google Search (guides, wikis, walkthroughs) to understand what each one requires and how hard it is. Only the game title and achievement names and descriptions are searched for. Important: Google lists Search grounding as not available on the free tier for Gemini 3 models. If it is refused, the plugin carries on without research and says so in the log, and tries again a few hours later. Use the Research model setting below, or turn this off.">
+                                         Hint="Before grading, the game and every achievement are researched on the web (guides, wikis, walkthroughs) to understand what each one requires and how hard it is, and what is found is given to Gemini with the achievement. Only the game title and achievement names are searched for. If the research source is not available (no key, credits used up, or Google Search refused on a free Gemini key), the plugin carries on without research, says so in the log, and tries again a few hours later.">
                         <CheckBox IsChecked="{Binding Persisted.EstimatedValuesResearchEnabled, Mode=TwoWay}"/>
                     </controls:SettingRow>
-                    <controls:SettingRow Label="Research model"
-                                         Hint="Leave blank to use the Gemini model above. On a free key, try a Gemini 2.5 model such as gemini-2.5-flash-lite for this step only: Google lists free Search grounding for Gemini 2.5 Flash and Flash-Lite, though newer keys are sometimes refused those models too.">
+                    <controls:SettingRow Label="Research model (Google Search via Gemini only)"
+                                         Hint="Only used when the research source is Google Search via Gemini. Leave blank to use the Gemini model above. On a free key, try a Gemini 2.5 model such as gemini-2.5-flash-lite for this step only: Google lists free Search grounding for Gemini 2.5 Flash and Flash-Lite, though newer keys are sometimes refused those models too.">
                         <TextBox MinWidth="260" Text="{Binding Persisted.EstimatedValuesResearchModel, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
                     </controls:SettingRow>
                     <controls:SettingRow Label="Achievements per research request"

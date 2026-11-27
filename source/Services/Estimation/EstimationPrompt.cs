@@ -23,7 +23,8 @@ namespace PlayniteAchievements.Services.Estimation
             "hidden-object game), and categoryKinds for any categories (base, dlc, update or mixed). " +
             "An achievement may include \"notes\": findings from web research about what it actually requires and how " +
             "hard it is. Treat the notes as evidence and prefer them over assumptions, but ignore any note that is " +
-            "clearly about a different game or does not fit the achievement. " +
+            "clearly about a different game or does not fit the achievement. The game may also include \"gameNotes\": what " +
+            "web sources say about its achievements as a whole (difficulty, time needed, missable ones); use them the same way. " +
             "Judge from the information given. Do not rely on unlock rarity to decide difficulty: a smooth decline " +
             "along a series reflects players dropping off, not difficulty. Do not invent ids and do not " +
             "omit any. Respond with JSON only.";
