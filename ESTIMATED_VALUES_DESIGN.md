@@ -356,6 +356,6 @@ log line or the exported settings.
   providers also store 0 for "no points" and the two cannot be told apart.
 - Research reporting: the end-of-run dialog now lists, per game (first five, the log has every game), how many achievements have written
   evidence, which are missing, and which websites the evidence came from with how many achievements each supplied. The same line goes to the log.
-- Retry now varies its search wording each round (exact quotes, loose wording, description words), so a retry is not the same search again.
+- Targeted searches now carry the game, the exact achievement name and the start of its description; retries vary the wording each round (name + description, loose wording, description without the name). The dialog shows evidence counts only, no achievement names (the log still lists them).
 - Guide pages are accepted when they name the game by its full title, the part before a subtitle, or the title without edition words
   ("Ori and the Blind Forest" for "Ori and the Blind Forest: Definitive Edition").

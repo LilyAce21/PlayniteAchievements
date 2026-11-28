@@ -292,15 +292,15 @@ namespace PlayniteAchievements.Services.Estimation
         {
             var title = (context.Title ?? string.Empty).Trim();
             var name = (a.DisplayName ?? string.Empty).Trim();
+            var words = string.Join(" ", (a.Description ?? string.Empty).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(10));
             switch (round % 3)
             {
-                case 1: // looser wording, no quotes around the name
-                    return title + " " + name + " achievement guide";
-                case 2: // the description's own words often match how guides phrase it
-                    var words = (a.Description ?? string.Empty).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(8);
-                    return "\"" + title + "\" " + name + " " + string.Join(" ", words);
-                default:
-                    return "\"" + title + "\" \"" + name + "\" achievement how to unlock";
+                case 1: // looser wording, nothing quoted, no description
+                    return title + " " + name + " achievement how to unlock guide";
+                case 2: // without the name, in case guides spell it differently
+                    return "\"" + title + "\" achievement " + words;
+                default: // game, exact name and what it asks for, so an obscure one is not drowned out by unrelated results
+                    return ("\"" + title + "\" \"" + name + "\" achievement " + words).TrimEnd();
             }
         }
 

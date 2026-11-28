@@ -42,7 +42,7 @@ namespace PlayniteAchievements.Services.Estimation
         public Dictionary<string, int> EvidenceSources { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>One readable line (or two) saying how much evidence was found, what is missing and the sources, or null.</summary>
-        public string DescribeEvidence(int maxNames = 8, int maxSources = 6)
+        public string DescribeEvidence(int maxNames = 8, int maxSources = 6, bool includeNames = true)
         {
             if (EvidenceTotal <= 0) return null;
 
@@ -50,9 +50,16 @@ namespace PlayniteAchievements.Services.Estimation
             text.Append("Evidence for ").Append(EvidenceFound).Append(" of ").Append(EvidenceTotal).Append(" achievements");
             if (EvidenceMissingNames.Count > 0)
             {
-                text.Append("; missing ").Append(EvidenceMissingNames.Count).Append(": ")
-                    .Append(string.Join("; ", EvidenceMissingNames.Take(maxNames)))
-                    .Append(EvidenceMissingNames.Count > maxNames ? "; +" + (EvidenceMissingNames.Count - maxNames) + " more" : string.Empty);
+                if (includeNames)
+                {
+                    text.Append("; missing ").Append(EvidenceMissingNames.Count).Append(": ")
+                        .Append(string.Join("; ", EvidenceMissingNames.Take(maxNames)))
+                        .Append(EvidenceMissingNames.Count > maxNames ? "; +" + (EvidenceMissingNames.Count - maxNames) + " more" : string.Empty);
+                }
+                else
+                {
+                    text.Append("; ").Append(EvidenceMissingNames.Count).Append(" without evidence");
+                }
             }
 
             text.Append(".");

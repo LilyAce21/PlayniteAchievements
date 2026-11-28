@@ -298,6 +298,8 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             var queries = Enumerable.Range(0, 3).Select(r => EvidenceGatherer.AchievementQuery(context, a, r)).ToList();
 
             Assert.AreEqual(3, queries.Distinct().Count());
+            Assert.IsTrue(queries[0].Contains("Drifting off") && queries[0].Contains("Drift for a very long time"), "the first search carries the name and the description");
+            Assert.IsTrue(queries[2].Contains("Drift for a very long time") && !queries[2].Contains("Drifting off"), "the last wording drops the name in case guides spell it differently");
             Assert.AreEqual(queries[0], EvidenceGatherer.AchievementQuery(context, a, 0));
             Assert.AreEqual(queries[0], EvidenceGatherer.AchievementQuery(context, a, 3), "the wording cycles");
         }
@@ -329,6 +331,10 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             Assert.IsTrue(text.StartsWith("Evidence for 17 of 25 achievements; missing 2: Drifting off; Bullseye!."), text);
             Assert.IsTrue(text.Contains("Sources: steamcommunity.com (12), gamefaqs.com (9)."), text);
             Assert.IsNull(new EstimationGameSummary().DescribeEvidence());
+
+            var dialog = summary.DescribeEvidence(0, 5, includeNames: false);
+            Assert.IsTrue(dialog.StartsWith("Evidence for 17 of 25 achievements; 2 without evidence."), dialog);
+            Assert.IsFalse(dialog.Contains("Drifting off") || dialog.Contains("Bullseye"), "the dialog shows counts only, never achievement names");
         }
 
         [TestMethod]

@@ -286,7 +286,7 @@ namespace PlayniteAchievements
                 text.AppendLine().AppendLine();
                 foreach (var r in withEvidence.Take(5))
                 {
-                    text.Append(string.IsNullOrWhiteSpace(r.Title) ? "Game" : r.Title).Append(": ").AppendLine(r.DescribeEvidence(6, 5));
+                    text.Append(string.IsNullOrWhiteSpace(r.Title) ? "Game" : r.Title).Append(": ").AppendLine(r.DescribeEvidence(0, 5, includeNames: false));
                 }
 
                 if (withEvidence.Count > 5)
