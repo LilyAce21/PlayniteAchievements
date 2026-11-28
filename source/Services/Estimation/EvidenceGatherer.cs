@@ -128,7 +128,13 @@ namespace PlayniteAchievements.Services.Estimation
 
             // ---- 1. guide pages that cover the whole game ------------------------------------------------------------
             var corpus = new List<CorpusPage>();
+            notes.TryGetValue(ResearchNotesCache.RetryRoundKey, out var retryRoundText);
+            var retryRound = int.TryParse(retryRoundText, out var parsedRound) ? parsedRound : 0;
             var alreadyDidGameSearches = notes.ContainsKey(ResearchNotesCache.GameSearchedKey);
+
+            // A retry reads the guide pages again, once per retry round, when the earlier guide search found no usable page
+            // (or was made before that was recorded). Everything already found is kept; this costs only the guide searches.
+            if (alreadyDidGameSearches && retryRound > 0 && GuideSearchCameUpEmpty(notes, retryRound)) alreadyDidGameSearches = false;
             if (!alreadyDidGameSearches)
             {
                 var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -159,6 +165,7 @@ namespace PlayniteAchievements.Services.Estimation
                 }
 
                 notes[ResearchNotesCache.GameSearchedKey] = "1";
+                notes[ResearchNotesCache.GuidePagesKey] = corpus.Count + "@" + retryRound;
                 result.Sources = corpus.Count;
                 result.GameNotes = ExtractGameNotes(corpus) ?? result.GameNotes;
                 if (!string.IsNullOrWhiteSpace(result.GameNotes)) notes[ResearchNotesCache.GameNotesKey] = result.GameNotes;
@@ -179,8 +186,6 @@ namespace PlayniteAchievements.Services.Estimation
 
             // ---- 3. a limited number of targeted searches for the rest, most important first ----------------------------
             var targeted = 0;
-            notes.TryGetValue(ResearchNotesCache.RetryRoundKey, out var retryRoundText);
-            var retryRound = int.TryParse(retryRoundText, out var parsedRound) ? parsedRound : 0;
             foreach (var a in unmatched.OrderByDescending(Priority).ThenBy(a => a.ApiName, StringComparer.OrdinalIgnoreCase))
             {
                 if (targeted >= Math.Max(0, _options.MaxAchievementQueries)) break;
@@ -336,6 +341,16 @@ namespace PlayniteAchievements.Services.Estimation
                 Domain = PassageMatcher.Domain(hit.Url),
                 Weight = PassageMatcher.PageWeight(hit.Url, hit.Title)
             };
+        }
+
+        /// <summary>True when the last guide search read no usable page, or when nothing recorded how it went, and it has not been redone in this retry round.</summary>
+        internal static bool GuideSearchCameUpEmpty(IDictionary<string, string> notes, int retryRound)
+        {
+            if (!notes.TryGetValue(ResearchNotesCache.GuidePagesKey, out var recorded) || string.IsNullOrWhiteSpace(recorded)) return true;
+
+            var parts = recorded.Split('@');
+            if (!int.TryParse(parts[0], out var pages) || pages > 0) return false;
+            return !(parts.Length > 1 && int.TryParse(parts[1], out var round) && round >= retryRound);
         }
 
         private static readonly string[] EditionWords =

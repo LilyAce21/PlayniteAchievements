@@ -76,19 +76,22 @@ namespace PlayniteAchievements.Services.Estimation
         {
             var found = new List<Passage>();
             var cleanName = CleanName(name);
-            var tokens = Normalize(cleanName).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (pages == null || tokens.Length == 0) return found;
-            if (tokens.Length == 1 && cleanName.Length < 6) return found;
 
-            Regex flexible = null;
-            if (tokens.Length >= 2)
-            {
-                flexible = new Regex(string.Join(@"[^A-Za-z0-9]+", tokens.Select(Regex.Escape)),
-                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
-            }
+            // Apostrophes come and go between listings ("Let's be Friends" on one site, "Lets be Friends" on another), so
+            // they are dropped from the name and allowed anywhere inside a word when searching the text.
+            var tokens = Normalize(cleanName.Replace("'", string.Empty).Replace("\u2019", string.Empty))
+                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (pages == null || tokens.Length == 0) return found;
 
             var descriptionWords = Normalize(description).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Where(w => w.Length >= 4).Distinct().ToList();
+
+            // A single short word ("Love", "Elite") appears all over a guide, so a bare mention proves nothing. It counts
+            // only where the text around it also repeats what the achievement asks for.
+            if (tokens.Length == 1 && cleanName.Length < 6) return FindShortName(pages, tokens[0], descriptionWords, max);
+
+            var wordPattern = string.Join(@"[^A-Za-z0-9]+", tokens.Select(t => string.Join("['\u2019]?", t.Select(c => Regex.Escape(c.ToString())))));
+            var flexible = new Regex(wordPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
 
             foreach (var page in pages)
             {
@@ -96,7 +99,7 @@ namespace PlayniteAchievements.Services.Estimation
 
                 var index = page.Text.IndexOf(cleanName, StringComparison.OrdinalIgnoreCase);
                 var length = cleanName.Length;
-                if (index < 0 && flexible != null)
+                if (index < 0)
                 {
                     try
                     {
@@ -132,6 +135,53 @@ namespace PlayniteAchievements.Services.Estimation
             }
 
             return chosen;
+        }
+
+        private static List<Passage> FindShortName(IList<CorpusPage> pages, string token, IList<string> descriptionWords, int max)
+        {
+            var found = new List<Passage>();
+            if (descriptionWords.Count < 2) return found; // nothing to corroborate with: better to find nothing
+
+            Regex word;
+            try
+            {
+                word = new Regex(@"(?<![A-Za-z0-9])" + Regex.Escape(token) + @"(?![A-Za-z0-9])",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
+            }
+            catch (ArgumentException)
+            {
+                return found;
+            }
+
+            foreach (var page in pages)
+            {
+                if (string.IsNullOrEmpty(page?.Text)) continue;
+
+                Passage best = null;
+                try
+                {
+                    var seen = 0;
+                    foreach (Match m in word.Matches(page.Text))
+                    {
+                        if (++seen > 300) break;
+                        var text = Window(page.Text, m.Index, m.Length);
+                        var lower = text.ToLowerInvariant();
+                        var hits = descriptionWords.Count(w => lower.Contains(w));
+                        var overlap = hits / (double)descriptionWords.Count;
+                        if (hits < 2 || overlap < 0.5) continue;
+                        var score = page.Weight + 0.5 * overlap;
+                        if (best == null || score > best.Score) best = new Passage { Text = text, Domain = page.Domain, Url = page.Url, Score = score };
+                    }
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    // A pathological page: skip it.
+                }
+
+                if (best != null) found.Add(best);
+            }
+
+            return found.OrderByDescending(p => p.Score).Take(max).ToList();
         }
 
         private static string CleanName(string name)

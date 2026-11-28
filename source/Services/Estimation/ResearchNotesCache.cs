@@ -24,6 +24,9 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>How many times missed achievements were retried; each round searches with differently worded queries.</summary>
         public const string RetryRoundKey = "__retry_round";
 
+        /// <summary>How many guide pages the last guide search read, with the retry round it happened in ("3@0").</summary>
+        public const string GuidePagesKey = "__guidePages";
+
         private sealed class Entry
         {
             public Dictionary<string, string> Notes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

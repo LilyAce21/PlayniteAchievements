@@ -361,3 +361,7 @@ log line or the exported settings.
   ("Ori and the Blind Forest" for "Ori and the Blind Forest: Definitive Edition").
 - "Retry missed research and regenerate" only regenerates a game when the retry found evidence it did not have before. If nothing new
   turns up (or search is unavailable), no Gemini request is made and the existing values are left exactly as they are; the game is reported as skipped.
+- Matching hard names: apostrophes are ignored when matching achievement names ("Let's be Friends" = "Lets be Friends"). A single short word
+  ("Love", "Elite") used to be skipped entirely; it now counts where the text around it repeats at least two of the description's words
+  and half of them. A retry also reads the guide pages again (once per retry round) when the earlier guide search read no usable page, or
+  was made before that was recorded, keeping everything already found.

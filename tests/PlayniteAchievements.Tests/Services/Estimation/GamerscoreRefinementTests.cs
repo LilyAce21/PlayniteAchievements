@@ -439,5 +439,41 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             Assert.AreEqual(2, summary.EvidenceFound);
             ResearchNotesCache.Configure(null);
         }
+
+        // ------------------------------------------------------------------ matching hard-to-find names
+
+        private static CorpusPage Page(string text) => new CorpusPage { Url = "https://a.com/guide", Title = "Guide", Text = text, Domain = "a.com", Weight = 1.0 };
+
+        [TestMethod]
+        public void Matcher_FindsNamesWhateverTheApostrophe()
+        {
+            var pages = new[] { Page("Achievements\nLet's be Friends - Make friends with every spirit you meet along the way.\nOther stuff") };
+            Assert.AreEqual(1, PassageMatcher.Find(pages, "Lets be Friends", "Befriend every spirit", 2).Count);
+            Assert.AreEqual(1, PassageMatcher.Find(new[] { Page("Lets be Friends: befriend every spirit") }, "Let's be Friends", "Befriend every spirit", 2).Count);
+        }
+
+        [TestMethod]
+        public void Matcher_ShortSingleWordNamesNeedTheDescriptionAroundThem()
+        {
+            var description = "Complete the entire game without ever taking damage from enemies";
+            var chatter = Page("I love this game. Love it so much. Love is in the air. The soundtrack is great.");
+            var real = Page("Trophies\nLove - Complete the entire game without taking damage from enemies, use the shrine at the start.\n");
+
+            Assert.AreEqual(0, PassageMatcher.Find(new[] { chatter }, "Love", description, 2).Count, "a bare mention proves nothing");
+            Assert.AreEqual(1, PassageMatcher.Find(new[] { chatter, real }, "Love", description, 2).Count, "the mention beside its description counts");
+            Assert.AreEqual(0, PassageMatcher.Find(new[] { real }, "Love", "Short", 2).Count, "without a description to check against, nothing is claimed");
+        }
+
+        [TestMethod]
+        public void RetryRereadsGuidesOnlyWhenTheEarlierGuideSearchFoundNothing()
+        {
+            var empty = new Dictionary<string, string>();
+            Assert.IsTrue(EvidenceGatherer.GuideSearchCameUpEmpty(empty, 1), "nothing recorded");
+
+            var none = new Dictionary<string, string> { { ResearchNotesCache.GuidePagesKey, "0@0" } };
+            Assert.IsTrue(EvidenceGatherer.GuideSearchCameUpEmpty(none, 1), "found no pages in an earlier round");
+            Assert.IsFalse(EvidenceGatherer.GuideSearchCameUpEmpty(new Dictionary<string, string> { { ResearchNotesCache.GuidePagesKey, "0@1" } }, 1), "already redone this round");
+            Assert.IsFalse(EvidenceGatherer.GuideSearchCameUpEmpty(new Dictionary<string, string> { { ResearchNotesCache.GuidePagesKey, "4@0" } }, 3), "it read pages, so there is nothing to redo");
+        }
     }
 }
