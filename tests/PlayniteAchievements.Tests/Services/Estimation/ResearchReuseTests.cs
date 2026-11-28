@@ -165,6 +165,39 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         }
 
         [TestMethod]
+        public void DeleteResearchForSelectedGames_RemovesOnlyThoseGames()
+        {
+            var a = Guid.NewGuid(); var b = Guid.NewGuid(); var c = Guid.NewGuid();
+            ResearchNotesCache.For(a)["x"] = "note"; ResearchNotesCache.Save(a);
+            ResearchNotesCache.For(b)["y"] = "note"; ResearchNotesCache.Save(b);
+            Assert.IsTrue(ResearchNotesCache.HasSaved(a));
+            Assert.IsFalse(ResearchNotesCache.HasSaved(c));
+
+            var cleared = ResearchNotesCache.ClearGames(new[] { a, c, a });
+
+            Assert.AreEqual(1, cleared, "only games that had research are counted, once each");
+            Assert.IsFalse(ResearchNotesCache.HasSaved(a));
+            Assert.IsTrue(ResearchNotesCache.HasSaved(b), "other games keep their research");
+            Assert.AreEqual(1, Directory.GetFiles(_dir, "*.json").Length);
+        }
+
+        [TestMethod]
+        public void DeleteResearchForOneGame_LeavesItsGeneratedValuesAndOnlyThatGameSearchesAgain()
+        {
+            var game = Star();
+            var (coordinator, host, search, scorer) = Build(game);
+            coordinator.RunGameAsync(game.PlayniteGameId, false, CancellationToken.None).Wait();
+            Assert.IsTrue(ResearchNotesCache.HasSaved(game.PlayniteGameId));
+
+            ResearchNotesCache.ClearGames(new[] { game.PlayniteGameId });
+
+            Assert.IsFalse(ResearchNotesCache.HasSaved(game.PlayniteGameId));
+            var before = search.Calls;
+            coordinator.RunGameAsync(game.PlayniteGameId, true, CancellationToken.None).Wait();
+            Assert.IsTrue(search.Calls > before, "with this game's research deleted, it is researched again");
+        }
+
+        [TestMethod]
         public void SavedGameCount_CountsGamesInMemoryAndOnDisk()
         {
             var a = Guid.NewGuid(); var b = Guid.NewGuid();

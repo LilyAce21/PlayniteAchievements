@@ -261,6 +261,8 @@ the budget. Findings are saved per game in the plugin's data folder (`EstimatedV
   is free. (An earlier note here claimed it also deleted research. It did not, and now it deliberately does not.)
 - "Delete saved research" is the separate action that removes the saved findings. After it, the next generation researches from
   scratch and spends credits. The monthly credit count is not reset, because those credits were really spent.
+- The same action exists per game: the game right-click menu (single or multi-select) has "Delete saved research for estimated
+  trophies and Gamerscore". It confirms first, removes only the selected games' saved findings, and leaves their generated values alone.
 If the key is missing or rejected, or credits run out, the game is scored without research (no confidence penalty), the log says so,
 and it is tried again after a few hours (Regenerate also tries again at once).
 

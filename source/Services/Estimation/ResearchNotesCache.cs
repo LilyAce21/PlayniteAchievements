@@ -9,8 +9,8 @@ namespace PlayniteAchievements.Services.Estimation
     /// <summary>
     /// Research notes already gathered, by game and achievement. Research costs requests or search credits, and a limit can
     /// interrupt it part way, so what was found is kept and reused instead of being paid for twice. When a folder is set
-    /// (<see cref="Configure"/>) each game's notes are also saved to a small file there, so they survive restarts; they are
-    /// cleared when a game is regenerated or all generated data is deleted. Only public findings are stored: never a key,
+    /// (<see cref="Configure"/>) each game's notes are also saved to a small file there, so they survive restarts. They are
+    /// kept when a game is regenerated or generated values are deleted, and removed only by the explicit delete-research actions. Only public findings are stored: never a key,
     /// and nothing about the player.
     /// </summary>
     public static class ResearchNotesCache
@@ -129,6 +129,39 @@ namespace PlayniteAchievements.Services.Estimation
 
                 return ids.Count;
             }
+        }
+
+        /// <summary>True when this game has saved research (in memory or on disk).</summary>
+        public static bool HasSaved(Guid gameId)
+        {
+            lock (Sync)
+            {
+                if (Games.TryGetValue(gameId, out var entry) && (entry.Notes.Count > 0 || entry.Misses.Count > 0)) return true;
+                try
+                {
+                    var path = PathFor(gameId);
+                    return path != null && File.Exists(path);
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>Deletes the saved research of just these games and returns how many actually had any.</summary>
+        public static int ClearGames(IEnumerable<Guid> gameIds)
+        {
+            var cleared = 0;
+            if (gameIds == null) return cleared;
+            foreach (var id in gameIds.Distinct())
+            {
+                if (!HasSaved(id)) continue;
+                Clear(id);
+                cleared++;
+            }
+
+            return cleared;
         }
 
         public static void Clear(Guid gameId)

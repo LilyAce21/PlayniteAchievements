@@ -68,6 +68,13 @@ namespace PlayniteAchievements
                 MenuSection = PluginGameMenuSection,
                 Action = a => GenerateEstimatedValues(gameIds, true)
             };
+
+            yield return new GameMenuItem
+            {
+                Description = "Delete saved research for estimated trophies and Gamerscore",
+                MenuSection = PluginGameMenuSection,
+                Action = a => ClearSavedResearchForGames(gameIds)
+            };
         }
 
         /// <summary>Why a run cannot start, or null when it can.</summary>
@@ -371,6 +378,41 @@ namespace PlayniteAchievements
             {
                 _logger?.Info("[EstimatedValues] Deleted saved research for " + games + " game(s).");
                 PlayniteApi?.Dialogs?.ShowMessage("Deleted saved research for " + games + " game" + (games == 1 ? string.Empty : "s") + ".",
+                    PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        /// <summary>
+        /// Deletes the saved web research of just the given games after confirmation. Their generated grades and Gamerscore
+        /// are not touched; the next generate or regenerate for these games researches again and spends search credits.
+        /// </summary>
+        internal void ClearSavedResearchForGames(IReadOnlyList<Guid> gameIds)
+        {
+            if (gameIds == null || gameIds.Count == 0) return;
+
+            ConfigureResearchStorage();
+            var withResearch = gameIds.Distinct().Count(ResearchNotesCache.HasSaved);
+            var scope = gameIds.Count == 1 ? "this game" : gameIds.Count + " selected games";
+            if (withResearch == 0)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage("There is no saved research for " + scope + ".", PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (!ConfirmMaintenance(
+                    "Delete the saved web research for " + scope + (gameIds.Count > 1 ? " (" + withResearch + " of them have any)" : string.Empty) + "? " +
+                    "Generated trophy grades and Gamerscore are not touched, but generating or regenerating " +
+                    (gameIds.Count == 1 ? "this game" : "these games") + " again will research from scratch and spend search credits."))
+            {
+                return;
+            }
+
+            var cleared = 0;
+            var ok = RunMaintenance(() => { cleared = ResearchNotesCache.ClearGames(gameIds); }, "clear saved research for selected games");
+            if (ok)
+            {
+                _logger?.Info("[EstimatedValues] Deleted saved research for " + cleared + " selected game(s).");
+                PlayniteApi?.Dialogs?.ShowMessage("Deleted saved research for " + cleared + " game" + (cleared == 1 ? string.Empty : "s") + ".",
                     PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
