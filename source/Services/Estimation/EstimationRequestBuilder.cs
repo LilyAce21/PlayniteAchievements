@@ -16,6 +16,12 @@ namespace PlayniteAchievements.Services.Estimation
         public string Category { get; set; }
         public double? RarityPercent { get; set; }
 
+        /// <summary>
+        /// False for an achievement that already has every value being generated (native trophy and points). It still goes to
+        /// the model as an anchor, but research is never spent on it and it is not counted in the evidence totals.
+        /// </summary>
+        public bool NeedsValues { get; set; } = true;
+
         /// <summary>What web research found about this achievement. Added by the research step; null when none.</summary>
         public string ResearchNote { get; set; }
     }

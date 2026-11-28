@@ -39,6 +39,10 @@ namespace PlayniteAchievements.Views.Settings.General
 
         private void GenerateEstimated_Click(object sender, RoutedEventArgs e) => _plugin.GenerateEstimatedValues(null, false);
 
+        private void GenerateMissing_Click(object sender, RoutedEventArgs e) => _plugin.GenerateForGamesWithMissingData();
+
+        private void RetryResearchAll_Click(object sender, RoutedEventArgs e) => _plugin.RetryMissingResearchForAllGames();
+
         private void RegenerateEstimated_Click(object sender, RoutedEventArgs e) => _plugin.GenerateEstimatedValues(null, true);
 
         private void ClearEstimated_Click(object sender, RoutedEventArgs e) => _plugin.ClearEstimatedValues();

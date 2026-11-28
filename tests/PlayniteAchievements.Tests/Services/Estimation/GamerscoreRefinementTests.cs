@@ -475,5 +475,55 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             Assert.IsFalse(EvidenceGatherer.GuideSearchCameUpEmpty(new Dictionary<string, string> { { ResearchNotesCache.GuidePagesKey, "0@1" } }, 1), "already redone this round");
             Assert.IsFalse(EvidenceGatherer.GuideSearchCameUpEmpty(new Dictionary<string, string> { { ResearchNotesCache.GuidePagesKey, "4@0" } }, 3), "it read pages, so there is nothing to redo");
         }
+
+        // ------------------------------------------------------------------ research only where values are needed
+
+        private sealed class CapturingEvidence : IEvidenceSource
+        {
+            public EstimationGameContext Seen;
+            public Task<EvidenceResult> GatherAsync(EstimationGameContext c, IDictionary<string, string> n, ISet<string> m, CancellationToken t)
+            {
+                Seen = c;
+                return Task.FromResult(new EvidenceResult());
+            }
+        }
+
+        [TestMethod]
+        public void Research_NeverSpendsSearchesOnAchievementsThatAlreadyHaveEverything()
+        {
+            var logs = new List<string>();
+            var gatherer = new EvidenceGatherer(new NoHits(), null,
+                new EvidenceOptions { MonthlyCreditBudget = 0, MaxGameQueries = 1, MaxAchievementQueries = 10 }, logs.Add);
+            var context = new EstimationGameContext
+            {
+                Title = "Star Quest",
+                Achievements = new[] { "Moon Walker", "Void Slayer", "Sun Chaser" }
+                    .Select((n, i) => new PublicAchievement { ApiName = "A" + i, DisplayName = n, Description = "d", NeedsValues = i != 0 }).ToList()
+            };
+            var misses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            gatherer.GatherAsync(context, new Dictionary<string, string>(), misses, CancellationToken.None).Wait();
+
+            Assert.IsFalse(misses.Contains("A0"), "the fully native achievement was never searched");
+            Assert.AreEqual(2, misses.Count);
+            Assert.IsTrue(logs.Single(l => l.Contains("no evidence yet")).Contains("2 achievement(s)"));
+        }
+
+        [TestMethod]
+        public void Runner_MarksAchievementsWithFullNativeDataAsNeedingNoResearch()
+        {
+            ResearchNotesCache.Configure(null);
+            var game = TwoAchievementGame();
+            game.Achievements[0].NativeTrophyType = "bronze";
+            game.Achievements.Add(new EstimationSourceAchievement { ApiName = "A2", DisplayName = "Third", Description = "Do third" });
+            var evidence = new CapturingEvidence();
+
+            EstimationRunner.RunAsync(game, new CountingScorer(), new EstimationRunOptions { Model = "m", UseCalibration = false, EvidenceSource = evidence }, CancellationToken.None).Wait();
+
+            Assert.IsFalse(evidence.Seen.Achievements.Single(a => a.ApiName == "A0").NeedsValues, "native grade present and Gamerscore is not generated for a list this short");
+            Assert.IsTrue(evidence.Seen.Achievements.Single(a => a.ApiName == "A1").NeedsValues);
+            Assert.IsTrue(evidence.Seen.Achievements.Single(a => a.ApiName == "A2").NeedsValues);
+            ResearchNotesCache.Configure(null);
+        }
     }
 }

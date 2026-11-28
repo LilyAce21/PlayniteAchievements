@@ -101,6 +101,10 @@
                     <WrapPanel Margin="0,8,0,0">
                         <Button Content="Generate for all games" Click="GenerateEstimated_Click" MinWidth="170" Margin="0,0,8,8"
                                 Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
+                        <Button Content="Generate for games with missing data" Click="GenerateMissing_Click" MinWidth="250" Margin="0,0,8,8"
+                                Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
+                        <Button Content="Retry missing research (all games)" Click="RetryResearchAll_Click" MinWidth="240" Margin="0,0,8,8"
+                                Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
                         <Button Content="Regenerate all" Click="RegenerateEstimated_Click" MinWidth="130" Margin="0,0,8,8"
                                 Padding="{StaticResource PlayAch.Thickness.ButtonPadding.Wide}"/>
                         <Button Content="Delete all generated values" Click="ClearEstimated_Click" MinWidth="200" Margin="0,0,8,8"

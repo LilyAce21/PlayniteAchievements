@@ -97,6 +97,110 @@ namespace PlayniteAchievements
         }
 
         /// <summary>
+        /// Finds the games a library-wide action should touch, so the confirmation can name how many there are.
+        /// Generate: games where at least one achievement still lacks a value being generated (native values never count as
+        /// missing, and games already generated are skipped). Research retry: games that were researched before and still have
+        /// an achievement needing values but no evidence; achievements with both native sets are never counted.
+        /// </summary>
+        private List<Guid> FindEstimationCandidates(bool researchRetry, out int missingAchievements)
+        {
+            var ids = new List<Guid>();
+            var missing = 0;
+            missingAchievements = 0;
+            var cache = _cacheManager as CacheManager;
+            if (cache == null || EstimationPersisted == null) return ids;
+
+            ConfigureResearchStorage();
+            var host = new CacheEstimationHost(cache);
+            var all = host.GetGameIds();
+            var options = EstimatedValuesConfig.ToRunOptions(EstimationPersisted);
+            options.Regenerate = researchRetry;
+
+            PlayniteApi.Dialogs.ActivateGlobalProgress(progress =>
+            {
+                progress.ProgressMaxValue = Math.Max(1, all.Count);
+                var done = 0;
+                foreach (var id in all)
+                {
+                    if (progress.CancelToken.IsCancellationRequested) break;
+                    progress.CurrentProgressValue = ++done;
+                    try
+                    {
+                        var plan = EstimationPlanner.Plan(host.LoadSource(id), options);
+                        if (!researchRetry)
+                        {
+                            if (plan.NeedsAnything) ids.Add(id);
+                            continue;
+                        }
+
+                        if (!ResearchNotesCache.HasSaved(id)) continue;
+                        var notes = ResearchNotesCache.For(id);
+                        var without = plan.TrophyTargets.Union(plan.PointsTargets, StringComparer.OrdinalIgnoreCase).Count(name => !notes.ContainsKey(name));
+                        if (without > 0) { ids.Add(id); missing += without; }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Warn(ex, "[EstimatedValues] Could not check a game while looking for missing data.");
+                    }
+                }
+            }, new GlobalProgressOptions("Looking for games with missing trophy and Gamerscore data…", true) { Cancelable = true, IsIndeterminate = false });
+
+            missingAchievements = missing;
+            return ids;
+        }
+
+        /// <summary>Generates for every game that still has achievements lacking a trophy grade or Gamerscore value (native data is never touched).</summary>
+        internal void GenerateForGamesWithMissingData()
+        {
+            var problem = GetEstimatedValuesProblem();
+            if (problem != null)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage(problem, PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var ids = FindEstimationCandidates(false, out _);
+            if (ids.Count == 0)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage("No games need generated values: every achievement already has native or generated trophy and Gamerscore data.",
+                    PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _logger?.Info("[EstimatedValues] " + ids.Count + " game(s) have achievements missing trophy or Gamerscore data.");
+            GenerateEstimatedValues(ids, false);
+        }
+
+        /// <summary>Searches again for the missing evidence in every researched game, regenerating only where something new turns up.</summary>
+        internal void RetryMissingResearchForAllGames()
+        {
+            var problem = GetEstimatedValuesProblem();
+            if (problem != null)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage(problem, PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (EstimationPersisted?.EstimatedValuesResearchEnabled != true)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage("Turn on \"Research each achievement\" first: there is no research to retry otherwise.",
+                    PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var ids = FindEstimationCandidates(true, out var missing);
+            if (ids.Count == 0)
+            {
+                PlayniteApi?.Dialogs?.ShowMessage("No researched game has achievements without evidence that still need generated values.",
+                    PluginTitle, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            _logger?.Info("[EstimatedValues] " + ids.Count + " researched game(s) have " + missing + " achievement(s) without evidence that need values.");
+            GenerateEstimatedValues(ids, true, retryMissedResearch: true);
+        }
+
+        /// <summary>
         /// Generates estimated values for every game with cached achievements (or just the given games),
         /// with a cancelable progress window and a summary at the end. Earlier results are kept unless
         /// <paramref name="regenerate"/> is true.

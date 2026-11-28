@@ -126,7 +126,7 @@ namespace PlayniteAchievements.Services.Estimation
                 {
                     foreach (var a in context.Achievements ?? new List<PublicAchievement>())
                     {
-                        if (a == null || string.IsNullOrWhiteSpace(a.ApiName)) continue;
+                        if (a == null || string.IsNullOrWhiteSpace(a.ApiName) || !a.NeedsValues) continue;
                         outcome.EvidenceTotal++;
                         if (evidence.NotesByApiName.TryGetValue(a.ApiName, out var foundNote))
                         {

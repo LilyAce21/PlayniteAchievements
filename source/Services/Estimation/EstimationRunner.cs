@@ -314,7 +314,8 @@ namespace PlayniteAchievements.Services.Estimation
                     Description = a.Description,
                     IsHidden = a.IsHidden,
                     Category = a.Category,
-                    RarityPercent = a.RarityPercent
+                    RarityPercent = a.RarityPercent,
+                    NeedsValues = plan.TrophyTargets.Contains(a.ApiName) || plan.PointsTargets.Contains(a.ApiName)
                 }).ToList()
             };
 

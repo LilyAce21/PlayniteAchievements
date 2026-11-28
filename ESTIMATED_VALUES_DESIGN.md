@@ -365,3 +365,9 @@ log line or the exported settings.
   ("Love", "Elite") used to be skipped entirely; it now counts where the text around it repeats at least two of the description's words
   and half of them. A retry also reads the guide pages again (once per retry round) when the earlier guide search read no usable page, or
   was made before that was recorded, keeping everything already found.
+- Research is only spent on achievements that still need a generated value. An achievement with every generated slot already native
+  still goes to the model as an anchor, but is never searched and is not counted in the evidence totals.
+- Library-wide actions (Settings): "Generate for games with missing data" first finds the games that still have achievements without a
+  native or generated trophy grade / Gamerscore value, so the confirmation names the real number of games (native values are never touched
+  and already generated games are skipped). "Retry missing research (all games)" finds researched games with achievements that need values
+  but have no evidence, searches again only for those, and regenerates only the games where something new turns up.

@@ -99,7 +99,7 @@ namespace PlayniteAchievements.Services.Estimation
             var misses = cachedMisses ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var achievements = (context?.Achievements ?? new List<PublicAchievement>())
-                .Where(a => a != null && !string.IsNullOrWhiteSpace(a.ApiName))
+                .Where(a => a != null && !string.IsNullOrWhiteSpace(a.ApiName) && a.NeedsValues)
                 .ToList();
 
             // What an earlier run already found comes back for free.
