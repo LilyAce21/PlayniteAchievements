@@ -131,6 +131,30 @@ namespace PlayniteAchievements.Services.Estimation
             }
         }
 
+        /// <summary>
+        /// Forgets only the "searched, found nothing" marks for these games, so those achievements are searched again.
+        /// Everything already found is kept. Returns how many games had any marks.
+        /// </summary>
+        public static int ClearMisses(IEnumerable<Guid> gameIds)
+        {
+            var changed = 0;
+            if (gameIds == null) return changed;
+            foreach (var id in gameIds.Distinct())
+            {
+                lock (Sync)
+                {
+                    var misses = EntryFor(id).Misses;
+                    if (misses.Count == 0) continue;
+                    misses.Clear();
+                }
+
+                Save(id);
+                changed++;
+            }
+
+            return changed;
+        }
+
         /// <summary>True when this game has saved research (in memory or on disk).</summary>
         public static bool HasSaved(Guid gameId)
         {

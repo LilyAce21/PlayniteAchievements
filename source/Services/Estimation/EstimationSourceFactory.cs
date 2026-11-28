@@ -50,6 +50,17 @@ namespace PlayniteAchievements.Services.Estimation
                 });
             }
 
+            // Only the Xbox metadata source supplies Points and only the PlayStation source supplies trophy grades, so a
+            // native value that no platform layer supplied can only be those official values. Calibration counts such
+            // games like native Xbox and PSN lists, since they are the real thing.
+            var rows = data.Achievements.Where(a => a != null).ToList();
+            var withPoints = rows.Where(a => !a.IsPointsEstimated && a.Points.HasValue).ToList();
+            source.PointsFromXboxMetadata = withPoints.Count > 0 && withPoints.All(a =>
+                a.PlatformLayer?.Points == null && a.MetadataLayer?.Points != null);
+            var withTrophies = rows.Where(a => !a.IsTrophyTypeEstimated && !string.IsNullOrWhiteSpace(a.TrophyType)).ToList();
+            source.TrophiesFromPlayStationMetadata = withTrophies.Count > 0 && withTrophies.All(a =>
+                string.IsNullOrWhiteSpace(a.PlatformLayer?.TrophyType) && !string.IsNullOrWhiteSpace(a.MetadataLayer?.TrophyType));
+
             return source;
         }
     }

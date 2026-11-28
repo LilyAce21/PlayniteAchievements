@@ -76,16 +76,25 @@ namespace PlayniteAchievements.Services.Estimation
                 var chunk = targets.Skip(offset).Take(blockSize).ToList();
                 var total = BlockTotal(chunk.Count, nativeAverage, settings);
 
+                // A rare joke or failure-moment value comes off the block first; the rest share what is left.
+                var special = SelectSpecialValues(chunk, game, total, settings);
+                BalanceSpecialValues(special, chunk, weights, milestone, total, settings);
+                foreach (var pair in special)
+                {
+                    result.Add(new GamerscoreEstimate { ApiName = pair.Key, Value = pair.Value, Block = blockIndex });
+                }
+
+                var rest = chunk.Where(s => !special.ContainsKey(s.ApiName)).ToList();
                 var values = AllocateBlock(
-                    chunk.Select(s => weights[s.ApiName]).ToList(),
-                    chunk.Select(s => milestone[s.ApiName]).ToList(),
-                    total,
+                    rest.Select(s => weights[s.ApiName]).ToList(),
+                    rest.Select(s => milestone[s.ApiName]).ToList(),
+                    total - special.Values.Sum(),
                     game.IsUniformSet,
                     settings);
 
-                for (var i = 0; i < chunk.Count; i++)
+                for (var i = 0; i < rest.Count; i++)
                 {
-                    result.Add(new GamerscoreEstimate { ApiName = chunk[i].ApiName, Value = values[i], Block = blockIndex });
+                    result.Add(new GamerscoreEstimate { ApiName = rest[i].ApiName, Value = values[i], Block = blockIndex });
                 }
             }
 
@@ -114,6 +123,10 @@ namespace PlayniteAchievements.Services.Estimation
         // ---------------------------------------------------------------------------------
         // Weights
         // ---------------------------------------------------------------------------------
+        private const double MinSpecialConfidence = 0.8;
+        private const double MinSpecialGameConfidence = 0.7;
+        private const int SpecialPerAchievements = 50;
+
         internal static Dictionary<string, double> BuildWeights(
             IList<AchievementScore> targets,
             GameScoring game,
@@ -181,6 +194,203 @@ namespace PlayniteAchievements.Services.Estimation
                    members.OrderByDescending(t => t.SeriesPosition).First().ApiName.Equals(s.ApiName, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Picks the rare achievements that get a joke, themed or failure-moment value. The model only proposes; this
+        /// decides. Never a capstone, true ending or ladder step, never in a uniform or low-confidence game, only a
+        /// confident proposal, and at most one per 50 achievements in the block. A failure may be 0 G only in a DLC or
+        /// update category (as on Xbox, where 0 G is for post-launch content); elsewhere it is 1 to 10 G, a joke 1 to
+        /// 100 G. If the rest of the block could no longer hold the remaining total, none are used.
+        /// </summary>
+        internal static Dictionary<string, int> SelectSpecialValues(
+            IList<AchievementScore> chunk, GameScoring game, int total, EstimationSettings settings)
+        {
+            var picked = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (!settings.GamerscoreAllowSpecialValues || game.IsUniformSet || game.OverallConfidence < MinSpecialGameConfidence) return picked;
+
+            var limit = Math.Max(1, chunk.Count / SpecialPerAchievements);
+            var candidates = chunk
+                .Where(s => s.SpecialKind != SpecialValueKind.None && s.SpecialValue.HasValue)
+                .Where(s => !s.IsCapstone && s.Kind != AchievementKind.TrueEnding && string.IsNullOrWhiteSpace(s.SeriesId))
+                .Where(s => s.Confidence >= MinSpecialConfidence)
+                .OrderByDescending(s => s.Confidence)
+                .ThenBy(s => s.ApiName, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var s in candidates)
+            {
+                if (picked.Count >= limit) break;
+
+                var postLaunch = !string.IsNullOrWhiteSpace(s.Category) &&
+                                 game.CategoryKinds != null &&
+                                 game.CategoryKinds.TryGetValue(s.Category, out var kind) &&
+                                 (kind == CategoryKind.Dlc || kind == CategoryKind.Update);
+                var value = s.SpecialValue.Value;
+                if (s.SpecialKind == SpecialValueKind.Failure)
+                {
+                    if (value == 0 && !postLaunch) value = 1;
+                    if (value < 0 || value > 10) continue;
+                }
+                else if (value < 1 || value > 100)
+                {
+                    continue;
+                }
+
+                picked[s.ApiName] = value;
+            }
+
+            var remainingCount = chunk.Count - picked.Count;
+            var remainingTotal = total - picked.Values.Sum();
+            if (picked.Count > 0 &&
+                (remainingCount < 1 ||
+                 remainingTotal < remainingCount * settings.GamerscoreMinValue ||
+                 remainingTotal > remainingCount * settings.GamerscoreMaxValue))
+            {
+                picked.Clear();
+            }
+
+            return picked;
+        }
+
+        /// <summary>
+        /// An odd special value (1 G, a themed number) would leave the block off its exact total, which is a multiple of
+        /// the step. Developers fix that by pairing it with one more small odd value later in the list, so one ordinary,
+        /// low-weight, non-milestone achievement takes the balancing value (the missing remainder plus one step, for
+        /// example 9 G beside a 1 G). If no achievement can balance it or the rest cannot hold what is left, the special
+        /// values are dropped and the block is allocated normally.
+        /// </summary>
+        internal static void BalanceSpecialValues(
+            Dictionary<string, int> special, IList<AchievementScore> chunk, Dictionary<string, double> weights,
+            Dictionary<string, bool> milestone, int total, EstimationSettings settings)
+        {
+            if (special.Count == 0) return;
+
+            var step = Math.Max(1, settings.GamerscoreStep);
+            var remainder = (((total - special.Values.Sum()) % step) + step) % step;
+            if (remainder != 0)
+            {
+                var balancer = chunk
+                    .Where(s => !special.ContainsKey(s.ApiName) && !s.IsCapstone && !milestone[s.ApiName])
+                    .OrderBy(s => weights[s.ApiName])
+                    .ThenBy(s => s.ApiName, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+                if (balancer == null) { special.Clear(); return; }
+
+                special[balancer.ApiName] = remainder + step;
+            }
+
+            var restCount = chunk.Count - special.Count;
+            var restTotal = total - special.Values.Sum();
+            if (restCount < 1 || restTotal < restCount * settings.GamerscoreMinValue || restTotal > restCount * settings.GamerscoreMaxValue)
+            {
+                special.Clear();
+            }
+        }
+
+        // ---------------------------------------------------------------------------------
+        // Common values: developers overwhelmingly use a small set of round values
+        // ---------------------------------------------------------------------------------
+        /// <summary>
+        /// Moves each ideal value to the nearest common value (in log distance), then repairs the block total by
+        /// moving whole values up or down the common-value ladder, cheapest distortion first. Only when no ladder
+        /// move fits the remaining difference does it fall back to single steps on distinct, non-milestone
+        /// achievements, so an off-tier value is the exception and never lands on a capstone if avoidable.
+        /// Returns null when it cannot satisfy the bounds (the caller then uses plain rounding).
+        /// </summary>
+        internal static int[] SnapToCommonValues(
+            double[] ideal, double?[] fixedUnits, IList<bool> milestones, bool uniform,
+            int units, int step, int minUnits, int maxUnits, EstimationSettings settings)
+        {
+            var n = ideal.Length;
+            var ladder = (settings.GamerscoreCommonValues ?? new int[0])
+                .Where(v => v > 0 && v % step == 0)
+                .Select(v => v / step)
+                .Where(u => u >= minUnits && u <= maxUnits)
+                .Concat(new[] { minUnits, maxUnits })
+                .Distinct()
+                .OrderBy(u => u)
+                .ToArray();
+            if (ladder.Length < 2) return null;
+
+            int NearestIndex(double x)
+            {
+                var target = Math.Max(1e-9, x);
+                var best = 0;
+                var bestCost = double.MaxValue;
+                for (var k = 0; k < ladder.Length; k++)
+                {
+                    var cost = Math.Abs(Math.Log(ladder[k] / target));
+                    if (cost < bestCost) { bestCost = cost; best = k; }
+                }
+
+                return best;
+            }
+
+            double Cost(int i, int value) => Math.Abs(Math.Log(Math.Max(1, value) / Math.Max(1e-9, ideal[i])));
+            bool IsMilestone(int i) => milestones != null && i < milestones.Count && milestones[i];
+
+            var current = new int[n];
+            var rung = new int[n];
+            for (var i = 0; i < n; i++)
+            {
+                if (fixedUnits[i] != null) { current[i] = (int)fixedUnits[i].Value; rung[i] = -1; continue; }
+                rung[i] = NearestIndex(ideal[i]);
+                current[i] = ladder[rung[i]];
+            }
+
+            var diff = units - current.Sum();
+            var guard = 0;
+            while (diff != 0 && guard++ < n * ladder.Length * 4)
+            {
+                var up = diff > 0;
+                var bestI = -1; var bestCostDelta = double.MaxValue; var bestStep = 0;
+                // In a uniform set, extra points go on milestones only, as long as they can take them.
+                var milestonesOnly = uniform && up && Enumerable.Range(0, n).Any(IsMilestone);
+                for (var i = 0; i < n; i++)
+                {
+                    if (rung[i] < 0) continue;
+                    if (milestonesOnly && !IsMilestone(i)) continue;
+                    var next = rung[i] + (up ? 1 : -1);
+                    if (next < 0 || next >= ladder.Length) continue;
+
+                    var delta = ladder[next] - current[i];
+                    if (Math.Abs(delta) > Math.Abs(diff)) continue;
+
+                    var costDelta = Cost(i, ladder[next]) - Cost(i, current[i]);
+                    // Prefer the move that closes more of the gap for the same distortion.
+                    costDelta -= 0.02 * Math.Abs(delta);
+                    if (costDelta < bestCostDelta) { bestCostDelta = costDelta; bestI = i; bestStep = delta; }
+                }
+
+                if (bestI < 0) break;
+                rung[bestI] += up ? 1 : -1;
+                current[bestI] += bestStep;
+                diff -= bestStep;
+            }
+
+            // No ladder move fits what is left: fix it with single steps, each on a different achievement,
+            // preferring ones whose ideal sits furthest in that direction and that are not milestones.
+            var used = new HashSet<int>();
+            while (diff != 0)
+            {
+                var up = diff > 0;
+                var candidates = Enumerable.Range(0, n)
+                    .Where(i => current[i] + (up ? 1 : -1) >= minUnits && current[i] + (up ? 1 : -1) <= maxUnits)
+                    .OrderBy(i => uniform && up ? (IsMilestone(i) ? 0 : 1) : 0)
+                    .ThenBy(i => used.Contains(i) && !(uniform && up && IsMilestone(i)) ? 1 : 0)
+                    .ThenBy(i => !(uniform && up) && IsMilestone(i) ? 1 : 0)
+                    .ThenBy(i => Cost(i, current[i] + (up ? 1 : -1)) - Cost(i, current[i]))
+                    .ThenBy(i => i)
+                    .ToList();
+                if (candidates.Count == 0) return null;
+
+                var pick = candidates[0];
+                current[pick] += up ? 1 : -1;
+                used.Add(pick);
+                diff += up ? -1 : 1;
+            }
+
+            return current;
+        }
+
         // ---------------------------------------------------------------------------------
         // Allocation: exact sums, multiples of the step, min/max respected
         // ---------------------------------------------------------------------------------
@@ -237,6 +447,12 @@ namespace PlayniteAchievements.Services.Estimation
                 {
                     ideal[i] = fixedUnits[i] ?? remaining * w[i] / weightSum;
                 }
+            }
+
+            if (settings.GamerscorePreferCommonValues)
+            {
+                var snapped = SnapToCommonValues(ideal, fixedUnits, milestones, uniform, units, step, minUnits, maxUnits, settings);
+                if (snapped != null) return snapped.Select(u => u * step).ToArray();
             }
 
             var allocated = ideal.Select(x => Math.Max(minUnits, Math.Min(maxUnits, (int)Math.Floor(x)))).ToArray();

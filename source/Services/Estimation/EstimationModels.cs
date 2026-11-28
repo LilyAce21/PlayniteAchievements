@@ -40,6 +40,14 @@ namespace PlayniteAchievements.Services.Estimation
         CompletionistHeavy
     }
 
+    /// <summary>Why a developer might give an achievement an unusual Gamerscore: a joke or theme, or a failure moment.</summary>
+    public enum SpecialValueKind
+    {
+        None = 0,
+        Joke,
+        Failure
+    }
+
     public enum CategoryKind
     {
         Base = 0,
@@ -92,6 +100,15 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>True when web research about this achievement was available when it was scored.</summary>
         public bool Researched { get; set; }
+
+        /// <summary>
+        /// Set only when the achievement itself clearly sets up an unusual value: a joke or a themed number, or a
+        /// failure moment (losing, dying, doing something badly on purpose). Code decides whether it is used.
+        /// </summary>
+        public SpecialValueKind SpecialKind { get; set; }
+
+        /// <summary>The Gamerscore the developer would plausibly have chosen for the special case (0 allowed for failure).</summary>
+        public int? SpecialValue { get; set; }
     }
 
     /// <summary>Game-level judgement that accompanies the per-achievement scores.</summary>
@@ -150,6 +167,22 @@ namespace PlayniteAchievements.Services.Estimation
         public int GamerscoreMaxValue { get; set; } = 200;
 
         public int GamerscoreStep { get; set; } = 5;
+
+        /// <summary>
+        /// When true (the default), generated Gamerscore prefers the values developers use most often (5, 10, 15, 20,
+        /// 25, 30, 40, 50, 75, 100, 150, 200) and only uses another multiple of the step where no mix of those values
+        /// can make the block total exact.
+        /// </summary>
+        public bool GamerscorePreferCommonValues { get; set; } = true;
+
+        /// <summary>
+        /// Allows a rare joke, themed or failure-moment value (for example 1 G or a themed number, or 0 G for a failure in
+        /// a DLC or update) where the achievement clearly sets it up. At most one per 50 achievements in a block.
+        /// </summary>
+        public bool GamerscoreAllowSpecialValues { get; set; } = true;
+
+        /// <summary>The common values, in Gamerscore. Values outside the min/max or off the step are ignored.</summary>
+        public int[] GamerscoreCommonValues { get; set; } = { 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200 };
     }
 
     public sealed class TrophyEstimate

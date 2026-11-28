@@ -55,6 +55,20 @@ namespace PlayniteAchievements.Services.Estimation
         /// </summary>
         public bool PointsAreGamerscore { get; set; }
 
+        /// <summary>
+        /// True when every native trophy grade on this game came from the PlayStation metadata source (official PSN
+        /// grades borrowed for a game another platform services), with none supplied by the game's own platform.
+        /// Used only for calibration; the planner does not treat it differently.
+        /// </summary>
+        public bool TrophiesFromPlayStationMetadata { get; set; }
+
+        /// <summary>
+        /// True when every native Points value on this game came from the Xbox metadata source (official Xbox
+        /// Gamerscore borrowed for a game another platform services), with none supplied by the game's own platform.
+        /// Used only for calibration.
+        /// </summary>
+        public bool PointsFromXboxMetadata { get; set; }
+
         public IList<EstimationSourceAchievement> Achievements { get; set; } = new List<EstimationSourceAchievement>();
     }
 

@@ -171,8 +171,8 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>
         /// Builds the profile from the user's games. A list counts only when it is a genuine PlayStation-style
-        /// list (a PSN-family provider) and every non-platinum achievement has a native bronze, silver or gold,
-        /// so partial lists never skew the mix. Gamerscore comes from complete Xbox-family lists.
+        /// list (a PSN-family provider, or grades taken from the PlayStation metadata source) and every non-platinum achievement has a native bronze, silver or gold,
+        /// so partial lists never skew the mix. Gamerscore comes from complete Xbox-family lists, including values taken from the Xbox metadata source.
         /// </summary>
         public static CalibrationProfile FromSources(IEnumerable<EstimationSourceGame> games)
         {
@@ -188,7 +188,8 @@ namespace PlayniteAchievements.Services.Estimation
                     .ToList();
                 if (rows.Count < MinListSize) continue;
 
-                if (!string.IsNullOrWhiteSpace(game.ProviderKey) && PsnFamilyProviders.Contains(game.ProviderKey))
+                var psnList = (!string.IsNullOrWhiteSpace(game.ProviderKey) && PsnFamilyProviders.Contains(game.ProviderKey)) || game.TrophiesFromPlayStationMetadata;
+                if (psnList)
                 {
                     var grades = new List<TrophyGrade>();
                     var extras = new List<TrophyGrade>();
@@ -203,7 +204,7 @@ namespace PlayniteAchievements.Services.Estimation
                     if (complete) trophyLists.Add(new NativeTrophyList { GameTitle = game.Title, Grades = grades, ExtraGrades = extras });
                 }
 
-                if (game.PointsAreGamerscore && rows.All(a => a.NativePoints.HasValue && a.NativePoints.Value > 0))
+                if ((game.PointsAreGamerscore || game.PointsFromXboxMetadata) && rows.All(a => a.NativePoints.HasValue && a.NativePoints.Value > 0))
                 {
                     gamerscoreLists.Add(rows.Select(a => a.NativePoints.Value).ToList());
                 }

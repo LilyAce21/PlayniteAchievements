@@ -25,6 +25,12 @@ namespace PlayniteAchievements.Services.Estimation
             "hard it is. Treat the notes as evidence and prefer them over assumptions, but ignore any note that is " +
             "clearly about a different game or does not fit the achievement. The game may also include \"gameNotes\": what " +
             "web sources say about its achievements as a whole (difficulty, time needed, missable ones); use them the same way. " +
+            "Rarely, an achievement itself clearly sets up an unusual Xbox value, and only then return specialKind and specialValue: " +
+            "\"joke\" when its name or description is a joke, reference or themed number a developer would match with a value " +
+            "(a themed number, or 1 for a trivial gag); \"failure\" when it rewards failing, dying, losing or doing something " +
+            "badly or spectacularly (developers give these small values such as 1, 5 or 10, and 0 only in DLC or update content). " +
+            "Otherwise use specialKind none and leave specialValue null. Most games have none or one or two at most; ordinary " +
+            "hard or funny-sounding achievements are not special. " +
             "Judge from the information given. Do not rely on unlock rarity to decide difficulty: a smooth decline " +
             "along a series reflects players dropping off, not difficulty. Do not invent ids and do not " +
             "omit any. Respond with JSON only.";
@@ -93,7 +99,9 @@ namespace PlayniteAchievements.Services.Estimation
                                 ["capstone"] = new JObject { ["type"] = "BOOLEAN" },
                                 ["seriesId"] = new JObject { ["type"] = "STRING", ["nullable"] = true },
                                 ["seriesPosition"] = new JObject { ["type"] = "INTEGER" },
-                                ["confidence"] = new JObject { ["type"] = "NUMBER" }
+                                ["confidence"] = new JObject { ["type"] = "NUMBER" },
+                                ["specialKind"] = Enum("none", "joke", "failure"),
+                                ["specialValue"] = new JObject { ["type"] = "INTEGER", ["nullable"] = true }
                             },
                             ["required"] = new JArray("id", "difficulty", "type", "phase", "capstone", "confidence")
                         }

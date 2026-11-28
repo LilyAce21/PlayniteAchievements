@@ -80,7 +80,7 @@ namespace PlayniteAchievements.Services.Database
                     {
                         if (row == null || string.IsNullOrWhiteSpace(row.ApiName)) continue;
 
-                        var wantsPoints = row.Points.HasValue && row.Points.Value > 0;
+                        var wantsPoints = row.Points.HasValue && row.Points.Value >= 0; // 0 G is a real value (a failure achievement in DLC)
                         var wantsTrophy = !string.IsNullOrWhiteSpace(row.TrophyType) && IsAllowedTrophyType(row.TrophyType);
                         if (!wantsPoints && !wantsTrophy) continue;
 

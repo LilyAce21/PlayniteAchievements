@@ -91,7 +91,9 @@ namespace PlayniteAchievements.Services.Estimation
                     IsCapstone = ReadBool(item["capstone"]),
                     SeriesId = string.IsNullOrWhiteSpace(seriesId) || seriesId.Equals("null", StringComparison.OrdinalIgnoreCase) ? null : seriesId.Trim(),
                     SeriesPosition = Math.Max(0, ReadInt(item["seriesPosition"]) ?? 0),
-                    Confidence = ValueScoring.Clamp01(ReadDouble(item["confidence"]) ?? 0.5)
+                    Confidence = ValueScoring.Clamp01(ReadDouble(item["confidence"]) ?? 0.5),
+                    SpecialKind = ParseSpecialKind((string)item["specialKind"]),
+                    SpecialValue = ReadInt(item["specialValue"])
                 });
             }
 
@@ -103,6 +105,16 @@ namespace PlayniteAchievements.Services.Estimation
             }
 
             return result;
+        }
+
+        private static SpecialValueKind ParseSpecialKind(string value)
+        {
+            switch ((value ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "joke": return SpecialValueKind.Joke;
+                case "failure": return SpecialValueKind.Failure;
+                default: return SpecialValueKind.None;
+            }
         }
 
         private static GameScoring ParseGame(JObject game)

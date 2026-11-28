@@ -335,3 +335,17 @@ strings, and the finished JSON is rejected if it contains any key outside the al
 
 Still to decide for Phase 4: where the Gemini API key is stored. It must never enter a request, a
 log line or the exported settings.
+
+## Gamerscore common values, special values, metadata calibration, research follow-ups
+- Gamerscore prefers the values developers use most (5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200). Each ideal value snaps to the
+  nearest common value, then the exact block total is repaired by moving whole values along that ladder; another multiple of 5 is used
+  only when no mix can reach the total, and never on a milestone if avoidable. Uniform sets still put their leftover on the milestone.
+  `GamerscorePreferCommonValues` switches back to plain rounding.
+- Rare special values: the model may flag an achievement as a joke/themed number or a failure moment with a proposed value. Code decides:
+  never a capstone, true ending or ladder step, never in uniform or low-confidence games, only when the proposal is confident, at most one
+  per 50 achievements in a block. Failure is 1-10 G (0 G only inside DLC or update categories); a joke is 1-100 G. An odd value is paired
+  with one balancing value (for example 9 G beside 1 G) so the block still sums exactly. `GamerscoreAllowSpecialValues` turns it off.
+- Calibration ("fit from my library" and the Gamerscore profile) now also counts games whose official PSN grades or Xbox Gamerscore come
+  from the PlayStation or Xbox metadata source, not only games serviced by those platforms. Only those two sources supply those fields.
+- The log now lists which achievements still have no research (not searched yet vs searched, nothing found). A new game menu entry,
+  "Retry missed research and regenerate", forgets only the "nothing found" marks, keeps everything found, then regenerates.

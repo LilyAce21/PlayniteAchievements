@@ -71,6 +71,13 @@ namespace PlayniteAchievements
 
             yield return new GameMenuItem
             {
+                Description = "Retry missed research and regenerate estimated trophies and Gamerscore",
+                MenuSection = PluginGameMenuSection,
+                Action = a => GenerateEstimatedValues(gameIds, true, retryMissedResearch: true)
+            };
+
+            yield return new GameMenuItem
+            {
                 Description = "Delete saved research for estimated trophies and Gamerscore",
                 MenuSection = PluginGameMenuSection,
                 Action = a => ClearSavedResearchForGames(gameIds)
@@ -94,8 +101,9 @@ namespace PlayniteAchievements
         /// with a cancelable progress window and a summary at the end. Earlier results are kept unless
         /// <paramref name="regenerate"/> is true.
         /// </summary>
-        internal void GenerateEstimatedValues(IReadOnlyList<Guid> gameIds, bool regenerate)
+        internal void GenerateEstimatedValues(IReadOnlyList<Guid> gameIds, bool regenerate, bool retryMissedResearch = false)
         {
+            if (retryMissedResearch) regenerate = true;
             if (_estimationRunning)
             {
                 PlayniteApi?.Dialogs?.ShowMessage("Generating estimated values is already running.", PluginTitle);
@@ -115,7 +123,12 @@ namespace PlayniteAchievements
             ConfigureResearchStorage();
             var webSearch = EstimatedValuesConfig.UsesWebSearchResearch(persisted);
             var scope = gameIds == null ? "every game" : gameIds.Count == 1 ? "this game" : gameIds.Count + " games";
-            var prompt = regenerate
+            var prompt = retryMissedResearch
+                ? "Search again for the achievements of " + scope + " that research found nothing for, then regenerate their estimated trophy grades and Gamerscore? " +
+                  "Research already found is kept and reused. Each new search costs a search credit (" + (_searchUsage?.UsedThisMonth ?? 0) + " of " +
+                  persisted.EstimatedValuesSearchCreditsPerMonth + " used this month, up to " + persisted.EstimatedValuesSearchesPerGame + " searches per game). " +
+                  "Native, metadata and custom values are never changed."
+                : regenerate
                 ? "Regenerate estimated trophy grades and Gamerscore for " + scope + "? Existing generated values will be replaced" +
                   (persisted.EstimatedValuesResearchEnabled ? ". Research that was already saved is reused, so this spends no extra search credits" : string.Empty) +
                   ". Native, metadata and custom values are never changed."
@@ -162,6 +175,12 @@ namespace PlayniteAchievements
                     });
 
                 var ids = gameIds ?? new CacheEstimationHost(cache).GetGameIds();
+                if (retryMissedResearch)
+                {
+                    var retried = ResearchNotesCache.ClearMisses(ids);
+                    _logger?.Info("[EstimatedValues] Will search again for missed achievements in " + retried + " game(s); found research is kept.");
+                }
+
                 _logger?.Info("[EstimatedValues] Starting: " + ids.Count + " game(s), regenerate=" + regenerate +
                               ", model=" + (persisted.EstimatedValuesGeminiModel ?? string.Empty).Trim() +
                               ", trophies=" + persisted.EstimatedValuesGenerateTrophies +

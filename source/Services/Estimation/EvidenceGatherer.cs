@@ -111,7 +111,7 @@ namespace PlayniteAchievements.Services.Estimation
             if (notes.TryGetValue(ResearchNotesCache.GameNotesKey, out var cachedGameNotes)) result.GameNotes = cachedGameNotes;
 
             var pending = achievements.Where(a => !result.NotesByApiName.ContainsKey(a.ApiName) && !misses.Contains(a.ApiName)).ToList();
-            if (pending.Count == 0) return result;
+            if (pending.Count == 0) { LogUncovered(context.Title, achievements, result, misses); return result; }
 
             if (ResearchAvailability.IsUnavailable(AvailabilityKey, out var knownReason))
             {
@@ -215,10 +215,31 @@ namespace PlayniteAchievements.Services.Estimation
             _log("[Research] " + context.Title + ": " + result.NotesByApiName.Count + " of " + achievements.Count + " achievements have evidence (" +
                  result.FromGuides + " from guides, " + result.FromTargetedSearches + " from targeted searches), " + result.Searches + " search(es), " +
                  result.Credits + " credit(s)" + (_usage != null ? "; " + _usage.UsedThisMonth + " used this month" : string.Empty) + ".");
+            LogUncovered(context.Title, achievements, result, misses);
             return result;
         }
 
         // ------------------------------------------------------------------------------------------------ pieces
+
+        /// <summary>
+        /// Says which achievements still have no research, so it is clear what is missing: those searched with nothing
+        /// found, and those not searched yet (the per-run search limit stops short of them). Names only, never
+        /// anything about the player.
+        /// </summary>
+        private void LogUncovered(string title, IList<PublicAchievement> achievements, EvidenceResult result, ISet<string> misses)
+        {
+            var uncovered = achievements.Where(a => !result.NotesByApiName.ContainsKey(a.ApiName)).ToList();
+            if (uncovered.Count == 0) return;
+
+            var searchedEmpty = uncovered.Where(a => misses.Contains(a.ApiName)).ToList();
+            var notSearched = uncovered.Where(a => !misses.Contains(a.ApiName)).ToList();
+            string Names(IList<PublicAchievement> list) => string.Join("; ", list.Take(12).Select(a => a.DisplayName ?? a.ApiName)) +
+                                                           (list.Count > 12 ? "; +" + (list.Count - 12) + " more" : string.Empty);
+
+            _log("[Research] " + title + ": no evidence yet for " + uncovered.Count + " achievement(s). " +
+                 "Not searched yet (" + notSearched.Count + ", the next generate or regenerate continues with these): " + (notSearched.Count == 0 ? "none" : Names(notSearched)) + ". " +
+                 "Searched, nothing found (" + searchedEmpty.Count + "): " + (searchedEmpty.Count == 0 ? "none" : Names(searchedEmpty)) + ".");
+        }
 
         private async Task<SearchResponse> SearchAsync(string query, bool includeRaw, int maxResults, CancellationToken cancellationToken)
         {
