@@ -349,3 +349,8 @@ log line or the exported settings.
   from the PlayStation or Xbox metadata source, not only games serviced by those platforms. Only those two sources supply those fields.
 - The log now lists which achievements still have no research (not searched yet vs searched, nothing found). A new game menu entry,
   "Retry missed research and regenerate", forgets only the "nothing found" marks, keeps everything found, then regenerates.
+- Special values, tightened: several may share a block (never more than a tenth of it), but each needs the model's own certainty
+  (specialConfidence >= 0.95), scoring confidence >= 0.9 and game confidence >= 0.8. If the achievement has a native PlayStation trophy,
+  the special value must agree with it (a bronze and 10 G or less); otherwise it is not treated as special and is valued normally,
+  anchored to that grade. A generated 0 G now shows a visible 0; a missing value stays empty. A native 0 still renders blank, because
+  providers also store 0 for "no points" and the two cannot be told apart.

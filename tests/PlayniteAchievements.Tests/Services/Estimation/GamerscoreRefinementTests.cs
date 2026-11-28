@@ -72,7 +72,7 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         public void Special_FailureInDlcMayBeZeroAndTheBlockStaysExact()
         {
             var scores = Forty();
-            scores[3].SpecialKind = SpecialValueKind.Failure; scores[3].SpecialValue = 0; scores[3].Category = "Pack";
+            scores[3].SpecialKind = SpecialValueKind.Failure; scores[3].SpecialValue = 0; scores[3].SpecialConfidence = 0.98; scores[3].Category = "Pack";
             var game = new GameScoring { OverallConfidence = 0.9 };
             game.CategoryKinds["Pack"] = CategoryKind.Dlc;
 
@@ -86,7 +86,7 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         public void Special_FailureInTheBaseGameIsNeverZeroAndIsBalancedToTheExactTotal()
         {
             var scores = Forty();
-            scores[3].SpecialKind = SpecialValueKind.Failure; scores[3].SpecialValue = 0; scores[3].Category = "Base";
+            scores[3].SpecialKind = SpecialValueKind.Failure; scores[3].SpecialValue = 0; scores[3].SpecialConfidence = 0.98; scores[3].Category = "Base";
             var game = new GameScoring { OverallConfidence = 0.9 };
             game.CategoryKinds["Base"] = CategoryKind.Base;
 
@@ -98,25 +98,59 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         }
 
         [TestMethod]
-        public void Special_IsRareAndNeverOnCapstonesSeriesOrLowConfidence()
+        public void Special_SeveralMayShareABlockButOnlyWhenEachIsNearCertain()
         {
             var scores = Forty();
-            foreach (var i in new[] { 3, 7, 9, 11 })
+            foreach (var i in new[] { 3, 7, 9, 11, 13, 15 })
             {
-                scores[i].SpecialKind = SpecialValueKind.Joke; scores[i].SpecialValue = 7;
+                scores[i].SpecialKind = SpecialValueKind.Joke; scores[i].SpecialValue = 7; scores[i].SpecialConfidence = 0.98;
             }
 
             scores[9].IsCapstone = true;
             scores[11].SeriesId = "wins";
-            scores[3].Confidence = 0.5;
+            scores[3].SpecialConfidence = 0.8;     // not certain enough
+            scores[13].Confidence = 0.5;           // the scoring itself is unsure
             var game = new GameScoring { OverallConfidence = 0.9 };
 
             var values = Run(scores, game);
 
-            Assert.AreEqual(7, values["a7"], "the one eligible joke is used");
-            Assert.AreNotEqual(7, values["a9"]);
-            Assert.AreNotEqual(7, values["a11"]);
-            Assert.AreNotEqual(7, values["a3"]);
+            Assert.AreEqual(7, values["a7"]);
+            Assert.AreEqual(7, values["a15"], "a second certain special shares the block");
+            foreach (var name in new[] { "a3", "a9", "a11", "a13" }) Assert.AreNotEqual(7, values[name], name);
+            Assert.AreEqual(1000, values.Values.Sum());
+        }
+
+        [TestMethod]
+        public void Special_NeverExceedsATenthOfTheBlock()
+        {
+            var scores = Forty();
+            for (var i = 0; i < 12; i++)
+            {
+                scores[i].SpecialKind = SpecialValueKind.Joke; scores[i].SpecialValue = 5; scores[i].SpecialConfidence = 0.99;
+            }
+
+            var values = Run(scores, new GameScoring { OverallConfidence = 0.95 });
+
+            Assert.IsTrue(values.Values.Count(v => v == 5) <= 4 + 2, "at most 4 specials plus balancing/ordinary 5s");
+            Assert.AreEqual(1000, values.Values.Sum());
+        }
+
+        [TestMethod]
+        public void Special_MustAgreeWithTheNativePlayStationTrophyWhenOneExists()
+        {
+            var scores = Forty();
+            scores[7].SpecialKind = SpecialValueKind.Failure; scores[7].SpecialValue = 5; scores[7].SpecialConfidence = 0.98;
+            scores[9].SpecialKind = SpecialValueKind.Failure; scores[9].SpecialValue = 5; scores[9].SpecialConfidence = 0.98;
+            var game = new GameScoring { OverallConfidence = 0.9 };
+
+            var values = GamerscoreEstimator.Estimate(new GamerscoreEstimationInput
+            {
+                Scores = scores, Game = game,
+                OtherPlatformGrades = new Dictionary<string, TrophyGrade> { { "a7", TrophyGrade.Bronze }, { "a9", TrophyGrade.Gold } }
+            }).ToDictionary(e => e.ApiName, e => e.Value);
+
+            Assert.AreEqual(5, values["a7"], "a bronze equivalent agrees with a small failure value");
+            Assert.IsTrue(values["a9"] > 5, "a gold equivalent means it is not a special case, so it is valued normally");
             Assert.AreEqual(1000, values.Values.Sum());
         }
 
@@ -124,7 +158,7 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         public void Special_IsIgnoredInLowConfidenceUniformOrDisabledCases()
         {
             var scores = Forty();
-            scores[7].SpecialKind = SpecialValueKind.Joke; scores[7].SpecialValue = 7;
+            scores[7].SpecialKind = SpecialValueKind.Joke; scores[7].SpecialValue = 7; scores[7].SpecialConfidence = 0.98;
 
             Assert.AreNotEqual(7, Run(scores, new GameScoring { OverallConfidence = 0.4 })["a7"]);
             Assert.AreNotEqual(7, Run(scores, new GameScoring { OverallConfidence = 0.9, IsUniformSet = true })["a7"]);
@@ -142,11 +176,12 @@ namespace PlayniteAchievements.Services.Estimation.Tests
         {
             var json = "{\"game\":{\"profile\":\"short_easy\",\"overallConfidence\":0.9,\"uniformSet\":false}," +
                        "\"achievements\":[{\"id\":\"a0001\",\"difficulty\":1,\"type\":\"optional\",\"phase\":\"early\",\"capstone\":false,\"confidence\":0.9," +
-                       "\"specialKind\":\"failure\",\"specialValue\":0}]}";
+                       "\"specialKind\":\"failure\",\"specialValue\":0,\"specialConfidence\":0.97}]}";
             var parsed = EstimationResponseParser.Parse(json, new Dictionary<string, string> { { "a0001", "ACH_1" } });
 
             Assert.AreEqual(SpecialValueKind.Failure, parsed.Scores.Single().SpecialKind);
             Assert.AreEqual(0, parsed.Scores.Single().SpecialValue);
+            Assert.AreEqual(0.97, parsed.Scores.Single().SpecialConfidence, 0.0001);
         }
 
         // ------------------------------------------------------------------ calibration from metadata sources

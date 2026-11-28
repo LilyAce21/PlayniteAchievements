@@ -109,6 +109,9 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>The Gamerscore the developer would plausibly have chosen for the special case (0 allowed for failure).</summary>
         public int? SpecialValue { get; set; }
+
+        /// <summary>How sure the model is that this special value is right in this exact context (0 to 1). Only near-certainty is used.</summary>
+        public double SpecialConfidence { get; set; }
     }
 
     /// <summary>Game-level judgement that accompanies the per-achievement scores.</summary>
@@ -177,7 +180,7 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>
         /// Allows a rare joke, themed or failure-moment value (for example 1 G or a themed number, or 0 G for a failure in
-        /// a DLC or update) where the achievement clearly sets it up. At most one per 50 achievements in a block.
+        /// a DLC or update) where the achievement clearly sets it up. Several may share a block when each is near-certain; never more than a tenth of it.
         /// </summary>
         public bool GamerscoreAllowSpecialValues { get; set; } = true;
 

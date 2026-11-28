@@ -29,8 +29,9 @@ namespace PlayniteAchievements.Services.Estimation
             "\"joke\" when its name or description is a joke, reference or themed number a developer would match with a value " +
             "(a themed number, or 1 for a trivial gag); \"failure\" when it rewards failing, dying, losing or doing something " +
             "badly or spectacularly (developers give these small values such as 1, 5 or 10, and 0 only in DLC or update content). " +
-            "Otherwise use specialKind none and leave specialValue null. Most games have none or one or two at most; ordinary " +
-            "hard or funny-sounding achievements are not special. " +
+            "Also return specialConfidence from 0 to 1: how certain you are that this exact value fits this exact achievement in this game. " +
+            "Be near-certain (0.95 or more) or use none: several in one game are fine when each is unmistakable, but a doubtful one must be none. " +
+            "Otherwise use specialKind none and leave specialValue null. Ordinary hard or funny-sounding achievements are not special. " +
             "Judge from the information given. Do not rely on unlock rarity to decide difficulty: a smooth decline " +
             "along a series reflects players dropping off, not difficulty. Do not invent ids and do not " +
             "omit any. Respond with JSON only.";
@@ -101,7 +102,8 @@ namespace PlayniteAchievements.Services.Estimation
                                 ["seriesPosition"] = new JObject { ["type"] = "INTEGER" },
                                 ["confidence"] = new JObject { ["type"] = "NUMBER" },
                                 ["specialKind"] = Enum("none", "joke", "failure"),
-                                ["specialValue"] = new JObject { ["type"] = "INTEGER", ["nullable"] = true }
+                                ["specialValue"] = new JObject { ["type"] = "INTEGER", ["nullable"] = true },
+                                ["specialConfidence"] = new JObject { ["type"] = "NUMBER" }
                             },
                             ["required"] = new JArray("id", "difficulty", "type", "phase", "capstone", "confidence")
                         }

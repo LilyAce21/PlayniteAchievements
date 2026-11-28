@@ -1688,10 +1688,10 @@ namespace PlayniteAchievements.ViewModels.Items
         }
 
         /// <summary>
-        /// True when the achievement carries a point value worth rendering. A zero value already
-        /// renders blank, so it has nothing to mask.
+        /// True when the achievement carries a point value worth rendering. A native zero renders blank (providers
+        /// also store 0 for "no points"), but a generated 0 G is real data and shows a visible 0; no value stays empty.
         /// </summary>
-        public bool HasPoints => PointsValue.GetValueOrDefault() != 0;
+        public bool HasPoints => PointsValue.HasValue && (PointsValue.Value != 0 || IsPointsEstimated);
 
         public int CollectionScore => _source?.CollectionScore ?? 0;
 

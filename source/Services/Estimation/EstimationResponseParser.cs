@@ -93,7 +93,8 @@ namespace PlayniteAchievements.Services.Estimation
                     SeriesPosition = Math.Max(0, ReadInt(item["seriesPosition"]) ?? 0),
                     Confidence = ValueScoring.Clamp01(ReadDouble(item["confidence"]) ?? 0.5),
                     SpecialKind = ParseSpecialKind((string)item["specialKind"]),
-                    SpecialValue = ReadInt(item["specialValue"])
+                    SpecialValue = ReadInt(item["specialValue"]),
+                    SpecialConfidence = ValueScoring.Clamp01(ReadDouble(item["specialConfidence"]) ?? 0.0)
                 });
             }
 

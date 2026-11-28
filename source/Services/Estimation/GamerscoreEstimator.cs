@@ -77,7 +77,7 @@ namespace PlayniteAchievements.Services.Estimation
                 var total = BlockTotal(chunk.Count, nativeAverage, settings);
 
                 // A rare joke or failure-moment value comes off the block first; the rest share what is left.
-                var special = SelectSpecialValues(chunk, game, total, settings);
+                var special = SelectSpecialValues(chunk, game, total, settings, input.OtherPlatformGrades);
                 BalanceSpecialValues(special, chunk, weights, milestone, total, settings);
                 foreach (var pair in special)
                 {
@@ -123,9 +123,10 @@ namespace PlayniteAchievements.Services.Estimation
         // ---------------------------------------------------------------------------------
         // Weights
         // ---------------------------------------------------------------------------------
-        private const double MinSpecialConfidence = 0.8;
-        private const double MinSpecialGameConfidence = 0.7;
-        private const int SpecialPerAchievements = 50;
+        private const double MinSpecialConfidence = 0.9;
+        private const double MinSpecialCertainty = 0.95;
+        private const double MinSpecialGameConfidence = 0.8;
+        private const int SpecialShareDivisor = 10;
 
         internal static Dictionary<string, double> BuildWeights(
             IList<AchievementScore> targets,
@@ -197,21 +198,21 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>
         /// Picks the rare achievements that get a joke, themed or failure-moment value. The model only proposes; this
         /// decides. Never a capstone, true ending or ladder step, never in a uniform or low-confidence game, only a
-        /// confident proposal, and at most one per 50 achievements in the block. A failure may be 0 G only in a DLC or
+        /// confident proposal, and at most a tenth of the block, each needing near-certainty. A failure may be 0 G only in a DLC or
         /// update category (as on Xbox, where 0 G is for post-launch content); elsewhere it is 1 to 10 G, a joke 1 to
         /// 100 G. If the rest of the block could no longer hold the remaining total, none are used.
         /// </summary>
         internal static Dictionary<string, int> SelectSpecialValues(
-            IList<AchievementScore> chunk, GameScoring game, int total, EstimationSettings settings)
+            IList<AchievementScore> chunk, GameScoring game, int total, EstimationSettings settings, IDictionary<string, TrophyGrade> otherPlatformGrades = null)
         {
             var picked = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             if (!settings.GamerscoreAllowSpecialValues || game.IsUniformSet || game.OverallConfidence < MinSpecialGameConfidence) return picked;
 
-            var limit = Math.Max(1, chunk.Count / SpecialPerAchievements);
+            var limit = Math.Max(1, chunk.Count / SpecialShareDivisor);
             var candidates = chunk
                 .Where(s => s.SpecialKind != SpecialValueKind.None && s.SpecialValue.HasValue)
                 .Where(s => !s.IsCapstone && s.Kind != AchievementKind.TrueEnding && string.IsNullOrWhiteSpace(s.SeriesId))
-                .Where(s => s.Confidence >= MinSpecialConfidence)
+                .Where(s => s.Confidence >= MinSpecialConfidence && s.SpecialConfidence >= MinSpecialCertainty)
                 .OrderByDescending(s => s.Confidence)
                 .ThenBy(s => s.ApiName, StringComparer.OrdinalIgnoreCase);
 
@@ -224,6 +225,15 @@ namespace PlayniteAchievements.Services.Estimation
                                  game.CategoryKinds.TryGetValue(s.Category, out var kind) &&
                                  (kind == CategoryKind.Dlc || kind == CategoryKind.Update);
                 var value = s.SpecialValue.Value;
+
+                // Fallback: when the native PlayStation trophy for this achievement exists, the special value must agree with
+                // it. A joke or failure is a bronze, small by nature; anything else means this is not really a special case,
+                // so it is valued normally, anchored to that native grade.
+                if (otherPlatformGrades != null && otherPlatformGrades.TryGetValue(s.ApiName, out var native))
+                {
+                    if (native != TrophyGrade.Bronze || value > 10) continue;
+                }
+
                 if (s.SpecialKind == SpecialValueKind.Failure)
                 {
                     if (value == 0 && !postLaunch) value = 1;
