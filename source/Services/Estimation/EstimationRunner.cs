@@ -87,6 +87,12 @@ namespace PlayniteAchievements.Services.Estimation
         public bool Regenerate { get; set; }
 
         /// <summary>
+        /// Set for "retry missed research": research runs first, and the game is only scored and rewritten when it
+        /// found evidence it did not have before. Otherwise the existing values are left exactly as they are.
+        /// </summary>
+        public bool OnlyRegenerateWithNewEvidence { get; set; }
+
+        /// <summary>
         /// Summarise the user's own native lists into the request (grade mix by size, DLC split, closest
         /// anonymous lists). The coordinator computes it once per run when this is true and none is supplied.
         /// </summary>
@@ -333,7 +339,8 @@ namespace PlayniteAchievements.Services.Estimation
                     client, context, cancellationToken,
                     EstimationRequestBuilder.DefaultChunkSize, researchClient, Math.Max(1, options.ResearchBatchSize),
                     wantsResearch ? ResearchNotesCache.For(game.PlayniteGameId) : null,
-                    evidence, evidence != null ? ResearchNotesCache.MissesFor(game.PlayniteGameId) : null).ConfigureAwait(false);
+                    evidence, evidence != null ? ResearchNotesCache.MissesFor(game.PlayniteGameId) : null,
+                    stopWithoutNewEvidence: options.OnlyRegenerateWithNewEvidence).ConfigureAwait(false);
             }
             finally
             {
@@ -342,6 +349,14 @@ namespace PlayniteAchievements.Services.Estimation
             }
             result.Scoring = scoring;
             result.ResearchSkippedReason = scoring.ResearchSkippedReason;
+            if (scoring.NoNewEvidence)
+            {
+                result.Status = EstimationRunStatus.Skipped;
+                result.Message = "No new evidence was found for the missing achievements, so the existing values were kept." +
+                                 (string.IsNullOrWhiteSpace(scoring.ResearchSkippedReason) ? string.Empty : " Search stopped: " + scoring.ResearchSkippedReason);
+                return result;
+            }
+
             if (!scoring.Succeeded)
             {
                 result.Status = EstimationRunStatus.Failed;

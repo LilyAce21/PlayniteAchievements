@@ -34,6 +34,9 @@ namespace PlayniteAchievements.Services.Estimation
         public int SourceCount { get; set; }
 
         /// <summary>Plugin web-search runs only: how many achievements the game has, and how many have written evidence.</summary>
+        /// <summary>True when a retry found no new evidence and scoring was skipped on purpose (nothing was changed).</summary>
+        public bool NoNewEvidence { get; set; }
+
         public int EvidenceTotal { get; set; }
         public int EvidenceFound { get; set; }
 
@@ -81,7 +84,8 @@ namespace PlayniteAchievements.Services.Estimation
             int researchBatchSize = DefaultResearchBatchSize,
             IDictionary<string, string> researchCache = null,
             IEvidenceSource evidenceSource = null,
-            ISet<string> evidenceMisses = null)
+            ISet<string> evidenceMisses = null,
+            bool stopWithoutNewEvidence = false)
         {
             var outcome = new ScoringOutcome();
             if (client == null) throw new ArgumentNullException(nameof(client));
@@ -138,6 +142,15 @@ namespace PlayniteAchievements.Services.Estimation
                             outcome.EvidenceMissingNames.Add(string.IsNullOrWhiteSpace(a.DisplayName) ? a.ApiName : a.DisplayName);
                         }
                     }
+                }
+
+                if (stopWithoutNewEvidence && evidence.FromGuides + evidence.FromTargetedSearches == 0)
+                {
+                    // A retry that found nothing new has nothing to improve: no Gemini request, nothing rewritten.
+                    outcome.Succeeded = true;
+                    outcome.NoNewEvidence = true;
+                    outcome.ResearchSkippedReason = evidence.Unavailable ? evidence.Reason : null;
+                    return outcome;
                 }
 
                 if (evidence.Unavailable)

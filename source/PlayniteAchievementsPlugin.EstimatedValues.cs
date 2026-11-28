@@ -125,7 +125,7 @@ namespace PlayniteAchievements
             var scope = gameIds == null ? "every game" : gameIds.Count == 1 ? "this game" : gameIds.Count + " games";
             var prompt = retryMissedResearch
                 ? "Search again for the achievements of " + scope + " that research found nothing for, then regenerate their estimated trophy grades and Gamerscore? " +
-                  "Research already found is kept and reused. Each new search costs a search credit (" + (_searchUsage?.UsedThisMonth ?? 0) + " of " +
+                  "Research already found is kept and reused, and a game is only regenerated if new evidence turns up; otherwise its values stay as they are. Each new search costs a search credit (" + (_searchUsage?.UsedThisMonth ?? 0) + " of " +
                   persisted.EstimatedValuesSearchCreditsPerMonth + " used this month, up to " + persisted.EstimatedValuesSearchesPerGame + " searches per game). " +
                   "Native, metadata and custom values are never changed."
                 : regenerate
@@ -171,6 +171,7 @@ namespace PlayniteAchievements
                     {
                         var runOptions = EstimatedValuesConfig.ToRunOptions(EstimationPersisted);
                         runOptions.EvidenceSource = evidenceSource;
+                        runOptions.OnlyRegenerateWithNewEvidence = retryMissedResearch;
                         return runOptions;
                     });
 

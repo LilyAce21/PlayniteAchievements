@@ -359,3 +359,5 @@ log line or the exported settings.
 - Targeted searches now carry the game, the exact achievement name and the start of its description; retries vary the wording each round (name + description, loose wording, description without the name). The dialog shows evidence counts only, no achievement names (the log still lists them).
 - Guide pages are accepted when they name the game by its full title, the part before a subtitle, or the title without edition words
   ("Ori and the Blind Forest" for "Ori and the Blind Forest: Definitive Edition").
+- "Retry missed research and regenerate" only regenerates a game when the retry found evidence it did not have before. If nothing new
+  turns up (or search is unavailable), no Gemini request is made and the existing values are left exactly as they are; the game is reported as skipped.

@@ -343,5 +343,101 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             var domains = EvidenceSourceReader.Domains("[gamefaqs.com] first … [steamcommunity.com] second … [gamefaqs.com] again [not a domain]").ToList();
             CollectionAssert.AreEqual(new[] { "gamefaqs.com", "steamcommunity.com" }, domains);
         }
+
+        // ------------------------------------------------------------------ retry only regenerates on new evidence
+
+        private sealed class CountingScorer : IEstimationLlmClient
+        {
+            public int Calls;
+            public Task<LlmCallResult> GenerateAsync(string json, CancellationToken t)
+            {
+                Calls++;
+                var ids = ((Newtonsoft.Json.Linq.JArray)Newtonsoft.Json.Linq.JObject.Parse(json)["achievements"]).Select(a => (string)a["id"]).ToList();
+                return Task.FromResult(LlmCallResult.Ok(new Newtonsoft.Json.Linq.JObject
+                {
+                    ["game"] = new Newtonsoft.Json.Linq.JObject { ["overallConfidence"] = 0.9, ["uniformSet"] = false },
+                    ["achievements"] = new Newtonsoft.Json.Linq.JArray(ids.Select(id => new Newtonsoft.Json.Linq.JObject
+                        { ["id"] = id, ["difficulty"] = 3, ["type"] = "boss", ["phase"] = "mid", ["capstone"] = false, ["confidence"] = 0.9 }))
+                }.ToString()));
+            }
+        }
+
+        private sealed class FixedEvidence : IEvidenceSource
+        {
+            public int NewFromTargeted;
+            public bool Unavailable;
+            public Task<EvidenceResult> GatherAsync(EstimationGameContext c, IDictionary<string, string> n, ISet<string> m, CancellationToken t)
+            {
+                var r = new EvidenceResult { FromTargetedSearches = NewFromTargeted, Unavailable = Unavailable, Reason = Unavailable ? "no credits" : null };
+                r.NotesByApiName["A0"] = "[a.com] earlier note"; // found in an earlier run, so not new
+                if (NewFromTargeted > 0) r.NotesByApiName["A1"] = "[b.com] fresh note";
+                return Task.FromResult(r);
+            }
+        }
+
+        private sealed class OneGameHost : IEstimationHost
+        {
+            public EstimationSourceGame Game; public int Writes;
+            public IReadOnlyList<Guid> GetGameIds() => new[] { Game.PlayniteGameId };
+            public EstimationSourceGame LoadSource(Guid id) => Game;
+            public int WriteRows(Guid id, string model, IReadOnlyList<PlayniteAchievements.Services.Database.EstimatedValueRow> rows) { Writes++; return rows.Count; }
+            public long ClearAll() => 0;
+        }
+
+        private static EstimationSourceGame TwoAchievementGame() => new EstimationSourceGame
+        {
+            PlayniteGameId = Guid.NewGuid(), Title = "Star Quest",
+            Achievements = new[] { "Moon Walker", "Void Slayer" }.Select((n, i) => new EstimationSourceAchievement { ApiName = "A" + i, DisplayName = n, Description = "Do " + n }).ToList()
+        };
+
+        [TestMethod]
+        public void Retry_WithNoNewEvidenceMakesNoGeminiRequestAndChangesNothing()
+        {
+            ResearchNotesCache.Configure(null);
+            var game = TwoAchievementGame(); var host = new OneGameHost { Game = game }; var scorer = new CountingScorer();
+            var coordinator = new EstimationCoordinator(host, scorer,
+                () => new EstimationRunOptions { Model = "m", UseCalibration = false, EvidenceSource = new FixedEvidence(), OnlyRegenerateWithNewEvidence = true });
+
+            var summary = coordinator.RunGameAsync(game.PlayniteGameId, true, CancellationToken.None).Result;
+
+            Assert.AreEqual(EstimationRunStatus.Skipped, summary.Status);
+            Assert.AreEqual(0, scorer.Calls, "no Gemini request");
+            Assert.AreEqual(0, host.Writes, "existing values are left exactly as they are");
+            Assert.IsTrue(summary.Message.Contains("No new evidence"), summary.Message);
+            ResearchNotesCache.Configure(null);
+        }
+
+        [TestMethod]
+        public void Retry_WhenSearchIsUnavailableAlsoChangesNothing()
+        {
+            ResearchNotesCache.Configure(null);
+            var game = TwoAchievementGame(); var host = new OneGameHost { Game = game }; var scorer = new CountingScorer();
+            var coordinator = new EstimationCoordinator(host, scorer,
+                () => new EstimationRunOptions { Model = "m", UseCalibration = false, EvidenceSource = new FixedEvidence { Unavailable = true }, OnlyRegenerateWithNewEvidence = true });
+
+            var summary = coordinator.RunGameAsync(game.PlayniteGameId, true, CancellationToken.None).Result;
+
+            Assert.AreEqual(EstimationRunStatus.Skipped, summary.Status);
+            Assert.AreEqual(0, scorer.Calls);
+            Assert.AreEqual(0, host.Writes);
+            ResearchNotesCache.Configure(null);
+        }
+
+        [TestMethod]
+        public void Retry_WithNewEvidenceRegeneratesAsUsual()
+        {
+            ResearchNotesCache.Configure(null);
+            var game = TwoAchievementGame(); var host = new OneGameHost { Game = game }; var scorer = new CountingScorer();
+            var coordinator = new EstimationCoordinator(host, scorer,
+                () => new EstimationRunOptions { Model = "m", UseCalibration = false, EvidenceSource = new FixedEvidence { NewFromTargeted = 1 }, OnlyRegenerateWithNewEvidence = true });
+
+            var summary = coordinator.RunGameAsync(game.PlayniteGameId, true, CancellationToken.None).Result;
+
+            Assert.AreEqual(EstimationRunStatus.Generated, summary.Status);
+            Assert.IsTrue(scorer.Calls >= 1);
+            Assert.AreEqual(1, host.Writes);
+            Assert.AreEqual(2, summary.EvidenceFound);
+            ResearchNotesCache.Configure(null);
+        }
     }
 }
