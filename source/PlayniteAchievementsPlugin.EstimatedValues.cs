@@ -208,6 +208,8 @@ namespace PlayniteAchievements
                         _logger?.Info("[EstimatedValues] " + (string.IsNullOrWhiteSpace(game.Title) ? game.PlayniteGameId.ToString() : game.Title) +
                                       ": " + game.Status + ", " + game.ValuesStored + " value(s) stored" +
                                       (string.IsNullOrWhiteSpace(game.Message) ? string.Empty : " (" + game.Message + ")"));
+                        var evidenceLine = game.DescribeEvidence(12, 10);
+                        if (evidenceLine != null) _logger?.Info("[EstimatedValues] " + (string.IsNullOrWhiteSpace(game.Title) ? game.PlayniteGameId.ToString() : game.Title) + ": " + evidenceLine);
                         progress.CurrentProgressValue = done;
                         progress.Text = "Generating estimated values (" + done + " of " + ids.Count + ")" +
                                         (string.IsNullOrWhiteSpace(game.Title) ? string.Empty : ": " + game.Title);
@@ -276,6 +278,21 @@ namespace PlayniteAchievements
             {
                 text.Append(summary.GeneratedWithFallback).Append(summary.GeneratedWithFallback == 1 ? " game was" : " games were")
                     .Append(" estimated from list structure because Gemini's answer could not be used. ");
+            }
+
+            var withEvidence = summary.Results.Where(r => r.EvidenceTotal > 0).ToList();
+            if (withEvidence.Count > 0)
+            {
+                text.AppendLine().AppendLine();
+                foreach (var r in withEvidence.Take(5))
+                {
+                    text.Append(string.IsNullOrWhiteSpace(r.Title) ? "Game" : r.Title).Append(": ").AppendLine(r.DescribeEvidence(6, 5));
+                }
+
+                if (withEvidence.Count > 5)
+                {
+                    text.Append("... and ").Append(withEvidence.Count - 5).AppendLine(" more games (see the log for each).");
+                }
             }
 
             if (summary.StoppedEarly)

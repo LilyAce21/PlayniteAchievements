@@ -33,6 +33,16 @@ namespace PlayniteAchievements.Services.Estimation
 
         public int SourceCount { get; set; }
 
+        /// <summary>Plugin web-search runs only: how many achievements the game has, and how many have written evidence.</summary>
+        public int EvidenceTotal { get; set; }
+        public int EvidenceFound { get; set; }
+
+        /// <summary>Names of the achievements that still have no evidence.</summary>
+        public List<string> EvidenceMissingNames { get; } = new List<string>();
+
+        /// <summary>Websites the evidence came from and how many achievements each supplied evidence for.</summary>
+        public Dictionary<string, int> EvidenceSources { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Search credits spent on this game's research (plugin-driven web search only).</summary>
         public int SearchCredits { get; set; }
 
@@ -106,6 +116,28 @@ namespace PlayniteAchievements.Services.Estimation
                 foreach (var pair in evidence.NotesByApiName)
                 {
                     if (ids.TryGetValue(pair.Key, out var evidenceId)) notesById[evidenceId] = pair.Value;
+                }
+
+                if (!evidence.Unavailable)
+                {
+                    foreach (var a in context.Achievements ?? new List<PublicAchievement>())
+                    {
+                        if (a == null || string.IsNullOrWhiteSpace(a.ApiName)) continue;
+                        outcome.EvidenceTotal++;
+                        if (evidence.NotesByApiName.TryGetValue(a.ApiName, out var foundNote))
+                        {
+                            outcome.EvidenceFound++;
+                            foreach (var domain in EvidenceSourceReader.Domains(foundNote))
+                            {
+                                outcome.EvidenceSources.TryGetValue(domain, out var count);
+                                outcome.EvidenceSources[domain] = count + 1;
+                            }
+                        }
+                        else
+                        {
+                            outcome.EvidenceMissingNames.Add(string.IsNullOrWhiteSpace(a.DisplayName) ? a.ApiName : a.DisplayName);
+                        }
+                    }
                 }
 
                 if (evidence.Unavailable)
@@ -300,6 +332,29 @@ namespace PlayniteAchievements.Services.Estimation
             }
 
             return combined;
+        }
+    }
+}
+
+namespace PlayniteAchievements.Services.Estimation
+{
+    /// <summary>Reads which websites an evidence note came from. Notes tag each passage as "[domain] text".</summary>
+    public static class EvidenceSourceReader
+    {
+        private static readonly System.Text.RegularExpressions.Regex Tag =
+            new System.Text.RegularExpressions.Regex(@"\[([a-z0-9][a-z0-9.\-]*\.[a-z]{2,})\]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        public static IEnumerable<string> Domains(string note)
+        {
+            if (string.IsNullOrEmpty(note)) return new string[0];
+            var found = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in Tag.Matches(note))
+            {
+                var domain = m.Groups[1].Value.ToLowerInvariant();
+                if (!found.Contains(domain)) found.Add(domain);
+            }
+
+            return found;
         }
     }
 }

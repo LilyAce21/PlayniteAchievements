@@ -179,13 +179,15 @@ namespace PlayniteAchievements.Services.Estimation
 
             // ---- 3. a limited number of targeted searches for the rest, most important first ----------------------------
             var targeted = 0;
+            notes.TryGetValue(ResearchNotesCache.RetryRoundKey, out var retryRoundText);
+            var retryRound = int.TryParse(retryRoundText, out var parsedRound) ? parsedRound : 0;
             foreach (var a in unmatched.OrderByDescending(Priority).ThenBy(a => a.ApiName, StringComparer.OrdinalIgnoreCase))
             {
                 if (targeted >= Math.Max(0, _options.MaxAchievementQueries)) break;
                 if (budgetLeft <= 0) { result.Notes.Add("The monthly search budget ran out before every achievement was searched."); break; }
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var response = await SearchAsync(AchievementQuery(context, a), includeRaw: false, 3, cancellationToken).ConfigureAwait(false);
+                var response = await SearchAsync(AchievementQuery(context, a, retryRound), includeRaw: false, 3, cancellationToken).ConfigureAwait(false);
                 targeted++;
                 result.Searches++;
                 if (!response.Success)
@@ -286,8 +288,21 @@ namespace PlayniteAchievements.Services.Estimation
             yield return "\"" + title + "\"" + year + " video game achievement list tips missable";
         }
 
-        internal static string AchievementQuery(EstimationGameContext context, PublicAchievement a) =>
-            "\"" + (context.Title ?? string.Empty).Trim() + "\" \"" + (a.DisplayName ?? string.Empty).Trim() + "\" achievement how to unlock";
+        internal static string AchievementQuery(EstimationGameContext context, PublicAchievement a, int round = 0)
+        {
+            var title = (context.Title ?? string.Empty).Trim();
+            var name = (a.DisplayName ?? string.Empty).Trim();
+            switch (round % 3)
+            {
+                case 1: // looser wording, no quotes around the name
+                    return title + " " + name + " achievement guide";
+                case 2: // the description's own words often match how guides phrase it
+                    var words = (a.Description ?? string.Empty).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(8);
+                    return "\"" + title + "\" " + name + " " + string.Join(" ", words);
+                default:
+                    return "\"" + title + "\" \"" + name + "\" achievement how to unlock";
+            }
+        }
 
         /// <summary>Likely-important achievements first: hidden ones and ones whose wording suggests an ending, a boss or a hard challenge.</summary>
         internal static int Priority(PublicAchievement a)
@@ -306,11 +321,11 @@ namespace PlayniteAchievements.Services.Estimation
             if (string.IsNullOrWhiteSpace(text)) return null;
             if (text.Length > _options.PageCharacterLimit) text = text.Substring(0, _options.PageCharacterLimit);
 
-            var title = PassageMatcher.Normalize(gameTitle);
-            if (title.Length > 0)
+            var titles = TitleVariants(gameTitle);
+            if (titles.Count > 0)
             {
                 var head = PassageMatcher.Normalize(hit.Url + " " + hit.Title + " " + text.Substring(0, Math.Min(text.Length, 3000)));
-                if (!head.Contains(title)) return null;
+                if (!titles.Any(t => head.Contains(t))) return null;
             }
 
             return new CorpusPage
@@ -321,6 +336,40 @@ namespace PlayniteAchievements.Services.Estimation
                 Domain = PassageMatcher.Domain(hit.Url),
                 Weight = PassageMatcher.PageWeight(hit.Url, hit.Title)
             };
+        }
+
+        private static readonly string[] EditionWords =
+        {
+            "definitive edition", "complete edition", "game of the year edition", "goty edition", "deluxe edition", "enhanced edition",
+            "remastered", "remaster", "special edition", "ultimate edition", "anniversary edition", "directors cut", "gold edition"
+        };
+
+        /// <summary>
+        /// The ways a guide might name the game: the full title, the part before a subtitle ("Ori and the Blind Forest" for
+        /// "Ori and the Blind Forest: Definitive Edition"), and the title without edition words. Very short variants are
+        /// ignored so a generic word cannot match the wrong game. Normalized for comparison.
+        /// </summary>
+        internal static List<string> TitleVariants(string gameTitle)
+        {
+            var variants = new List<string>();
+            void Add(string value)
+            {
+                var normalized = PassageMatcher.Normalize(value);
+                if (normalized.Length >= 4 && !variants.Contains(normalized)) variants.Add(normalized);
+            }
+
+            var title = (gameTitle ?? string.Empty).Trim();
+            if (title.Length == 0) return variants;
+
+            Add(title);
+            var cut = title.IndexOfAny(new[] { ':', '\u2013', '\u2014' });
+            if (cut < 0) cut = title.IndexOf(" - ", StringComparison.Ordinal);
+            if (cut > 0) Add(title.Substring(0, cut));
+
+            var stripped = PassageMatcher.Normalize(title);
+            foreach (var word in EditionWords) stripped = stripped.Replace(word, " ");
+            Add(string.Join(" ", stripped.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)));
+            return variants;
         }
 
         private static string FormatNote(IList<Passage> passages)

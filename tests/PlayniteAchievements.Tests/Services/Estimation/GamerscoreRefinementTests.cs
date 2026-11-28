@@ -276,5 +276,66 @@ namespace PlayniteAchievements.Services.Estimation.Tests
             Assert.IsTrue(line.Contains("Searched, nothing found (1"), line);
             Assert.AreEqual(1, misses.Count, "one achievement was searched and remembered as a miss");
         }
+
+        // ------------------------------------------------------------------ evidence reporting and retry variety
+
+        [TestMethod]
+        public void TitleVariants_AcceptTheBaseTitleOfAnEditionOrSubtitle()
+        {
+            var variants = EvidenceGatherer.TitleVariants("Ori and the Blind Forest: Definitive Edition");
+            Assert.IsTrue(variants.Contains("ori and the blind forest"));
+            Assert.IsTrue(variants.Contains("ori and the blind forest definitive edition"));
+            Assert.IsFalse(EvidenceGatherer.TitleVariants("Ori and the Blind Forest").Contains("ori"));
+            Assert.AreEqual(0, EvidenceGatherer.TitleVariants("  ").Count);
+        }
+
+        [TestMethod]
+        public void RetryRounds_UseDifferentlyWordedQueries()
+        {
+            var context = new EstimationGameContext { Title = "Nightmare Kart" };
+            var a = new PublicAchievement { ApiName = "A", DisplayName = "Drifting off", Description = "Drift for a very long time without stopping once" };
+
+            var queries = Enumerable.Range(0, 3).Select(r => EvidenceGatherer.AchievementQuery(context, a, r)).ToList();
+
+            Assert.AreEqual(3, queries.Distinct().Count());
+            Assert.AreEqual(queries[0], EvidenceGatherer.AchievementQuery(context, a, 0));
+            Assert.AreEqual(queries[0], EvidenceGatherer.AchievementQuery(context, a, 3), "the wording cycles");
+        }
+
+        [TestMethod]
+        public void ClearMisses_StartsANewRetryRound()
+        {
+            ResearchNotesCache.Configure(null);
+            var id = Guid.NewGuid();
+            ResearchNotesCache.MissesFor(id).Add("b");
+            ResearchNotesCache.ClearMisses(new[] { id });
+            Assert.AreEqual("1", ResearchNotesCache.For(id)[ResearchNotesCache.RetryRoundKey]);
+            ResearchNotesCache.MissesFor(id).Add("c");
+            ResearchNotesCache.ClearMisses(new[] { id });
+            Assert.AreEqual("2", ResearchNotesCache.For(id)[ResearchNotesCache.RetryRoundKey]);
+            ResearchNotesCache.Configure(null);
+        }
+
+        [TestMethod]
+        public void EvidenceSummary_SaysHowManyAreCoveredWhatIsMissingAndTheSources()
+        {
+            var summary = new EstimationGameSummary { EvidenceTotal = 25, EvidenceFound = 17 };
+            summary.EvidenceMissingNames.AddRange(new[] { "Drifting off", "Bullseye!" });
+            summary.EvidenceSources["gamefaqs.com"] = 9;
+            summary.EvidenceSources["steamcommunity.com"] = 12;
+
+            var text = summary.DescribeEvidence();
+
+            Assert.IsTrue(text.StartsWith("Evidence for 17 of 25 achievements; missing 2: Drifting off; Bullseye!."), text);
+            Assert.IsTrue(text.Contains("Sources: steamcommunity.com (12), gamefaqs.com (9)."), text);
+            Assert.IsNull(new EstimationGameSummary().DescribeEvidence());
+        }
+
+        [TestMethod]
+        public void EvidenceSourceReader_ReadsDomainTagsFromNotes()
+        {
+            var domains = EvidenceSourceReader.Domains("[gamefaqs.com] first … [steamcommunity.com] second … [gamefaqs.com] again [not a domain]").ToList();
+            CollectionAssert.AreEqual(new[] { "gamefaqs.com", "steamcommunity.com" }, domains);
+        }
     }
 }

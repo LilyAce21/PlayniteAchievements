@@ -354,3 +354,8 @@ log line or the exported settings.
   the special value must agree with it (a bronze and 10 G or less); otherwise it is not treated as special and is valued normally,
   anchored to that grade. A generated 0 G now shows a visible 0; a missing value stays empty. A native 0 still renders blank, because
   providers also store 0 for "no points" and the two cannot be told apart.
+- Research reporting: the end-of-run dialog now lists, per game (first five, the log has every game), how many achievements have written
+  evidence, which are missing, and which websites the evidence came from with how many achievements each supplied. The same line goes to the log.
+- Retry now varies its search wording each round (exact quotes, loose wording, description words), so a retry is not the same search again.
+- Guide pages are accepted when they name the game by its full title, the part before a subtitle, or the title without edition words
+  ("Ori and the Blind Forest" for "Ori and the Blind Forest: Definitive Edition").

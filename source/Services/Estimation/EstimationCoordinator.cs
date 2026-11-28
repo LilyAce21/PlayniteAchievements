@@ -34,6 +34,38 @@ namespace PlayniteAchievements.Services.Estimation
 
         /// <summary>Why the game was scored without web research, or null when research was used (or not wanted).</summary>
         public string ResearchSkippedReason { get; set; }
+
+        /// <summary>Plugin web-search runs only: achievements with and without written evidence, and where it came from.</summary>
+        public int EvidenceTotal { get; set; }
+        public int EvidenceFound { get; set; }
+        public List<string> EvidenceMissingNames { get; } = new List<string>();
+        public Dictionary<string, int> EvidenceSources { get; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>One readable line (or two) saying how much evidence was found, what is missing and the sources, or null.</summary>
+        public string DescribeEvidence(int maxNames = 8, int maxSources = 6)
+        {
+            if (EvidenceTotal <= 0) return null;
+
+            var text = new System.Text.StringBuilder();
+            text.Append("Evidence for ").Append(EvidenceFound).Append(" of ").Append(EvidenceTotal).Append(" achievements");
+            if (EvidenceMissingNames.Count > 0)
+            {
+                text.Append("; missing ").Append(EvidenceMissingNames.Count).Append(": ")
+                    .Append(string.Join("; ", EvidenceMissingNames.Take(maxNames)))
+                    .Append(EvidenceMissingNames.Count > maxNames ? "; +" + (EvidenceMissingNames.Count - maxNames) + " more" : string.Empty);
+            }
+
+            text.Append(".");
+            if (EvidenceSources.Count > 0)
+            {
+                text.Append(" Sources: ").Append(string.Join(", ", EvidenceSources.OrderByDescending(p => p.Value).ThenBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
+                    .Take(maxSources).Select(p => p.Key + " (" + p.Value + ")")));
+                if (EvidenceSources.Count > maxSources) text.Append(", +").Append(EvidenceSources.Count - maxSources).Append(" more");
+                text.Append(".");
+            }
+
+            return text.ToString();
+        }
     }
 
     public sealed class EstimationLibrarySummary
@@ -109,6 +141,13 @@ namespace PlayniteAchievements.Services.Estimation
             summary.Message = run.Message;
             summary.FailureKind = run.FailureKind;
             summary.ResearchSkippedReason = run.ResearchSkippedReason;
+            if (run.Scoring != null && run.Scoring.EvidenceTotal > 0)
+            {
+                summary.EvidenceTotal = run.Scoring.EvidenceTotal;
+                summary.EvidenceFound = run.Scoring.EvidenceFound;
+                summary.EvidenceMissingNames.AddRange(run.Scoring.EvidenceMissingNames);
+                foreach (var pair in run.Scoring.EvidenceSources) summary.EvidenceSources[pair.Key] = pair.Value;
+            }
 
             if ((run.Status == EstimationRunStatus.Generated || run.Status == EstimationRunStatus.GeneratedWithFallback) && run.Rows.Count > 0)
             {

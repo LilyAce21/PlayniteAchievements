@@ -21,6 +21,9 @@ namespace PlayniteAchievements.Services.Estimation
         /// <summary>Key (inside the notes) that records the game-level searches were already done.</summary>
         public const string GameSearchedKey = "__gameSearched";
 
+        /// <summary>How many times missed achievements were retried; each round searches with differently worded queries.</summary>
+        public const string RetryRoundKey = "__retry_round";
+
         private sealed class Entry
         {
             public Dictionary<string, string> Notes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -146,6 +149,9 @@ namespace PlayniteAchievements.Services.Estimation
                     var misses = EntryFor(id).Misses;
                     if (misses.Count == 0) continue;
                     misses.Clear();
+                    var notes = For(id);
+                    notes.TryGetValue(RetryRoundKey, out var roundText);
+                    notes[RetryRoundKey] = ((int.TryParse(roundText, out var round) ? round : 0) + 1).ToString();
                 }
 
                 Save(id);
